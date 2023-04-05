@@ -209,7 +209,6 @@ class NeonWeb3Client:
             contract_name=contract_name,
             import_remapping=import_remapping,
         )
-        print(contract_interface)
         contract_deploy_tx = self.deploy_contract(
             account,
             abi=contract_interface["abi"],
