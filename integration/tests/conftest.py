@@ -200,7 +200,7 @@ def erc20_spl(
         ),
         owner=erc20.solana_acc.public_key,
         amount=1000000000000000,
-        opts=TxOpts(preflight_commitment=Confirmed, skip_confirmation=False)
+        opts=TxOpts(preflight_commitment=Confirmed, skip_confirmation=False),
     )
 
     erc20.claim(

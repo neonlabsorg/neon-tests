@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.19;
 
 import "./AggregatorV3Interface.sol";
 import "./libraries/Utils.sol";
@@ -19,10 +19,7 @@ contract ChainlinkOracle is AggregatorV3Interface {
         description = header.description;
         decimals = header.decimals;
         // Save historical ringbuffer length for future use.
-        historicalLength = Utils.getHistoricalLength(
-            feedAddress,
-            header.liveLength
-        );
+        historicalLength = Utils.getHistoricalLength(feedAddress, header.liveLength);
     }
 
     function getRoundData(uint80 _roundId)
@@ -36,11 +33,7 @@ contract ChainlinkOracle is AggregatorV3Interface {
             uint80 answeredInRound
         )
     {
-        Utils.Round memory round = Utils.getRoundbyId(
-            feedAddress,
-            uint32(_roundId),
-            historicalLength
-        );
+        Utils.Round memory round = Utils.getRoundbyId(feedAddress, uint32(_roundId), historicalLength);
 
         return (
             round.roundId,

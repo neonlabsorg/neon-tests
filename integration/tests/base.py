@@ -23,5 +23,5 @@ class BaseTests:
         self.sol_client = sol_client
 
     @pytest.fixture(autouse=True)
-    def prepare_account(self, prepare_account):
+    def save_prepare_account(self, prepare_account):
         self.acc = prepare_account
