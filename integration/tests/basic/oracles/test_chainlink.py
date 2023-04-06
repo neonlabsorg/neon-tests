@@ -3,6 +3,8 @@ import allure
 import pytest
 import requests
 
+from solcx import link_code
+
 from integration.tests.base import BaseTests
 
 
@@ -10,16 +12,26 @@ SOL_USD_ID = "0x78f57ae1195e8c497a8be054ad52adf4c8976f8436732309e22af7067724ad96
 CHAINLINK_URI = "https://min-api.cryptocompare.com/"
 
 
-@pytest.fixture()
+@pytest.fixture(scope="class")
 def chainlink_contract(web3_client, prepare_account):
-    contract, _ = web3_client.deploy_and_get_contract(
+    utils_contract, _ = web3_client.deploy_and_get_contract(
+        contract="./chainlink/ChainlinkOracle",
+        version="0.8.19",
+        account=prepare_account,
+        constructor_args=[SOL_USD_ID],
+        contract_name="Utils",
+    )
+    chainlink_contract, _ = web3_client.deploy_and_get_contract(
         contract="./chainlink/ChainlinkOracle",
         version="0.8.19",
         account=prepare_account,
         constructor_args=[SOL_USD_ID],
         contract_name="ChainlinkOracle",
+        link_references={
+            "contracts/chainlink/libraries/Utils.sol:Utils": utils_contract.address
+        },
     )
-    return contract
+    return chainlink_contract
 
 
 @allure.feature("Oracles")
@@ -47,7 +59,7 @@ class TestChainlink(BaseTests):
     def test_get_chainlink_info_from_contract(self, chainlink_contract):
         """Call latest price for SOL/USD from another contract"""
         contract, _ = self.web3_client.deploy_and_get_contract(
-            contract="./chainlink/GetLatestData", version="0.8.15", account=self.acc
+            contract="./chainlink/GetLatestData", version="0.8.19", account=self.acc
         )
 
         address = chainlink_contract.address

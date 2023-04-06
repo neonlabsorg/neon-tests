@@ -6,6 +6,7 @@ import web3
 import web3.types
 import requests
 import eth_account.signers.local
+from solcx import link_code
 
 from utils import helpers
 
@@ -202,6 +203,7 @@ class NeonWeb3Client:
         constructor_args: tp.Optional[tp.Any] = None,
         import_remapping: tp.Optional[dict] = None,
         gas: tp.Optional[int] = 0,
+        link_references: tp.Optional[dict] = None,
     ) -> tp.Tuple[tp.Any, web3.types.TxReceipt]:
         contract_interface = helpers.get_contract_interface(
             contract,
@@ -209,10 +211,13 @@ class NeonWeb3Client:
             contract_name=contract_name,
             import_remapping=import_remapping,
         )
+        bin_code = contract_interface["bin"]
+        if link_references is not None:
+            bin_code = link_code(bin_code, link_references)
         contract_deploy_tx = self.deploy_contract(
             account,
             abi=contract_interface["abi"],
-            bytecode=contract_interface["bin"],
+            bytecode=bin_code,
             constructor_args=constructor_args,
             gas=gas,
         )

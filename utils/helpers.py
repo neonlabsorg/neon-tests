@@ -8,7 +8,11 @@ import typing as tp
 
 import solcx
 from pythclient.pythaccounts import PythPriceAccount
-from pythclient.solana import SolanaClient, SolanaPublicKey, SOLANA_MAINNET_HTTP_ENDPOINT
+from pythclient.solana import (
+    SolanaClient,
+    SolanaPublicKey,
+    SOLANA_MAINNET_HTTP_ENDPOINT,
+)
 
 
 def get_sol_price() -> float:
@@ -32,8 +36,12 @@ def get_contract_abi(name, compiled):
             return compiled[key]
 
 
-def get_contract_interface(contract: str, version: str, contract_name: tp.Optional[str] = None,
-                           import_remapping: tp.Optional[dict] = None):
+def get_contract_interface(
+    contract: str,
+    version: str,
+    contract_name: tp.Optional[str] = None,
+    import_remapping: tp.Optional[dict] = None,
+):
     if not contract.endswith(".sol"):
         contract += ".sol"
     if contract_name is None:
@@ -49,17 +57,21 @@ def get_contract_interface(contract: str, version: str, contract_name: tp.Option
     else:
         contract_path = (pathlib.Path.cwd() / "contracts" / f"{contract}").absolute()
         if not contract_path.exists():
-            contract_path = (pathlib.Path.cwd() / "contracts" / "external" / f"{contract}").absolute()
+            contract_path = (
+                pathlib.Path.cwd() / "contracts" / "external" / f"{contract}"
+            ).absolute()
 
     assert contract_path.exists(), f"Can't found contract: {contract_path}"
 
-    compiled = solcx.compile_files([contract_path],
-                                   output_values=["abi", "bin"],
-                                   solc_version=version,
-                                   import_remappings=import_remapping,
-                                   allow_paths=["."],
-                                   optimize=True
-                                   )  # this allow_paths isn't very good...
+    compiled = solcx.compile_files(
+        [contract_path],
+        output_values=["abi", "bin"],
+        solc_version=version,
+        import_remappings=import_remapping,
+        allow_paths=["."],
+        optimize=True,
+    )  # this allow_paths isn't very good...
+    print(compiled.keys())
     contract_interface = get_contract_abi(contract_name, compiled)
 
     return contract_interface
@@ -81,7 +93,7 @@ def generate_text(min_len: int = 2, max_len: int = 200, simple: bool = True) -> 
         chars = string.ascii_letters + string.digits
     else:
         chars = string.printable[:-5]
-    return ''.join(random.choice(chars) for _i in range(length)).strip()
+    return "".join(random.choice(chars) for _i in range(length)).strip()
 
 
 def wait_condition(func_cond, timeout_sec=15, delay=0.5):
