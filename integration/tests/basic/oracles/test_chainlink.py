@@ -75,10 +75,10 @@ class TestChainlink(BaseTests):
         latest_price = latest_price_feeds("SOL", "USD")
         assert math.isclose(abs(latest_price - latest_data[1] * 1e-8), 0.0, rel_tol=1)
 
-    def test_round_data_method(self, chainlink_contract):
-        round_data = chainlink_contract.functions.getRoundData(0).call()
-        assert len(round_data) == 5
-        print(round_data)
+    def test_get_latestRoundData(self, chainlink_contract):
+        latest_round_data = chainlink_contract.functions.latestRoundData().call()
+        assert len(latest_round_data) == 5
+        assert all(isinstance(x, int) and x > 0 for x in latest_round_data)
 
 
 def latest_price_feeds(sym_one, sym_two):
