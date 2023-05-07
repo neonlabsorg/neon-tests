@@ -87,6 +87,7 @@ class Option(Subconstruct):
 
 Utf8String = PascalString(Int32ul, "utf8")
 Address = Bytes(32)
+Base58Address = Utf8String  # TODO: deserialize as base58
 
 Creator = Struct(
     "address" / Address,
@@ -106,7 +107,8 @@ Uses = Struct(
 )
 
 CollectionDetails = Struct(
-   "size" / Int64ul
+    "ver" / Const(b'\x00'),
+    "size" / Int64ul
 )
 
 AssetData = Struct(
@@ -121,11 +123,12 @@ AssetData = Struct(
     "collection" / Option(Collection),
     "uses" / Option(Uses),
     "collection_details" / Option(CollectionDetails),
-    "rule_set" / Option(Address)
+    "rule_set" / Option(Base58Address)
 )
 
 ProgrammableConfig = Struct(
-    "rule_set" / Option(Address)
+    "ver" / Const(b'\x00'),
+    "rule_set" / Option(Base58Address)
 )
 
 Data = Struct(
@@ -172,6 +175,18 @@ CreateMetadataV3Instruction = Struct(
     "args" / CreateMetadataV3Args
 )
 
+CreateArgs = Struct(
+    "ver" / Const(b'\x00'),
+    "asset_data" / AssetData,
+    "decimals" / Option(Byte),
+    "print_supply" / Option(Enum(Byte, PrintSupplyType))
+)
+
+CreateInstruction = Struct(
+    "instruction" / Const(b'\x2a'),
+    "args" / CreateArgs
+)
+
 
 def get_metadata_account(mint_key: Pubkey):
     return Pubkey.find_program_address(
@@ -205,33 +220,56 @@ def create_metadata_instruction_data(name: str, symbol: str, uri='', fee=0):
     assert len(symbol) <= MetadataLimit.MaxSymbolLen
     assert len(uri) <= MetadataLimit.MaxUriLen
 
-    return CreateMetadataV3Instruction.build(dict(
+    return CreateInstruction.build(dict(
         args=dict(
-            data=dict(
+            asset_data=dict(
                 name=name,
                 symbol=symbol,
                 uri=uri,
                 seller_fee_basis_points=fee,
+                primary_sale_happened=False,
+                is_mutable=True,
+                token_standard=TokenStandardType.Fungible,
                 creators=None,
                 collection=None,
                 uses=None,
+                collection_details=None,
+                rule_set=None
             ),
-            is_mutable=True,
-            collection_details=None
+            decimals=None,
+            print_supply=None
         )
     ))
+    # return CreateMetadataV3Instruction.build(dict(
+    #     args=dict(
+    #         data=dict(
+    #             name=name,
+    #             symbol=symbol,
+    #             uri=uri,
+    #             seller_fee_basis_points=fee,
+    #             creators=None,
+    #             collection=None,
+    #             uses=None,
+    #         ),
+    #         is_mutable=True,
+    #         collection_details=None
+    #     )
+    # ))
 
 
 def create_metadata_instruction(data, update_authority, mint_key, mint_authority_key, payer):
     metadata_account = get_metadata_account(mint_key)
+    master_edition_account = get_edition(mint_key)
     keys = [
         AccountMeta(pubkey=metadata_account, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=master_edition_account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=mint_key, is_signer=False, is_writable=False),
         AccountMeta(pubkey=mint_authority_key, is_signer=True, is_writable=False),
         AccountMeta(pubkey=payer, is_signer=True, is_writable=False),
         AccountMeta(pubkey=update_authority, is_signer=False, is_writable=False),
         AccountMeta(pubkey=SYSTEM_PROGRAM_ID, is_signer=False, is_writable=False),
         AccountMeta(pubkey=SYSVAR_RENT_PUBKEY, is_signer=False, is_writable=False),
+        AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False)
     ]
     return Instruction(accounts=keys, program_id=METADATA_PROGRAM_ID, data=data)
 
