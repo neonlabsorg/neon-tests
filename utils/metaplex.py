@@ -6,19 +6,21 @@ from construct import (
     Subconstruct, Enum
 )
 
-from solders.pubkey import Pubkey
+from solana.publickey import PublicKey
 from solana.transaction import AccountMeta, Instruction
 
 import enum
 import base64
 import base58
 
+from utils.helpers import wait_condition
 
-METADATA_PROGRAM_ID = Pubkey.from_string('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s')
-SYSTEM_PROGRAM_ID = Pubkey.from_string('11111111111111111111111111111111')
-SYSVAR_RENT_PUBKEY = Pubkey.from_string('SysvarRent111111111111111111111111111111111')
-ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID = Pubkey.from_string('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
-TOKEN_PROGRAM_ID = Pubkey.from_string('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
+
+METADATA_PROGRAM_ID = PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s')
+SYSTEM_PROGRAM_ID = PublicKey('11111111111111111111111111111111')
+SYSVAR_RENT_PUBKEY = PublicKey('SysvarRent111111111111111111111111111111111')
+ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID = PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
+TOKEN_PROGRAM_ID = PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 
 
 class MetadataLimit(enum.IntEnum):
@@ -188,15 +190,15 @@ CreateInstruction = Struct(
 )
 
 
-def get_metadata_account(mint_key: Pubkey):
-    return Pubkey.find_program_address(
+def get_metadata_account(mint_key: PublicKey):
+    return PublicKey.find_program_address(
         [b'metadata', bytes(METADATA_PROGRAM_ID), bytes(mint_key)],
         METADATA_PROGRAM_ID
     )[0]
 
 
-def get_edition(mint_key: Pubkey):
-    return Pubkey.find_program_address(
+def get_edition(mint_key: PublicKey):
+    return PublicKey.find_program_address(
         [b'metadata', bytes(METADATA_PROGRAM_ID), bytes(mint_key), b"edition"],
         METADATA_PROGRAM_ID
     )[0]
@@ -276,19 +278,25 @@ def create_metadata_instruction(data, update_authority, mint_key, mint_authority
 
 def get_metadata(client, mint_key):
     metadata_account = get_metadata_account(mint_key)
-    data = base64.b64decode(client.get_account_info(metadata_account)['result']['value']['data'][0])
+    data = client.get_account_info(metadata_account).value.data
 
     metadata = MetadataAccount.parse(data)
 
     def _strip_utf8(value) -> str:
-        return bytes(value).decode("utf-8").strip("\x00")
+        return value.strip("\x00")
 
-    object.__setattr__(metadata.data, "name", _strip_utf8(metadata.data.name))
-    object.__setattr__(metadata.data, "symbol", _strip_utf8(metadata.data.symbol))
-    object.__setattr__(metadata.data, "uri", _strip_utf8(metadata.data.uri))
+    metadata.data.name = _strip_utf8(metadata.data.name)
+    metadata.data.symbol = _strip_utf8(metadata.data.symbol)
+    metadata.data.uri = _strip_utf8(metadata.data.uri)
 
-    if metadata.data.creators:
-        creators = [base58.b58encode(creator) for creator in metadata.data.creators]
-        object.__setattr__(metadata.data, "creators", creators)
+#    if metadata.data.creators:
+#        creators = [base58.b58encode(creator) for creator in metadata.data.creators]
+#        metadata.data.creators = creators
 
     return metadata
+
+
+def wait_account_info(client, mint_key):
+    metadata_account = get_metadata_account(mint_key)
+    wait_condition(lambda: client.get_account_info(metadata_account).value is not None, timeout_sec=30)
+
