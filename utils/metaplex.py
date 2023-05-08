@@ -7,7 +7,7 @@ from construct import (
 )
 
 from solana.publickey import PublicKey
-from solana.transaction import AccountMeta, Instruction
+from solana.transaction import AccountMeta, TransactionInstruction
 
 import enum
 import base64
@@ -214,7 +214,7 @@ def create_associated_token_account_instruction(associated_token_account, payer,
         AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
         AccountMeta(pubkey=SYSVAR_RENT_PUBKEY, is_signer=False, is_writable=False),
     ]
-    return Instruction(accounts=keys, program_id=ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID, data=b'')
+    return TransactionInstruction(accounts=keys, program_id=ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID, data=b'')
 
 
 def create_metadata_instruction_data(name: str, symbol: str, uri='', fee=0):
@@ -273,7 +273,7 @@ def create_metadata_instruction(data, update_authority, mint_key, mint_authority
         AccountMeta(pubkey=SYSVAR_RENT_PUBKEY, is_signer=False, is_writable=False),
         AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False)
     ]
-    return Instruction(accounts=keys, program_id=METADATA_PROGRAM_ID, data=data)
+    return TransactionInstruction(accounts=keys, program_id=METADATA_PROGRAM_ID, data=data)
 
 
 def get_metadata(client, mint_key):
