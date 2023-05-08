@@ -285,6 +285,8 @@ def get_metadata(client, mint_key):
     def _strip_utf8(value) -> str:
         return value.strip("\x00")
 
+    metadata.mint = str(PublicKey(metadata.mint)).encode('utf-8')
+
     metadata.data.name = _strip_utf8(metadata.data.name)
     metadata.data.symbol = _strip_utf8(metadata.data.symbol)
     metadata.data.uri = _strip_utf8(metadata.data.uri)
