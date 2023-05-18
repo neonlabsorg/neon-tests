@@ -1,0 +1,27 @@
+dataSources:
+- kind: ethereum/contract
+  mapping:
+    abis:
+    - file: ./GravatarRegistry.json
+      name: GravatarRegistry
+    apiVersion: 0.0.6
+    entities:
+    - Gravatar
+    eventHandlers:
+    - event: NewGravatar(uint256,address,string,string)
+      handler: handleNewGravatar
+    - event: UpdatedGravatar(uint256,address,string,string)
+      handler: handleUpdatedGravatar
+    file: ./src/mapping.ts
+    kind: ethereum/events
+    language: wasm/assemblyscript
+  name: GravatarRegistry
+  network: neonlabs
+  source:
+    abi: GravatarRegistry
+    address: '0x2675345B03593aa6Acb71e07aea55cBA88bEc309'
+    startBlock: 216482583
+description: Gravatar for Ethereum
+schema:
+  file: ./schema.graphql
+specVersion: 0.0.4
