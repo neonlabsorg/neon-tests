@@ -28,6 +28,7 @@ class TestExtCodeHashOpcode(BaseMixin):
         contract_hash = event_logs[0]['args']['hash']
         assert contract_hash == keccak(self.web3_client.eth.get_code(eip1052_checker.address, "latest"))
 
+    @pytest.mark.xfail(reason="NDEV-1550")
     def test_extcodehash_for_empty_account(self, eip1052_checker):
         # Check the EXTCODEHASH of the account without code is
         # c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470
@@ -36,12 +37,14 @@ class TestExtCodeHashOpcode(BaseMixin):
         assert contract_hash.hex() == keccak(
             self.web3_client.eth.get_code(self.recipient_account.address, "latest")).hex()
 
+    @pytest.mark.xfail(reason="NDEV-1550")
     def test_extcodehash_with_send_tx_for_empty_account(self, eip1052_checker):
         # Check with send_tx the EXTCODEHASH of the account without code is
         # c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470
         # what is the keccack256 hash of empty data.
         tx = self.create_contract_call_tx_object(self.sender_account)
-        instruction_tx = eip1052_checker.functions.getContractHashWithLog(self.recipient_account.address).build_transaction(tx)
+        instruction_tx = eip1052_checker.functions.getContractHashWithLog(
+            self.recipient_account.address).build_transaction(tx)
         receipt = self.web3_client.send_transaction(self.sender_account, instruction_tx)
         event_logs = eip1052_checker.events.ReceivedHash().process_receipt(receipt)
         contract_hash = event_logs[0]['args']['hash']
@@ -83,7 +86,7 @@ class TestExtCodeHashOpcode(BaseMixin):
         event_logs = eip1052_checker.events.DestroyedContract().process_receipt(receipt)
         destroyed_contract_address = event_logs[0]['args']['addr']
         tx2 = self.create_contract_call_tx_object(self.sender_account)
-        instruction_tx = eip1052_checker.functions\
+        instruction_tx = eip1052_checker.functions \
             .getContractHashWithLog(destroyed_contract_address).build_transaction(tx2)
         receipt = self.web3_client.send_transaction(self.sender_account, instruction_tx)
         event_logs = eip1052_checker.events.ReceivedHash().process_receipt(receipt)
