@@ -3,6 +3,7 @@ import json
 import logging
 import time
 import random
+import decimal
 import typing as tp
 from functools import lru_cache
 
@@ -55,11 +56,43 @@ def save_transactions_list(environment: "locust.env.Environment", **kwargs):
 def init_session(size: int = 1000) -> requests.Session:
     """init request session with extended connection pool size"""
     adapter = requests.adapters.HTTPAdapter(
-        pool_connections=size, pool_maxsize=size, pool_block=True)
+        pool_connections=size, pool_maxsize=size, pool_block=True
+    )
     session = requests.Session()
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session
+
+
+class BankAccountFaucet:
+    def __init__(self, web3_client: "NeonWeb3ClientExt"):
+        self.web3_client = web3_client
+        if "BANK_PRIVATE_KEY" not in os.environ:
+            raise AssertionError("BANK_PRIVATE_KEY env variable is not set")
+        self._bank_account = web3.Account.from_key(os.environ["BANK_PRIVATE_KEY"])
+
+    def request_neon(self, to_address: str, amount: int) -> str:
+        """Request neon from bank account"""
+        time.sleep(random.randint(1, 5))
+        return self.web3_client.send_neon(self._bank_account, to_address, amount)
+
+    def return_neons(self, from_address: web3.Account) -> str:
+        """Return neon to bank account"""
+        balance = self.web3_client.get_balance(from_address.address)
+        LOG.info(
+            f"Balance of {from_address.address} is {balance} {balance - 21000} {type(balance)}"
+        )
+        amount = balance - decimal.Decimal("0.02")
+        LOG.info(f"Return {amount} neon from {from_address.address} to bank account")
+        for _ in range(5):
+            try:
+                time.sleep(random.randint(1, 10))
+                return self.web3_client.send_neon(
+                    from_address, self._bank_account, amount
+                )
+            except Exception as e:
+                LOG.error(f"Can't return NEONs from {from_address.address}: {e}")
+                time.sleep(random.randint(1, 10))
 
 
 class NeonWeb3ClientExt(NeonWeb3Client):
@@ -81,7 +114,7 @@ class NeonWeb3ClientExt(NeonWeb3Client):
 class NeonProxyTasksSet(TaskSet):
     """Implements base initialization, creates data requirements and helpers"""
 
-    faucet: tp.Optional[Faucet] = None
+    faucet: tp.Optional[tp.Union[Faucet, BankAccountFaucet]] = None
     account: tp.Optional["eth_account.signers.local.LocalAccount"] = None
     web3_client: tp.Optional[NeonWeb3ClientExt] = None
 
@@ -89,6 +122,9 @@ class NeonProxyTasksSet(TaskSet):
         """Prepare data requirements"""
         # create new shared account for each simulating user
         self.account = self.web3_client.create_account()
+        LOG.info(
+            f"New account private key: {self.account.key.hex()} address: {self.account.address}"
+        )
         self.check_balance()
         self.user.environment.shared.accounts.append(self.account)
         LOG.info(f"New account {self.account.address} created")
@@ -97,6 +133,9 @@ class NeonProxyTasksSet(TaskSet):
         """Prepare data requirements"""
         # create new account for each simulating user
         self.account = self.web3_client.create_account()
+        LOG.info(
+            f"New account private key: {self.account.key.hex()} address: {self.account.address}"
+        )
         self.check_balance()
         LOG.info(f"New account {self.account.address} created")
 
@@ -104,27 +143,48 @@ class NeonProxyTasksSet(TaskSet):
         """on_start is called when a Locust start before any task is scheduled"""
         # setup class once
         session = init_session(
-            int(self.user.environment.parsed_options.num_users or self.user.environment.runner.target_user_count) * 100
+            int(
+                self.user.environment.parsed_options.num_users
+                or self.user.environment.runner.target_user_count
+            )
+            * 100
         )
         self.credentials = self.user.environment.credentials
         LOG.info(f"Create web3 client to: {self.credentials['proxy_url']}")
         self.web3_client = NeonWeb3ClientExt(
-            self.credentials["proxy_url"], self.credentials["network_id"], session=session
+            self.credentials["proxy_url"],
+            self.credentials["network_id"],
+            session=session,
         )
-        self.faucet = Faucet(
-            self.credentials["faucet_url"], self.web3_client, session=session)
+
+        if (
+            not self.credentials.get("faucet_url")
+            or self.credentials.get("use_bank", False) is True
+        ):
+            LOG.info("Initialize bank account faucet")
+            self.faucet = BankAccountFaucet(self.web3_client)
+        else:
+            self.faucet = Faucet(
+                self.credentials["faucet_url"], self.web3_client, session=session
+            )
+
+    def on_stop(self):
+        if isinstance(self.faucet, BankAccountFaucet):
+            self.faucet.return_neons(self.account)
 
     def task_block_number(self) -> None:
         """Check the number of the most recent block"""
         self.web3_client.get_block_number()
 
-    def check_balance(self, account: tp.Optional["eth_account.signers.local.LocalAccount"] = None) -> None:
+    def check_balance(
+        self, account: tp.Optional["eth_account.signers.local.LocalAccount"] = None
+    ) -> None:
         """Keeps account balance not empty"""
         account = account or self.account
         balance_before = self.web3_client.get_balance(account.address)
-        if balance_before < 100:
+        if balance_before < 1:
             # add credits to account
-            self.faucet.request_neon(account.address, 1000)
+            self.faucet.request_neon(account.address, 10)
             for _ in range(5):
                 if self.web3_client.get_balance(account.address) <= balance_before:
                     time.sleep(3)
@@ -132,7 +192,8 @@ class NeonProxyTasksSet(TaskSet):
                 break
             else:
                 raise AssertionError(
-                    f"Account {account.address} balance didn't change after 15 seconds")
+                    f"Account {account.address} balance didn't change after 15 seconds"
+                )
 
     def deploy_contract(
         self,
@@ -146,7 +207,8 @@ class NeonProxyTasksSet(TaskSet):
         """contract deployments"""
 
         contract_interface = self._compile_contract_interface(
-            name, version, contract_name)
+            name, version, contract_name
+        )
         contract_deploy_tx = self.web3_client.deploy_contract(
             account,
             abi=contract_interface["abi"],
@@ -165,6 +227,10 @@ class NeonProxyTasksSet(TaskSet):
         return contract, contract_deploy_tx
 
     @lru_cache(maxsize=32)
-    def _compile_contract_interface(self, name, version, contract_name: tp.Optional[str] = None) -> tp.Any:
+    def _compile_contract_interface(
+        self, name, version, contract_name: tp.Optional[str] = None
+    ) -> tp.Any:
         """Compile contract inteface form file"""
-        return helpers.get_contract_interface(name, version, contract_name=contract_name)
+        return helpers.get_contract_interface(
+            name, version, contract_name=contract_name
+        )

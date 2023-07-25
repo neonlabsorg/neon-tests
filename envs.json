@@ -90,7 +90,7 @@
     "proxy_url": "https://devnet.neonevm.org/",
     "network_id": 245022926,
     "solana_url": "https://api.devnet.solana.com",
-    "faucet_url": "http://3.13.67.238/request_neon",
+    "faucet_url": "",
     "neonpass_url": "http://devnet.neonpass.live",
     "spl_neon_mint": "89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g",
     "neon_erc20wrapper_address": "0x053e3d1b12726f648B2e45CEAbDF9078B742576D",
@@ -100,6 +100,21 @@
     ],
     "operator_keys": [
       "1W6Z2oWehbpAK4AHvtEhXbqPQPyZpTKT74SMS4hGd39"
+    ]
+  },
+  "mainnet": {
+    "evm_loader": "NeonVMyRX5GbCrsAHnUwx1nYYoJAtskU1bWUo6JGNyG",
+    "proxy_url": "https://neon-mainnet.everstake.one",
+    "network_id": 245022934,
+    "solana_url": "https://api.devnet.solana.com",
+    "faucet_url": "",
+    "neonpass_url": "https://neonpass.live",
+    "spl_neon_mint": "89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g",
+    "neon_erc20wrapper_address": "0x053e3d1b12726f648B2e45CEAbDF9078B742576D",
+    "use_bank": true,
+    "operator_neon_rewards_address": [
+    ],
+    "operator_keys": [
     ]
   },
   "testnet": {
