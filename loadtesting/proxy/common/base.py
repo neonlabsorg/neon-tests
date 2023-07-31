@@ -182,9 +182,9 @@ class NeonProxyTasksSet(TaskSet):
         """Keeps account balance not empty"""
         account = account or self.account
         balance_before = self.web3_client.get_balance(account.address)
-        if balance_before < 1:
+        if balance_before < 0.5:
             # add credits to account
-            self.faucet.request_neon(account.address, 10)
+            self.faucet.request_neon(account.address, 2)
             for _ in range(5):
                 if self.web3_client.get_balance(account.address) <= balance_before:
                     time.sleep(3)

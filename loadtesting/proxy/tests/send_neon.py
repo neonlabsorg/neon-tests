@@ -35,20 +35,26 @@ class NeonTasksSet(NeonProxyTasksSet):
         return self.web3_client.create_account()
 
     @task
-    @execute_before("task_block_number")
+    # @execute_before("task_block_number")
     def task_send_neon(self):
         """Transferring funds to a random account"""
         # add credits to account
         self.check_balance(self.account)
-        self.nonce = self.web3_client.get_nonce(self.account)
+        # self.nonce = self.web3_client.get_nonce(self.account)
         self.recipient = self.get_account()
         self.log.info(
             f"Send `neon` from {str(self.account.address)[-8:]} to {str(self.recipient.address)[-8:]}. nonce {self.nonce}"
         )
 
         tx = self.web3_client.send_neon(
-            self.account, self.recipient, amount=0.0000001, nonce=self.nonce
+            self.account,
+            self.recipient,
+            amount=0.0000001,
+            nonce=self.nonce,
+            gas=21000,
+            gas_price=200000000000,
         )
+        self.nonce += 1
 
         return tx, self.web3_client.get_nonce(self.account)
 
