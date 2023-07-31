@@ -53,10 +53,12 @@ class NeonTasksSet(NeonProxyTasksSet):
             nonce=self.nonce,
             gas=21000,
             gas_price=200000000000,
+            wait_receipt=False,
         )
         self.nonce += 1
 
-        return tx, self.web3_client.get_nonce(self.account)
+        # return tx, self.web3_client.get_nonce(self.account)
+        return tx, self.nonce
 
 
 class NeonUser(User):
