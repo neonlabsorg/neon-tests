@@ -73,14 +73,14 @@ class BankAccountFaucet:
 
     def request_neon(self, to_address: str, amount: int) -> str:
         """Request neon from bank account"""
-        time.sleep(random.randint(1, 10))
         for _ in range(3):
+            time.sleep(random.randint(1, 10))
             try:
                 return self.web3_client.send_neon(
                     self._bank_account, to_address, amount
                 )
             except Exception as e:
-                print(f"Can't send amount from bank account, retry: {e}")
+                LOG.error(f"Can't send amount from bank account, retry: {e}")
         else:
             raise AssertionError("Can't send money to account for 3 retries")
 
