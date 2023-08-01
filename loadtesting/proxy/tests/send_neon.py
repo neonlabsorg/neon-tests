@@ -39,7 +39,8 @@ class NeonTasksSet(NeonProxyTasksSet):
     def task_send_neon(self):
         """Transferring funds to a random account"""
         # add credits to account
-        self.check_balance(self.account)
+        if self.nonce % 20 == 0:
+            self.check_balance(self.account)
         # self.nonce = self.web3_client.get_nonce(self.account)
         self.recipient = self.get_account()
         self.log.info(
