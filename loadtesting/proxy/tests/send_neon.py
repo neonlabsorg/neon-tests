@@ -1,5 +1,6 @@
 import random
 import logging
+import time
 
 from locust import tag, task, User
 
@@ -41,24 +42,24 @@ class NeonTasksSet(NeonProxyTasksSet):
         # add credits to account
         if self.nonce % 20 == 0:
             self.check_balance(self.account)
-        self.nonce = self.web3_client.get_nonce(self.account)
+        # self.nonce = self.web3_client.get_nonce(self.account)
         self.recipient = self.get_account()
         self.log.info(
             f"Send `neon` from {str(self.account.address)[-8:]} to {str(self.recipient.address)[-8:]}. nonce {self.nonce}"
         )
 
-        # self.nonce += 1
+        self.nonce += 1
 
         tx = self.web3_client.send_neon(
             self.account,
             self.recipient,
             amount=0.0000001,
-            nonce=self.nonce,
+            nonce=self.nonce - 1,
             gas=21000,
             gas_price=200000000000,
             wait_receipt=True,
         )
-
+        time.sleep(5)
         # return tx, self.web3_client.get_nonce(self.account)
         return tx, self.nonce
 
