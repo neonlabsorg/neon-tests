@@ -59,7 +59,7 @@ class NeonTasksSet(NeonProxyTasksSet):
             gas_price=200000000000,
             wait_receipt=False,
         )
-        time.sleep(5)
+        time.sleep(3)
         # return tx, self.web3_client.get_nonce(self.account)
         return tx, self.nonce
 
