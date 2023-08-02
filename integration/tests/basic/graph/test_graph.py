@@ -1,3 +1,4 @@
+import random
 import allure
 import pytest
 import yaml
@@ -25,7 +26,7 @@ class TestGraph(BaseMixin):
         with open('graph/subgraph.yaml', 'w') as f:
             yaml.safe_dump(data, f, default_flow_style=False)
 
-        breakpoint() # pause test to deploy subgraph then type continue to finish test
+        breakpoint() # pause test to deploy subgraph then type 'continue' to finish test
         
         instruction_tx =contract.functions.createGravatar('Test_name_0','Test_url_0').build_transaction(
             {
@@ -83,3 +84,22 @@ class TestGraph(BaseMixin):
             self.recipient_account, instruction_tx
         )
         assert instruction_receipt["status"] == 1
+
+        breakpoint()
+        number = random.choice(range(100000))
+        instruction_tx = contract.functions.store(number).build_transaction(
+            {
+                "from": self.recipient_account.address,
+                "nonce": self.web3_client.eth.get_transaction_count(
+                    self.recipient_account.address
+                ),
+                "gasPrice": self.web3_client.gas_price(),
+            }
+        )
+        instruction_receipt = self.web3_client.send_transaction(
+            self.recipient_account, instruction_tx
+        )
+        assert instruction_receipt["status"] == 1
+
+        output = contract.functions.retrieve().call()
+        assert output == number
