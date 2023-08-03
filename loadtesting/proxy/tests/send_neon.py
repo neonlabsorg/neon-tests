@@ -56,7 +56,7 @@ class NeonTasksSet(NeonProxyTasksSet):
             amount=0.0000001,
             nonce=self.nonce - 1,
             gas=21000,
-            gas_price=200000000000,
+            gas_price=2000000000,
             wait_receipt=False,
         )
         time.sleep(3)
