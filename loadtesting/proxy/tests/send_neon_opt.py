@@ -31,7 +31,6 @@ class BankAccountFaucet:
                     amount,
                     receipt_timeout=300,
                     gas_price=0,
-                    gas=21000,
                 )
             except Exception as e:
                 LOG.error(f"Can't send amount from bank account, retry: {e}")
