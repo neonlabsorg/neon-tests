@@ -77,7 +77,7 @@ class BankAccountFaucet:
             time.sleep(random.randint(1, 10))
             try:
                 return self.web3_client.send_neon(
-                    self._bank_account, to_address, amount
+                    self._bank_account, to_address, amount, receipt_timeout=300
                 )
             except Exception as e:
                 LOG.error(f"Can't send amount from bank account, retry: {e}")

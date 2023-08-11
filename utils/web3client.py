@@ -136,6 +136,7 @@ class NeonWeb3Client:
         gas_price: tp.Optional[int] = None,
         nonce: int = None,
         wait_receipt: bool = True,
+        receipt_timeout: float = 120,
     ) -> web3.types.TxReceipt:
         to_addr = to if isinstance(to, str) else to.address
         if nonce is None:
@@ -155,7 +156,9 @@ class NeonWeb3Client:
         signed_tx = self._web3.eth.account.sign_transaction(transaction, from_.key)
         tx = self._web3.eth.send_raw_transaction(signed_tx.rawTransaction)
         if wait_receipt:
-            return self._web3.eth.wait_for_transaction_receipt(tx)
+            return self._web3.eth.wait_for_transaction_receipt(
+                tx, timeout=receipt_timeout, poll_latency=0.5
+            )
         return tx
 
     def deploy_contract(
