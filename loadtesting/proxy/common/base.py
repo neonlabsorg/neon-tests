@@ -83,7 +83,7 @@ class NeonWeb3ClientExt(NeonWeb3Client):
 class NeonProxyTasksSet(TaskSet):
     """Implements base initialization, creates data requirements and helpers"""
 
-    faucet: tp.Optional[tp.Union[Faucet, BankAccountFaucet]] = None
+    faucet: tp.Optional[Faucet] = None
     account: tp.Optional["eth_account.signers.local.LocalAccount"] = None
     web3_client: tp.Optional[NeonWeb3ClientExt] = None
 
