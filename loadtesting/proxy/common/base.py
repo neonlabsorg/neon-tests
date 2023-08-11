@@ -64,45 +64,6 @@ def init_session(size: int = 1000) -> requests.Session:
     return session
 
 
-class BankAccountFaucet:
-    def __init__(self, web3_client: "NeonWeb3ClientExt"):
-        self.web3_client = web3_client
-        if "BANK_PRIVATE_KEY" not in os.environ:
-            raise AssertionError("BANK_PRIVATE_KEY env variable is not set")
-        self._bank_account = web3.Account.from_key(os.environ["BANK_PRIVATE_KEY"])
-
-    def request_neon(self, to_address: str, amount: int) -> str:
-        """Request neon from bank account"""
-        for _ in range(3):
-            time.sleep(random.randint(1, 10))
-            try:
-                return self.web3_client.send_neon(
-                    self._bank_account, to_address, amount, receipt_timeout=300
-                )
-            except Exception as e:
-                LOG.error(f"Can't send amount from bank account, retry: {e}")
-        else:
-            raise AssertionError("Can't send money to account for 3 retries")
-
-    def return_neons(self, from_address: web3.Account) -> str:
-        """Return neon to bank account"""
-        balance = self.web3_client.get_balance(from_address.address)
-        LOG.info(
-            f"Balance of {from_address.address} is {balance} {balance - 21000} {type(balance)}"
-        )
-        amount = balance - decimal.Decimal("0.02")
-        LOG.info(f"Return {amount} neon from {from_address.address} to bank account")
-        for _ in range(5):
-            try:
-                time.sleep(random.randint(1, 10))
-                return self.web3_client.send_neon(
-                    from_address, self._bank_account, amount
-                )
-            except Exception as e:
-                LOG.error(f"Can't return NEONs from {from_address.address}: {e}")
-                time.sleep(random.randint(1, 10))
-
-
 class NeonWeb3ClientExt(NeonWeb3Client):
     """Extends Neon Web3 client adds statistics metrics"""
 
@@ -164,21 +125,9 @@ class NeonProxyTasksSet(TaskSet):
             self.credentials["network_id"],
             session=session,
         )
-
-        if (
-            not self.credentials.get("faucet_url")
-            or self.credentials.get("use_bank", False) is True
-        ):
-            LOG.info("Initialize bank account faucet")
-            self.faucet = BankAccountFaucet(self.web3_client)
-        else:
-            self.faucet = Faucet(
-                self.credentials["faucet_url"], self.web3_client, session=session
-            )
-
-    def on_stop(self):
-        if isinstance(self.faucet, BankAccountFaucet):
-            self.faucet.return_neons(self.account)
+        self.faucet = Faucet(
+            self.credentials["faucet_url"], self.web3_client, session=session
+        )
 
     def task_block_number(self) -> None:
         """Check the number of the most recent block"""
@@ -190,9 +139,9 @@ class NeonProxyTasksSet(TaskSet):
         """Keeps account balance not empty"""
         account = account or self.account
         balance_before = self.web3_client.get_balance(account.address)
-        if balance_before < 0.5:
+        if balance_before < 0.2:
             # add credits to account
-            self.faucet.request_neon(account.address, 2)
+            self.faucet.request_neon(account.address, 1)
             for _ in range(5):
                 if self.web3_client.get_balance(account.address) <= balance_before:
                     time.sleep(3)
