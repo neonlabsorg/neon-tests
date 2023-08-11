@@ -75,6 +75,7 @@ class NeonTasksSet(NeonProxyTasksSet):
         self.log = logging.getLogger("neon-consumer[%s]" % self.account.address[-8:])
         self.nonce = self.web3_client.get_nonce(self.account)
         self.recipient = self.get_account()
+        self.faucet = BankAccountFaucet(self.web3_client)
 
     def get_balances(self):
         sender_balance = self.web3_client.get_balance(self.account.address)
@@ -83,14 +84,6 @@ class NeonTasksSet(NeonProxyTasksSet):
 
     def get_account(self):
         return random.choice(self.user.environment.shared.accounts)
-
-    def create_account(self):
-        return self.web3_client.create_account()
-
-    def on_start(self) -> None:
-        super().on_start()
-        LOG.info("Initialize bank account faucet")
-        self.faucet = BankAccountFaucet(self.web3_client)
 
     def on_stop(self) -> None:
         self.faucet.return_neons(self.account)
