@@ -146,7 +146,7 @@ class NeonWeb3Client:
             "to": to_addr,
             "value": web3.Web3.to_wei(amount, "ether"),
             "chainId": self._chain_id,
-            "gasPrice": gas_price or self.gas_price(),
+            "gasPrice": self.gas_price() if gas_price is None else gas_price,
             "gas": gas,
             "nonce": nonce,
         }

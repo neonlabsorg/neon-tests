@@ -13,6 +13,9 @@ from loadtesting.proxy.common.events import execute_before
 LOG = logging.getLogger(__name__)
 
 
+GASLESS_INSTALL = True if "GASLESS" in os.environ else False
+
+
 class BankAccountFaucet:
     def __init__(self, web3_client: "NeonWeb3ClientExt"):
         self.web3_client = web3_client
@@ -52,7 +55,7 @@ class BankAccountFaucet:
                     from_address,
                     self._bank_account,
                     amount,
-                    gas_price=0,
+                    gas_price=0 if GASLESS_INSTALL else None,
                     gas=21000,
                     receipt_timeout=300,
                 )
@@ -108,10 +111,10 @@ class NeonTasksSet(NeonProxyTasksSet):
             amount=0.00000001,
             nonce=self.nonce - 1,
             gas=21000,
-            gas_price=0,
-            wait_receipt=False,
+            gas_price=0 if GASLESS_INSTALL else None,
+            wait_receipt=True,
         )
-        time.sleep(3)
+        # time.sleep(3)
         # return tx, self.web3_client.get_nonce(self.account)
         return tx, self.nonce
 
