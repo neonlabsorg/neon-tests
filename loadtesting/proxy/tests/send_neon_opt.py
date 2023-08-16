@@ -33,7 +33,7 @@ class BankAccountFaucet:
                     to_address,
                     amount,
                     receipt_timeout=300,
-                    gas_price=0,
+                    gas_price=0 if GASLESS_INSTALL else None,
                 )
             except Exception as e:
                 LOG.error(f"Can't send amount from bank account, retry: {e}")
