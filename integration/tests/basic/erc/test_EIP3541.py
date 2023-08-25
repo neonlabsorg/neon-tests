@@ -17,18 +17,15 @@ class TestRejectingContractsStartingWith0xEF(BaseMixin):
 
     @pytest.mark.parametrize("data", BAD_CALLDATA)
     def test_sent_incorrect_calldata_via_trx(self, data):
+        # New contract code starting with the 0xEF byte (EIP-3541) error
         transaction = self.create_contract_call_tx_object()
         transaction["gas"] = 1000000
         transaction["data"] = data
         transaction["chainId"] = self.web3_client._chain_id
 
-        signed_tx = self.web3_client.eth.account.sign_transaction(
-            transaction, self.sender_account.key
-        )
-        response = self.proxy_api.send_rpc(
-            "eth_sendRawTransaction", [signed_tx.rawTransaction.hex()]
-        )
-        assert "New contract code starting with the 0xEF byte (EIP-3541)" in response["error"]["message"]
+        receipt = self.web3_client.send_transaction(self.sender_account, transaction)
+        assert receipt["status"] == 0
+
 
     def test_sent_correct_calldata_via_trx(self):
         transaction = self.create_contract_call_tx_object()

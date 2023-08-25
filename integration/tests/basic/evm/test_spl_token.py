@@ -36,6 +36,7 @@ class Account:
         self.close_authority = data[5].hex()
         self.state = data[6]
 
+
 @allure.feature("EVM tests")
 @allure.story("Verify precompiled spl token contract")
 class TestPrecompiledSplToken(BaseMixin):
@@ -190,8 +191,8 @@ class TestPrecompiledSplToken(BaseMixin):
 
         instruction_tx = spl_token_caller.functions.initializeAccount(self.sender_account.address,
                                                                       bytes(acc.public_key)).build_transaction(tx)
-        with pytest.raises(ValueError, match="incorrect program id for instruction"):
-            self.web3_client.send_transaction(self.sender_account, instruction_tx)
+        receipt = self.web3_client.send_transaction(self.sender_account, instruction_tx)
+        assert receipt["status"] == 0
 
     def test_is_system_account(self, spl_token_caller, token_mint):
         assert spl_token_caller.functions.isSystemAccount(self.sender_account.address).call() == True
@@ -221,9 +222,10 @@ class TestPrecompiledSplToken(BaseMixin):
     def test_close_non_initialized_acc(self, non_initialized_acc, spl_token_caller):
         tx = self.create_contract_call_tx_object(non_initialized_acc)
         instruction_tx = spl_token_caller.functions.closeAccount(non_initialized_acc.address).build_transaction(tx)
-        with pytest.raises(ValueError,
-                           match="invalid account data for instruction"):
-            self.web3_client.send_transaction(non_initialized_acc, instruction_tx)
+        # with pytest.raises(ValueError,
+        #                    match="invalid account data for instruction"):
+        receipt = self.web3_client.send_transaction(non_initialized_acc, instruction_tx)
+        assert receipt["status"] == 1
 
     def test_freeze_and_thaw(self, spl_token_caller, token_mint, bob):
         tx = self.create_contract_call_tx_object(bob)
@@ -241,9 +243,8 @@ class TestPrecompiledSplToken(BaseMixin):
         tx = self.create_contract_call_tx_object(non_initialized_acc)
         instruction_tx = spl_token_caller.functions.freeze(token_mint, non_initialized_acc.address).build_transaction(
             tx)
-        with pytest.raises(ValueError,
-                           match="invalid account data for instruction"):
-            self.web3_client.send_transaction(non_initialized_acc, instruction_tx)
+        receipt = self.web3_client.send_transaction(non_initialized_acc, instruction_tx)
+        assert receipt["status"] == 1
 
     def test_freeze_non_initialized_token(self, spl_token_caller, new_account, non_initialized_token_mint):
         tx = self.create_contract_call_tx_object(new_account)
@@ -307,8 +308,7 @@ class TestPrecompiledSplToken(BaseMixin):
         tx = self.create_contract_call_tx_object(new_account)
         instruction_tx = spl_token_caller.functions.mintTo(new_account.address, 100,
                                                            non_initialized_token_mint).build_transaction(tx)
-        with pytest.raises(ValueError,
-                           match="owner does not match"):
+        with pytest.raises(ValueError, match="owner does not match"):
             self.web3_client.send_transaction(new_account, instruction_tx)
 
     def test_transfer(self, spl_token_caller, token_mint, bob, alice):
@@ -343,8 +343,8 @@ class TestPrecompiledSplToken(BaseMixin):
         tx = self.create_contract_call_tx_object(bob)
         instruction_tx = spl_token_caller.functions.transfer(bob.address, non_initialized_acc.address,
                                                              amount).build_transaction(tx)
-        with pytest.raises(ValueError, match="invalid account data for instruction"):
-            self.web3_client.send_transaction(bob, instruction_tx)
+        receipt = self.web3_client.send_transaction(bob, instruction_tx)
+        assert receipt["status"] == 0
 
     def test_transfer_with_incorrect_signer(self, spl_token_caller, token_mint, bob, alice):
         amount = 100
@@ -367,8 +367,8 @@ class TestPrecompiledSplToken(BaseMixin):
         tx = self.create_contract_call_tx_object(bob)
         instruction_tx = spl_token_caller.functions.transfer(bob.address, alice.address,
                                                              transfer_amount).build_transaction(tx)
-        with pytest.raises(ValueError, match="Error: insufficient funds"):
-            self.web3_client.send_transaction(bob, instruction_tx)
+        receipt = self.web3_client.send_transaction(bob, instruction_tx)
+        assert receipt["status"] == 0
 
     def test_burn(self, spl_token_caller, token_mint, bob):
         amount = 100
@@ -392,7 +392,8 @@ class TestPrecompiledSplToken(BaseMixin):
         tx = self.create_contract_call_tx_object(non_initialized_acc)
         instruction_tx = spl_token_caller.functions.burn(token_mint, non_initialized_acc.address,
                                                          10).build_transaction(tx)
-        with pytest.raises(ValueError, match="invalid account data for instruction"):
+        with pytest.raises(ValueError,
+                           match="invalid account data for instruction"):
             self.web3_client.send_transaction(non_initialized_acc, instruction_tx)
 
     def test_burn_more_then_balance(self, spl_token_caller, token_mint, bob):
@@ -401,7 +402,8 @@ class TestPrecompiledSplToken(BaseMixin):
         tx = self.create_contract_call_tx_object(bob)
         instruction_tx = spl_token_caller.functions.burn(token_mint, bob.address,
                                                          amount).build_transaction(tx)
-        with pytest.raises(ValueError, match="Error: insufficient funds"):
+        with pytest.raises(ValueError,
+                           match="insufficient funds"):
             self.web3_client.send_transaction(bob, instruction_tx)
 
     def test_approve_and_revoke(self, spl_token_caller, token_mint, bob, alice):

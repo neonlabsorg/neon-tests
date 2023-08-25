@@ -19,7 +19,7 @@ MAX_TOKENS_AMOUNT = 1000000000000000
 
 NO_ENOUGH_GAS_PARAMS = [
     ({"gas_price": 0}, "transaction underpriced"),
-    ({"gas": 0}, "gas limit reached"),
+    ({"gas": 0}, "Out of Gas"),
 ]
 
 
