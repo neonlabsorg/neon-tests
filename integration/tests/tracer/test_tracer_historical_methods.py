@@ -43,7 +43,7 @@ class TestTracerHistoricalMethods(BaseMixin):
             }
         )
         receipt = self.web3_client.send_transaction(
-            self.sender_account, instruction_tx)
+            account=self.sender_account, transaction=instruction_tx, gas_multiplier=1.1)
         assert receipt["status"] == 1
 
     def retrieve_value(self, storage_contract):
@@ -65,7 +65,7 @@ class TestTracerHistoricalMethods(BaseMixin):
     def call_storage(self, storage_contract, storage_value, request_type):
         request_value = None
         self.store_value(storage_value, storage_contract)
-        tx, reciept = self.retrieve_value(storage_contract)
+        tx, receipt = self.retrieve_value(storage_contract)
 
         tx_obj = self.create_tx_object(sender=self.sender_account.address,
                                        recipient=storage_contract.address,
@@ -79,10 +79,10 @@ class TestTracerHistoricalMethods(BaseMixin):
         tx_obj["value"] = hex(tx_obj["value"])
 
         if request_type == "blockNumber":
-            request_value = hex(reciept[request_type])
+            request_value = hex(receipt[request_type])
         else:
-            request_value = reciept[request_type].hex()
-        return tx_obj, request_value, reciept
+            request_value = receipt[request_type].hex()
+        return tx_obj, request_value, receipt
 
     def compare_values(self, value, value_to_compare):
         return math.isclose(abs(round(int(value, 0) / 1e18, 9) - value_to_compare),
