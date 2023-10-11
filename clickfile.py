@@ -2,9 +2,9 @@
 import functools
 import glob
 import json
+import yaml
 import os
 import pathlib
-import platform
 import re
 import shutil
 import subprocess
@@ -78,7 +78,8 @@ NETWORK_NAME = os.environ.get("NETWORK_NAME", "full_test_suite")
 HOME_DIR = pathlib.Path(__file__).absolute().parent
 
 OZ_BALANCES = "./compatibility/results/oz_balance.json"
-NEON_EVM_GITHUB_URL="https://api.github.com/repos/neonlabsorg/neon-evm"
+NEON_EVM_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-evm"
+
 
 def green(s):
     return click.style(s, fg="green")
@@ -386,6 +387,7 @@ def install_ui_requirements():
             )
         subprocess.check_call(cmd, shell=True)
 
+
 def install_oz_requirements():
     cwd = pathlib.Path().absolute() / "compatibility/openzeppelin-contracts"
     subprocess.check_call("npm set audit false", shell=True, cwd=cwd.as_posix())
@@ -416,10 +418,12 @@ def requirements(dep):
     if dep == "ui":
         install_ui_requirements()
 
+
 def is_neon_evm_branch_exist(branch):
     if branch:
         neon_evm_branches_obj = requests.get(
-            f"{NEON_EVM_GITHUB_URL}/branches?per_page=100").json()
+            f"{NEON_EVM_GITHUB_URL}/branches?per_page=100"
+        ).json()
         neon_evm_branches = [item["name"] for item in neon_evm_branches_obj]
 
         if branch in neon_evm_branches:
@@ -428,32 +432,57 @@ def is_neon_evm_branch_exist(branch):
     else:
         return False
 
-@cli.command(help="Download test contracts from neon-evm repo")
-@click.option("--branch", default="develop", help="neon_evm branch name. " 
-                               "If branch doesn't exist, develop branch will be used")
 
+def get_evm_pinned_version(branch):
+    click.echo(f"Get pinned version for proxy branch {branch}")
+    resp = requests.get(
+        f"https://api.github.com/repos/neonlabsorg/proxy-model.py/contents/.github/workflows/pipeline.yml?ref={branch}"
+    )
+    if resp.status_code != 200:
+        click.echo(f"Can't get pipeline file for branch {branch}: {resp.text}")
+        raise click.ClickException(f"Can't get pipeline file for branch {branch}")
+    info = resp.json()
+    pipeline_file = yaml.safe_load(requests.get(info["download_url"]).text)
+    tag = pipeline_file["env"]["NEON_EVM_TAG"]
+    if tag == "latest":
+        return "develop"
+    return tag
+
+
+@cli.command(help="Download test contracts from neon-evm repo")
+@click.option(
+    "--branch",
+    default="develop",
+    help="neon_evm branch name. "
+    "If branch doesn't exist, develop branch will be used",
+)
 def update_contracts(branch):
-    branch = branch if is_neon_evm_branch_exist(branch) else "develop"
-    click.echo(f"Contracts would be downloaded from {branch} branch")
+    neon_evm_branch = get_evm_pinned_version(branch)
+    click.echo(f"Contracts would be downloaded from {neon_evm_branch} neon-evm branch")
     contract_path = pathlib.Path.cwd() / "contracts" / "external"
     pathlib.Path(contract_path).mkdir(parents=True, exist_ok=True)
 
+    click.echo(f"Check contract availability in neon-evm repo")
     response = requests.get(
-        f"{NEON_EVM_GITHUB_URL}/contents/evm_loader/solidity?ref={branch}"
+        f"{NEON_EVM_GITHUB_URL}/contents/solidity?ref={neon_evm_branch}"
     )
     if response.status_code != 200:
-        raise click.ClickException(
-            f"The code is not 200. Response: {response.json()}"
+        click.echo(f"Repository doesn't has solidity directory, check old structure")
+        response = requests.get(
+            f"{NEON_EVM_GITHUB_URL}/contents/evm_loader/solidity?ref={neon_evm_branch}"
         )
+        if response.status_code != 200:
+            raise click.ClickException(
+                f"Can't get contracts from neon-evm repo: {response.text}"
+            )
 
     for item in response.json():
-        r = requests.get(
-            f"https://raw.githubusercontent.com/neonlabsorg/neon-evm/{branch}/evm_loader/solidity/{item['name']}"
-        )
+        click.echo(f"Downloading {item['name']}")
+        r = requests.get(item["download_url"])
         if r.status_code == 200:
             with open(contract_path / item["name"], "wb") as f:
                 f.write(r.content)
-            click.echo(f"{item['name']} downloaded")
+            click.echo(f" {item['name']} downloaded")
         else:
             raise click.ClickException(
                 f"The contract {item['name']} is not downloaded. Error: {r.text}"
@@ -541,14 +570,18 @@ def analyze_openzeppelin_results():
             threshold = 2295
         print(f"Threshold: {threshold}")
         if test_report["passing"] < threshold:
-            raise click.ClickException(f"OpenZeppelin {version} tests failed. \n"
-                                       f"Passed: {test_report['passing']}, expected: {threshold}")
+            raise click.ClickException(
+                f"OpenZeppelin {version} tests failed. \n"
+                f"Passed: {test_report['passing']}, expected: {threshold}"
+            )
         else:
             print("OpenZeppelin tests passed")
     else:
         if test_report["failing"] > 0 or test_report["passing"] == 0:
-            raise click.ClickException(f"OpenZeppelin {version} tests failed. \n"
-                                       f"Failed: {test_report['failing']}, passed: {test_report['passing']}")
+            raise click.ClickException(
+                f"OpenZeppelin {version} tests failed. \n"
+                f"Failed: {test_report['failing']}, passed: {test_report['passing']}"
+            )
         else:
             print("OpenZeppelin tests passed")
 
@@ -857,7 +890,9 @@ def download_logs():
 @infra.command(name="gen-accounts", help="Setup accounts with balance")
 @click.option("-c", "--count", default=2, help="How many users prepare")
 @click.option("-a", "--amount", default=10000, help="How many airdrop")
-@click.option("-n", "--network", default="night-stand", type=str, help="In which stand run tests")
+@click.option(
+    "-n", "--network", default="night-stand", type=str, help="In which stand run tests"
+)
 def prepare_accounts(count, amount, network):
     dapps_cli.prepare_accounts(network, count, amount)
 
@@ -876,9 +911,11 @@ def get_network_param(network, param):
 
 @infra.command("print-network-param")
 @click.option(
-    "-n", "--network", default="night-stand", type=str, help="In which stand run tests")
+    "-n", "--network", default="night-stand", type=str, help="In which stand run tests"
+)
 @click.option(
-    "-p", "--param", type=str, help="any network param like proxy_url, network_id e.t.c")
+    "-p", "--param", type=str, help="any network param like proxy_url, network_id e.t.c"
+)
 def print_network_param(network, param):
     print(get_network_param(network, param))
 
