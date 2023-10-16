@@ -8,6 +8,8 @@ on:
 env:
   IMAGE:  neonlabsorg/neon_tests
   CONTAINER:  services-${{ github.run_id }}
+  BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
 jobs:
   dockerize:
     if: ${{ github.ref_name != 'develop'}}
@@ -26,6 +28,10 @@ jobs:
     name: "Playwright UI tests"
     needs:
       - dockerize
+    if: |
+      always() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     env:

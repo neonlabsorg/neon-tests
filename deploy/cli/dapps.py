@@ -8,13 +8,15 @@ import pathlib
 import tabulate
 from paramiko.client import SSHClient
 from scp import SCPClient
-from solana.transaction import Signature
 
-from clickfile import get_network_param
+from deploy.cli.network_manager import NetworkManager
+
+from solana.transaction import Signature
 from deploy.cli import faucet as faucet_cli
 from utils.web3client import NeonWeb3Client
 from utils.solana_client import SolanaClient
 from utils.prices import get_neon_price
+
 
 TF_CWD = "deploy/aws"
 
@@ -38,6 +40,8 @@ TF_ENV.update(
     }
 )
 
+WEB3_CLIENT = NeonWeb3Client(os.environ.get("PROXY_URL"), os.environ.get("CHAIN_ID", 111))
+REPORT_HEADERS = ["Action", "Fee", "Cost in $", "Accounts", "TRx", "Estimated Gas", "Used Gas", "Used % of EG"]
 
 def set_github_env(envs: tp.Dict, upper=True) -> None:
     """Set environment for github action"""
@@ -153,6 +157,7 @@ def upload_service_logs(ssh_client, service, artifact_logs):
 
 
 def prepare_accounts(network_name, count, amount) -> tp.List:
+    network_manager = NetworkManager()
     if network_name == "aws":
         network = {
             "proxy_url": os.environ.get("PROXY_URL"),
@@ -161,11 +166,11 @@ def prepare_accounts(network_name, count, amount) -> tp.List:
         }
     else:
         network = {
-            "proxy_url": get_network_param(network_name, "proxy_url"),
-            "solana_url": get_network_param(network_name, "solana_url"),
-            "faucet_url": get_network_param(network_name, "faucet_url"),
+            "proxy_url": network_manager.get_network_param(network_name, "proxy_url"),
+            "solana_url": network_manager.get_network_param(network_name, "solana_url"),
+            "faucet_url": network_manager.get_network_param(network_name, "faucet_url"),
         }
-    network["network_id"] = (get_network_param(network_name, "network_id"),)
+    network["network_id"] = (network_manager.get_network_param(network_name, "network_id"),)
     accounts = faucet_cli.prepare_wallets_with_balance(network, count, amount)
     if os.environ.get("CI"):
         set_github_env(dict(accounts=",".join(accounts)))
@@ -173,11 +178,8 @@ def prepare_accounts(network_name, count, amount) -> tp.List:
 
 
 def get_solana_accounts_in_tx(eth_transaction):
-    web3_client = NeonWeb3Client(
-        os.environ.get("PROXY_URL"), os.environ.get("CHAIN_ID", 111)
-    )
     sol_client = SolanaClient(os.environ.get("SOLANA_URL"))
-    trx = web3_client.get_solana_trx_by_neon(eth_transaction)
+    trx = WEB3_CLIENT.get_solana_trx_by_neon(eth_transaction)
     tr = sol_client.get_transaction(
         Signature.from_string(trx["result"][0]), max_supported_transaction_version=0
     )
@@ -192,8 +194,7 @@ def get_solana_accounts_in_tx(eth_transaction):
         )
 
 
-def print_report(directory):
-    headers = ["Action", "Fee", "Cost in $", "Accounts", "TRx"]
+def prepare_report_data(directory):
     out = {}
     reports = {}
     for path in glob.glob(str(pathlib.Path(directory) / "*-report.json")):
@@ -206,15 +207,43 @@ def print_report(directory):
         out[app] = []
         for action in reports[app]:
             accounts, trx = get_solana_accounts_in_tx(action["tx"])
+            tx = WEB3_CLIENT.get_transaction_by_hash(action["tx"])
+            estimated_gas = int(tx.gas) if tx and tx.gas else None
+            used_gas = int(action["usedGas"])
             row = [action["name"]]
-            fee = int(action["usedGas"]) * int(action["gasPrice"]) / 1000000000000000000
+            fee = used_gas * int(action["gasPrice"]) / 1000000000000000000
+            used_gas_percentage = round(used_gas * 100 / estimated_gas, 2) if estimated_gas else None
             row.append(fee)
             row.append(fee * get_neon_price())
             row.append(accounts)
             row.append(trx)
+            row.append(estimated_gas)
+            row.append(used_gas)
+            row.append(used_gas_percentage)
             out[app].append(row)
+    return out
 
-    for app in out:
-        print(f'Cost report for "{app.title()}" dApp')
-        print("----------------------------------------")
-        print(tabulate.tabulate(out[app], headers, tablefmt="simple_grid"))
+
+def print_report(data):
+    report_content = ""
+    for app in data:
+        report_content += f'Cost report for "{app.title()}" dApp\n'
+        report_content += "----------------------------------------\n"
+        report_content += tabulate.tabulate(data[app], REPORT_HEADERS, tablefmt="simple_grid") + "\n"
+
+    print(report_content)
+    return report_content
+
+
+def format_report_for_github_comment(data):
+    headers = "| " + " | ".join(REPORT_HEADERS) + " |\n"
+    headers += "| --- | --- | --- | --- | --- | --- | --- |--- |\n"
+    report_content = ""
+
+    for app in data:
+        report_content += f'\nCost report for "{app.title()}" dApp\n\n'
+        report_content+= headers
+        for action_data in data[app]:
+            report_content += "| "+ " | ".join([str(item) for item in action_data]) +" | "+ '\n'
+    return report_content
+

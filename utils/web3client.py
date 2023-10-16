@@ -9,6 +9,7 @@ import web3.types
 import requests
 import eth_account.signers.local
 from eth_abi import abi
+from web3.exceptions import TransactionNotFound
 
 from utils import helpers
 from utils.consts import InputTestConstants, Unit
@@ -17,9 +18,10 @@ from utils.helpers import decode_function_signature
 
 class NeonWeb3Client:
     def __init__(
-        self, proxy_url: str, chain_id: int, session: tp.Optional[tp.Any] = None
+        self, proxy_url: str, chain_id: int, tracer_url: tp.Optional[tp.Any] = None, session: tp.Optional[tp.Any] = None
     ):
         self._proxy_url = proxy_url
+        self._tracer_url = tracer_url
         self._web3 = web3.Web3(web3.HTTPProvider(proxy_url, session=session))
         self._chain_id = chain_id
         self._session = session
@@ -69,6 +71,13 @@ class NeonWeb3Client:
                 "id": 0,
             },
         ).json()
+
+    def get_transaction_by_hash(self, transaction_hash):
+        try:
+            return self._web3.eth.get_transaction(transaction_hash)
+        except TransactionNotFound:
+            return None
+
 
     def gas_price(self):
         gas = self._web3.eth.gas_price
@@ -177,36 +186,6 @@ class NeonWeb3Client:
                 "gas": gas,
                 "gasPrice": gas_price,
                 "nonce": self.get_nonce(from_),
-            }
-        )
-
-        if transaction["gas"] == 0:
-            transaction["gas"] = self._web3.eth.estimate_gas(transaction)
-
-        signed_tx = self._web3.eth.account.sign_transaction(transaction, from_.key)
-        tx = self._web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        return self._web3.eth.wait_for_transaction_receipt(tx)
-
-    def send_erc20(
-        self,
-        from_: eth_account.signers.local.LocalAccount,
-        to: tp.Union[str, eth_account.signers.local.LocalAccount],
-        amount: tp.Union[int, float, Decimal],
-        address: str,
-        abi,
-        gas: tp.Optional[int] = 0,
-        gas_price: tp.Optional[int] = None,
-    ) -> web3.types.TxReceipt:
-        to_addr = to if isinstance(to, str) else to.address
-        gas_price = gas_price or self.gas_price()
-        contract = self._web3.eth.contract(address=address, abi=abi)
-        transaction = contract.functions.transfer(to_addr, amount).build_transaction(
-            {
-                "chainId": self._chain_id,
-                "gas": gas,
-                "gasPrice": gas_price,
-                "nonce": self.get_nonce(from_),
-                "from": from_.address,
             }
         )
 

@@ -1,6 +1,7 @@
 import typing as tp
 from types import SimpleNamespace
 
+from hexbytes import HexBytes
 from web3 import types
 
 from integration.tests.basic.helpers.assert_message import AssertMessage
@@ -12,6 +13,17 @@ def is_hex(hex_data: str) -> bool:
         return True
     except (ValueError, TypeError):
         return False
+
+
+def hex_str_consists_not_only_of_zeros(hex_data: str) -> bool:
+    """Helps to verify that long response hex str data is not consists of just zeros"""
+    t = hex_data
+    if t.startswith("0x"):
+        t = hex_data.split("0x")[1]
+    for c in t:
+        if c != "0":
+            return True
+    return False
 
 
 def assert_block_fields(block: dict, full_trx: bool, tx_receipt: tp.Optional[types.TxReceipt],
@@ -101,3 +113,34 @@ def assert_fields_are_hex(object, expected_hex_fields):
     for field in expected_hex_fields:
         assert field in object, f"no expected field {field} in the object"
         assert is_hex(object[field]), f"field {field} is not correct. Actual : {object[field]}"
+
+
+def assert_fields_are_boolean(object, expected_boolean_fields):
+    for field in expected_boolean_fields:
+        assert field in object, f"no expected field {field} in the object"
+        assert type(object[field]) == bool, f"field {field} is not boolean. Actual : {type(object[field])}"
+
+
+def assert_equal_fields(result, comparable_object, comparable_fields, keys_mappings=None):
+    """
+    Assert that fields in the result object are equal to fields in comparable_object
+
+    :param result:
+    :param comparable_object:
+    :param comparable_fields: list of comparable fields
+    :param keys_mappings: map name of the field in the result object to the field in comparable_object
+    :return:
+    """
+    for field in comparable_fields:
+        l = result[field]
+        if keys_mappings and keys_mappings.get(field):
+            r = comparable_object[keys_mappings.get(field)]
+        else:
+            r = comparable_object[field]
+        if isinstance(r, str):
+            r = r.lower()
+        if isinstance(r, int):
+            r = hex(r)
+        if isinstance(r, HexBytes):
+            r = r.hex()
+        assert l == r, f"{field} from response {l} is not equal to {field} from receipt {r}"
