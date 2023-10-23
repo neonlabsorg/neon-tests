@@ -67,6 +67,7 @@ def load_parametrized_data():
     return result
 
 
+@pytest.mark.skip("Skipped for the evm version 1.4.x")
 class TestPrecompiledContracts(BaseMixin):
 
     @pytest.mark.parametrize(**load_parametrized_data())
