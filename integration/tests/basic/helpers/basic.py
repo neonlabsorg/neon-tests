@@ -1,22 +1,19 @@
 import time
 import typing as tp
 from dataclasses import dataclass
-from decimal import Decimal
+from enum import Enum
 
 import allure
+import eth_account.signers.local
 import pytest
 import web3
-import eth_account.signers.local
-from solana.publickey import PublicKey
-from solana.rpc.commitment import Finalized
-from solders.rpc.errors import InternalErrorMessage
 from solders.rpc.responses import GetTransactionResp
 from solders.signature import Signature
 
+from integration.tests.base import BaseTests
+from utils.apiclient import JsonRPCSession
 from utils.consts import Unit, InputTestConstants
 from utils.helpers import gen_hash_of_block, wait_condition
-from utils.apiclient import JsonRPCSession
-from integration.tests.base import BaseTests
 
 
 @dataclass
@@ -25,8 +22,17 @@ class AccountData:
     key: str = ""
 
 
+class Tag(Enum):
+    EARLIEST = "earliest"
+    LATEST = "latest"
+    PENDING = "pending"
+    SAFE = "safe"
+    FINALIZED = "finalized"
+
+
 class BaseMixin(BaseTests):
     proxy_api: JsonRPCSession = None
+    tracer_api: JsonRPCSession = None
     _sender_account: eth_account.signers.local.LocalAccount = None
     _recipient_account: eth_account.signers.local.LocalAccount = None
     _invalid_account: AccountData = None
@@ -34,8 +40,9 @@ class BaseMixin(BaseTests):
     bank_account = None
 
     @pytest.fixture(autouse=True)
-    def prepare_env(self, json_rpc_client, eth_bank_account):
+    def prepare_env(self, json_rpc_client, tracer_json_rpc_client, eth_bank_account):
         self.proxy_api = json_rpc_client
+        self.tracer_api = tracer_json_rpc_client
         self.bank_account = eth_bank_account
 
     @property
@@ -85,7 +92,7 @@ class BaseMixin(BaseTests):
         return float(self.web3_client.from_wei(self.web3_client.eth.get_balance(address), Unit.ETHER))
 
     @staticmethod
-    def create_invalid_address(len = 20) -> str:
+    def create_invalid_address(len=20) -> str:
         """Create non existing account address"""
         address = gen_hash_of_block(len)
         while web3.Web3.is_checksum_address(address):
@@ -106,10 +113,10 @@ class BaseMixin(BaseTests):
             self,
             sender_account: eth_account.signers.local.LocalAccount,
             recipient_account: tp.Union[eth_account.signers.local.LocalAccount, AccountData],
-            amount: tp.Union[int, float, Decimal],
+            amount: tp.Any,
             gas: tp.Optional[int] = 0,
             gas_price: tp.Optional[int] = None,
-            error_message: str = None,
+            error_message: tp.Any = None,
             exception: tp.Any = None,
     ) -> tp.Union[web3.types.TxReceipt, None]:
         """Processes transaction, expects a failure"""
@@ -177,13 +184,19 @@ class BaseMixin(BaseTests):
             response = self.proxy_api.send_rpc("neon_finalizedBlockNumber", [])
             fin_block_num = int(response["result"], 16)
 
-    def create_tx_object(self, sender=None, recipient=None, amount=2, nonce=None, gas_price=None, data=None,
+    def make_contract_tx_object(self, sender=None, amount=0, estimate_gas=False) -> tp.Dict:
+        """Can be used with build_transaction method"""
+        if sender is None:
+            sender = self.sender_account.address
+        return super().create_tx_object(sender, recipient=None, amount=amount, estimate_gas=estimate_gas)
+
+    def create_tx_object(self, sender=None, recipient=None, amount=2, nonce=None, gas=None, gas_price=None, data=None,
                          estimate_gas=True):
         if sender is None:
             sender = self.sender_account.address
         if recipient is None:
             recipient = self.recipient_account.address
-        return super().create_tx_object(sender, recipient, amount, nonce, gas_price, data, estimate_gas)
+        return super().create_tx_object(sender, recipient, amount, nonce, gas, gas_price, data, estimate_gas)
 
     def create_contract_call_tx_object(self, sender=None, amount=None):
         if sender is None:
