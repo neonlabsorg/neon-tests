@@ -27,7 +27,10 @@ class NetworkManager():
     def get_network_param(self, network, param):
         value = ""
         if network in self.networks:
-            value = self.networks[network][param]
+            value = self.networks[network]
+            if params:
+                for item in params.split('.'):
+                    value = value[item]
         if isinstance(value, str):
             if os.environ.get("SOLANA_IP"):
                 value = value.replace("<solana_ip>", os.environ.get("SOLANA_IP"))
