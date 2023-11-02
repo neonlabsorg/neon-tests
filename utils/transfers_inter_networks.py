@@ -1,4 +1,3 @@
-
 from solana.publickey import PublicKey
 from solana.system_program import TransferParams, transfer
 from solana.transaction import Transaction
@@ -11,12 +10,13 @@ from utils.instructions import Instruction, get_solana_wallet_signer
 
 class Transfer:
     @staticmethod
-    def neon_from_solana_to_neon_tx(solana_account, neon_wallet, neon_mint, neon_account,
-                                    amount, evm_loader_id):
-        '''Transfer NEON from solana to neon transaction'''
+    def neon_from_solana_to_neon_tx(
+            solana_account, neon_wallet, mint, neon_account, amount, evm_loader_id
+    ):
+        """Transfer any token from solana to neon transaction"""
         tx = Transaction(fee_payer=solana_account.public_key)
         associated_token_address = get_associated_token_address(
-            solana_account.public_key, neon_mint)
+            solana_account.public_key, mint)
 
         tx.add(approve(
             ApproveParams(
@@ -34,7 +34,7 @@ class Transfer:
             neon_wallet,
             authority_pool,
             neon_account.address,
-            neon_mint,
+            mint,
             evm_loader_id))
 
         return tx

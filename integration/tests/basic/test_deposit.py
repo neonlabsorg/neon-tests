@@ -1,10 +1,10 @@
 import json
 
-import pytest
 import allure
+import pytest
 from _pytest.config import Config
-from solana.publickey import PublicKey
 from solana.keypair import Keypair
+from solana.publickey import PublicKey
 from solana.rpc.commitment import Commitment
 from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
@@ -18,9 +18,8 @@ from web3 import exceptions as web3_exceptions
 
 from integration.tests.basic.helpers.basic import BaseMixin, BaseTests
 from utils.consts import LAMPORT_PER_SOL
-from utils.transfers_inter_networks import Transfer
 from utils.helpers import wait_condition
-
+from utils.transfers_inter_networks import Transfer
 
 wSOL = {
     "chain_id": 111,
@@ -73,7 +72,7 @@ class TestDeposit(BaseMixin):
         assert sig_status["result"]["value"][0]["status"] == {"Ok": None}
 
     def test_transfer_neon_from_solana_to_neon(
-        self, new_account, solana_account, pytestconfig: Config, neon_mint, erc20_spl
+            self, new_account, solana_account, pytestconfig: Config, neon_mint, erc20_spl
     ):
         """Transfer Neon from Solana -> Neon"""
         amount = 0.1
@@ -102,8 +101,46 @@ class TestDeposit(BaseMixin):
         neon_balance_after = self.get_balance_from_wei(new_account.address)
         assert neon_balance_after == neon_balance_before + amount
 
+    def test_transfer_sol_from_solana_to_neon(
+            self, pytestconfig: Config, solana_account, new_account
+    ):
+        """Transfer wSOL from Solana -> Neon"""
+        amount = 0.1
+        full_amount = int(amount * LAMPORT_PER_SOL)
+        evm_loader_id = pytestconfig.environment.evm_loader
+        mint_pubkey = PublicKey(wSOL["address_spl"])
+        ata_address = get_associated_token_address(
+            solana_account.public_key, mint_pubkey
+        )
+        self.create_ata(solana_account, mint_pubkey)
+
+        # wrap SOL
+        wrap_sol_tx = Transfer.wSOL_tx(
+            self.sol_client, wSOL, full_amount, solana_account.public_key, ata_address
+        )
+        self.send_tx_and_check_status_ok(wrap_sol_tx, solana_account)
+
+        balance_pubkey = self.sol_client.get_neon_account_address(
+            new_account.address, evm_loader_id
+        )
+
+        balance_before = self.get_balance_from_wei(new_account.address)
+
+        tx = Transfer.neon_from_solana_to_neon_tx(
+            solana_account,
+            balance_pubkey,
+            mint_pubkey,
+            new_account,
+            full_amount,
+            evm_loader_id,
+        )
+        self.send_tx_and_check_status_ok(tx, solana_account)
+
+        balance_after = self.get_balance_from_wei(new_account.address)
+        assert balance_after == balance_before + full_amount
+
     def test_transfer_spl_token_from_solana_to_neon(
-        self, solana_account, new_account, pytestconfig: Config, erc20_spl
+            self, solana_account, new_account, pytestconfig: Config, erc20_spl
     ):
         evm_loader_id = pytestconfig.environment.evm_loader
         response = self.proxy_api.send_rpc(method="neon_getEvmParams", params=[])
@@ -151,8 +188,8 @@ class TestDeposit(BaseMixin):
         )
 
         assert (
-            int(ata_balance_after.value.amount)
-            == int(ata_balance_before.value.amount) + full_amount
+                int(ata_balance_after.value.amount)
+                == int(ata_balance_before.value.amount) + full_amount
         )
 
 
@@ -175,7 +212,7 @@ class TestWithdraw(BaseTests):
 
     @pytest.mark.only_stands
     def test_success_withdraw_to_non_existing_account(
-        self, pytestconfig: Config, withdraw_contract, neon_mint, solana_account
+            self, pytestconfig: Config, withdraw_contract, neon_mint, solana_account
     ):
         """Should successfully withdraw NEON tokens to previously non-existing Associated Token Account"""
         dest_acc = Keypair.generate()
@@ -206,7 +243,7 @@ class TestWithdraw(BaseTests):
         )
 
     def test_success_withdraw_to_existing_account(
-        self, pytestconfig: Config, withdraw_contract, neon_mint, solana_account
+            self, pytestconfig: Config, withdraw_contract, neon_mint, solana_account
     ):
         """Should successfully withdraw NEON tokens to existing Associated Token Account"""
         dest_acc = solana_account
@@ -244,7 +281,7 @@ class TestWithdraw(BaseTests):
         assert int(destination_balance_after.value.amount) == move_amount_galan
 
     def test_failed_withdraw_non_divisible_amount(
-        self, pytestconfig: Config, withdraw_contract, neon_mint, solana_account
+            self, pytestconfig: Config, withdraw_contract, neon_mint, solana_account
     ):
         dest_acc = solana_account
 
@@ -271,12 +308,12 @@ class TestWithdraw(BaseTests):
 
     @pytest.mark.parametrize("move_amount", [11000, 10000])
     def test_failed_withdraw_insufficient_balance(
-        self,
-        pytestconfig: Config,
-        move_amount,
-        withdraw_contract,
-        neon_mint,
-        solana_account,
+            self,
+            pytestconfig: Config,
+            move_amount,
+            withdraw_contract,
+            neon_mint,
+            solana_account,
     ):
         dest_acc = solana_account
 

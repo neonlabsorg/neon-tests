@@ -44,10 +44,10 @@ class Instruction:
 
     @staticmethod
     def deposit(solana_pubkey, neon_pubkey, deposit_pubkey,
-                neon_wallet_address, neon_mint, evm_loader_id) -> TransactionInstruction:
+                neon_wallet_address, mint, evm_loader_id) -> TransactionInstruction:
         associated_token_address = get_associated_token_address(
-            solana_pubkey, neon_mint)
-        pool_key = get_associated_token_address(deposit_pubkey, neon_mint)
+            solana_pubkey, mint)
+        pool_key = get_associated_token_address(deposit_pubkey, mint)
         keys = [
             AccountMeta(pubkey=associated_token_address,
                         is_signer=False, is_writable=True),
