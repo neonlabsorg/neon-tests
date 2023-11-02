@@ -5,6 +5,7 @@ import allure
 import web3
 from _pytest.config import Config
 from solana.keypair import Keypair
+from solana.publickey import PublicKey
 from solana.rpc.commitment import Commitment
 from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
@@ -33,6 +34,18 @@ class TestDeposit(BaseMixin):
         instruction_tx = contract.functions.withdraw(bytes(dest_acc.public_key)).build_transaction(tx)
         receipt = self.web3_client.send_transaction(self.sender_account, instruction_tx)
         assert receipt["status"] == 1
+
+    # def create_ata(self, solana_account, neon_mint):
+    #     trx = Transaction()
+    #     trx.add(create_associated_token_account(solana_account.public_key, solana_account.public_key, neon_mint))
+    #     opts = TxOpts(skip_preflight=True, skip_confirmation=False)
+    #     self.sol_client.send_transaction(trx, solana_account, opts=opts)
+    #
+    # def send_tx_and_check_status_ok(self, tx, solana_account):
+    #     opts = TxOpts(skip_preflight=True, skip_confirmation=False)
+    #     sig = self.sol_client.send_transaction(tx, solana_account, opts=opts).value
+    #     sig_status = json.loads((self.sol_client.confirm_transaction(sig)).to_json())
+    #     assert sig_status["result"]["value"][0]["status"] == {"Ok": None}
 
     def test_transfer_neon_from_solana_to_neon(self, new_account, solana_account, pytestconfig: Config, neon_mint):
         """Transfer Neon from Solana -> Neon"""
