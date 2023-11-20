@@ -79,6 +79,7 @@ class TestTracerDebugMethods(BaseMixin):
                        timeout_sec=120)
         response = self.tracer_api.send_rpc(
             method="debug_traceCall", params=params)
+        print(response)
         assert "error" not in response, "Error in response"
         assert response["result"]["returnValue"] == ""
         self.validate_response_result(response)
@@ -111,6 +112,7 @@ class TestTracerDebugMethods(BaseMixin):
 
         response = self.tracer_api.send_rpc(
             method="debug_traceCall", params=params)
+        print(response)
         assert "error" not in response, "Error in response"
         assert 1 <= int(response["result"]["returnValue"], 16) <= 100
         self.validate_response_result(response)
@@ -126,6 +128,7 @@ class TestTracerDebugMethods(BaseMixin):
                        timeout_sec=120)
         response = self.tracer_api.send_rpc(
             method="debug_traceTransaction", params=[tx_hash])
+        print(response)
         assert "error" not in response, "Error in response"
         self.validate_response_result(response)
 
@@ -180,6 +183,7 @@ class TestTracerDebugMethods(BaseMixin):
                        timeout_sec=120)
         response = self.tracer_api.send_rpc(
             method="debug_traceBlockByNumber", params=[hex(receipt["blockNumber"])])
+        print(response)
         assert "error" not in response, "Error in response"
         assert tx_hash == response["result"][0]["txHash"]
         self.validate_response_result(response["result"][0])
@@ -228,6 +232,7 @@ class TestTracerDebugMethods(BaseMixin):
                        timeout_sec=180)
         response = self.tracer_api.send_rpc(
             method="debug_traceBlockByHash", params=[receipt["blockHash"].hex()])
+        print(response)
         assert "error" not in response, "Error in response"
         assert tx_hash == response["result"][0]["txHash"]
 
