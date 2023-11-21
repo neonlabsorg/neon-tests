@@ -274,16 +274,20 @@ class NeonChainWeb3Client(Web3Client):
         gas: tp.Optional[int] = 0,
         gas_price: tp.Optional[int] = None,
         nonce: int = None,
+        wait_for_recipient=True,
     ) -> web3.types.TxReceipt:
         to_addr = to if isinstance(to, str) else to.address
         if nonce is None:
             nonce = self.get_nonce(from_)
+        if gas_price is None:
+            gas_price = self.gas_price()
+
         transaction = {
             "from": from_.address,
             "to": to_addr,
             "chainId": self.chain_id,
             "value": web3.Web3.to_wei(amount, "ether"),
-            "gasPrice": gas_price or self.gas_price(),
+            "gasPrice": gas_price,
             "gas": gas,
             "nonce": nonce,
         }
@@ -292,7 +296,9 @@ class NeonChainWeb3Client(Web3Client):
 
         signed_tx = self._web3.eth.account.sign_transaction(transaction, from_.key)
         tx = self._web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        return self._web3.eth.wait_for_transaction_receipt(tx)
+        if wait_for_recipient:
+            return self._web3.eth.wait_for_transaction_receipt(tx)
+        return tx
 
     def get_balance(
         self, address: tp.Union[str, eth_account.signers.local.LocalAccount]
