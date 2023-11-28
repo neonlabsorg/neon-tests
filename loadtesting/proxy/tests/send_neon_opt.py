@@ -12,6 +12,7 @@ LOG = logging.getLogger(__name__)
 USERS_PER_INSTANCE = int(os.environ.get("USERS_PER_INSTANCE", "100"))
 PROXY_URL = "https://devnet.neonevm.org"
 GET_GAS_PRICE = "GET_GAS_PRICE" in os.environ
+ONE_RECIPIENT = "USE_ONE_RECIPIENT" in os.environ
 
 
 class NeonTasksSet(HttpUser):
@@ -35,7 +36,10 @@ class NeonTasksSet(HttpUser):
 
     @task
     def task_send_neon(self):
-        recipient = random.choice(self.environment.users)
+        if ONE_RECIPIENT:
+            recipient = self.environment.users[0]
+        else:
+            recipient = random.choice(self.environment.users)
         tx = self.web3.send_neon(
             self.account,
             to=self.environment.users[recipient],
