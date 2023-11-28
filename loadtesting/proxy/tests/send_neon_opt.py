@@ -10,7 +10,7 @@ from utils.web3client import NeonChainWeb3Client
 
 LOG = logging.getLogger(__name__)
 USERS_PER_INSTANCE = int(os.environ.get("USERS_PER_INSTANCE", "100"))
-PROXY_URL = "https://devnet.neonevm.org"
+PROXY_URL = os.environ.get("PROXY_URL", "https://devnet.neonevm.org")
 GET_GAS_PRICE = "GET_GAS_PRICE" in os.environ
 ONE_RECIPIENT = "USE_ONE_RECIPIENT" in os.environ
 
