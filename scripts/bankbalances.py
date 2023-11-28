@@ -6,10 +6,12 @@ import web3
 
 
 # w = web3.Web3(web3.HTTPProvider("https://neon-mainnet.everstake.one")) # mainnet
-w = web3.Web3(web3.HTTPProvider("https://devnet.neonevm.org/"))
+w = web3.Web3(
+    web3.HTTPProvider(os.environ.get("PROXY_URL", "https://devnet.neonevm.org/"))
+)
 
-# CHAIN_ID = 245022934 # mainnet
-CHAIN_ID = 245022926  # devnet
+CHAIN_ID = 245022934  # mainnet
+# CHAIN_ID = 245022926  # devnet
 
 
 def prepare_subbanks_accounts():
