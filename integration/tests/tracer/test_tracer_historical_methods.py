@@ -1,10 +1,11 @@
-import math
 import random
 import typing as tp
 
 import pytest
 
 import allure
+from assertpy import assert_that
+
 from integration.tests.basic.helpers.basic import BaseMixin
 from utils.helpers import wait_condition
 
@@ -81,11 +82,6 @@ class TestTracerHistoricalMethods(BaseMixin):
         yield TestTracerHistoricalMethods._contract
         store_value(self, 0, TestTracerHistoricalMethods._contract)
 
-    def compare_values(self, value, value_to_compare):
-        return math.isclose(abs(round(int(value, 0) / 1e18, 9) - value_to_compare),
-                            0.0,
-                            rel_tol=1e-9)
-
     def test_eth_call_without_params(self):
         response = self.tracer_api.send_rpc(method="eth_call", params=[None])
         assert "error" in response, "Error not in response"
@@ -95,25 +91,25 @@ class TestTracerHistoricalMethods(BaseMixin):
         store_value_1 = random.randint(0, 100)
         tx_obj, request_value, _ = call_storage(
             self, storage_contract, store_value_1, request_type)
-        wait_condition(lambda: int(self.tracer_api.send_rpc(method="eth_call",
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_call",
                                                             req_type=request_type,
-                                                            params=[tx_obj, {request_type: request_value}])["result"], 0) == store_value_1,
+                                                            params=[tx_obj, {request_type: request_value}])["result"], 0)).is_equal_to(store_value_1),
                        timeout_sec=120)
 
         store_value_2 = random.randint(0, 100)
         tx_obj_2, request_value_2, _ = call_storage(self,
             storage_contract, store_value_2, request_type)
-        wait_condition(lambda: int(self.tracer_api.send_rpc(method="eth_call",
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_call",
                                                             req_type=request_type,
-                                                            params=[tx_obj_2, {request_type: request_value_2}])["result"], 0) == store_value_2,
+                                                            params=[tx_obj_2, {request_type: request_value_2}])["result"], 0)).is_equal_to(store_value_2),
                        timeout_sec=120)
 
         store_value_3 = random.randint(0, 100)
         tx_obj_3, request_value_3, _ = call_storage(self,
             storage_contract, store_value_3, request_type)
-        wait_condition(lambda: int(self.tracer_api.send_rpc(method="eth_call",
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_call",
                                                             req_type=request_type,
-                                                            params=[tx_obj_3, {request_type: request_value_3}])["result"], 0) == store_value_3,
+                                                            params=[tx_obj_3, {request_type: request_value_3}])["result"], 0)).is_equal_to(store_value_3),
                        timeout_sec=120)
 
     def test_eth_call_by_block_and_hash(self, storage_contract):
@@ -123,14 +119,14 @@ class TestTracerHistoricalMethods(BaseMixin):
         request_value_block = hex(receipt["blockNumber"])
         request_value_hash = receipt["blockHash"].hex()
 
-        wait_condition(lambda: int(self.tracer_api.send_rpc(method="eth_call",
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_call",
                                                             req_type="blockNumber",
-                                                            params=[tx_obj, {"blockNumber": request_value_block}])["result"], 0) == store_value_1,
+                                                            params=[tx_obj, {"blockNumber": request_value_block}])["result"], 0)).is_equal_to(store_value_1),
                        timeout_sec=120)
 
-        wait_condition(lambda: int(self.tracer_api.send_rpc(method="eth_call",
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_call",
                                                             req_type="blockHash",
-                                                            params=[tx_obj, {"blockHash": request_value_hash}])["result"], 0) == store_value_1,
+                                                            params=[tx_obj, {"blockHash": request_value_hash}])["result"], 0)).is_equal_to(store_value_1),
                        timeout_sec=120)
 
     @pytest.mark.parametrize("request_type", ["blockNumber", "blockHash"])
@@ -139,22 +135,22 @@ class TestTracerHistoricalMethods(BaseMixin):
         _, request_value_1, _ = call_storage(self,
             storage_contract, store_value_1, request_type)
 
-        wait_condition(lambda: int(self.tracer_api.send_rpc(method="eth_getStorageAt",
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_getStorageAt",
                                                             req_type=request_type,
                                                             params=[storage_contract.address,
                                                                     '0x0',
-                                                                    {request_type: request_value_1}])["result"], 0) == store_value_1,
+                                                                    {request_type: request_value_1}])["result"], 0)).is_equal_to(store_value_1),
                        timeout_sec=120)
 
         store_value_2 = random.randint(0, 100)
         _, request_value_2, _ = call_storage(self,
             storage_contract, store_value_2, request_type)
 
-        wait_condition(lambda: int(self.tracer_api.send_rpc(method="eth_getStorageAt",
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_getStorageAt",
                                                             req_type=request_type,
                                                             params=[storage_contract.address,
                                                                     '0x0',
-                                                                    {request_type: request_value_2}])["result"], 0) == store_value_2,
+                                                                    {request_type: request_value_2}])["result"], 0)).is_equal_to(store_value_2),
                        timeout_sec=120)
 
     @pytest.mark.parametrize("request_type", ["blockNumber", "blockHash"])
@@ -166,10 +162,10 @@ class TestTracerHistoricalMethods(BaseMixin):
         _, request_value_1, _ = call_storage(self,
             storage_contract, store_value_1, request_type)
 
-        wait_condition(lambda: int(self.tracer_api.send_rpc(method="eth_getTransactionCount",
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_getTransactionCount",
                                                             req_type=request_type,
                                                             params=[self.sender_account.address,
-                                                                    {request_type: request_value_1}])["result"], 0) == nonce + 2,
+                                                                    {request_type: request_value_1}])["result"], 0)).is_equal_to(nonce + 2),
                        timeout_sec=120)
 
         request_value_2 = None
@@ -180,10 +176,10 @@ class TestTracerHistoricalMethods(BaseMixin):
         else:
             request_value_2 = receipt[request_type].hex()
 
-        wait_condition(lambda: int(self.tracer_api.send_rpc(method="eth_getTransactionCount",
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_getTransactionCount",
                                                             req_type=request_type,
                                                             params=[self.sender_account.address,
-                                                                    {request_type: request_value_2}])["result"], 0) == nonce + 3,
+                                                                    {request_type: request_value_2}])["result"], 0)).is_equal_to(nonce + 3),
                        timeout_sec=120)
 
     @pytest.mark.parametrize("request_type", ["blockNumber", "blockHash"])
@@ -194,57 +190,56 @@ class TestTracerHistoricalMethods(BaseMixin):
             self.sender_account, self.recipient_account, transfer_amount)
         assert receipt_1["status"] == 1
 
-        sender_balance = round(self.get_balance_from_wei(
-            self.sender_account.address), 9)
-        recipient_balance = round(self.get_balance_from_wei(
-            self.recipient_account.address), 9)
+        sender_balance = self.get_balance(self.sender_account.address)
+        recipient_balance = self.get_balance(self.recipient_account.address)
 
         if request_type == "blockNumber":
             request_value = hex(receipt_1[request_type])
         else:
             request_value = receipt_1[request_type].hex()
 
-        wait_condition(lambda: self.compare_values(self.tracer_api.send_rpc(method="eth_getBalance",
-                                                                            req_type=request_type,
-                                                                            params=[self.sender_account.address,
-                                                                                    {request_type: request_value}])["result"],
-                                                   sender_balance),
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_getBalance",
+                                                                        req_type=request_type,
+                                                                        params=[self.sender_account.address,
+                                                                                {request_type: request_value}])[
+                                                   "result"], 0)).is_equal_to(sender_balance),
                        timeout_sec=120)
 
-        wait_condition(lambda: self.compare_values(self.tracer_api.send_rpc(method="eth_getBalance",
-                                                                            req_type=request_type,
-                                                                            params=[self.recipient_account.address,
-                                                                                    {request_type: request_value}])["result"],
-                                                   recipient_balance),
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_getBalance",
+                                                                        req_type=request_type,
+                                                                        params=[self.recipient_account.address,
+                                                                                {request_type: request_value}])[
+                                                   "result"], 0)).is_equal_to(recipient_balance),
                        timeout_sec=120)
 
         receipt_2 = self.send_neon(
             self.sender_account, self.recipient_account, transfer_amount)
         assert receipt_2["status"] == 1
 
-        sender_balance_after = round(self.get_balance_from_wei(
-            self.sender_account.address), 9)
-        recipient_balance_after = round(self.get_balance_from_wei(
-            self.recipient_account.address), 9)
+        sender_balance_after = self.get_balance(self.sender_account.address)
+        recipient_balance_after = self.get_balance(self.recipient_account.address)
 
         if request_type == "blockNumber":
             request_value = hex(receipt_2[request_type])
         else:
             request_value = receipt_2[request_type].hex()
 
-        wait_condition(lambda: self.compare_values(self.tracer_api.send_rpc(method="eth_getBalance",
-                                                                            req_type=request_type,
-                                                                            params=[self.sender_account.address,
-                                                                                    {request_type: request_value}])["result"],
-                                                   sender_balance_after),
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_getBalance",
+                                                                        req_type=request_type,
+                                                                        params=[self.sender_account.address,
+                                                                                {request_type: request_value}])[
+                                                   "result"], 0)).is_equal_to(sender_balance_after),
                        timeout_sec=120)
 
-        wait_condition(lambda: self.compare_values(self.tracer_api.send_rpc(method="eth_getBalance",
-                                                                            req_type=request_type,
-                                                                            params=[self.recipient_account.address,
-                                                                                    {request_type: request_value}])["result"],
-                                                   recipient_balance_after),
+        wait_condition(lambda: assert_that(int(self.tracer_api.send_rpc(method="eth_getBalance",
+                                                                        req_type=request_type,
+                                                                        params=[self.recipient_account.address,
+                                                                                {request_type: request_value}])[
+                                                   "result"], 0)).is_equal_to(recipient_balance_after),
                        timeout_sec=120)
+
+        assert_that(recipient_balance_after / 1e18).is_close_to((recipient_balance + transfer_amount * 1e18) / 1e18, 1e-9)
+        assert_that(sender_balance_after).is_less_than(sender_balance - transfer_amount * 1e18)
 
     def test_eth_get_code(self):
         request_type = "blockNumber"
@@ -261,28 +256,28 @@ class TestTracerHistoricalMethods(BaseMixin):
             account=self.sender_account, transaction=tx)
         assert receipt["status"] == 1
 
-        wait_condition(lambda: (self.tracer_api.send_rpc(method="eth_getCode",
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="eth_getCode",
                                                          req_type=request_type,
                                                          params=[receipt["contractAddress"],
-                                                                 {request_type: hex(receipt[request_type] - 1)}]))["result"] == "",
+                                                                 {request_type: hex(receipt[request_type] - 1)}])["result"]).is_equal_to(""),
                        timeout_sec=120)
 
-        wait_condition(lambda: (self.tracer_api.send_rpc(method="eth_getCode",
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="eth_getCode",
                                                          req_type="blockHash",
                                                          params=[receipt["contractAddress"],
-                                                                 {"blockHash": receipt["blockHash"].hex()}]))["result"] == CONTRACT_CODE,
+                                                                 {"blockHash": receipt["blockHash"].hex()}])["result"]).is_equal_to(CONTRACT_CODE),
                        timeout_sec=120)
 
-        wait_condition(lambda: (self.tracer_api.send_rpc(method="eth_getCode",
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="eth_getCode",
                                                          req_type=request_type,
                                                          params=[receipt["contractAddress"],
-                                                                 {request_type: hex(receipt[request_type])}]))["result"] == CONTRACT_CODE,
+                                                                 {request_type: hex(receipt[request_type])}])["result"]).is_equal_to(CONTRACT_CODE),
                        timeout_sec=120)
 
-        wait_condition(lambda: (self.tracer_api.send_rpc(method="eth_getCode",
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="eth_getCode",
                                                          req_type=request_type,
                                                          params=[receipt["contractAddress"],
-                                                                 {request_type: hex(receipt[request_type] + 1)}]))["result"] == CONTRACT_CODE,
+                                                                 {request_type: hex(receipt[request_type] + 1)}])["result"]).is_equal_to(CONTRACT_CODE),
                        timeout_sec=120)
 
     @pytest.mark.skip("Not released yet")

@@ -2,6 +2,7 @@ import random
 
 import pytest
 import web3
+from assertpy import assert_that
 from solana.rpc.types import Commitment, TxOpts
 from solana.transaction import Transaction
 from solders.rpc.responses import GetTransactionResp
@@ -110,10 +111,9 @@ class TestWNeon(BaseMixin):
             receipt["transactionHash"].hex()
         )
         wait_condition(
-            lambda: self.sol_client.get_transaction(
+            lambda: assert_that(self.sol_client.get_transaction(
                 Signature.from_string(solana_trx["result"][0]),
-            )
-            != GetTransactionResp(None), timeout_sec=30
+            )).is_not_equal_to(GetTransactionResp(None)), timeout_sec=30
         )
         solana_resp = self.sol_client.get_transaction(
             Signature.from_string(solana_trx["result"][0])
@@ -205,7 +205,7 @@ class TestWNeon(BaseMixin):
         assert neon_balance_after - neon_balance_before < withdraw_amount
 
         wait_condition(
-            lambda: self.sol_client.get_balance(solana_account.public_key) != 0
+            lambda: assert_that(self.sol_client.get_balance(solana_account.public_key)).is_not_equal_to(0)
         )
 
         trx = Transaction()

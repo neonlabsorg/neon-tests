@@ -7,6 +7,7 @@ import base58
 import pytest
 import web3
 import web3.exceptions
+from assertpy import assert_that
 from solana.publickey import PublicKey
 from solana.rpc.types import TokenAccountOpts, TxOpts
 from solana.transaction import Transaction
@@ -534,12 +535,11 @@ class TestERC721(BaseMixin):
         opts = TokenAccountOpts(token_mint)
 
         wait_condition(
-            lambda: int(
+            lambda: assert_that(int(
                 sol_client.get_token_accounts_by_owner_json_parsed(acc.public_key, opts)
                 .value[0]
                 .account.data.parsed["info"]["tokenAmount"]["amount"]
-            )
-            > 0
+            )).is_positive()
         )
         token_data = sol_client.get_token_accounts_by_owner_json_parsed(
             acc.public_key, opts

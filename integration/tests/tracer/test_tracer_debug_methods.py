@@ -12,6 +12,7 @@ import pytest
 from integration.tests.basic.helpers.basic import BaseMixin
 from integration.tests.tracer.test_tracer_historical_methods import call_storage
 from utils.helpers import wait_condition
+from assertpy import assert_that
 
 SCHEMAS = "./integration/tests/tracer/schemas/"
 
@@ -28,7 +29,7 @@ class TestTracerDebugMethods(BaseMixin):
     def validate_response_result(self, response):
         schema = self.get_schema("debug_traceCall.json")
         validator = Draft4Validator(schema)
-        assert validator.is_valid(response["result"])
+        validator.validate(response["result"])
 
     def test_debug_trace_call_invalid_params(self):
         response = self.tracer_api.send_rpc(
@@ -43,8 +44,8 @@ class TestTracerDebugMethods(BaseMixin):
         assert receipt["status"] == 1
         tx_hash = receipt["transactionHash"].hex()
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="eth_getTransactionByHash", params=[
-                       tx_hash])['result'] is not None, timeout_sec=120)
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="eth_getTransactionByHash", params=[
+            tx_hash])['result']).is_not_none(), timeout_sec=120)
         tx_info = self.tracer_api.send_rpc(
             method="eth_getTransactionByHash", params=[tx_hash])
 
@@ -61,8 +62,8 @@ class TestTracerDebugMethods(BaseMixin):
         assert receipt["status"] == 1
         tx_hash = receipt["transactionHash"].hex()
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="eth_getTransactionByHash", params=[
-                       tx_hash])['result'] is not None, timeout_sec=120)
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="eth_getTransactionByHash", params=[
+            tx_hash])['result']).is_not_none(), timeout_sec=120)
         tx_info = self.tracer_api.send_rpc(
             method="eth_getTransactionByHash", params=[tx_hash])
 
@@ -77,9 +78,11 @@ class TestTracerDebugMethods(BaseMixin):
             tx_info["result"]["blockNumber"]
         ]
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_traceCall",
-                                                        params=params)["result"] is not None,
-                       timeout_sec=120)
+        wait_condition(
+            lambda: assert_that(self.tracer_api.send_rpc(method="debug_traceCall",
+                                                         params=params)["result"]).is_not_none(),
+            timeout_sec=120
+        )
         response = self.tracer_api.send_rpc(
             method="debug_traceCall", params=params)
         assert "error" not in response, "Error in response"
@@ -92,8 +95,8 @@ class TestTracerDebugMethods(BaseMixin):
             self, storage_contract, store_value, "blockNumber")
         tx_hash = receipt["transactionHash"].hex()
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="eth_getTransactionByHash", params=[
-                       tx_hash])['result'] is not None, timeout_sec=120)
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="eth_getTransactionByHash", params=[
+            tx_hash])['result']).is_not_none(), timeout_sec=120)
         tx_info = self.tracer_api.send_rpc(
             method="eth_getTransactionByHash", params=[tx_hash])
 
@@ -108,9 +111,11 @@ class TestTracerDebugMethods(BaseMixin):
             tx_info["result"]["blockNumber"]
         ]
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_traceCall",
-                                                        params=params)["result"] is not None,
-                       timeout_sec=120)
+        wait_condition(
+            lambda: assert_that(self.tracer_api.send_rpc(method="debug_traceCall",
+                                                         params=params)["result"]).is_not_none(),
+            timeout_sec=120
+        )
 
         response = self.tracer_api.send_rpc(
             method="debug_traceCall", params=params)
@@ -124,8 +129,8 @@ class TestTracerDebugMethods(BaseMixin):
         assert receipt["status"] == 1
         tx_hash = receipt["transactionHash"].hex()
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_traceTransaction",
-                                                        params=[tx_hash])["result"] is not None,
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="debug_traceTransaction",
+                                                        params=[tx_hash])["result"]).is_not_none(),
                        timeout_sec=120)
         response = self.tracer_api.send_rpc(
             method="debug_traceTransaction", params=[tx_hash])
@@ -138,12 +143,11 @@ class TestTracerDebugMethods(BaseMixin):
             self, storage_contract, store_value, "blockNumber")
         tx_hash = receipt["transactionHash"].hex()
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_traceTransaction",
-                                                        params=[tx_hash])["result"] is not None,
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="debug_traceTransaction",
+                                                        params=[tx_hash])["result"]).is_not_none(),
                        timeout_sec=120)
         response = self.tracer_api.send_rpc(
             method="debug_traceTransaction", params=[tx_hash])
-        assert "error" not in response, "Error in response"
         assert "error" not in response, "Error in response"
         assert 1 <= int(response["result"]["returnValue"], 16) <= 100
         self.validate_response_result(response)
@@ -154,12 +158,11 @@ class TestTracerDebugMethods(BaseMixin):
             self, storage_contract, store_value, "blockNumber")
         tx_hash = receipt["transactionHash"].hex()[2:]
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_traceTransaction",
-                                                        params=[tx_hash])["result"] is not None,
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="debug_traceTransaction",
+                                                        params=[tx_hash])["result"]).is_not_none(),
                        timeout_sec=120)
         response = self.tracer_api.send_rpc(
             method="debug_traceTransaction", params=[tx_hash])
-        assert "error" not in response, "Error in response"
         assert "error" not in response, "Error in response"
         assert 1 <= int(response["result"]["returnValue"], 16) <= 100
         self.validate_response_result(response)
@@ -178,8 +181,8 @@ class TestTracerDebugMethods(BaseMixin):
         assert receipt["status"] == 1
         tx_hash = receipt["transactionHash"].hex()
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_traceBlockByNumber",
-                                                        params=[hex(receipt["blockNumber"])])["result"] is not None,
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="debug_traceBlockByNumber",
+                                                        params=[hex(receipt["blockNumber"])])["result"]).is_not_none(),
                        timeout_sec=120)
         response = self.tracer_api.send_rpc(
             method="debug_traceBlockByNumber", params=[hex(receipt["blockNumber"])])
@@ -226,8 +229,8 @@ class TestTracerDebugMethods(BaseMixin):
         assert receipt["status"] == 1
         tx_hash = receipt["transactionHash"].hex()
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_traceBlockByHash",
-                                                        params=[receipt["blockHash"].hex()])["result"] is not None,
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="debug_traceBlockByHash",
+                                                        params=[receipt["blockHash"].hex()])["result"]).is_not_none(),
                        timeout_sec=180)
         response = self.tracer_api.send_rpc(
             method="debug_traceBlockByHash", params=[receipt["blockHash"].hex()])
@@ -267,8 +270,8 @@ class TestTracerDebugMethods(BaseMixin):
         receipt = self.send_neon(
             self.sender_account, self.recipient_account, 0.1)
         assert receipt["status"] == 1
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_getRawHeader",
-                                                        params=[hex(receipt["blockNumber"])])["result"] is not None,
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="debug_getRawHeader",
+                                                        params=[hex(receipt["blockNumber"])])["result"]).is_not_none(),
                        timeout_sec=120)
         
         response = self.tracer_api.send_rpc(
@@ -296,8 +299,8 @@ class TestTracerDebugMethods(BaseMixin):
         receipt = self.send_neon(
             self.sender_account, self.recipient_account, 0.1)
         assert receipt["status"] == 1
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_getRawHeader",
-                                                        params=[receipt["blockHash"].hex()])["result"] is not None,
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="debug_getRawHeader",
+                                                        params=[receipt["blockHash"].hex()])["result"]).is_not_none(),
                        timeout_sec=120)
         
         response = self.tracer_api.send_rpc(
@@ -337,8 +340,8 @@ class TestTracerDebugMethods(BaseMixin):
         assert receipt_start["status"] == 1
         assert receipt_end["status"] == 1
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_getModifiedAccountsByNumber",
-                                                        params=[hex(receipt_start["blockNumber"]), hex(receipt_end["blockNumber"])])["result"] is not None,
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="debug_getModifiedAccountsByNumber",
+                                                        params=[hex(receipt_start["blockNumber"]), hex(receipt_end["blockNumber"])])["result"]).is_not_none(),
                        timeout_sec=120)
         
         response = self.tracer_api.send_rpc(
@@ -351,8 +354,8 @@ class TestTracerDebugMethods(BaseMixin):
             self.sender_account, self.recipient_account, 0.1)
         assert receipt["status"] == 1
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_getModifiedAccountsByNumber",
-                                                        params=[hex(receipt["blockNumber"]), hex(receipt["blockNumber"])])["result"] is not None,
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="debug_getModifiedAccountsByNumber",
+                                                        params=[hex(receipt["blockNumber"]), hex(receipt["blockNumber"])])["result"]).is_not_none(),
                        timeout_sec=120)
         
         response = self.tracer_api.send_rpc(
@@ -365,8 +368,8 @@ class TestTracerDebugMethods(BaseMixin):
             self.sender_account, self.recipient_account, 0.1)
         assert receipt["status"] == 1
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_getModifiedAccountsByNumber",
-                                                        params=[hex(receipt["blockNumber"])])["result"] is not None,
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="debug_getModifiedAccountsByNumber",
+                                                        params=[hex(receipt["blockNumber"])])["result"]).is_not_none(),
                        timeout_sec=120)
         
         response = self.tracer_api.send_rpc(
@@ -381,8 +384,8 @@ class TestTracerDebugMethods(BaseMixin):
         assert receipt["status"] == 1
         start_number = hex(receipt["blockNumber"] - difference)
         end_number= hex(receipt["blockNumber"])
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_getModifiedAccountsByNumber",
-                                                        params=[start_number, end_number])["result"] is not None,
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(method="debug_getModifiedAccountsByNumber",
+                                                        params=[start_number, end_number])["result"]).is_not_none(),
                        timeout_sec=120)
         
         response = self.tracer_api.send_rpc(
@@ -421,8 +424,10 @@ class TestTracerDebugMethods(BaseMixin):
         assert receipt_start["status"] == 1
         assert receipt_end["status"] == 1
 
-        wait_condition(lambda: self.tracer_api.send_rpc(method="debug_getModifiedAccountsByHash",
-                                                        params=[receipt_start["blockHash"].hex(), receipt_end["blockHash"].hex()])["result"] is not None,
+        wait_condition(lambda: assert_that(self.tracer_api.send_rpc(
+            method="debug_getModifiedAccountsByHash",
+            params=[receipt_start["blockHash"].hex(),
+                    receipt_end["blockHash"].hex()])["result"]).is_not_none(),
                        timeout_sec=120)
         
         response = self.tracer_api.send_rpc(

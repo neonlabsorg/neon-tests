@@ -7,6 +7,7 @@ import pytest
 import rlp
 import solcx
 from _pytest.config import Config
+from assertpy import assert_that
 from solana.keypair import Keypair as SolanaAccount
 from solana.publickey import PublicKey
 from solana.rpc.types import Commitment, TxOpts
@@ -154,7 +155,7 @@ class TestEconomics(BaseTests):
         transfer_tx = erc20_wrapper.transfer(erc20_wrapper.account, self.acc, 25)
 
         assert erc20_wrapper.contract.functions.balanceOf(self.acc.address).call() == 25
-        wait_condition(lambda: sol_balance_before > self.operator.get_solana_balance())
+        wait_condition(lambda: assert_that(sol_balance_before).is_greater_than(self.operator.get_solana_balance()))
         sol_balance_after = self.operator.get_solana_balance()
         token_balance_after = self.operator.get_token_balance(w3_client)
         sol_diff = sol_balance_before - sol_balance_after
@@ -174,7 +175,7 @@ class TestEconomics(BaseTests):
 
         erc721.mint(seed, account_with_all_tokens.address, "uri")
 
-        wait_condition(lambda: sol_balance_before > self.operator.get_solana_balance())
+        wait_condition(lambda: assert_that(sol_balance_before).is_greater_than(self.operator.get_solana_balance()))
         sol_balance_after = self.operator.get_solana_balance()
         token_balance_after = self.operator.get_token_balance(w3_client)
         sol_diff = sol_balance_before - sol_balance_after
@@ -232,7 +233,7 @@ class TestEconomics(BaseTests):
         sol_user = SolanaAccount()
         self.sol_client.request_airdrop(sol_user.public_key, 5 * LAMPORT_PER_SOL)
 
-        wait_condition(lambda: self.sol_client.get_balance(sol_user.public_key) != 0)
+        wait_condition(lambda: assert_that(self.sol_client.get_balance(sol_user.public_key)).is_not_equal_to(0))
 
         trx = Transaction()
         trx.add(create_associated_token_account(sol_user.public_key, sol_user.public_key, neon_mint))
@@ -451,7 +452,7 @@ class TestEconomics(BaseTests):
         instruction_tx = counter_contract.functions.moreInstruction(0, 1500).build_transaction(tx)
 
         instruction_receipt = w3_client.send_transaction(account_with_all_tokens, instruction_tx)
-        wait_condition(lambda: sol_balance_before > self.operator.get_solana_balance())
+        wait_condition(lambda: assert_that(sol_balance_before).is_greater_than(self.operator.get_solana_balance()))
 
         sol_balance_after = self.operator.get_solana_balance()
         token_balance_after = self.operator.get_token_balance(w3_client)
@@ -658,7 +659,7 @@ class TestEconomics(BaseTests):
         operator_balance = sol_client.get_balance(operator).value
 
         wait_condition(
-            lambda: self.operator.get_solana_balance() != sol_balance_before,
+            lambda: assert_that(self.operator.get_solana_balance()).is_not_equal_to(sol_balance_before),
             timeout_sec=120,
         )
         sol_balance_after = self.operator.get_solana_balance()
@@ -676,7 +677,7 @@ class TestEconomics(BaseTests):
         )
         # the charge for alt creating should be returned
         wait_condition(
-            lambda: sol_client.get_balance(operator).value > operator_balance,
+            lambda: assert_that(sol_client.get_balance(operator).value).is_greater_than(operator_balance),
             timeout_sec=60 * 15,
             delay=3,
         )
@@ -760,7 +761,7 @@ class TestEconomics(BaseTests):
         instruction_tx = contract.functions.replaceValues(value).build_transaction(tx)
         receipt = w3_client.send_transaction(account_with_all_tokens, instruction_tx)
         assert receipt["status"] == 1
-        wait_condition(lambda: sol_balance_before != self.operator.get_solana_balance())
+        wait_condition(lambda: assert_that(sol_balance_before).is_not_equal_to(self.operator.get_solana_balance()))
 
         sol_balance_after = self.operator.get_solana_balance()
         token_balance_after = self.operator.get_token_balance(w3_client)

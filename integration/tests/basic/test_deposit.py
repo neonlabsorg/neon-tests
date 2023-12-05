@@ -4,6 +4,7 @@ import pytest
 import allure
 import web3
 from _pytest.config import Config
+from assertpy import assert_that
 from solana.keypair import Keypair
 from solana.rpc.commitment import Commitment
 from solana.rpc.types import TxOpts
@@ -222,7 +223,7 @@ class TestWithdraw(BaseTests):
         """Should successfully withdraw NEON tokens to existing Associated Token Account"""
         dest_acc = solana_account
 
-        wait_condition(lambda: self.sol_client.get_balance(dest_acc.public_key) != 0)
+        wait_condition(lambda: assert_that(self.sol_client.get_balance(dest_acc.public_key)).is_not_equal_to(0))
 
         trx = Transaction()
         trx.add(create_associated_token_account(dest_acc.public_key, dest_acc.public_key, neon_mint))

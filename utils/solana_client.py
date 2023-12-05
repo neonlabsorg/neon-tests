@@ -4,6 +4,7 @@ import typing as tp
 
 import solana.rpc.api
 import spl.token.client
+from assertpy import assert_that
 from solana.keypair import Keypair
 from solana.publickey import PublicKey
 from solana.rpc.commitment import Commitment, Finalized
@@ -45,7 +46,7 @@ class SolanaClient(solana.rpc.api.Client):
                 break
         else:
             raise AssertionError(f"Can't get airdrop from solana: {airdrop_resp}")
-        wait_condition(lambda: self.get_balance(pubkey).value >= lamports, timeout_sec=30)
+        wait_condition(lambda: assert_that(self.get_balance(pubkey).value).is_greater_than_or_equal_to(lamports), timeout_sec=30)
         return airdrop_resp
 
     def send_sol(self, from_: Keypair, to: PublicKey, amount_lamports: int):

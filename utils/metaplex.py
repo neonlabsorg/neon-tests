@@ -8,6 +8,7 @@ from construct import (
 
 from solana.publickey import PublicKey
 from solana.transaction import AccountMeta, TransactionInstruction
+from assertpy import assert_that
 
 import enum
 import base64
@@ -300,5 +301,4 @@ def get_metadata(client, mint_key):
 
 def wait_account_info(client, mint_key):
     metadata_account = get_metadata_account(mint_key)
-    wait_condition(lambda: client.get_account_info(metadata_account).value is not None, timeout_sec=30)
-
+    wait_condition(lambda: assert_that(client.get_account_info(metadata_account).value).is_not_none(), timeout_sec=30)

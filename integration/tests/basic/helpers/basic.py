@@ -7,8 +7,10 @@ import allure
 import eth_account.signers.local
 import pytest
 import web3
+from assertpy import assert_that
 from solders.rpc.responses import GetTransactionResp
 from solders.signature import Signature
+from web3.types import Wei
 
 from integration.tests.base import BaseTests
 from utils.apiclient import JsonRPCSession
@@ -90,6 +92,10 @@ class BaseMixin(BaseTests):
     def get_balance_from_wei(self, address: str) -> float:
         """Gets balance from Wei"""
         return float(self.web3_client.from_wei(self.web3_client.eth.get_balance(address), Unit.ETHER))
+
+    def get_balance(self, address: str) -> Wei:
+        """Gets balance in Wei"""
+        return self.web3_client.eth.get_balance(address)
 
     @staticmethod
     def create_invalid_address(len=20) -> str:
@@ -217,9 +223,9 @@ class BaseMixin(BaseTests):
     def get_solana_resp_by_solana_tx(self, tx):
         try:
             wait_condition(
-                lambda: self.sol_client.get_transaction(
+                lambda: assert_that(self.sol_client.get_transaction(
                     Signature.from_string(tx),
-                    max_supported_transaction_version=0) != GetTransactionResp(None))
+                    max_supported_transaction_version=0)).is_not_equal_to(GetTransactionResp(None)))
         except TimeoutError:
             return None
         return self.sol_client.get_transaction(Signature.from_string(tx), max_supported_transaction_version=0)

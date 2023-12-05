@@ -2,6 +2,7 @@ import time
 from decimal import Decimal
 
 import allure
+from assertpy import assert_that
 from solana.rpc.core import RPCException
 from solders.rpc.responses import GetTransactionResp
 from solders.signature import Signature
@@ -41,11 +42,10 @@ def get_single_transaction_gas():
 def check_alt_on(web3_client, sol_client, receipt, accounts_quantity):
     solana_trx = web3_client.get_solana_trx_by_neon(receipt["transactionHash"].hex())
     wait_condition(
-        lambda: sol_client.get_transaction(
+        lambda: assert_that(sol_client.get_transaction(
             Signature.from_string(solana_trx["result"][0]),
             max_supported_transaction_version=0,
-        )
-                != GetTransactionResp(None)
+        )).is_not_equal_to(GetTransactionResp(None))
     )
     trx = sol_client.get_transaction(
         Signature.from_string(solana_trx["result"][0]),

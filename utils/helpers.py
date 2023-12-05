@@ -3,6 +3,7 @@ import pathlib
 import random
 import string
 import time
+import traceback
 import typing as tp
 
 import solcx
@@ -87,6 +88,7 @@ def wait_condition(func_cond, timeout_sec=15, delay=0.5):
                 break
         except Exception as e:
             print(f"Error during waiting: {e}")
+            traceback.print_exception(Exception, e, e.__traceback__)
         time.sleep(delay)
     return True
 

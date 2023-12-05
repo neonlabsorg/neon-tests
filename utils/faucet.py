@@ -2,6 +2,8 @@ import requests
 import typing as tp
 import urllib.parse
 
+from assertpy import assert_that
+
 from utils.helpers import wait_condition
 from utils.web3client import NeonChainWeb3Client
 
@@ -20,5 +22,5 @@ class Faucet:
         assert response.ok, "Faucet returned error: {}, status code: {}, url: {}".format(response.text,
                                                                                          response.status_code,
                                                                                          response.url)
-        wait_condition(lambda: self.web3_client.get_balance(address) > balance_before)
+        wait_condition(lambda: assert_that(self.web3_client.get_balance(address)).is_greater_than(balance_before))
         return response

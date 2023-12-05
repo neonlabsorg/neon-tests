@@ -13,6 +13,7 @@ from integration.tests.basic.helpers.basic import BaseMixin
 from utils import metaplex
 from utils.consts import ZERO_ADDRESS
 from utils.helpers import gen_hash_of_block, wait_condition
+from assertpy import assert_that
 
 UINT64_LIMIT = 18446744073709551615
 MAX_TOKENS_AMOUNT = 1000000000000000
@@ -646,12 +647,11 @@ class TestERC20wrapperContract(BaseMixin):
         opts = TokenAccountOpts(token_mint)
         erc20.approve_solana(erc20.account, bytes(acc.public_key), amount)
         wait_condition(
-            lambda: len(
+            lambda: assert_that(
                 sol_client.get_token_accounts_by_delegate_json_parsed(
                     acc.public_key, opts
                 ).value
-            )
-                    > 0, timeout_sec=30
+            ).is_not_empty(), timeout_sec=30
         )
         token_account = (
             sol_client.get_token_accounts_by_delegate_json_parsed(acc.public_key, opts)
