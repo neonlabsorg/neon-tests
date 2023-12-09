@@ -196,7 +196,7 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
         env["PROXY_URL"] = network_manager.get_network_param(network, "proxy_url")
 
         out = subprocess.run(
-            f"npx hardhat test {file_name}",
+            f"npx hardhat test --parallel {file_name}",
             shell=True,
             cwd=cwd,
             capture_output=True,
