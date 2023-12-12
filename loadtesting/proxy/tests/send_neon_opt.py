@@ -4,7 +4,7 @@ Optimized suite for sending Neon messages very fast, for testing mainnet/devnet 
 import os
 import logging
 import random
-from locust import TaskSet, task, HttpUser
+from locust import TaskSet, task, HttpUser, constant
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -16,7 +16,7 @@ ONE_RECIPIENT = "USE_ONE_RECIPIENT" in os.environ
 
 
 class NeonTasksSet(HttpUser):
-    wait_time = 2
+    wait_time = constant(2)
 
     def on_start(self):
         self._private_key = (
@@ -50,4 +50,4 @@ class NeonTasksSet(HttpUser):
             wait_for_recipient=False,
         )
         self.nonce += 1
-        LOG.info(f"Sent NEON from {self.account.address} to {recipient}: {tx}")
+        LOG.info(f"Sent NEON from {self.account.address} to {recipient}: {tx.hex()}")
