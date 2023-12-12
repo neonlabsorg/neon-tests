@@ -42,7 +42,7 @@ class NeonTasksSet(HttpUser):
             recipient = random.choice(self.environment.users)
         tx = self.web3.send_neon(
             self.account,
-            to=self.environment.users[recipient],
+            to=recipient,
             gas=30000,
             gas_price=None if GET_GAS_PRICE else 0,
             amount=0.00000001,
