@@ -20,11 +20,11 @@ class NeonTasksSet(HttpUser):
 
     def on_start(self):
         self._private_key = (
-            int(os.environ.get("BASE_PRIVATE_KEY"))
+            int(os.environ.get("BASE_PRIVATE_KEY"), 16)
             + USERS_PER_INSTANCE * self.environment.runner.worker_index
             + self.environment.runner.user_count
         )
-        LOG.info("Private key: ", self._private_key)
+        # LOG.info(f"Private key: {self._private_key}")
         self.web3 = NeonChainWeb3Client(PROXY_URL)
         self.account = self.web3._web3.eth.account.from_key(self._private_key)
         self.nonce = self.web3.get_nonce(self.account.address)

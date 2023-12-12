@@ -1,14 +1,13 @@
 import os
 import sys
+import time
 import decimal
 
 import web3
 
 
 # w = web3.Web3(web3.HTTPProvider("https://neon-mainnet.everstake.one")) # mainnet
-w = web3.Web3(
-    web3.HTTPProvider(os.environ.get("PROXY_URL", "https://devnet.neonevm.org/"))
-)
+w = web3.Web3(web3.HTTPProvider(os.environ.get("PROXY_URL", "https://devnet.neonevm.org/")))
 
 CHAIN_ID = 245022934  # mainnet
 # CHAIN_ID = 245022926  # devnet
@@ -32,8 +31,9 @@ def prepare_subbanks_accounts():
 
 def generate_user_accounts(count=100):
     base_account = os.environ.get("BASE_PRIVATE_KEY")
+    offset = 0 if not "USERS_OFFSET" in os.environ else int(os.environ.get("USERS_OFFSET"))
     accounts = []
-    for i in range(count):
+    for i in range(offset, count + offset):
         private_key = int(base_account, 16) + i
         account = w.eth.account.from_key(private_key)
         accounts.append(account)
@@ -41,10 +41,7 @@ def generate_user_accounts(count=100):
 
 
 def distribute(from_account, to_accounts, amount=None):
-    main_balance = round(
-        w.from_wei(w.eth.get_balance(from_account.address), "ether")
-        - decimal.Decimal(1)
-    )
+    main_balance = round(w.from_wei(w.eth.get_balance(from_account.address), "ether") - decimal.Decimal(1))
 
     if amount is None:
         part_size = w.to_wei(main_balance // len(to_accounts), "ether")
@@ -70,18 +67,22 @@ def distribute(from_account, to_accounts, amount=None):
         transaction["gas"] = w.eth.estimate_gas(transaction)
 
         signed_tx = w.eth.account.sign_transaction(transaction, from_account.key)
-        tx = w.eth.send_raw_transaction(signed_tx.rawTransaction)
-        w.eth.wait_for_transaction_receipt(tx)
-        print(f"    -- TX: {tx.hex()}")
+        for _ in range(3):
+            try:
+                tx = w.eth.send_raw_transaction(signed_tx.rawTransaction)
+                w.eth.wait_for_transaction_receipt(tx)
+                print(f"    -- TX: {tx.hex()}")
+                break
+            except Exception as e:
+                print(f"Error in send neon, sleep and retry: {e}")
+                time.sleep(10)
 
 
 def collect(from_accounts, to_account):
     for account in from_accounts:
         balance = w.eth.get_balance(account.address)
         if balance < (w.eth.gas_price * 23000):
-            print(
-                f"Can't send money from {account.address} because amount is low {balance}"
-            )
+            print(f"Can't send money from {account.address} because amount is low {balance}")
             continue
         print(f"Send from account: {account.address} to {to_account.address}")
         transaction = {
@@ -107,7 +108,7 @@ if __name__ == "__main__":
     acc_type = sys.argv[2]
     if acc_type == "users":
         count = 100
-        if len(sys.argv) == 3:
+        if len(sys.argv) == 4:
             count = int(sys.argv[3])
         accounts = generate_user_accounts(count)
     else:
