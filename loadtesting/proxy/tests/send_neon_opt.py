@@ -2,6 +2,7 @@
 Optimized suite for sending Neon messages very fast, for testing mainnet/devnet for maximum throughput.
 """
 import os
+import time
 import logging
 import random
 from locust import TaskSet, task, HttpUser, constant
@@ -16,7 +17,7 @@ ONE_RECIPIENT = "USE_ONE_RECIPIENT" in os.environ
 
 
 class NeonTasksSet(HttpUser):
-    wait_time = constant(2)
+    # wait_time = constant(2)
 
     def on_start(self):
         self._private_key = (
@@ -40,14 +41,32 @@ class NeonTasksSet(HttpUser):
             recipient = self.environment.users[0]
         else:
             recipient = random.choice(self.environment.users)
-        tx = self.web3.send_neon(
-            self.account,
-            to=recipient,
-            gas=30000,
-            gas_price=None if GET_GAS_PRICE else 0,
-            amount=0.00000001,
-            nonce=self.nonce,
-            wait_for_recipient=False,
-        )
-        self.nonce += 1
-        LOG.info(f"Sent NEON from {self.account.address} to {recipient}: {tx.hex()}")
+
+        request_meta = {
+            "request_type": "http",
+            "name": "Send neon",
+            "start_time": time.time(),
+            "response_length": 0,
+            "response": None,
+            "context": {},
+            "exception": None,
+        }
+        start_perf_counter = time.perf_counter()
+        try:
+            tx = self.web3.send_neon(
+                self.account,
+                to=recipient,
+                gas=30000,
+                gas_price=None if GET_GAS_PRICE else 0,
+                amount=0.00000001,
+                nonce=self.nonce,
+                wait_for_recipient=True,
+            )
+            request_meta["response"] = tx.hex()
+            self.nonce += 1
+            LOG.info(f"Sent NEON from {self.account.address} to {recipient}: {tx}")
+        except Exception as e:
+            request_meta["exception"] = e
+            LOG.info(f"Sent NEON from {self.account.address} to {recipient} failed: {e}")
+        request_meta["response_time"] = (time.perf_counter() - start_perf_counter) * 1000
+        self.environment.events.request.fire(**request_meta)
