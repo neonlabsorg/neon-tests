@@ -17,7 +17,7 @@ ONE_RECIPIENT = "USE_ONE_RECIPIENT" in os.environ
 
 
 class NeonTasksSet(HttpUser):
-    # wait_time = constant(2)
+    wait_time = constant(2)
 
     def on_start(self):
         self._private_key = (
@@ -64,11 +64,11 @@ class NeonTasksSet(HttpUser):
                 gas_price=None if GET_GAS_PRICE else 0,
                 amount=0.00000001,
                 nonce=self.nonce,
-                wait_for_recipient=True,
+                wait_for_recipient=False,
             )
             request_meta["response"] = tx.hex()
             self.nonce += 1
-            LOG.info(f"Sent from {self.account.address} to {recipient}: {tx}")
+            LOG.info(f"Sent from {self.account.address} to {recipient}: {tx.hex()}")
         except Exception as e:
             request_meta["exception"] = e
             LOG.info(f"Sent from {self.account.address} to {recipient} failed: {e}")
