@@ -40,6 +40,14 @@ def generate_user_accounts(count=100):
     return accounts
 
 
+def verify_users(accounts):
+    for i, acc in enumerate(accounts):
+        balance = w.eth.get_balance(web3.Web3.to_checksum_address(acc.address))
+        # print(f"Account: {acc.address} has funds: index {i} - {balance}")
+        if balance == 0:
+            print(f"Account: {acc.address} has no funds: index {i} - {balance}")
+
+
 def distribute(from_account, to_accounts, amount=None):
     main_balance = round(w.from_wei(w.eth.get_balance(from_account.address), "ether") - decimal.Decimal(1))
 
@@ -121,3 +129,5 @@ if __name__ == "__main__":
             distribute(main_bank, accounts)
     elif instruction == "collect":
         collect(accounts, main_bank)
+    elif instruction == "verify":
+        verify_users(accounts)
