@@ -60,6 +60,7 @@ def distribute(from_account, to_accounts, amount=None):
         f"Main balance: {w.from_wei(w.eth.get_balance(from_account.address), 'ether')}, part in wei: {part_size} in ether: {w.from_wei(part_size, 'ether')}"
     )
     print("---------------------------------------")
+    base_nonce = w.eth.get_transaction_count(from_account.address)
     for acc in to_accounts:
         print(f"Send {part_size} wei to {acc.address}")
         transaction = {
@@ -69,7 +70,7 @@ def distribute(from_account, to_accounts, amount=None):
             "chainId": CHAIN_ID,
             "gasPrice": w.eth.gas_price,
             "gas": 30000,
-            "nonce": w.eth.get_transaction_count(from_account.address),
+            "nonce": base_nonce,
         }
 
         transaction["gas"] = w.eth.estimate_gas(transaction)
@@ -78,8 +79,9 @@ def distribute(from_account, to_accounts, amount=None):
         for _ in range(3):
             try:
                 tx = w.eth.send_raw_transaction(signed_tx.rawTransaction)
-                w.eth.wait_for_transaction_receipt(tx)
+                # w.eth.wait_for_transaction_receipt(tx)
                 print(f"    -- TX: {tx.hex()}")
+                base_nonce += 1
                 break
             except Exception as e:
                 print(f"Error in send neon, sleep and retry: {e}")
