@@ -14,6 +14,7 @@ USERS_PER_INSTANCE = int(os.environ.get("USERS_PER_INSTANCE", "100"))
 PROXY_URL = os.environ.get("PROXY_URL", "https://devnet.neonevm.org")
 GET_GAS_PRICE = "GET_GAS_PRICE" in os.environ
 ONE_RECIPIENT = "USE_ONE_RECIPIENT" in os.environ
+GET_NONCE = "GET_NONCE" in os.environ
 
 
 class NeonTasksSet(HttpUser):
@@ -63,7 +64,7 @@ class NeonTasksSet(HttpUser):
                 gas=30000,
                 gas_price=None if GET_GAS_PRICE else 0,
                 amount=0.00000001,
-                nonce=self.nonce,
+                nonce=None if GET_NONCE else self.nonce,
                 wait_for_recipient=False,
             )
             request_meta["response"] = tx.hex()
