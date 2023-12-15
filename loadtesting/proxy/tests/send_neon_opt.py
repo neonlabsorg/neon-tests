@@ -56,7 +56,8 @@ class NeonTasksSet(HttpUser):
             "exception": None,
         }
         start_perf_counter = time.perf_counter()
-        LOG.info(f"Send from {self.account.address} to {recipient} and nonce: {self.nonce}")
+        self.nonce += 1
+        LOG.info(f"Send from {self.account.address} to {recipient} and nonce: {self.nonce-1}")
         try:
             tx = self.web3.send_neon(
                 self.account,
@@ -64,11 +65,10 @@ class NeonTasksSet(HttpUser):
                 gas=30000,
                 gas_price=None if GET_GAS_PRICE else 0,
                 amount=0.00000001,
-                nonce=None if GET_NONCE else self.nonce,
+                nonce=None if GET_NONCE else self.nonce - 1,
                 wait_for_recipient=False,
             )
             request_meta["response"] = tx.hex()
-            self.nonce += 1
             LOG.info(f"Sent from {self.account.address} to {recipient}: {tx.hex()}")
         except Exception as e:
             request_meta["exception"] = e
