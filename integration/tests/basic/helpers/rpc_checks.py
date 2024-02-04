@@ -72,11 +72,11 @@ def assert_block_fields(block: dict, full_trx: bool, tx_receipt: tp.Optional[typ
 
 
 def assert_log_field_in_neon_trx_receipt(response, events_count):
-    expected_event_types = ["ENTER CALL"]
+    expected_event_types = ["EnterCall"]
     for i in range(events_count):
-        expected_event_types.append("LOG")
-    expected_event_types.append("EXIT STOP")
-    expected_event_types.append("RETURN")
+        expected_event_types.append("Log")
+    expected_event_types.append("ExitStop")
+    expected_event_types.append("Return")
     all_logs = []
 
     for trx in response["result"]["solanaTransactions"]:
