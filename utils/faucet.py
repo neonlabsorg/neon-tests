@@ -22,10 +22,19 @@ class Faucet:
         url = urllib.parse.urljoin(self._url, "request_neon")
         balance_before = self.web3_client.get_balance(address)
         response = self._session.post(url, json={"amount": amount, "wallet": address})
-        assert (
-            response.ok
-        ), "Faucet returned error: {}, status code: {}, url: {}".format(
+        assert response.ok, "Faucet returned error: {}, status code: {}, url: {}".format(
             response.text, response.status_code, response.url
         )
         wait_condition(lambda: self.web3_client.get_balance(address) > balance_before)
+        return response
+
+    def request_erc20(self, wallet_address: str, spl_token: str, amount: int = 100) -> requests.Response:
+        assert wallet_address.startswith("0x")
+        url = urllib.parse.urljoin(self._url, "request_erc20")
+        balance_before = self.web3_client.get_balance(wallet_address)
+        response = self._session.post(url, json={"amount": amount, "wallet": wallet_address, "address_spl": spl_token})
+        assert response.ok, "Faucet returned error: {}, status code: {}, url: {}".format(
+            response.text, response.status_code, response.url
+        )
+        wait_condition(lambda: self.web3_client.get_balance(wallet_address) > balance_before)
         return response

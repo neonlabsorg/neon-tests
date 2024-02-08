@@ -14,6 +14,8 @@ from solana.keypair import Keypair
 from solana.publickey import PublicKey
 from solana.rpc import commitment
 from solana.rpc.types import TxOpts
+from solana.transaction import Transaction
+from spl.token.instructions import create_associated_token_account, get_associated_token_address
 
 from utils.apiclient import JsonRPCSession
 from utils.consts import LAMPORT_PER_SOL, Unit
@@ -408,3 +410,14 @@ def neon_price() -> float:
     price = get_neon_price()
     with allure.step(f"NEON price {price}$"):
         return price
+
+
+@pytest.fixture(scope="function")
+def solana_associated_token_erc20(erc20_spl, sol_client, solana_account):
+    token_mint = erc20_spl.token_mint.pubkey
+    trx = Transaction()
+    trx.add(create_associated_token_account(solana_account.public_key, solana_account.public_key, token_mint))
+    opts = TxOpts(skip_preflight=True, skip_confirmation=False)
+    sol_client.send_transaction(trx, solana_account, opts=opts)
+    solana_address = get_associated_token_address(solana_account.public_key, token_mint)
+    yield solana_account, token_mint, solana_address

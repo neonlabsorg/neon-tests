@@ -26,17 +26,6 @@ def solana_associated_token_mintable_erc20(erc20_spl_mintable, sol_client, solan
     yield solana_account, token_mint, solana_address
 
 
-@pytest.fixture(scope="function")
-def solana_associated_token_erc20(erc20_spl, sol_client, solana_account):
-    token_mint = erc20_spl.token_mint.pubkey
-    trx = Transaction()
-    trx.add(create_associated_token_account(solana_account.public_key, solana_account.public_key, token_mint))
-    opts = TxOpts(skip_preflight=True, skip_confirmation=False)
-    sol_client.send_transaction(trx, solana_account, opts=opts)
-    solana_address = get_associated_token_address(solana_account.public_key, token_mint)
-    yield solana_account, token_mint, solana_address
-
-
 @pytest.fixture(scope="class")
 def multiple_actions_erc20(web3_client_session, faucet, class_account):
     symbol = "".join([random.choice(string.ascii_uppercase) for _ in range(3)])
