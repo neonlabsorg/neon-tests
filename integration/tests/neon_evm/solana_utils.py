@@ -30,7 +30,7 @@ from .utils.constants import EVM_LOADER, SOLANA_URL, SYSTEM_ADDRESS, NEON_TOKEN_
     ACCOUNT_SEED_VERSION, TREASURY_POOL_SEED
 from .utils.instructions import make_DepositV03, make_Cancel, make_WriteHolder, make_ExecuteTrxFromInstruction, \
     TransactionWithComputeBudget, make_PartialCallOrContinueFromRawEthereumTX, \
-    make_ExecuteTrxFromAccountDataIterativeOrContinue, make_CreateAssociatedTokenIdempotent
+    make_ExecuteTrxFromAccountDataIterativeOrContinue, make_CreateAssociatedTokenIdempotent, make_ExecuteTrxFromAccount
 from .utils.layouts import BALANCE_ACCOUNT_LAYOUT, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, CONTRACT_ACCOUNT_LAYOUT, \
     STORAGE_CELL_LAYOUT
 from .types.types import Caller, Contract
@@ -494,16 +494,38 @@ def write_transaction_to_holder_account(
         solana_client.confirm_transaction(rcpt.value, commitment=Confirmed)
 
 
-def execute_trx_from_instruction(operator: Keypair, evm_loader: EvmLoader, treasury_address: PublicKey, treasury_buffer: bytes,
+def execute_trx_from_instruction(operator: Keypair,
+                                 holder_acc:PublicKey,
+                                 evm_loader: EvmLoader,
+                                 treasury_address: PublicKey,
+                                 treasury_buffer: bytes,
                                  instruction: SignedTransaction,
                                  additional_accounts, signer: Keypair, 
                                  system_program=sp.SYS_PROGRAM_ID) -> SendTransactionResp:
     trx = TransactionWithComputeBudget(operator)
-    trx.add(make_ExecuteTrxFromInstruction(operator, evm_loader, treasury_address,
+    trx.add(make_ExecuteTrxFromInstruction(operator, holder_acc, evm_loader, treasury_address,
                                            treasury_buffer, instruction.rawTransaction, additional_accounts,
                                            system_program))
 
-    return solana_client.send_transaction(trx, signer, opts=TxOpts(skip_preflight=False, skip_confirmation=False, preflight_commitment=Confirmed))
+    return solana_client.send_transaction(trx, signer, opts=TxOpts(skip_preflight=False,
+                                                                   skip_confirmation=False,
+                                                                   preflight_commitment=Confirmed))
+
+def execute_trx_from_account(operator: Keypair,
+                                 holder_acc: PublicKey,
+                                 evm_loader: EvmLoader,
+                                 treasury_address: PublicKey,
+                                 treasury_buffer: bytes,
+                                 additional_accounts, signer: Keypair,
+                                 system_program=sp.SYS_PROGRAM_ID) -> SendTransactionResp:
+    trx = TransactionWithComputeBudget(operator)
+    trx.add(make_ExecuteTrxFromAccount(operator, holder_acc, evm_loader, treasury_address,
+                                           treasury_buffer, additional_accounts,
+                                           system_program))
+
+    return solana_client.send_transaction(trx, signer, opts=TxOpts(skip_preflight=False,
+                                                                   skip_confirmation=False,
+                                                                   preflight_commitment=Confirmed))
 
 
 def send_transaction_step_from_instruction(operator: Keypair, evm_loader: EvmLoader, treasury, storage_account,

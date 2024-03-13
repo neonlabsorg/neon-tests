@@ -76,6 +76,7 @@ def make_WriteHolder(operator: PublicKey, holder_account: PublicKey, hash: bytes
 
 def make_ExecuteTrxFromInstruction(
         operator: Keypair,
+        holder_address: PublicKey,
         evm_loader: "EvmLoader",
         treasury_address: PublicKey,
         treasury_buffer: bytes,
@@ -83,14 +84,50 @@ def make_ExecuteTrxFromInstruction(
         additional_accounts: tp.List[PublicKey],
         system_program=sp.SYS_PROGRAM_ID,
 ):
-    data = bytes([0x32]) + treasury_buffer + message
+    data = bytes([0x38]) + treasury_buffer + message
     operator_ether = eth_keys.PrivateKey(operator.secret_key[:32]).public_key.to_canonical_address()
     print("make_ExecuteTrxFromInstruction accounts")
     print("Operator: ", operator.public_key)
+    print("Holder: ", holder_address)
     print("Treasury: ", treasury_address)
     print("Operator ether: ", operator_ether.hex())
     print("Operator eth solana: ", evm_loader.ether2balance(operator_ether))
     accounts = [
+        AccountMeta(pubkey=holder_address, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=operator.public_key, is_signer=True, is_writable=True),
+        AccountMeta(pubkey=treasury_address, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=PublicKey(evm_loader.ether2balance(operator_ether)), is_signer=False, is_writable=True),
+        AccountMeta(system_program, is_signer=False, is_writable=True),
+    ]
+    for acc in additional_accounts:
+        print("Additional acc ", acc)
+        accounts.append(AccountMeta(acc, is_signer=False, is_writable=True), )
+
+    return TransactionInstruction(
+        program_id=PublicKey(EVM_LOADER),
+        data=data,
+        keys=accounts
+    )
+
+def make_ExecuteTrxFromAccount(
+        operator: Keypair,
+        holder_address: PublicKey,
+        evm_loader: "EvmLoader",
+        treasury_address: PublicKey,
+        treasury_buffer: bytes,
+        additional_accounts: tp.List[PublicKey],
+        system_program=sp.SYS_PROGRAM_ID,
+):
+    data = bytes([0x33]) + treasury_buffer
+    operator_ether = eth_keys.PrivateKey(operator.secret_key[:32]).public_key.to_canonical_address()
+    print("make_ExecuteTrxFromInstruction accounts")
+    print("Operator: ", operator.public_key)
+    print("Holder: ", holder_address)
+    print("Treasury: ", treasury_address)
+    print("Operator ether: ", operator_ether.hex())
+    print("Operator eth solana: ", evm_loader.ether2balance(operator_ether))
+    accounts = [
+        AccountMeta(pubkey=holder_address, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator.public_key, is_signer=True, is_writable=True),
         AccountMeta(pubkey=treasury_address, is_signer=False, is_writable=True),
         AccountMeta(pubkey=PublicKey(evm_loader.ether2balance(operator_ether)), is_signer=False, is_writable=True),
