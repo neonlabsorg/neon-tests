@@ -49,7 +49,7 @@ def deploy_infrastructure(evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_bran
           f"evm_branch: {evm_branch}, proxy_branch: {proxy_branch}")
     os.environ["TF_VAR_neon_evm_commit"] = evm_tag
     os.environ["TF_VAR_faucet_model_commit"] = faucet_tag
-    os.environ["TF_VAR_branch"] = evm_branch
+    os.environ["TF_VAR_branch"] = evm_branch.branch.replace('_', '-')
     os.environ["TF_VAR_proxy_image_tag"] = proxy_tag
     os.environ["TF_VAR_proxy_model_commit"] = proxy_branch
 
