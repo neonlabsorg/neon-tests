@@ -148,7 +148,7 @@ jobs:
           docker rm -f uniswap-v2-${{ github.run_id }}
 
       - name: Save report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: uniswap-v2-report
           path: uniswap-v2-report.json
@@ -195,7 +195,7 @@ jobs:
           docker rm -f uniswap-v3-${{ github.run_id }}
 
       - name: Save report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: uniswap-v3-report
           path: uniswap-v3-report.json
@@ -244,7 +244,7 @@ jobs:
           docker rm -f saddle-${{ github.run_id }}
 
       - name: Save report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: saddle-report
           path: saddle-report.json
@@ -285,7 +285,7 @@ jobs:
           docker cp aave-${{ github.run_id }}:/app/report.json aave-report.json
           docker rm -f aave-${{ github.run_id }}
       - name: Save report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: aave-report
           path: aave-report.json
@@ -331,7 +331,7 @@ jobs:
           docker cp curve-${{ github.run_id }}:/app/curve-report.json curve-report.json
           docker rm -f curve-${{ github.run_id }}
       - name: Save report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: curve-report
           path: curve-report.json
@@ -359,7 +359,7 @@ jobs:
           python3 scripts/curve-deploy.py
 
       - name: Save report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: curve-factory-report
           path: curve-factory-report.json
@@ -405,7 +405,7 @@ jobs:
           docker cp compound-${{ github.run_id }}:/app/compound-report.json compound-report.json
           docker rm -f compound-${{ github.run_id }}
       - name: Save report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: compound-report
           path: compound-report.json
@@ -450,7 +450,7 @@ jobs:
           docker exec -i $env_args robonomics-${{ github.run_id }} cat ./reports/report.json > robonomics-report.json
           docker rm -f robonomics-${{ github.run_id }}
       - name: Save report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: robonomics-report
           path: robonomics-report.json
@@ -497,7 +497,7 @@ jobs:
           docker rm -f yearn-${{ github.run_id }}
 
       - name: Save report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: yearn-report
           path: yearn-report.json
@@ -544,7 +544,7 @@ jobs:
           docker rm -f pancake-${{ github.run_id }}
 
       - name: Save report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pancake-report
           path: pancake-report.json
