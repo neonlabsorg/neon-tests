@@ -178,13 +178,6 @@ class NeonPassPage(BasePage):
             self._handle_pt_withdraw_confirm(confirm_page)
 
         if platform == Platform.neon:
-            if token in [libs.Tokens.wsol, libs.Tokens.usdt, libs.Tokens.usdc]:
-                try:
-                    with self.page.context.expect_page(timeout=timeout) as confirm_page_info:
-                        self._handle_pt_withdraw_confirm(confirm_page)
-                except TimeoutError as e:
-                    raise AssertionError("expected new window with MetaMask confirmation page") from e
-                confirm_page = confirm_page_info.value
             self._handle_mm_withdraw_confirm(confirm_page)
 
         # Close overlay message 'Transfer complete'

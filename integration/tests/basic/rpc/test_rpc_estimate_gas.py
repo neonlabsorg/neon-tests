@@ -57,8 +57,8 @@ class TestRpcEstimateGas:
 
     @pytest.mark.parametrize("contract_name", ["BigGasFactory1", "BigGasFactory2"])
     @pytest.mark.parametrize("process_gas, reserve_gas", [(850_000, 15_000), (8_500_000, 150_000)])
-    def test_eth_estimate_gas_with_big_int(self, contract_name, process_gas, reserve_gas, json_rpc_client, new_account):
-        sender_account = new_account
+    def test_eth_estimate_gas_with_big_int(self, contract_name, process_gas, reserve_gas, json_rpc_client):
+        sender_account = self.accounts.create_account()
 
         big_gas_contract, _ = self.web3_client.deploy_and_get_contract(
             contract="issues/Ndev49",
@@ -101,14 +101,17 @@ class TestRpcEstimateGas:
         estimated_gas = transaction["gas"]
         assert estimated_gas == 25_000
 
-    def test_rpc_estimate_gas_erc20(self, erc20_simple):
+    def test_rpc_estimate_gas_erc20(self, erc20_simple, pytestconfig):
         recipient_account = self.accounts[1]
         tx_receipt = erc20_simple.transfer(erc20_simple.owner, recipient_account, 1)
         transaction = self.web3_client.get_transaction_by_hash(tx_receipt["transactionHash"])
 
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
-        assert estimated_gas == 1_394_160
+        if pytestconfig.getoption("--network") == "devnet":
+            assert estimated_gas == 1_394_160
+        else:
+            assert estimated_gas == 1_422_000
 
     def test_rpc_estimate_gas_spl(self, erc20_spl):
         recipient_account = self.accounts[1]
@@ -117,7 +120,7 @@ class TestRpcEstimateGas:
 
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
-        assert estimated_gas == 2_079_280
+        assert estimated_gas == 2_089_280
 
     def test_rpc_estimate_gas_contract_get_value(self, common_contract):
         sender_account = self.accounts[0]

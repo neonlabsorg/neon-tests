@@ -40,7 +40,7 @@ class EnvironmentConfig:
 
 
 def pytest_addoption(parser):
-    parser.addoption("--network", action="store", default="local", help="Which stand use")
+    parser.addoption("--network", action="store", default="devnet", help="Which stand use")
     parser.addoption(
         "--make-report",
         action="store_true",
@@ -79,13 +79,15 @@ def pytest_configure(config: Config):
         environments = json.load(f)
     assert network_name in environments, f"Environment {network_name} doesn't exist in envs.json"
     env = environments[network_name]
-    if network_name == "devnet":
+    if network_name in ["devnet", "tracer_ci"]:
         for solana_env_var in solana_url_env_vars:
             if solana_env_var in os.environ and os.environ[solana_env_var]:
                 env["solana_url"] = os.environ.get(solana_env_var)
                 break
         if "PROXY_URL" in os.environ and os.environ["PROXY_URL"]:
             env["proxy_url"] = os.environ.get("PROXY_URL")
+        if "DEVNET_FAUCET_URL" in os.environ and os.environ["DEVNET_FAUCET_URL"]:
+            env["faucet_url"] = os.environ.get("DEVNET_FAUCET_URL")
     if "use_bank" not in env:
         env["use_bank"] = False
     if "eth_bank_account" not in env:

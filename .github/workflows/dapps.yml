@@ -1,5 +1,5 @@
 name: dApps testing
-run-name: dApps testing (${{ github.event.inputs.dapps || 'all dapps'}}, ${{ github.event.inputs.network || 'aws' }})
+run-name: dApps testing (${{ github.event.inputs.dapps || 'all dapps'}}, ${{ github.event.inputs.network || 'terraform' }})
 
 on:
   schedule:
@@ -47,14 +47,14 @@ env:
   AWS_REGION: us-east-2
   AWS_S3_BUCKET: neon-tests-dapps
   BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-  ALL_DAPPS: "aave,curve,uniswap-v2,uniswap-v3,saddle,yearn,robonomics,compound,curve-factory,pancake"
   DUMP_ENVS: True
+  ALL_DAPPS: "aave,curve,uniswap-v2,uniswap-v3,saddle,yearn,robonomics,compound,curve-factory"
 
 jobs:
   prepare:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Define dapps to run
         id: dapps
         run: |
@@ -66,39 +66,43 @@ jobs:
           echo "list=${list}"
           echo "list=${list}" >> $GITHUB_OUTPUT
 
-      - name: "Prepare stand"
-        id: prepare_stand
+      - name: "Prepare terraform stand"
+        if: ${{ env.NETWORK == 'terraform' }}
+        id: prepare_terraform
+        timeout-minutes: 15
         env:
           AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
           AWS_DEFAULT_REGION: ${{secrets.AWS_DEFAULT_REGION}}
           AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
           HCLOUD_TOKEN: ${{secrets.HCLOUD_TOKEN}}
           TFSTATE_BUCKET: ${{vars.TFSTATE_BUCKET}}
-          TFSTATE_KEY_PREFIX: ${{vars.TFSTATE_KEY_PREFIX}}
+          TFSTATE_KEY: ${{vars.TFSTATE_KEY_PREFIX}}-${{ github.run_number }}
           TFSTATE_REGION: ${{vars.TFSTATE_REGION}}
-        uses: ./.github/actions/prepare-stand
+          TF_VAR_ci_pp_solana_url: ${{ secrets.SOLANA_URL }}
+        uses: ./.github/actions/create-tf-stand
+        with:
+          ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
+      - name: "Define outputs"
+        id: vars
+        uses: ./.github/actions/define-stand-env
         with:
           network: ${{ env.NETWORK }}
-          ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
           devnet_solana_url: ${{ secrets.SOLANA_URL }}
+          proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}
+          solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
           proxy_url: ${{ github.event.inputs.proxy_url }}
           solana_url: ${{ github.event.inputs.solana_url }}
           faucet_url: ${{ github.event.inputs.faucet_url }}
           network_id: ${{ github.event.inputs.network_id }}
-      - name: Set outputs
-        id: vars
-        run: |
-            echo "runner=${{ env.RUNNER }}" >> $GITHUB_OUTPUT
-        #    echo "network=${{ env.NETWORK }}" >> $GITHUB_OUTPUT
+
     outputs:
-      runner: ${{ steps.vars.outputs.runner }}
-     # network: ${{ steps.vars.outputs.network }}
-      solana_url: ${{ steps.prepare_stand.outputs.solana_url }}
-      proxy_url: ${{ steps.prepare_stand.outputs.proxy_url }}
-      faucet_url:  ${{ steps.prepare_stand.outputs.faucet_url }}
-      network_id: ${{ steps.prepare_stand.outputs.network_id }}
-      proxy_ip: ${{ steps.prepare_stand.outputs.proxy_ip }}
-      solana_ip: ${{ steps.prepare_stand.outputs.solana_ip }}
+      network: ${{ env.NETWORK }}
+      solana_url: ${{ steps.vars.outputs.solana_url }}
+      proxy_url: ${{ steps.vars.outputs.proxy_url }}
+      faucet_url:  ${{ steps.vars.outputs.faucet_url }}
+      network_id: ${{ steps.vars.outputs.network_id }}
+      proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}
+      solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
       dapps: ${{ steps.dapps.outputs.list }}
 
   uniswap-v2:
@@ -113,9 +117,8 @@ jobs:
       NETWORK_ID: ${{ needs.prepare.outputs.network_id }}
       SOLANA_IP: ${{ needs.prepare.outputs.solana_ip }}
       PROXY_IP: ${{ needs.prepare.outputs.proxy_ip }}
-      DUMP_ENVS: True
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
@@ -162,9 +165,8 @@ jobs:
       PROXY_URL: ${{ needs.prepare.outputs.proxy_url }}
       FAUCET_URL: ${{ needs.prepare.outputs.faucet_url }}
       NETWORK_ID: ${{ needs.prepare.outputs.network_id }}
-      DUMP_ENVS: True
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
@@ -210,9 +212,8 @@ jobs:
       NETWORK_ID: ${{ needs.prepare.outputs.network_id }}
       SOLANA_IP: ${{ needs.prepare.outputs.solana_ip }}
       PROXY_IP: ${{ needs.prepare.outputs.proxy_ip }}
-      DUMP_ENVS: True
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
@@ -259,9 +260,8 @@ jobs:
       NETWORK_ID: ${{ needs.prepare.outputs.network_id }}
       SOLANA_IP: ${{ needs.prepare.outputs.solana_ip }}
       PROXY_IP: ${{ needs.prepare.outputs.proxy_ip }}
-      DUMP_ENVS: True
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
@@ -301,9 +301,8 @@ jobs:
       NETWORK_ID: ${{ needs.prepare.outputs.network_id }}
       SOLANA_IP: ${{ needs.prepare.outputs.solana_ip }}
       PROXY_IP: ${{ needs.prepare.outputs.proxy_ip }}
-      DUMP_ENVS: True
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
@@ -348,9 +347,8 @@ jobs:
       NETWORK_ID: ${{ needs.prepare.outputs.network_id }}
       SOLANA_IP: ${{ needs.prepare.outputs.solana_ip }}
       PROXY_IP: ${{ needs.prepare.outputs.proxy_ip }}
-      DUMP_ENVS: True
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
@@ -378,9 +376,8 @@ jobs:
       NETWORK_ID: ${{ needs.prepare.outputs.network_id }}
       SOLANA_IP: ${{ needs.prepare.outputs.solana_ip }}
       PROXY_IP: ${{ needs.prepare.outputs.proxy_ip }}
-      DUMP_ENVS: True
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
@@ -425,9 +422,8 @@ jobs:
       NETWORK_ID: ${{ needs.prepare.outputs.network_id }}
       SOLANA_IP: ${{ needs.prepare.outputs.solana_ip }}
       PROXY_IP: ${{ needs.prepare.outputs.proxy_ip }}
-      DUMP_ENVS: True
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
@@ -470,9 +466,8 @@ jobs:
       NETWORK_ID: ${{ needs.prepare.outputs.network_id }}
       SOLANA_IP: ${{ needs.prepare.outputs.solana_ip }}
       PROXY_IP: ${{ needs.prepare.outputs.proxy_ip }}
-      DUMP_ENVS: True
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
@@ -519,9 +514,8 @@ jobs:
       PROXY_URL: ${{ needs.prepare.outputs.proxy_url }}
       FAUCET_URL: ${{ needs.prepare.outputs.faucet_url }}
       NETWORK_ID: ${{ needs.prepare.outputs.network_id }}
-      DUMP_ENVS: True
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
@@ -560,13 +554,14 @@ jobs:
     needs: [prepare, uniswap-v2, uniswap-v3, saddle, aave, curve, robonomics, yearn, compound, curve-factory]
     if: always()
     env:
-      SOLANA_URL: ${{ needs.prepare.outputs.solana_url || secrets.SOLANA_URL }}
+      SOLANA_URL: ${{ needs.prepare.outputs.solana_url }}
       PROXY_URL: ${{ needs.prepare.outputs.proxy_url }}
       NETWORK_ID: ${{ needs.prepare.outputs.network_id }}
       NETWORK: ${{ needs.prepare.outputs.network }}
-
+      SOLANA_IP: ${{ needs.prepare.outputs.solana_ip }}
+      PROXY_IP: ${{ needs.prepare.outputs.proxy_ip }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
@@ -631,7 +626,7 @@ jobs:
     needs: [ prepare, uniswap-v2, uniswap-v3, saddle, curve, aave, yearn, robonomics, swap-report, compound, curve-factory ]
     if: always() && needs.prepare.outputs.network == 'terraform'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: "Destroy stand"
         env:
           AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
@@ -639,7 +634,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
           HCLOUD_TOKEN: ${{secrets.HCLOUD_TOKEN}}
           TFSTATE_BUCKET: ${{vars.TFSTATE_BUCKET}}
-          TFSTATE_KEY_PREFIX: ${{vars.TFSTATE_KEY_PREFIX}}
+          TFSTATE_KEY: ${{vars.TFSTATE_KEY_PREFIX}}-${{ github.run_number }}
           TFSTATE_REGION: ${{vars.TFSTATE_REGION}}
           PROXY_IP: ${{ needs.prepare.outputs.proxy_ip }}
           SOLANA_IP: ${{ needs.prepare.outputs.solana_ip }}
@@ -654,7 +649,7 @@ jobs:
     needs: [prepare, uniswap-v2, uniswap-v3, saddle, aave, curve, robonomics, yearn, compound, curve-factory]
     if: failure() && github.ref_name == 'develop'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements

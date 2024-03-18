@@ -2,16 +2,16 @@
 import functools
 import glob
 import json
+from multiprocessing.dummy import Pool
+
 import yaml
 import os
-import pathlib
 import re
 import shutil
 import subprocess
 import sys
 import typing as tp
 from pathlib import Path
-from multiprocessing.dummy import Pool
 from urllib.parse import urlparse
 
 try:
@@ -29,6 +29,7 @@ try:
     from deploy.cli import dapps as dapps_cli
 
     from utils import create_allure_environment_opts
+    from deploy.cli import infrastructure
     from utils import web3client
     from utils import cloud
     from utils.operator import Operator
@@ -55,11 +56,11 @@ ERR_MESSAGES = {
     "requirements": "Unsuccessful requirements installation.",
 }
 
-SRC_ALLURE_CATEGORIES = pathlib.Path("./allure/categories.json")
+SRC_ALLURE_CATEGORIES = Path("./allure/categories.json")
 
-DST_ALLURE_CATEGORIES = pathlib.Path("./allure-results/categories.json")
+DST_ALLURE_CATEGORIES = Path("./allure-results/categories.json")
 
-DST_ALLURE_ENVIRONMENT = pathlib.Path("./allure-results/environment.properties")
+DST_ALLURE_ENVIRONMENT = Path("./allure-results/environment.properties")
 
 BASE_EXTENSIONS_TPL_DATA = "ui/extensions/data"
 
@@ -67,10 +68,15 @@ EXTENSIONS_PATH = "ui/extensions/chrome/plugins"
 EXTENSIONS_USER_DATA_PATH = "ui/extensions/chrome"
 
 
-HOME_DIR = pathlib.Path(__file__).absolute().parent
+HOME_DIR = Path(__file__).absolute().parent
 
 OZ_BALANCES = "./compatibility/results/oz_balance.json"
 NEON_EVM_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-evm"
+HOODIES_CHAINLINK_GITHUB_URL = "https://github.com/hoodieshq/chainlink-neon"
+PROXY_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/proxy-model.py"
+FAUCET_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-faucet"
+EXTERNAL_CONTRACT_PATH = Path.cwd() / "contracts" / "external"
+VERSION_BRANCH_TEMPLATE = r"[vt]{1}\d{1,2}\.\d{1,2}\.x.*"
 
 network_manager = NetworkManager()
 
@@ -93,7 +99,7 @@ def catch_traceback(func: tp.Callable) -> tp.Callable:
     def create_report(func_name, exc=None):
         data = ""
         exc = f"\n*Error:* {exc}" if exc else ""
-        path = pathlib.Path(CMD_ERROR_LOG)
+        path = Path(CMD_ERROR_LOG)
         if path.exists() and path.stat().st_size != 0:
             with path.open("r") as fd:
                 data = f"{fd.read()}\n"
@@ -154,7 +160,7 @@ def check_profitability(func: tp.Callable) -> tp.Callable:
                 neon=round(float(after["neon"] - pre["neon"]) * 0.25, 2),
                 sol=round((float(pre["sol"] - after["sol"])) * get_sol_price(), 2),
             )
-            path = pathlib.Path(OZ_BALANCES)
+            path = Path(OZ_BALANCES)
             path.absolute().parent.mkdir(parents=True, exist_ok=True)
             with open(path, "w") as fd:
                 balances = dict(
@@ -172,11 +178,11 @@ def check_profitability(func: tp.Callable) -> tp.Callable:
 @check_profitability
 def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
     print(f"Running OpenZeppelin tests in {jobs} jobs on {network}")
-    cwd = (pathlib.Path().parent / "compatibility/openzeppelin-contracts").absolute()
+    cwd = (Path().parent / "compatibility/openzeppelin-contracts").absolute()
     if not list(cwd.glob("*")):
         subprocess.check_call("git submodule init && git submodule update", shell=True, cwd=cwd)
     (cwd.parent / "results").mkdir(parents=True, exist_ok=True)
-    keys_env = [dapps_cli.prepare_accounts(network, users, amount) for i in range(jobs)]
+    keys_env = [infrastructure.prepare_accounts(network, users, amount) for i in range(jobs)]
 
     tests = list(Path(f"{cwd}/test").rglob("*.test.js"))
     tests = [str(test) for test in tests]
@@ -213,6 +219,7 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
     pool.map(run_oz_file, tests)
     pool.close()
     pool.join()
+
     # Add allure environment
     settings = network_manager.get_network_object(network)
     web3_client = web3client.NeonChainWeb3Client(settings["proxy_url"])
@@ -223,7 +230,7 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
     }
     create_allure_environment_opts(opts, DST_ALLURE_ENVIRONMENT)
     # Add epic name for allure result files
-    openzeppelin_reports = pathlib.Path("./allure-results")
+    openzeppelin_reports = Path("./allure-results")
     res_file_list = [str(res_file) for res_file in openzeppelin_reports.glob("*-result.json")]
     print("Fix allure results: {}".format(len(res_file_list)))
 
@@ -269,7 +276,7 @@ def print_test_suite_results(test_report: tp.Dict[str, int], skipped_files: tp.L
 
 def print_oz_balances():
     """Print token balances after oz tests"""
-    path = pathlib.Path(OZ_BALANCES)
+    path = Path(OZ_BALANCES)
     if not path.exists():
         print(red(f"OZ balances report not found on `{path.resolve()}` !"))
         return
@@ -310,13 +317,18 @@ def generate_allure_environment(network_name: str):
 
 
 def install_python_requirements():
-    command = "pip3 install --upgrade -r deploy/requirements/click.txt -r deploy/requirements/prod.txt  -r deploy/requirements/devel.txt -r deploy/requirements/ui.txt"
+    command = (
+        "uv pip install --upgrade "
+        "-r deploy/requirements/click.txt "
+        "-r deploy/requirements/prod.txt  "
+        "-r deploy/requirements/devel.txt"
+    )
     subprocess.check_call(command, shell=True)
 
 
 def install_ui_requirements():
     click.echo(green("Install python requirements for Playwright"))
-    command = "pip3 install --upgrade -r deploy/requirements/ui.txt"
+    command = "uv pip install --upgrade -r deploy/requirements/ui.txt"
     subprocess.check_call(command, shell=True)
     # On Linux Playwright require `xclip` to work.
     if sys.platform in ["linux", "linux2"]:
@@ -337,16 +349,6 @@ def install_ui_requirements():
     subprocess.check_call("playwright install chromium", shell=True)
 
 
-def install_oz_requirements():
-    cwd = pathlib.Path().absolute() / "compatibility/openzeppelin-contracts"
-    subprocess.check_call("npm set audit false", shell=True, cwd=cwd.as_posix())
-    if list(cwd.glob("*lock*")):
-        cmd = "npm ci"
-    else:
-        cmd = "npm install npm@latest -g"
-    subprocess.check_call(cmd, shell=True, cwd=cwd.as_posix())
-
-
 @click.group()
 def cli():
     pass
@@ -357,7 +359,7 @@ def cli():
     "-d",
     "--dep",
     default="devel",
-    type=click.Choice(["devel", "python", "oz", "ui"]),
+    type=click.Choice(["devel", "python", "ui", "all"]),
     help="Which deps install",
 )
 @catch_traceback
@@ -366,15 +368,16 @@ def requirements(dep):
         install_python_requirements()
     if dep == "ui":
         install_ui_requirements()
+    if dep == "all":
+        install_python_requirements()
+        install_ui_requirements()
 
 
-def is_neon_evm_branch_exist(branch):
+def is_branch_exist(endpoint, branch):
     if branch:
-        neon_evm_branches_obj = requests.get(f"{NEON_EVM_GITHUB_URL}/branches?per_page=100").json()
-        neon_evm_branches = [item["name"] for item in neon_evm_branches_obj]
-
-        if branch in neon_evm_branches:
-            click.echo(f"The branch {branch} exist in the neon_evm repository")
+        response = requests.get(f"{endpoint}/branches/{branch}")
+        if response.status_code == 200:
+            click.echo(f"The branch {branch} exist in the {endpoint} repository")
             return True
     else:
         return False
@@ -382,9 +385,8 @@ def is_neon_evm_branch_exist(branch):
 
 def get_evm_pinned_version(branch):
     click.echo(f"Get pinned version for proxy branch {branch}")
-    resp = requests.get(
-        f"https://api.github.com/repos/neonlabsorg/proxy-model.py/contents/.github/workflows/pipeline.yml?ref={branch}"
-    )
+    resp = requests.get(f"{PROXY_GITHUB_URL}/contents/.github/workflows/pipeline.yml?ref={branch}")
+
     if resp.status_code != 200:
         click.echo(f"Can't get pipeline file for branch {branch}: {resp.text}")
         raise click.ClickException(f"Can't get pipeline file for branch {branch}")
@@ -398,17 +400,29 @@ def get_evm_pinned_version(branch):
     return tag
 
 
-@cli.command(help="Download test contracts from neon-evm repo")
-@click.option(
-    "--branch",
-    default="develop",
-    help="neon_evm branch name. " "If branch doesn't exist, develop branch will be used",
-)
-def update_contracts(branch):
-    neon_evm_branch = get_evm_pinned_version(branch)
+def update_contracts_from_git(git_url: str, local_dir_name: str, branch="develop", update_npm: bool = True):
+    download_path = EXTERNAL_CONTRACT_PATH / local_dir_name
+    click.echo(f"Downloading contracts from {git_url} {branch}")
+    if download_path.exists():
+        shutil.rmtree(download_path)
+    commands = f"""
+        git clone --branch {branch} {git_url} {download_path}
+    """
+
+    if update_npm:
+        commands += f"\n npm ci --prefix {download_path}"
+
+    subprocess.check_call(commands, shell=True)
+    click.echo(f"Contracts downloaded from {git_url} {branch} to {EXTERNAL_CONTRACT_PATH / local_dir_name}")
+
+
+def download_evm_contracts(branch):
+    if is_branch_exist(NEON_EVM_GITHUB_URL, branch) and branch != "develop":
+        neon_evm_branch = branch
+    else:
+        neon_evm_branch = get_evm_pinned_version("develop")
     click.echo(f"Contracts would be downloaded from {neon_evm_branch} neon-evm branch")
-    contract_path = pathlib.Path.cwd() / "contracts" / "external"
-    pathlib.Path(contract_path).mkdir(parents=True, exist_ok=True)
+    Path(EXTERNAL_CONTRACT_PATH / "neon-evm").mkdir(parents=True, exist_ok=True)
 
     click.echo(f"Check contract availability in neon-evm repo")
     response = requests.get(f"{NEON_EVM_GITHUB_URL}/contents/solidity?ref={neon_evm_branch}")
@@ -422,11 +436,27 @@ def update_contracts(branch):
         click.echo(f"Downloading {item['name']}")
         r = requests.get(item["download_url"])
         if r.status_code == 200:
-            with open(contract_path / item["name"], "wb") as f:
+            with open(EXTERNAL_CONTRACT_PATH / "neon-evm" / item["name"], "wb") as f:
                 f.write(r.content)
             click.echo(f" {item['name']} downloaded")
         else:
             raise click.ClickException(f"The contract {item['name']} is not downloaded. Error: {r.text}")
+
+
+@cli.command(help="Download test contracts from neon-evm repo")
+@click.option(
+    "--branch",
+    default="develop",
+    help="neon_evm branch name. " "If branch doesn't exist, develop branch will be used",
+)
+def update_contracts(branch):
+    download_evm_contracts(branch)
+    update_contracts_from_git(HOODIES_CHAINLINK_GITHUB_URL, "hoodies_chainlink", "main")
+
+    update_contracts_from_git(
+        "https://github.com/neonlabsorg/neon-contracts.git", "neon-contracts", "main", update_npm=False
+    )
+    subprocess.check_call(f'npm ci --prefix {EXTERNAL_CONTRACT_PATH / "neon-contracts" / "ERC20ForSPL"}', shell=True)
 
 
 @cli.command(help="Run any type of tests")
@@ -475,7 +505,6 @@ def run(name, jobs, numprocesses, ui_item, amount, users, network):
             command = f"{command} --numprocesses {numprocesses}"
     elif name == "oz":
         run_openzeppelin_tests(network, jobs=int(jobs), amount=int(amount), users=int(users))
-        shutil.copyfile(SRC_ALLURE_CATEGORIES, DST_ALLURE_CATEGORIES)
         return
     elif name == "ui":
         if not os.environ.get("CHROME_EXT_PASSWORD"):
@@ -497,14 +526,27 @@ def run(name, jobs, numprocesses, ui_item, amount, users, network):
         sys.exit(cmd.returncode)
 
 
-@cli.command(help="Summarize openzeppelin tests results")
-def ozreport():
-    test_report, skipped_files = parse_openzeppelin_results()
-    print_test_suite_results(test_report, skipped_files)
-    print_oz_balances()
+@cli.command(
+    help="OZ actions:\n"
+    "report - summarize openzeppelin tests results\n"
+    "analyze - analyze openzeppelin tests results"
+)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Choice(["report", "analyze"]),
+)
+def oz(name):
+    if name == "report":
+        test_report, skipped_files = parse_openzeppelin_results()
+        print_test_suite_results(test_report, skipped_files)
+        print_oz_balances()
+        return
+    elif name == "analyze":
+        analyze_openzeppelin_results()
+        return
 
 
-@cli.command(help="Analyze openzeppelin tests results")
 @catch_traceback
 def analyze_openzeppelin_results():
     test_report, skipped_files = parse_openzeppelin_results()
@@ -627,7 +669,7 @@ def run(credentials, host, users, spawn_rate, run_time, tag, web_ui, locustfile,
 
     path it's sub-folder and file name  `loadtesting/locustfile.py`.
     """
-    base_path = pathlib.Path(__file__).parent
+    base_path = Path(__file__).parent
     path = base_path / f"loadtesting/{locustfile}/locustfile.py"
     if not (path.exists() and path.is_file()):
         raise FileNotFoundError(f"path doe's not exists. {path.resolve()}")
@@ -660,7 +702,7 @@ def run(credentials, host, users, spawn_rate, run_time, tag, web_ui, locustfile,
 @locust_tags
 def prepare(credentials, host, users, spawn_rate, run_time, tag):
     """Run `Preparation stage` for trace api performance test"""
-    base_path = pathlib.Path(__file__).parent
+    base_path = Path(__file__).parent
     path = base_path / "loadtesting/tracerapi/prepare_data/locustfile.py"
     if not (path.exists() and path.is_file()):
         raise FileNotFoundError(f"path doe's not exists. {path.resolve()}")
@@ -701,7 +743,7 @@ def allure_cli(ctx):
 )
 def get_allure_history(name: str, network: str, destination: str = "./allure-results"):
     branch = os.environ.get("GITHUB_REF_NAME")
-    path = pathlib.Path(name) / network / branch
+    path = Path(name) / network / branch
 
     runs = []
     previous_runs = cloud.client.list_objects_v2(
@@ -713,7 +755,7 @@ def get_allure_history(name: str, network: str, destination: str = "./allure-res
             runs.append(int(run_id[0]))
     if len(runs) > 0:
         print(f"Downloading allure history from build: {max(runs)}")
-        cloud.download(path / str(max(runs)) / "history", pathlib.Path(destination) / "history")
+        cloud.download(path / str(max(runs)) / "history", Path(destination) / "history")
 
 
 @allure_cli.command("upload-report", help="Upload allure history")
@@ -728,7 +770,7 @@ def get_allure_history(name: str, network: str, destination: str = "./allure-res
 def upload_allure_report(name: str, network: str, source: str = "./allure-report"):
     branch = os.environ.get("GITHUB_REF_NAME")
     build_id = os.environ.get("GITHUB_RUN_NUMBER")
-    path = pathlib.Path(name) / network / branch
+    path = Path(name) / network / branch
     cloud.upload(source, path / build_id)
     report_url = f"http://neon-test-allure.s3-website.eu-central-1.amazonaws.com/{path / build_id}"
     with open("/tmp/index.html", "w") as f:
@@ -757,7 +799,7 @@ def generate_allure_report():
 @click.option("-t", "--traceback", default="", help="custom traceback message.")
 @click.option("-n", "--network", default="night-stand", type=str, help="In which stand run tests")
 def send_notification(url, build_url, traceback, network):
-    p = pathlib.Path(f"./{CMD_ERROR_LOG}")
+    p = Path(f"./{CMD_ERROR_LOG}")
     trace_back = traceback or (p.read_text() if p.exists() else "")
     # Slack has 3001 symbols limit
     if len(trace_back) > 2500:
@@ -804,13 +846,43 @@ def infra():
 
 
 @infra.command(name="deploy", help="Deploy test infrastructure")
-def deploy():
-    dapps_cli.deploy_infrastructure()
+@click.option("--current_branch", help="Branch of neon-tests repository")
+@click.option("--head_branch", default="", help="Feature branch name")
+@click.option("--base_branch", default="", help="Target branch of the pull request")
+def deploy(current_branch, head_branch, base_branch):
+    # use feature branch or version tag as tag for proxy, evm and faucet images or use latest
+    proxy_tag, evm_tag, faucet_tag = "", "", ""
+
+    if head_branch:
+        proxy_tag = head_branch if is_branch_exist(PROXY_GITHUB_URL, head_branch) else ""
+        evm_tag = head_branch if is_branch_exist(NEON_EVM_GITHUB_URL, head_branch) else ""
+        faucet_tag = head_branch if is_branch_exist(FAUCET_GITHUB_URL, head_branch) else ""
+
+    if re.match(VERSION_BRANCH_TEMPLATE, base_branch):
+        version_branch = re.match(VERSION_BRANCH_TEMPLATE, base_branch)
+    elif re.match(VERSION_BRANCH_TEMPLATE, current_branch):
+        version_branch = re.match(VERSION_BRANCH_TEMPLATE, current_branch)
+    else:
+        version_branch = None
+
+    if version_branch:
+        proxy_tag = version_branch if is_branch_exist(PROXY_GITHUB_URL, version_branch) and not proxy_tag else ""
+        evm_tag = version_branch if is_branch_exist(NEON_EVM_GITHUB_URL, version_branch) and not evm_tag else ""
+        faucet_tag = version_branch if is_branch_exist(FAUCET_GITHUB_URL, version_branch) and not faucet_tag else ""
+
+    proxy_tag = "latest" if not proxy_tag else proxy_tag
+    evm_tag = "latest" if not evm_tag else evm_tag
+    faucet_tag = "latest" if not faucet_tag else faucet_tag
+
+    evm_branch = evm_tag if evm_tag != "latest" else "develop"
+    proxy_branch = proxy_tag if proxy_tag != "latest" else "develop"
+
+    infrastructure.deploy_infrastructure(evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_branch)
 
 
 @infra.command(name="destroy", help="Destroy test infrastructure")
 def destroy():
-    dapps_cli.destroy_infrastructure()
+    infrastructure.destroy_infrastructure()
 
 
 @infra.command(name="download-logs", help="Download remote docker logs")
@@ -823,7 +895,7 @@ def download_logs():
 @click.option("-a", "--amount", default=10000, help="How many airdrop")
 @click.option("-n", "--network", default="night-stand", type=str, help="In which stand run tests")
 def prepare_accounts(count, amount, network):
-    dapps_cli.prepare_accounts(network, count, amount)
+    infrastructure.prepare_accounts(network, count, amount)
 
 
 @infra.command("print-network-param")
