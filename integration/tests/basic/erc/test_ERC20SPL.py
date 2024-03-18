@@ -107,7 +107,8 @@ class TestERC20SPL:
         with pytest.raises(ValueError, match=msg):
             erc20_contract.burn(erc20_contract.account, 1, **param)
 
-    def test_burnFrom(self, erc20_contract, new_account, restore_balance):
+    def test_burnFrom(self, erc20_contract, restore_balance):
+        new_account = self.accounts[0]
         balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         total_before = erc20_contract.contract.functions.totalSupply().call()
         amount = random.randint(0, 1000)
@@ -119,14 +120,16 @@ class TestERC20SPL:
         assert balance_after == balance_before - amount
         assert total_after == total_before - amount
 
-    def test_burnFrom_without_allowance(self, erc20_contract, new_account):
+    def test_burnFrom_without_allowance(self, erc20_contract):
+        new_account = self.accounts.create_account()
         with pytest.raises(
             web3.exceptions.ContractLogicError,
             match="0x65ba6fc3",  # InvalidAllowance error
         ):
             erc20_contract.burn_from(new_account, erc20_contract.account.address, 10)
 
-    def test_burnFrom_more_than_allowanced(self, erc20_contract, new_account):
+    def test_burnFrom_more_than_allowanced(self, erc20_contract):
+        new_account = self.accounts.create_account()
         amount = 2
         erc20_contract.approve(erc20_contract.account, new_account.address, amount)
         with pytest.raises(
@@ -136,12 +139,14 @@ class TestERC20SPL:
             erc20_contract.burn_from(new_account, erc20_contract.account.address, amount + 1)
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
-    def test_burnFrom_no_enough_gas(self, erc20_contract, new_account, param, msg):
+    def test_burnFrom_no_enough_gas(self, erc20_contract, param, msg):
+        new_account = self.accounts[0]
         erc20_contract.approve(erc20_contract.account, new_account.address, 1)
         with pytest.raises(ValueError, match=msg):
             erc20_contract.burn_from(new_account, erc20_contract.account.address, 1, **param)
 
-    def test_approve_more_than_total_supply(self, erc20_contract, new_account):
+    def test_approve_more_than_total_supply(self, erc20_contract):
+        new_account = self.accounts[0]
         amount = erc20_contract.contract.functions.totalSupply().call() + 1
         erc20_contract.approve(erc20_contract.account, new_account.address, amount)
         allowance = erc20_contract.contract.functions.allowance(
@@ -173,13 +178,15 @@ class TestERC20SPL:
         with pytest.raises(web3.exceptions.InvalidAddress):
             erc20_contract.contract.functions.allowance(erc20_contract.account.address, create_invalid_address()).call()
 
-    def test_allowance_for_new_account(self, erc20_contract, new_account):
+    def test_allowance_for_new_account(self, erc20_contract):
+        new_account = self.accounts.create_account()
         allowance = erc20_contract.contract.functions.allowance(
             new_account.address, erc20_contract.account.address
         ).call()
         assert allowance == 0
 
-    def test_transfer(self, erc20_contract, new_account, restore_balance):
+    def test_transfer(self, erc20_contract, restore_balance):
+        new_account = self.accounts.create_account()
         balance_acc1_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         balance_acc2_before = erc20_contract.contract.functions.balanceOf(new_account.address).call()
         total_before = erc20_contract.contract.functions.totalSupply().call()
@@ -220,7 +227,8 @@ class TestERC20SPL:
         with pytest.raises(ValueError, match=msg):
             erc20_contract.transfer(erc20_contract.account, erc20_contract.account.address, 1, **param)
 
-    def test_transferFrom(self, erc20_contract, new_account, restore_balance):
+    def test_transferFrom(self, erc20_contract, restore_balance):
+        new_account = self.accounts.create_account()
         balance_acc1_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         balance_acc2_before = erc20_contract.contract.functions.balanceOf(new_account.address).call()
         total_before = erc20_contract.contract.functions.totalSupply().call()
@@ -234,7 +242,8 @@ class TestERC20SPL:
         assert balance_acc2_after == balance_acc2_before + amount
         assert total_before == total_after
 
-    def test_transferFrom_without_allowance(self, erc20_contract, new_account):
+    def test_transferFrom_without_allowance(self, erc20_contract):
+        new_account = self.accounts.create_account()
         with pytest.raises(
             web3.exceptions.ContractLogicError,
             match="0x65ba6fc3",  # InvalidAllowance error
@@ -246,7 +255,8 @@ class TestERC20SPL:
                 amount=10,
             )
 
-    def test_transferFrom_more_than_allowanced(self, erc20_contract, new_account):
+    def test_transferFrom_more_than_allowanced(self, erc20_contract):
+        new_account = self.accounts.create_account()
         amount = 2
         erc20_contract.approve(erc20_contract.account, new_account.address, amount)
         with pytest.raises(
@@ -269,7 +279,8 @@ class TestERC20SPL:
                 amount=1,
             )
 
-    def test_transferFrom_more_than_balance(self, erc20_contract, new_account):
+    def test_transferFrom_more_than_balance(self, erc20_contract):
+        new_account = self.accounts.create_account()
         amount = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call() + 1
         erc20_contract.approve(erc20_contract.account, new_account.address, amount)
         with pytest.raises(
@@ -284,7 +295,8 @@ class TestERC20SPL:
             )
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
-    def test_transferFrom_no_enough_gas(self, erc20_contract, new_account, param, msg):
+    def test_transferFrom_no_enough_gas(self, erc20_contract, param, msg):
+        new_account = self.accounts.create_account()
         erc20_contract.approve(erc20_contract.account, new_account.address, 1)
         with pytest.raises(ValueError, match=msg):
             erc20_contract.transfer_from(new_account, erc20_contract.account.address, new_account.address, 1, **param)
@@ -379,7 +391,8 @@ class TestERC20SPL:
 
         assert balance_after == balance_before - sent_amount + claim_amount, "Balance is not correct"
 
-    def test_claimTo(self, erc20_contract, sol_client, solana_associated_token_erc20, pytestconfig, new_account):
+    def test_claimTo(self, erc20_contract, sol_client, solana_associated_token_erc20, pytestconfig):
+        new_account = self.accounts.create_account()
         acc, token_mint, solana_address = solana_associated_token_erc20
         user1_balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         user2_balance_before = erc20_contract.contract.functions.balanceOf(new_account.address).call()
@@ -472,7 +485,8 @@ class TestERC20SPLMintable(TestERC20SPL):
         balance_after = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         assert balance_after == balance_before + amount
 
-    def test_mint_to_another_account(self, erc20_contract, new_account):
+    def test_mint_to_another_account(self, erc20_contract):
+        new_account = self.accounts.create_account(0)
         amount = random.randint(1, MAX_TOKENS_AMOUNT)
         erc20_contract.mint_tokens(erc20_contract.account, new_account.address, amount)
         balance_after = erc20_contract.contract.functions.balanceOf(new_account.address).call()
@@ -620,9 +634,9 @@ class TestERC20SPLMintable(TestERC20SPL):
         sol_client,
         solana_associated_token_mintable_erc20,
         pytestconfig,
-        new_account,
     ):
         acc, token_mint, solana_address = solana_associated_token_mintable_erc20
+        new_account = self.accounts.create_account()
         user1_balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         user2_balance_before = erc20_contract.contract.functions.balanceOf(new_account.address).call()
         sent_amount = random.randint(10, 1000)
@@ -711,7 +725,8 @@ class TestMultipleActionsForERC20:
             contract_balance == mint_amount - transfer_amount_1 - transfer_amount_2 + contract_balance_before
         ), "Contract balance is not correct"
 
-    def test_mint_transfer_transfer_different_recipients(self, multiple_actions_erc20, new_account):
+    def test_mint_transfer_transfer_different_recipients(self, multiple_actions_erc20):
+        new_account = self.accounts.create_account()
         sender_account = self.accounts[0]
         acc_1, contract = multiple_actions_erc20
         acc_2 = new_account

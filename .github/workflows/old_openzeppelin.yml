@@ -94,7 +94,7 @@ jobs:
             --users 12
       - name: Print OpenZeppelin report
         run: |
-          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py ozreport
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py oz report
       - name: "Generate allure report"
         id: requirements
         uses: ./.github/actions/generate-allure-report
@@ -106,7 +106,7 @@ jobs:
           tests_name: oz-v3_4
       - name: Analyze tests results
         run: |
-          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py analyze-openzeppelin-results
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py oz analyze
       - name: "Notify on failure."
         if: failure()
         run: |
@@ -143,7 +143,7 @@ jobs:
             --users 13
       - name: Print OpenZeppelin report
         run: |
-          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py ozreport
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py oz report
       - name: "Generate allure report"
         id: requirements
         uses: ./.github/actions/generate-allure-report
@@ -155,7 +155,7 @@ jobs:
           tests_name: oz-v2_5
       - name: Analyze tests results
         run: |
-          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py analyze-openzeppelin-results
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py oz analyze
       - name: "Notify on failure."
         if: failure()
         run: |

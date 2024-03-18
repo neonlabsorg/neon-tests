@@ -1,3 +1,6 @@
+ARG OZ_BRANCH=master
+
+FROM neonlabsorg/openzeppelin-contracts:$OZ_BRANCH as oz-contracts
 FROM ubuntu:20.04
 
 ENV TZ=Europe/Moscow
@@ -44,29 +47,28 @@ RUN apt install -y libxkbcommon0 \
     xvfb
 
 COPY ./deploy/requirements/* /opt/
-RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
-RUN pip3 install -r /opt/click.txt -r /opt/prod.txt
-COPY ./deploy/oz/run-full-test-suite.sh /opt/neon-tests/
+
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 && \
+    pip3 install uv && \
+    uv venv
+
+ENV VIRTUAL_ENV=/.venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+RUN uv pip install -r /opt/click.txt
 
 WORKDIR /opt/neon-tests
 ADD ./ /opt/neon-tests
+
+# Install all requirements
+RUN python3 ./clickfile.py requirements -d all
+
 ARG CONTRACTS_BRANCH
 RUN python3 ./clickfile.py update-contracts --branch ${CONTRACTS_BRANCH}
 
-# Install UI requirements
-RUN python3 ./clickfile.py requirements -d ui
-
-ARG OZ_BRANCH=master
-
-RUN chmod a+x run-full-test-suite.sh && \
-# Update oz contracts
-    git submodule init && git submodule update && \
-    git submodule sync --recursive  && \
-    git submodule update --init --recursive --remote && \
-    git -C compatibility/openzeppelin-contracts checkout origin/${OZ_BRANCH}  && \
-# Install oz tests requirements
-    python3 clickfile.py requirements -d devel && \
-    npm install --save-dev hardhat
+RUN rm -rf /opt/neon-tests/compatibility/openzeppelin-contracts
+COPY --from=oz-contracts /usr/src/app /opt/neon-tests/compatibility/openzeppelin-contracts
+COPY --from=oz-contracts /root/.cache/hardhat-nodejs  /root/.cache/hardhat-nodejs
 
 # Download solc separatly as hardhat implementation is flucky
 ENV DOWNLOAD_PATH="/root/.cache/hardhat-nodejs/compilers-v2/linux-amd64" \
@@ -76,8 +78,3 @@ RUN mkdir -p ${DOWNLOAD_PATH} && \
     curl -o ${DOWNLOAD_PATH}/${SOLC_BINARY} ${REPOSITORY_PATH}/${SOLC_BINARY} && \
     curl -o ${DOWNLOAD_PATH}/list.json ${REPOSITORY_PATH}/list.json && \
     chmod -R 755 ${DOWNLOAD_PATH}
-
-COPY deploy/infra/compile_contracts.sh compatibility/openzeppelin-contracts
-RUN cd compatibility/openzeppelin-contracts npm set audit false
-RUN cd compatibility/openzeppelin-contracts && npm ci
-RUN cd compatibility/openzeppelin-contracts && ./compile_contracts.sh

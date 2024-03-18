@@ -125,7 +125,7 @@ jobs:
             --users 10
       - name: Print OpenZeppelin report
         run: |
-          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py ozreport
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py oz report
       - name: "Generate allure report"
         uses: ./.github/actions/generate-allure-report
         with:
@@ -136,7 +136,7 @@ jobs:
           tests_name: oz
       - name: Analyze tests results
         run: |
-          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py analyze-openzeppelin-results
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py oz analyze
       - name: "Notify on failure."
         if: failure()
         run: |

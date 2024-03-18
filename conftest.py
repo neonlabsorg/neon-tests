@@ -86,6 +86,8 @@ def pytest_configure(config: Config):
                 break
         if "PROXY_URL" in os.environ and os.environ["PROXY_URL"]:
             env["proxy_url"] = os.environ.get("PROXY_URL")
+        if "DEVNET_FAUCET_URL" in os.environ and os.environ["DEVNET_FAUCET_URL"]:
+            env["faucet_url"] = os.environ.get("DEVNET_FAUCET_URL")
     if "use_bank" not in env:
         env["use_bank"] = False
     if "eth_bank_account" not in env:

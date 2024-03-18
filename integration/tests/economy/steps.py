@@ -7,9 +7,8 @@ from solders.rpc.responses import GetTransactionResp
 from solders.signature import Signature
 
 from integration.tests.economy.const import DECIMAL_CONTEXT, TX_COST
-from integration.tests.helpers.basic import hasattr_recursive
 from utils.consts import LAMPORT_PER_SOL
-from utils.helpers import wait_condition
+from utils.helpers import wait_condition, hasattr_recursive
 
 
 @allure.step("Verify operator profit")

@@ -3,7 +3,10 @@
     "evm_loader": "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io",
     "proxy_url": "http://proxy.night.stand.neontest.xyz/solana",
     "network_ids": {
-      "neon": 111
+      "neon": 111,
+      "sol": 112,
+      "usd": 113,
+      "eth": 114
     },
     "solana_url": "http://proxy.night.stand.neontest.xyz/node-solana",
     "faucet_url": "http://proxy.night.stand.neontest.xyz",
@@ -137,8 +140,8 @@
     "network_ids": {
       "neon": 111,
       "sol": 112,
-      "abc": 113,
-      "def": 114
+      "usd": 113,
+      "eth": 114
     },
     "solana_url": "http://127.0.0.1:8899/",
     "faucet_url": "http://127.0.0.1:3333/",
@@ -216,8 +219,8 @@
     "network_ids": {
       "neon": 111,
       "sol": 112,
-      "abc": 113,
-      "def": 114
+      "usdt": 113,
+      "eth": 114
     },
     "solana_url": "http://<solana_ip>:8899/",
     "faucet_url": "http://<proxy_ip>:3333/",

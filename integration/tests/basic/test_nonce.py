@@ -112,8 +112,8 @@ class TestNonce:
             self.web3_client.wait_for_transaction_receipt(result)
             assert rpc_checks.is_hex(result)
 
-    @pytest.mark.only_stands  # This doesn't work on devnet because sticky session is not enabled
-    def test_send_transaction_with_the_same_nonce_and_lower_gas(self, json_rpc_client, new_account):
+    @pytest.mark.only_stands  #  This doesn't work on devnet because sticky session is not enabled
+    def test_send_transaction_with_the_same_nonce_and_lower_gas(self, json_rpc_client):
         """Check that transaction with a low gas and the same nonce can't be sent"""
         sender_account = self.accounts[3]
         recipient_account = self.accounts[4]
@@ -123,11 +123,13 @@ class TestNonce:
             sender_account, recipient_account, nonce=nonce, gas_price=gas, estimate_gas=True
         )
         signed_tx1 = self.web3_client.eth.account.sign_transaction(tx1, sender_account.key)
-        tx2 = self.web3_client.make_raw_tx(sender_account, recipient_account, nonce=nonce, gas_price=gas - 1000, estimate_gas=True)
+        tx2 = self.web3_client.make_raw_tx(
+            sender_account, recipient_account, nonce=nonce, gas_price=gas - 1000, estimate_gas=True
+        )
         signed_tx2 = self.web3_client.eth.account.sign_transaction(tx2, sender_account.key)
         resp1 = json_rpc_client.send_rpc("eth_sendRawTransaction", [signed_tx1.rawTransaction.hex()])
         response = json_rpc_client.send_rpc("eth_sendRawTransaction", [signed_tx2.rawTransaction.hex()])
-        print(resp1, response)
+
         assert "error" in response, f"Response doesn't has an error: {response}"
         assert ErrorMessage.REPLACEMENT_UNDERPRICED.value in response["error"]["message"]
         assert response["error"]["code"] == -32000
@@ -181,10 +183,11 @@ class TestNonce:
         assert "error" not in response
         assert "result" in response
 
-    def test_send_transaction_with_old_nonce(self, json_rpc_client, new_account):
+    def test_send_transaction_with_old_nonce(self, json_rpc_client):
         """Check that transaction with old nonce can't be sent"""
-        sender_account = new_account
+        sender_account = self.accounts.create_account()
         recipient_account = self.accounts[1]
+
         nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
         transaction = self.web3_client.make_raw_tx(
             sender_account, recipient_account, amount=1, nonce=nonce, estimate_gas=True
@@ -196,7 +199,9 @@ class TestNonce:
         block_num = receipt["blockNumber"]
         wait_finalized_block(json_rpc_client, block_num)
 
-        transaction = self.web3_client.make_raw_tx(sender_account, recipient_account, amount=2, nonce=nonce, estimate_gas=True)
+        transaction = self.web3_client.make_raw_tx(
+            sender_account, recipient_account, amount=2, nonce=nonce, estimate_gas=True
+        )
         signed_tx = self.web3_client.eth.account.sign_transaction(transaction, sender_account.key)
         response = json_rpc_client.send_rpc("eth_sendRawTransaction", [signed_tx.rawTransaction.hex()])
         assert ErrorMessage.NONCE_TOO_LOW.value in response["error"]["message"]

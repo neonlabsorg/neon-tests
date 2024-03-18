@@ -25,6 +25,7 @@ TF_BACKEND_CONFIG = {"bucket": TFSTATE_BUCKET, "key": TF_STATE_KEY, "region": TF
 
 
 os.environ["TF_VAR_run_number"] = os.environ.get("GITHUB_RUN_ID", "0")
+os.environ["TF_VAR_branch"] = os.environ.get("GITHUB_REF_NAME", "develop").replace("/", "-").replace("_", "-")
 os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("DOCKERHUB_ORG_NAME", "neonlabsorg")
 
 
@@ -49,7 +50,6 @@ def deploy_infrastructure(evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_bran
           f"evm_branch: {evm_branch}, proxy_branch: {proxy_branch}")
     os.environ["TF_VAR_neon_evm_commit"] = evm_tag
     os.environ["TF_VAR_faucet_model_commit"] = faucet_tag
-    os.environ["TF_VAR_branch"] = evm_branch.replace('_', '-')
     os.environ["TF_VAR_proxy_image_tag"] = proxy_tag
     os.environ["TF_VAR_proxy_model_commit"] = proxy_branch
 
@@ -77,7 +77,6 @@ def deploy_infrastructure(evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_bran
 def destroy_infrastructure():
     os.environ["TF_VAR_neon_evm_commit"] = "latest"
     os.environ["TF_VAR_faucet_model_commit"] = "develop"
-    os.environ["TF_VAR_branch"] = "develop"
     os.environ["TF_VAR_proxy_image_tag"] = "latest"
     os.environ["TF_VAR_proxy_model_commit"] = "develop"
 
