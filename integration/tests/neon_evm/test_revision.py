@@ -16,6 +16,7 @@ from .utils.constants import TAG_FINALIZED_STATE
 from .utils.contract import make_contract_call_trx, deploy_contract
 
 from .utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
+from .utils.storage import create_holder
 from .utils.transaction_checks import check_holder_account_tag, check_transaction_logs_have_text
 from ..basic.helpers.assert_message import ErrorMessage
 
@@ -24,12 +25,12 @@ class TestAccountRevision:
     def test_call_contract_with_changing_data(
         self,
         operator_keypair,
+        holder_acc,
         treasury_pool,
         rw_lock_caller,
         rw_lock_contract,
         session_user,
         evm_loader,
-        holder_acc,
         neon_api_client,
     ):
         trx_count = 4
@@ -297,9 +298,11 @@ class TestAccountRevision:
         )
 
         for _ in range(2):
+            holder_acc_for_trx_from_instr = create_holder(operator_keypair)
             signed_tx2 = make_contract_call_trx(session_user, rw_lock_contract, "update_storage_map(uint256)", [3])
             resp = execute_trx_from_instruction(
                 operator_keypair,
+                holder_acc_for_trx_from_instr,
                 evm_loader,
                 treasury_pool.account,
                 treasury_pool.buffer,
@@ -322,7 +325,7 @@ class TestAccountRevision:
             assert data_acc_revision_after == 3
 
     def test_1_user_send_2_parallel_trx_with_neon_balance_change(
-        self, operator_keypair, treasury_pool, neon_api_client, session_user, evm_loader, holder_acc
+        self, operator_keypair, treasury_pool, neon_api_client, session_user, evm_loader, holder_acc, new_holder_acc
     ):
         amount = 1000000
         deposit_neon(evm_loader, operator_keypair, session_user.eth_address, 4 * amount)
@@ -366,6 +369,7 @@ class TestAccountRevision:
 
         resp = execute_trx_from_instruction(
             operator_keypair,
+            new_holder_acc,
             evm_loader,
             treasury_pool.account,
             treasury_pool.buffer,
@@ -392,6 +396,7 @@ class TestAccountRevision:
         session_user,
         evm_loader,
         new_holder_acc,
+        holder_acc
     ):
         sender = make_new_user(evm_loader)
         recipient = session_user
@@ -435,6 +440,7 @@ class TestAccountRevision:
 
         resp = execute_trx_from_instruction(
             operator_keypair,
+            holder_acc,
             evm_loader,
             treasury_pool.account,
             treasury_pool.buffer,
