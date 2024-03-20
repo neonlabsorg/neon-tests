@@ -91,7 +91,7 @@ jobs:
           docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py run oz \
             --network ${{ needs.prepare-env.outputs.network }} \
             --jobs ${{ needs.prepare-env.outputs.jobs }} \
-            --users 12
+            --users 12 --amount 200000
       - name: Print OpenZeppelin report
         run: |
           docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py oz report
@@ -140,7 +140,7 @@ jobs:
           docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py run oz \
             --network ${{ needs.prepare-env.outputs.network }} \
             --jobs ${{ needs.prepare-env.outputs.jobs }} \
-            --users 13
+            --users 13 --amount 200000
       - name: Print OpenZeppelin report
         run: |
           docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py oz report
