@@ -117,7 +117,7 @@ def download_remote_docker_logs():
     ssh_client.load_system_host_keys()
     ssh_client.connect(solana_ip, username="root", key_filename=ssh_key, timeout=120)
 
-    upload_service_logs(ssh_client, "solana", artifact_logs)
+    upload_service_logs(ssh_client, "opt_solana_1", artifact_logs)
 
     ssh_client.connect(proxy_ip, username="root", key_filename=ssh_key, timeout=120)
     services = ["postgres", "dbcreation", "indexer", "proxy", "faucet"]

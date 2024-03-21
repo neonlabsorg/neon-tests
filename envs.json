@@ -5,7 +5,7 @@
     "network_ids": {
       "neon": 111,
       "sol": 112,
-      "usd": 113,
+      "usdt": 113,
       "eth": 114
     },
     "solana_url": "http://proxy.night.stand.neontest.xyz/node-solana",
@@ -140,7 +140,7 @@
     "network_ids": {
       "neon": 111,
       "sol": 112,
-      "usd": 113,
+      "usdt": 113,
       "eth": 114
     },
     "solana_url": "http://127.0.0.1:8899/",

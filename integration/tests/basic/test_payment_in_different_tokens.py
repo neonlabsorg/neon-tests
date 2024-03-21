@@ -245,8 +245,9 @@ class TestMultiplyChains:
         bunch_contract_neon, _ = self.web3_client.deploy_and_get_contract(
             contract="common/Common", version="0.8.12", contract_name="BunchActions", account=alice
         )
-
+        print("CHAINS", chains)
         for chain in chains:
+            print("Chain ", chain)
             bunch_contract = chains[chain]["client"].get_deployed_contract(
                 bunch_contract_neon.address, "common/Common", contract_name="BunchActions"
             )

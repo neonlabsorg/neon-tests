@@ -1,4 +1,5 @@
 name: "Compilers compatibility tests"
+run-name: "Compilers compatibility tests / ${{ github.event.inputs.network || 'devnet' }}"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
