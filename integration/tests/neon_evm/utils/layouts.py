@@ -6,7 +6,8 @@ HOLDER_ACCOUNT_INFO_LAYOUT = Struct(
     "header_version"/ Int8ul,
     "owner" / Bytes(32),
     "hash" / Bytes(32),
-    "len" / Int64ul
+    "len" / Int64ul,
+    "heap_offset" / Int64ul
 )
 
 
