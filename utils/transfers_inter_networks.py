@@ -70,7 +70,7 @@ def mint_tx(amount, dest, neon_mint, mint_authority):
 
 
 def neon_transfer_tx(
-    web3_client, sol_client, amount, spl_token, solana_account, neon_account, erc20_spl, evm_loader_id
+    web3_client, sol_client, amount, spl_token, solana_account, neon_account, erc20_spl, evm_loader_id, holder_account
 ):
     chain_id = web3_client.eth.chain_id
     delegate_pda = sol_client.ether2balance(neon_account.address, chain_id, evm_loader_id)
@@ -125,7 +125,7 @@ def neon_transfer_tx(
     )
 
     tx.add(
-        Instruction.build_tx_instruction(
+        Instruction.build_tx_instruction( holder_account,
             solana_wallet, delegate_pda, neon_transaction.rawTransaction, neon_keys, evm_loader_id
         )
     )

@@ -2,6 +2,9 @@ import json
 import time
 import typing as tp
 import uuid
+from hashlib import sha256
+from random import randrange
+
 import requests
 import pathlib
 
@@ -25,6 +28,7 @@ from utils.consts import LAMPORT_PER_SOL, wSOL
 from utils.helpers import wait_condition
 from spl.token.constants import TOKEN_PROGRAM_ID
 
+from utils.instructions import create_account_with_seed, create_holder_account
 from utils.transfers_inter_networks import wSOL_tx, token_from_solana_to_neon_tx, mint_tx
 
 
@@ -237,3 +241,26 @@ class SolanaClient(solana.rpc.api.Client):
                 authority = Keypair.from_seed(json.load(f)[:32])
         token = spl.token.client.Token(self, mint, TOKEN_PROGRAM_ID, authority)
         token.mint_to(token_account, authority, amount)
+
+    def create_holder(self, signer: Keypair, evm_loader: PublicKey, seed: str = None, size: int = None, fund: int = None,
+                      storage: PublicKey = None) -> PublicKey:
+        if size is None:
+            size = 128 * 1024
+        if fund is None:
+            fund = 10 ** 9
+        if seed is None:
+            seed = str(randrange(1000000))
+        if storage is None:
+            storage = PublicKey(
+                sha256(bytes(signer.public_key) + bytes(seed, 'utf8') + bytes(evm_loader)).digest())
+
+        print(f"Create holder account with seed: {seed}")
+
+        trx = Transaction()
+        trx.add(
+            create_account_with_seed(signer.public_key, signer.public_key, seed, fund, size, evm_loader),
+                  create_holder_account(storage, signer.public_key, bytes(seed, 'utf8'), evm_loader)
+        )
+        self.send_tx_and_check_status_ok(trx, signer)
+        print(f"Created holder account: {storage}")
+        return storage

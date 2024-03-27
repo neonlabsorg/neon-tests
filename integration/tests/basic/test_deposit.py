@@ -98,7 +98,9 @@ class TestDeposit:
         usdt_balance_after = web3_client_usdt.get_balance(new_account)
         assert usdt_balance_after == amount * 1000000000000
 
-    def test_transfer_spl_token_from_solana_to_neon(self, solana_account, pytestconfig: Config, erc20_spl):
+    def test_transfer_spl_token_from_solana_to_neon(
+        self, solana_account, pytestconfig: Config, erc20_spl, operator_keypair, sol_client
+    ):
         evm_loader_id = pytestconfig.environment.evm_loader
         amount = 0.1
         full_amount = int(amount * LAMPORT_PER_SOL)
@@ -106,7 +108,7 @@ class TestDeposit:
         mint_pubkey = wSOL["address_spl"]
         ata_address = get_associated_token_address(solana_account.public_key, mint_pubkey)
         new_account = self.accounts.create_account()
-
+        holder_account = sol_client.create_holder(operator_keypair, PublicKey(evm_loader_id))
         self.sol_client.create_ata(solana_account, mint_pubkey)
 
         spl_neon_token = SplToken(self.sol_client, mint_pubkey, TOKEN_PROGRAM_ID, solana_account)
@@ -119,7 +121,15 @@ class TestDeposit:
 
         # transfer wSOL
         transfer_tx = neon_transfer_tx(
-            self.web3_client, self.sol_client, full_amount, wSOL, solana_account, new_account, erc20_spl, evm_loader_id
+            self.web3_client,
+            self.sol_client,
+            full_amount,
+            wSOL,
+            solana_account,
+            new_account,
+            erc20_spl,
+            evm_loader_id,
+            holder_account,
         )
         self.sol_client.send_tx_and_check_status_ok(transfer_tx, solana_account)
 

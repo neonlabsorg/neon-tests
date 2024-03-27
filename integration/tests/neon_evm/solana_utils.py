@@ -24,6 +24,7 @@ from solders.rpc.responses import SendTransactionResp, GetTransactionResp
 from spl.token.constants import TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address, ApproveParams, MintToParams
 
+from utils import instructions
 from .utils.constants import CHAIN_ID
 
 from .utils.constants import EVM_LOADER, SOLANA_URL, SYSTEM_ADDRESS, NEON_TOKEN_MINT_ID, \
@@ -83,29 +84,12 @@ def account_with_seed(base, seed, program) -> PublicKey:
 
 
 def create_account_with_seed(funding, base, seed, lamports, space, program=PublicKey(EVM_LOADER)):
-    created = account_with_seed(base, seed, program)
-    print(f"Created: {created}")
-    return sp.create_account_with_seed(sp.CreateAccountWithSeedParams(
-        from_pubkey=funding,
-        new_account_pubkey=created,
-        base_pubkey=base,
-        seed=seed,
-        lamports=lamports,
-        space=space,
-        program_id=program
-    ))
+    return instructions.create_account_with_seed(funding, base, seed, lamports, space, program)
 
 
 def create_holder_account(account, operator, seed):
-    return TransactionInstruction(
-        keys=[
-            AccountMeta(pubkey=account, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=operator, is_signer=True, is_writable=False),
-        ],
-        program_id=PublicKey(EVM_LOADER),
-        data=bytes.fromhex("24") + 
-            len(seed).to_bytes(8, 'little') + seed
-    )
+    return instructions.create_holder_account(account, operator, seed, PublicKey(EVM_LOADER))
+
 
 
 class solana_cli:

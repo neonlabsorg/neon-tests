@@ -6,6 +6,7 @@ from solana.publickey import PublicKey
 from solana.system_program import SYS_PROGRAM_ID
 from solana.transaction import AccountMeta, TransactionInstruction
 from spl.token.constants import ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
+import solana.system_program as sp
 
 COMPUTE_BUDGET_ID: PublicKey = PublicKey(
     "ComputeBudget111111111111111111111111111111")
@@ -153,16 +154,17 @@ class Instruction:
         return signed_tx, result
 
     @staticmethod
-    def build_tx_instruction(solana_wallet, neon_wallet, neon_raw_transaction,
+    def build_tx_instruction(holder_account, solana_wallet, neon_wallet, neon_raw_transaction,
                             neon_keys, evm_loader_id):
         program_id = PublicKey(evm_loader_id)
         treasure_pool_index = 2
         treasure_pool_address = get_collateral_pool_address(
             treasure_pool_index, evm_loader_id)
 
-        data = bytes.fromhex('32') + treasure_pool_index.to_bytes(4, 'little') + \
+        data = bytes.fromhex('38') + treasure_pool_index.to_bytes(4, 'little') + \
                bytes.fromhex(str(neon_raw_transaction.hex())[2:])
-        keys = [AccountMeta(pubkey=solana_wallet, is_signer=True, is_writable=True),
+        keys = [AccountMeta(pubkey=holder_account, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=solana_wallet, is_signer=True, is_writable=True),
                 AccountMeta(pubkey=treasure_pool_address,
                             is_signer=False, is_writable=True),
                 AccountMeta(pubkey=neon_wallet,
@@ -196,3 +198,29 @@ def get_solana_wallet_signer(solana_account, neon_account, web3_client):
     new_wallet = hashlib.sha256(solana_wallet + neon_wallet).hexdigest()
     emulate_signer_private_key = f'0x{new_wallet}'
     return web3_client.eth.account.from_key(emulate_signer_private_key)
+
+
+def create_account_with_seed(funding, base, seed, lamports, space, program):
+    created = PublicKey(hashlib.sha256(bytes(base) + bytes(seed, 'utf8') + bytes(program)).digest())
+    print(f"Created: {created}")
+    return sp.create_account_with_seed(sp.CreateAccountWithSeedParams(
+        from_pubkey=funding,
+        new_account_pubkey=created,
+        base_pubkey=base,
+        seed=seed,
+        lamports=lamports,
+        space=space,
+        program_id=program
+    ))
+
+
+def create_holder_account(account, operator, seed, evm_loader_pubkey):
+    return TransactionInstruction(
+        keys=[
+            AccountMeta(pubkey=account, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=operator, is_signer=True, is_writable=False),
+        ],
+        program_id=evm_loader_pubkey,
+        data=bytes.fromhex("24") +
+            len(seed).to_bytes(8, 'little') + seed
+    )
