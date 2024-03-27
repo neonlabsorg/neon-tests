@@ -36,6 +36,7 @@ env:
   NUMPROCESSES: ${{ github.event.inputs.numprocesses || 8 }}
   BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
   SOLANA_URL: "${{ secrets.SOLANA_URL }}"
+  FAUCET_URL: "${{ secrets.DEVNET_FAUCET_URL }}"
   IMAGE:  neonlabsorg/neon_tests
   CONTAINER:  basic-${{ github.run_id }}
 jobs:
@@ -120,7 +121,8 @@ jobs:
         id: basic
         run: |
           docker exec -i ${{ env.CONTAINER }} \
-            python3 ./clickfile.py run basic -n ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}
+            /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && export SOLANA_URL=${{ env.SOLANA_URL }} && \
+            python3 ./clickfile.py run basic -n ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
       - name: "Notify on failure."
         if: failure()
         run: |

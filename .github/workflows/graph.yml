@@ -5,6 +5,10 @@ on:
     - cron: "0 4 * * *"
   workflow_dispatch:
 
+env:
+  FAUCET_URL: ${{ secrets.DEVNET_FAUCET_URL }}
+  SOLANA_URL: ${{ secrets.SOLANA_URL }}
+
 jobs:
   tests:
     runs-on: ubuntu-20.04
@@ -16,9 +20,11 @@ jobs:
         uses: ./.github/actions/python-requirements
 
       - name: Prepare accounts
+        env:
+          NETWORK: devnet
         id: accounts
         run: |
-          python3 ./clickfile.py infra gen-accounts -c 3 -a 10000 -n devnet
+          python3 ./clickfile.py infra gen-accounts -c 3 -a 10000 -n ${{ env.NETWORK }}
       - name: Trigger the Graph tests
         uses: peter-evans/repository-dispatch@v2
         with:

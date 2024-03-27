@@ -957,3 +957,127 @@ class TestMultipleActionsForERC20:
             contract_balance == mint_amount_1 + mint_amount_2 - transfer_amount - burn_amount + contract_balance_before
         ), "Contract balance is not correct"
         assert user_balance == transfer_amount + user_balance_before, "User balance is not correct"
+
+
+@pytest.fixture(scope="class")
+def new_factory_contract(web3_client, erc20_spl_mintable):
+    contract, tx = web3_client.deploy_and_get_contract(
+        "external/neon-contracts/ERC20ForSPL/contracts/test/ERC20ForSPLMintableFactoryV2",
+        "0.8.24",
+        erc20_spl_mintable.account,
+        contract_name="ERC20ForSPLMintableFactoryV2",
+    )
+    return contract
+
+
+@pytest.fixture(scope="class")
+def new_token_contract(web3_client, erc20_spl_mintable):
+    contract, tx = web3_client.deploy_and_get_contract(
+        "external/neon-contracts/ERC20ForSPL/contracts/test/ERC20ForSPLMintableV2",
+        "0.8.24",
+        erc20_spl_mintable.account,
+        contract_name="ERC20ForSPLMintableV2",
+    )
+    return contract
+
+
+@allure.feature("ERC Verifications")
+@allure.story("ERC20SPL: Tests for factory update")
+@pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+class TestERC20FactoryUpdate:
+    web3_client: NeonChainWeb3Client
+    accounts: EthAccounts
+    sol_client: SolanaClient
+
+    def get_factory_contract(self, token_contract):
+        factory_address = token_contract.functions.beacon().call()
+        factory_contract = self.web3_client.get_deployed_contract(
+            factory_address,
+            "external/neon-contracts/ERC20ForSPL/contracts/ERC20ForSPLMintableFactory",
+            contract_name="ERC20ForSPLMintableFactory",
+            solc_version="0.8.24",
+        )
+        return factory_contract
+
+    def test_update_factory(self, erc20_spl_mintable, new_factory_contract):
+        # get contract factory object, get address from erc20 token contract
+        factory_contract = self.get_factory_contract(erc20_spl_mintable.contract)
+        # update factory implementation
+        impl_address_before_update = self.web3_client.eth.get_storage_at(factory_contract.address, 1).hex()
+        tx_opt = self.web3_client.make_raw_tx(erc20_spl_mintable.account)
+        tx_body = factory_contract.functions.upgradeToAndCall(new_factory_contract.address, "0x").build_transaction(
+            tx_opt
+        )
+        receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, tx_body)
+        assert receipt.status == 1, "Transaction failed"
+
+        # check proxy factory address
+        impl_address_after_update = self.web3_client.eth.get_storage_at(factory_contract.address, 1).hex()
+        assert impl_address_before_update != impl_address_after_update, "Factory wasn't updated"
+
+        # check new factory method
+        new_factory_contract.address = factory_contract.address
+        assert new_factory_contract.functions.getDummyData().call() == 1617181920
+
+        # deploy new token
+        deploy_tx = self.web3_client.make_raw_tx(erc20_spl_mintable.account)
+        deploy_body = factory_contract.functions.deploy("TOKEN2", "ABC", "http://uri2.com", 8).build_transaction(
+            deploy_tx
+        )
+        deploy_receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, deploy_body)
+        logs = factory_contract.events.TokenDeploy().process_receipt(deploy_receipt)
+        new_token_addr = logs[0]["args"]["token"]
+        new_token_contract = self.web3_client.get_deployed_contract(
+            new_token_addr,
+            contract_file="external/neon-contracts/ERC20ForSPL/contracts/ERC20ForSPLMintable",
+            solc_version="0.8.24",
+        )
+        assert new_token_contract.functions.name().call() == "TOKEN2"
+
+    def test_update_factory_with_incorrect_address(self, erc20_spl_mintable):
+        factory_contract = self.get_factory_contract(erc20_spl_mintable.contract)
+        tx_opt = self.web3_client.make_raw_tx(erc20_spl_mintable.account, gas=10000000)
+        tx_body = factory_contract.functions.upgradeToAndCall(
+            "0x3c42de8cf594B3955b596BFC16Deee4dF4BA10B7", "0x"
+        ).build_transaction(tx_opt)
+        receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, tx_body)
+        assert receipt.status == 0, "Transaction should fail"
+
+    def test_update_factory_invalid_owner(self, erc20_spl_mintable, accounts, new_factory_contract):
+        factory_contract = self.get_factory_contract(erc20_spl_mintable.contract)
+        tx_opt = self.web3_client.make_raw_tx(accounts[0], gas=10000000)
+        tx_body = factory_contract.functions.upgradeToAndCall(new_factory_contract.address, "0x").build_transaction(
+            tx_opt
+        )
+        receipt = self.web3_client.send_transaction(accounts[0], tx_body)
+        assert receipt.status == 0, "Transaction should fail"
+
+    def test_update_token_contract(self, erc20_spl_mintable, new_token_contract):
+        # get contract factory object, get address from erc20 token contract
+        factory_contract = self.get_factory_contract(erc20_spl_mintable.contract)
+        # update factory implementation
+        impl_address_before_update = self.web3_client.eth.get_storage_at(factory_contract.address, 0).hex()
+        tx_opt = self.web3_client.make_raw_tx(erc20_spl_mintable.account)
+        tx_body = factory_contract.functions.upgradeTo(new_token_contract.address).build_transaction(tx_opt)
+        receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, tx_body)
+        assert receipt.status == 1, "Transaction failed"
+
+        # check proxy factory address
+        impl_address_after_update = self.web3_client.eth.get_storage_at(factory_contract.address, 0).hex()
+        assert impl_address_before_update != impl_address_after_update, "Token implementation wasn't updated"
+
+        # deploy new token
+        deploy_tx = self.web3_client.make_raw_tx(erc20_spl_mintable.account)
+        deploy_body = factory_contract.functions.deploy("TOKEN3", "ABC", "http://uri2.com", 8).build_transaction(
+            deploy_tx
+        )
+        deploy_receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, deploy_body)
+        logs = factory_contract.events.TokenDeploy().process_receipt(deploy_receipt)
+        new_token_addr = logs[0]["args"]["token"]
+        new_token_contract = self.web3_client.get_deployed_contract(
+            new_token_addr,
+            contract_file="external/neon-contracts/ERC20ForSPL/contracts/test/ERC20ForSPLMintableV2",
+            solc_version="0.8.24",
+        )
+        assert new_token_contract.functions.name().call() == "TOKEN3"
+        assert new_token_contract.functions.getDummyData().call() == 1112131415

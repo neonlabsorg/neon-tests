@@ -4,10 +4,10 @@ inputs:
   image_tag:  # id of input
     description: 'neon tests image tag'
     required: true
-  oz_branch:
-    description: 'branch name for oz tests'
+  oz_tag:
+    description: 'tag name for oz tests'
     required: true
-    default: master
+    default: latest
   docker_username:
     description: 'docker hub username'
     required: true
@@ -37,7 +37,7 @@ runs:
         image_id="neonlabsorg/neon_tests"
         delimeter=$(printf "%0.s-" {1..30})
         echo " ${delimeter} Build new docker image ${image_id} ${delimeter}"
-        docker build . --no-cache --tag ${image_id}:${{ inputs.image_tag }} --build-arg OZ_BRANCH='${{ inputs.oz_branch }}' --build-arg CONTRACTS_BRANCH="${{ steps.feature_branch.outputs.value || 'develop'}}"
+        docker build . --no-cache --tag ${image_id}:${{ inputs.image_tag }} --build-arg OZ_TAG='${{ inputs.oz_tag }}' --build-arg CONTRACTS_BRANCH="${{ steps.feature_branch.outputs.value || 'develop'}}"
         if [[ "${{ steps.feature_branch.outputs.value }}" != ''  ]]; then
           docker tag ${image_id}:${{ inputs.image_tag }} ${image_id}:${{ steps.feature_branch.outputs.value }}
         fi;

@@ -1,6 +1,6 @@
-ARG OZ_BRANCH=master
+ARG OZ_TAG=latest
 
-FROM neonlabsorg/openzeppelin-contracts:$OZ_BRANCH as oz-contracts
+FROM neonlabsorg/openzeppelin-contracts:$OZ_TAG as oz-contracts
 FROM ubuntu:20.04
 
 ENV TZ=Europe/Moscow
