@@ -221,3 +221,120 @@ class TestNonce:
             client.send_tokens(sender, recipient_account, 1000)
         assert self.web3_client.get_nonce(sender.address) == neon_chain_nonce + 2
         assert web3_client_sol.get_nonce(sender.address) == sol_chain_nonce + 4
+
+    def test_min_gas_gapped_last_low_tx(self, json_rpc_client):
+        sender_account = self.accounts[0]
+        recipient_account = self.accounts[1]
+        mem_pool_size = 20
+        high_watermark = 0.9
+        border = int(mem_pool_size * high_watermark)
+
+        initial_gas_price = self.web3_client.gas_price()
+        print(initial_gas_price)
+        gas_limit = self.web3_client._web3.eth.get_block("latest")["gasLimit"]
+        print(gas_limit)
+        nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
+        print(nonce)
+        print(sender_account.address)
+
+        # flood the queue with gapped txs
+        for i in range(border):
+            n = nonce + 1 + i
+            tx = self.web3_client.make_raw_tx(
+                sender_account, recipient_account, nonce=n, gas=22000, gas_price=1000000000 + 1000 + i * 100
+            )
+            signed_tx = self.web3_client.eth.account.sign_transaction(tx, sender_account.key)
+            self.web3_client.eth.send_raw_transaction(signed_tx.rawTransaction)
+
+        # add one more tx to get the error
+        tx = self.web3_client.make_raw_tx(
+            sender_account, recipient_account, nonce=nonce + 1 + border, gas=22000, gas_price=1000000000
+        )
+        signed_tx = self.web3_client.eth.account.sign_transaction(tx, sender_account.key)
+        receipt = self.web3_client.eth.send_raw_transaction(signed_tx.rawTransaction)
+        r = self.web3_client.get_transaction_by_hash(receipt.hex())
+
+        gas_price_1 = self.web3_client.gas_price()
+        print(gas_price_1)
+        gas_limit_1 = self.web3_client._web3.eth.get_block("latest")["gasLimit"]
+        print(gas_limit_1)
+
+        assert self.web3_client.gas_price() == 2000000000
+
+    def test_min_gas_pending_last_gapped_tx_lowermost(self, json_rpc_client):
+        sender_account = self.accounts[0]
+        recipient_account = self.accounts[1]
+        mem_pool_size = 20
+        high_watermark = 0.9
+        border = int(mem_pool_size * high_watermark)
+
+        initial_gas_price = self.web3_client.gas_price()
+        print(initial_gas_price)
+        gas_limit = self.web3_client._web3.eth.get_block("latest")["gasLimit"]
+        print(gas_limit)
+        nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
+        print(nonce)
+        print(sender_account.address)
+
+        # flood the queue with pending txs
+        for i in range(border):
+            n = nonce + i
+            tx = self.web3_client.make_raw_tx(
+                sender_account, recipient_account, nonce=n, gas=22000, gas_price=1000000000 + 1000 + i * 100
+            )
+            signed_tx = self.web3_client.eth.account.sign_transaction(tx, sender_account.key)
+            self.web3_client.eth.send_raw_transaction(signed_tx.rawTransaction)
+
+        # add one more gapped tx to get the error
+        tx = self.web3_client.make_raw_tx(
+            sender_account, recipient_account, nonce=nonce + 1 + border, gas=22000, gas_price=1000000000
+        )
+        signed_tx = self.web3_client.eth.account.sign_transaction(tx, sender_account.key)
+        receipt = self.web3_client.eth.send_raw_transaction(signed_tx.rawTransaction)
+        r = self.web3_client.get_transaction_by_hash(receipt.hex())
+
+        gas_price_1 = self.web3_client.gas_price()
+        print(gas_price_1)
+        gas_limit_1 = self.web3_client._web3.eth.get_block("latest")["gasLimit"]
+        print(gas_limit_1)
+
+        assert self.web3_client.gas_price() == 2000000000
+
+    def test_min_gas_pending_lowermost(self, json_rpc_client):
+        sender_account = self.accounts[0]
+        recipient_account = self.accounts[1]
+        mem_pool_size = 20
+        high_watermark = 0.9
+        border = int(mem_pool_size * high_watermark)
+
+        initial_gas_price = self.web3_client.gas_price()
+        print(initial_gas_price)
+        gas_limit = self.web3_client._web3.eth.get_block("latest")["gasLimit"]
+        print(gas_limit)
+        nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
+        print(nonce)
+        print(sender_account.address)
+
+        # flood the queue with pending txs
+        for i in range(mem_pool_size):
+            n = nonce + i
+            tx = self.web3_client.make_raw_tx(
+                sender_account, recipient_account, nonce=n, gas=22000, gas_price=1000000000 + 1000 + i * 100
+            )
+            signed_tx = self.web3_client.eth.account.sign_transaction(tx, sender_account.key)
+            self.web3_client.eth.send_raw_transaction(signed_tx.rawTransaction)
+
+        # add one more pending tx to get the error
+        tx = self.web3_client.make_raw_tx(
+            sender_account, recipient_account, nonce=nonce + mem_pool_size, gas=22000, gas_price=1000000000
+        )
+        signed_tx = self.web3_client.eth.account.sign_transaction(tx, sender_account.key)
+        receipt = self.web3_client.eth.send_raw_transaction(signed_tx.rawTransaction)
+        r = self.web3_client.get_transaction_by_hash(receipt.hex())
+
+        gas_price_1 = self.web3_client.gas_price()
+        print(gas_price_1)
+        gas_limit_1 = self.web3_client._web3.eth.get_block("latest")["gasLimit"]
+        print(gas_limit_1)
+
+        assert self.web3_client.gas_price() == 2000000000
