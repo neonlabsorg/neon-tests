@@ -565,52 +565,52 @@ jobs:
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: uniswap-v2-report
           path: reports/
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: uniswap-v3-report
           path: reports/
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: saddle-report
           path: reports/
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: yearn-report
           path: reports/
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: aave-report
           path: reports/
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: compound-report
           path: reports/
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: curve-report
           path: reports/
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: curve-factory-report
           path: reports/
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: robonomics-report
           path: reports/
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: pancake-report
