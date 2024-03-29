@@ -498,3 +498,116 @@ class TestExecuteTrxFromInstruction:
             operator_keypair,
         )
         check_transaction_logs_have_text(resp.value, "exit_status=0x12")
+
+    def test_neon_pass_with_temp_holder(
+        self, treasury_pool, sender_with_tokens: Caller, holder_acc, evm_loader, operator_keypair
+    ):
+        '''
+        The context behind the test. In Neon Pass, the user submits Neon Transaction themself, 
+        bypassing Operators. The transaction consists of TransactionExecFromInstruction instruction.
+        
+        Given that, as of now, TransactionExecFromInstruction requires Holder Account, the user has
+        to provide it. Although, this Holder is temporary (and funds for the rent-exemption are returned),
+        user still have to have SOLs to fund the Holder which is quite restrictive. 
+
+        The basic idea of the test is to check the following Neon Pass scenario:
+        - Neon Pass can append instructions for the generation of temporary Holder Account for the user
+            (create_account_with_seed + create_holder).
+        - Neon Pass includes usual instructions related to the Neon Transaction.
+        - Neon Pass also includes instruction to delete the temporary Holder Account.
+
+        Expected result:
+        Solana DOES NOT charge any additional fees (besides gas fee charged as for the usual case 
+        through the Operator).
+        
+        N.B. Solana Runtime checks rent-exemption and balances after the transaction is committed. Given that
+        the temporary Holder is deleted in the last instruction, Solana's runtime should be fine with it.  
+        '''
+
+        from .solana_utils import get_solana_balance, solana_client, create_account_with_seed, create_holder_account
+        from .utils.instructions import TransactionWithComputeBudget, make_ExecuteTrxFromInstruction
+        import solana.system_program as sp
+        from solana.rpc.types import TxOpts
+        from solana.rpc.commitment import Confirmed
+        from random import randrange
+        from .utils.constants import EVM_LOADER
+        from hashlib import sha256
+        from solana.transaction import TransactionInstruction, AccountMeta
+
+        def _add_create_holder(trx: TransactionWithComputeBudget, operator_pubkey: PublicKey) -> PublicKey:
+            size = 128 * 1024
+            # Non rent-exempt.
+            fund = 0
+            seed = str(randrange(1000000))
+            
+            # Generate new pubkey for the future holder.
+            holder_pubkey = PublicKey(
+                sha256(bytes(operator_pubkey) + bytes(seed, 'utf8') + bytes(PublicKey(EVM_LOADER))).digest())
+            # Add holder creation instruction into the transaction.
+            trx.add(create_account_with_seed(operator_pubkey, operator_pubkey, seed, fund, size))
+            trx.add(create_holder_account(holder_pubkey, operator_pubkey, bytes(seed, 'utf8')))
+            return holder_pubkey
+
+        def _add_delete_holder(trx: TransactionWithComputeBudget, operator_pubkey: PublicKey, holder_pubkey: PublicKey):
+            trx.add(TransactionInstruction(
+                program_id=PublicKey(EVM_LOADER),
+                data=bytes.fromhex("25"),
+                keys=[
+                    AccountMeta(pubkey=holder_pubkey, is_signer=False, is_writable=True),
+                    AccountMeta(pubkey=operator_pubkey, is_signer=True, is_writable=True),
+                ]))
+
+        # Case#1 starts here.
+        # Sender with tokens plays as an Operator here.
+        user_as_operator = sender_with_tokens.solana_account
+        amount = 10
+        user_as_operator_balance_before = get_solana_balance(user_as_operator.public_key)
+        signed_tx = make_eth_transaction(sender_with_tokens.eth_address, None, sender_with_tokens, amount)
+
+        # Creating NeonPass-like transaction and wrapping it with create and delete holder instructions. 
+        trx = TransactionWithComputeBudget(user_as_operator)
+        holder_pubkey: PublicKey = _add_create_holder(trx, user_as_operator.public_key)
+        trx.add(make_ExecuteTrxFromInstruction(user_as_operator, holder_pubkey, evm_loader, treasury_pool.account,
+                                                treasury_pool.buffer, signed_tx.rawTransaction,
+                                                [
+                                                    sender_with_tokens.balance_account_address,
+                                                    sender_with_tokens.solana_account_address,
+                                                ], sp.SYS_PROGRAM_ID))
+        _add_delete_holder(trx, user_as_operator.public_key, holder_pubkey)
+
+        resp = solana_client.send_transaction(trx, user_as_operator, opts=TxOpts(skip_preflight=False,
+                                                                   skip_confirmation=False,
+                                                                   preflight_commitment=Confirmed))
+        check_transaction_logs_have_text(resp.value, "exit_status=0x11")
+        
+        user_as_operator_balance_after = get_solana_balance(user_as_operator.public_key)
+        user_as_operator_gas_paid = user_as_operator_balance_before - user_as_operator_balance_after
+
+
+        # Case#2 starts here.
+        # Usual operator with owned holder account.
+        operator_balance_before = get_solana_balance(operator_keypair.public_key)
+        signed_tx = make_eth_transaction(sender_with_tokens.eth_address, None, sender_with_tokens, amount)
+        resp = execute_trx_from_instruction(
+            operator_keypair,
+            holder_acc,
+            evm_loader,
+            treasury_pool.account,
+            treasury_pool.buffer,
+            signed_tx,
+            [
+                sender_with_tokens.balance_account_address,
+                sender_with_tokens.balance_account_address,
+                sender_with_tokens.solana_account_address,
+            ],
+            operator_keypair,
+        )
+        check_transaction_logs_have_text(resp.value, "exit_status=0x11")
+        operator_balance_after = get_solana_balance(operator_keypair.public_key)
+        operator_gas_paid = operator_balance_before - operator_balance_after
+
+        assert operator_gas_paid == user_as_operator_gas_paid, "Gas paid differs!"
+        print(f"Gas paid: {user_as_operator_gas_paid} Lamports")
+
+
+        
