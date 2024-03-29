@@ -520,6 +520,31 @@ class TestTransactionStepFromAccountParallelRuns:
         check_holder_account_tag(new_holder_acc, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
         check_holder_account_tag(holder_acc2, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
 
+    def test_changing_order_of_accounts_for_each_iteration(self, rw_lock_contract, user_account,
+                                              session_user, evm_loader, operator_keypair,
+                                              treasury_pool, holder_acc, neon_api_client):
+        emulate_result = neon_api_client.emulate_contract_call(
+            session_user.eth_address.hex(), rw_lock_contract.eth_address.hex(), "update_storage_map(uint256)", [3]
+        )
+        acc_from_emulation = [PublicKey(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+        signed_tx = make_contract_call_trx(session_user, rw_lock_contract, "update_storage_map(uint256)", [3])
+        write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
+
+        send_transaction_step_from_account(
+            operator_keypair, evm_loader, treasury_pool, holder_acc, acc_from_emulation, EVM_STEPS, operator_keypair
+        )
+
+        random.shuffle(acc_from_emulation)
+        send_transaction_step_from_account(
+            operator_keypair, evm_loader, treasury_pool, holder_acc, acc_from_emulation, EVM_STEPS, operator_keypair
+        )
+
+        random.shuffle(acc_from_emulation)
+        resp = send_transaction_step_from_account(
+            operator_keypair, evm_loader, treasury_pool, holder_acc, acc_from_emulation, EVM_STEPS, operator_keypair
+        )
+        check_transaction_logs_have_text(resp.value.transaction.transaction.signatures[0], "exit_status=0x11")
+        check_holder_account_tag(holder_acc, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
 
 
 class TestStepFromAccountChangingOperatorsDuringTrxRun:
