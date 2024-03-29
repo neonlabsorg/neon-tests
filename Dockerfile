@@ -69,6 +69,7 @@ RUN python3 ./clickfile.py update-contracts --branch ${CONTRACTS_BRANCH}
 RUN rm -rf /opt/neon-tests/compatibility/openzeppelin-contracts
 COPY --from=oz-contracts /usr/src/app /opt/neon-tests/compatibility/openzeppelin-contracts
 COPY --from=oz-contracts /root/.cache/hardhat-nodejs  /root/.cache/hardhat-nodejs
+RUN cd ./compatibility/openzeppelin-contracts && docker/compile_contracts.sh
 
 # Download solc separatly as hardhat implementation is flucky
 ENV DOWNLOAD_PATH="/root/.cache/hardhat-nodejs/compilers-v2/linux-amd64" \

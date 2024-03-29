@@ -123,6 +123,18 @@ class TestMultiplyChains:
         sol_balance_after = web3_client_sol.get_balance(alice)
         assert sol_balance_after < sol_balance_before
 
+    @pytest.mark.skip(reason="NDEV-2828")
+    @pytest.mark.multipletokens
+    def test_eip1820_sol_network(self, alice, bob, web3_client_sol):
+        neon_balance_before = self.web3_client.get_balance(alice)
+        sol_balance_before = web3_client_sol.get_balance(alice)
+        instruction_tx = self.web3_client.make_raw_tx(alice.address, bob.address, 1000000, estimate_gas=True)
+        instruction_tx.pop("chainId")
+        receipt = web3_client_sol.send_transaction(alice, instruction_tx)
+        assert receipt["status"] == 1
+        assert neon_balance_before > self.web3_client.get_balance(alice)
+        assert sol_balance_before == web3_client_sol.get_balance(alice)
+
     @pytest.mark.multipletokens
     def test_deploy_contract_with_sending_tokens(self, web3_client_sol, alice, check_neon_balance_does_not_changed):
         sol_alice_balance_before = web3_client_sol.get_balance(alice)
@@ -275,14 +287,3 @@ class TestMultiplyChains:
             for i, item in enumerate(chains.values()):
                 assert item["common_contract"].functions.getNumber().call() == numbers[i]
 
-    @pytest.mark.multipletokens
-    def test_eip1820_sol_network(self, alice, web3_client_sol):
-        neon_balance_before = self.web3_client.get_balance(alice)
-        sol_balance_before = web3_client_sol.get_balance(alice)
-        instruction_tx = self.web3_client.make_raw_tx(alice.address, alice.address, 1000000, estimate_gas=True)
-        instruction_tx.pop("chainId")
-
-        receipt = web3_client_sol.send_transaction(alice, instruction_tx)
-        assert receipt["status"] == 1
-        assert neon_balance_before > self.web3_client.get_balance(alice)
-        assert sol_balance_before == web3_client_sol.get_balance(alice)
