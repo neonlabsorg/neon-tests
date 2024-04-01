@@ -14,15 +14,17 @@ from .solana_utils import (
     write_transaction_to_holder_account,
     send_transaction_step_from_account,
     get_solana_balance,
-    execute_transaction_steps_from_account,
+    execute_transaction_steps_from_account, execute_trx_from_instruction,
 )
 from .utils.assert_messages import InstructionAsserts
 from .utils.constants import EVM_LOADER
 from .utils.contract import make_deployment_transaction, make_contract_call_trx
 from .utils.ethereum import make_eth_transaction
-from .utils.instructions import make_WriteHolder
+from .utils.instructions import make_WriteHolder, TransactionWithComputeBudget, make_CreateHolder, \
+    make_ExecuteTrxFromInstruction
 from .utils.layouts import HOLDER_ACCOUNT_INFO_LAYOUT
 from .utils.storage import create_holder, delete_holder
+from .utils.transaction_checks import check_transaction_logs_have_text
 
 
 def transaction_from_holder(key: PublicKey):
@@ -173,3 +175,61 @@ def test_holder_write_account_size_overflow(operator_keypair, holder_acc):
             operator_keypair,
             opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed),
         )
+
+def test_temporary_holder_acc_is_free(
+    treasury_pool, sender_with_tokens, holder_acc, evm_loader
+):
+    # Check that Solana DOES NOT charge any additional fees for the temporary holder account
+    # This case is used by neonpass
+    user_as_operator = sender_with_tokens.solana_account
+    amount = 10
+    operator_balance_before = get_solana_balance(user_as_operator.public_key)
+
+    trx = TransactionWithComputeBudget(user_as_operator)
+    holder_pubkey, create_holder_instruction = make_CreateHolder(user_as_operator, fund=0)
+    trx.add(create_holder_instruction)
+    signed_tx = make_eth_transaction(sender_with_tokens.eth_address, None, sender_with_tokens, amount)
+
+    trx.add(
+        make_ExecuteTrxFromInstruction(
+            user_as_operator,
+            holder_pubkey,
+            evm_loader,
+            treasury_pool.account,
+            treasury_pool.buffer,
+            signed_tx.rawTransaction,
+            [
+                sender_with_tokens.balance_account_address,
+                sender_with_tokens.solana_account_address,
+            ],
+        )
+    )
+    resp = solana_client.send_transaction(
+        trx,
+        user_as_operator,
+        opts=TxOpts(skip_preflight=False, skip_confirmation=False, preflight_commitment=Confirmed),
+    )
+    check_transaction_logs_have_text(resp.value, "exit_status=0x11")
+    operator_balance_after = get_solana_balance(user_as_operator.public_key)
+    operator_gas_paid_with_holder = operator_balance_before - operator_balance_after
+
+    operator_balance_before = get_solana_balance(user_as_operator.public_key)
+    signed_tx = make_eth_transaction(sender_with_tokens.eth_address, None, sender_with_tokens, amount)
+    resp = execute_trx_from_instruction(
+        user_as_operator,
+        holder_acc,
+        evm_loader,
+        treasury_pool.account,
+        treasury_pool.buffer,
+        signed_tx,
+        [
+            sender_with_tokens.balance_account_address,
+            sender_with_tokens.solana_account_address,
+        ],
+        user_as_operator,
+    )
+    check_transaction_logs_have_text(resp.value, "exit_status=0x11")
+    operator_balance_after = get_solana_balance(user_as_operator.public_key)
+    operator_gas_paid_without_holder = operator_balance_before - operator_balance_after
+
+    assert operator_gas_paid_without_holder == operator_gas_paid_with_holder, "Gas paid differs!"

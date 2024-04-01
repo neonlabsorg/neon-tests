@@ -1,4 +1,6 @@
 import typing as tp
+from hashlib import sha256
+from random import randrange
 
 from eth_keys import keys as eth_keys
 from solana.keypair import Keypair
@@ -6,6 +8,7 @@ from solana.publickey import PublicKey
 import solana.system_program as sp
 from solana.transaction import AccountMeta, TransactionInstruction, Transaction
 
+from utils.instructions import create_account_with_seed, create_holder_account
 from .constants import EVM_LOADER
 from solana.system_program import SYS_PROGRAM_ID
 from solana.sysvar import SYSVAR_RENT_PUBKEY
@@ -72,6 +75,37 @@ def make_WriteHolder(operator: PublicKey, holder_account: PublicKey, hash: bytes
             AccountMeta(pubkey=holder_account, is_signer=False, is_writable=True),
             AccountMeta(pubkey=operator, is_signer=True, is_writable=False),
         ])
+
+def make_DeleteHolder(del_key: PublicKey, acc: Keypair, signer: Keypair):
+    trx = TransactionInstruction(
+        program_id=PublicKey(EVM_LOADER),
+        data=bytes.fromhex("25"),
+        keys=[
+            AccountMeta(pubkey=del_key, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=acc.public_key, is_signer=(signer == acc), is_writable=True),
+        ])
+    return trx
+
+def make_CreateHolder(signer: Keypair, seed: str = None, size: int = None, fund: int = None,
+                  storage: PublicKey = None):
+    if size is None:
+        size = 128 * 1024
+    if fund is None:
+        fund = 10 ** 9
+    if seed is None:
+        seed = str(randrange(1000000))
+    if storage is None:
+        storage = PublicKey(
+            sha256(bytes(signer.public_key) + bytes(seed, 'utf8') + bytes(PublicKey(EVM_LOADER))).digest())
+
+    print(f"Create holder account with seed: {seed}")
+
+    trx = Transaction()
+    trx.add(
+        create_account_with_seed(signer.public_key, signer.public_key, seed, fund, size, PublicKey(EVM_LOADER)),
+        create_holder_account(storage, signer.public_key, bytes(seed, 'utf8'), PublicKey(EVM_LOADER))
+    )
+    return storage, trx
 
 
 def make_ExecuteTrxFromInstruction(
