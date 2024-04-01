@@ -177,7 +177,7 @@ def test_holder_write_account_size_overflow(operator_keypair, holder_acc):
         )
 
 def test_temporary_holder_acc_is_free(
-    treasury_pool, sender_with_tokens, holder_acc, evm_loader
+    treasury_pool, sender_with_tokens, evm_loader
 ):
     # Check that Solana DOES NOT charge any additional fees for the temporary holder account
     # This case is used by neonpass
@@ -213,8 +213,10 @@ def test_temporary_holder_acc_is_free(
     operator_balance_after = get_solana_balance(user_as_operator.public_key)
     operator_gas_paid_with_holder = operator_balance_before - operator_balance_after
 
-    operator_balance_before = get_solana_balance(user_as_operator.public_key)
     signed_tx = make_eth_transaction(sender_with_tokens.eth_address, None, sender_with_tokens, amount)
+    holder_acc = create_holder(sender_with_tokens.solana_account)
+    operator_balance_before = get_solana_balance(user_as_operator.public_key)
+
     resp = execute_trx_from_instruction(
         user_as_operator,
         holder_acc,

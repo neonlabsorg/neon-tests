@@ -18,6 +18,7 @@ from .utils.assert_messages import InstructionAsserts
 from .utils.constants import NEON_TOKEN_MINT_ID
 from .utils.contract import make_contract_call_trx
 from .utils.ethereum import make_eth_transaction
+from .utils.storage import create_holder
 from .utils.transaction_checks import check_transaction_logs_have_text
 from .types.types import Caller, Contract
 
@@ -351,10 +352,10 @@ class TestExecuteTrxFromInstruction:
             )
 
     def test_operator_is_not_in_white_list(
-        self, sender_with_tokens, evm_loader, treasury_pool, session_user, holder_acc
+        self, sender_with_tokens, evm_loader, treasury_pool, session_user
     ):
-        # now any user can send transactions through "execute transaction from instruction" instruction
-
+        # check any user can send transactions through "execute transaction from instruction" instruction with own holder
+        holder_acc = create_holder(sender_with_tokens.solana_account)
         signed_tx = make_eth_transaction(session_user.eth_address, None, sender_with_tokens, 1)
         resp = execute_trx_from_instruction(
             sender_with_tokens.solana_account,
