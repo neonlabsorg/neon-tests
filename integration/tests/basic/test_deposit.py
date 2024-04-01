@@ -101,6 +101,8 @@ class TestDeposit:
     def test_transfer_spl_token_from_solana_to_neon(
         self, solana_account, pytestconfig: Config, erc20_spl, operator_keypair, sol_client
     ):
+        sol_client.request_airdrop(solana_account.public_key, 1 * LAMPORT_PER_SOL)
+
         evm_loader_id = pytestconfig.environment.evm_loader
         amount = 0.1
         full_amount = int(amount * LAMPORT_PER_SOL)
@@ -108,7 +110,6 @@ class TestDeposit:
         mint_pubkey = wSOL["address_spl"]
         ata_address = get_associated_token_address(solana_account.public_key, mint_pubkey)
         new_account = self.accounts.create_account()
-        holder_account = sol_client.create_holder(operator_keypair, PublicKey(evm_loader_id))
         self.sol_client.create_ata(solana_account, mint_pubkey)
 
         spl_neon_token = SplToken(self.sol_client, mint_pubkey, TOKEN_PROGRAM_ID, solana_account)
@@ -119,6 +120,7 @@ class TestDeposit:
         wrap_sol_tx = wSOL_tx(wSOL_account, wSOL, full_amount, solana_account.public_key, ata_address)
         self.sol_client.send_tx_and_check_status_ok(wrap_sol_tx, solana_account)
 
+        holder_account = sol_client.create_holder(solana_account, PublicKey(evm_loader_id))
         # transfer wSOL
         transfer_tx = neon_transfer_tx(
             self.web3_client,
