@@ -1,4 +1,5 @@
 name: "Compilers compatibility tests"
+run-name: "Compilers compatibility tests / ${{ github.event.inputs.network || 'devnet' }}"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,6 +21,7 @@ on:
 
 env:
   BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  FAUCET_URL: "${{ secrets.DEVNET_FAUCET_URL }}"
   SOLANA_URL: "${{ secrets.SOLANA_URL }}"
   NUMPROCESSES: 2
   IMAGE:  neonlabsorg/neon_tests
@@ -62,7 +64,8 @@ jobs:
         timeout-minutes: 20
         run: |
           docker exec -i ${{ env.CONTAINER }} \
-            python3 ./clickfile.py run compiler_compatibility -n ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}
+            /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && export SOLANA_URL=${{ env.SOLANA_URL }} && \
+            python3 ./clickfile.py run compiler_compatibility -n ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
       - name: "Notify on failure"
         if: failure()
         run: |

@@ -7,19 +7,18 @@ on:
     inputs:
       network:
         type: choice
-        default: night-stand
+        default: terraform
         required: true
         description: "Stand name"
         options:
-          - night-stand
-          - devnet
           - terraform
+          - night-stand
 
 env:
   NETWORK: ${{ github.event.inputs.network || 'night-stand' }}
   BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
   IMAGE:  neonlabsorg/neon_tests
-  CONTAINER:  economy-F
+  CONTAINER:  "economy-${{ github.run_id }}"
 jobs:
   dockerize:
     if: ${{ github.ref_name != 'develop'}}
@@ -37,11 +36,11 @@ jobs:
     runs-on: ubuntu-20.04
     if: always()
     steps:
-      - name: Setup `night-stand` by cron schedule
-        id: setup_night_stand
+      - name: Setup `terraform` by cron schedule
+        id: setup_network
         if: github.event.schedule=='0 6 * * *'
         run: |
-          echo "NETWORK=night-stand" >> $GITHUB_ENV
+          echo "NETWORK=terraform" >> $GITHUB_ENV
       - uses: actions/checkout@v4
       - name: "Prepare terraform stand"
         id: prepare_terraform
@@ -54,10 +53,11 @@ jobs:
           TFSTATE_BUCKET: ${{vars.TFSTATE_BUCKET}}
           TFSTATE_KEY: ${{vars.TFSTATE_KEY_PREFIX}}-${{ github.run_number }}
           TFSTATE_REGION: ${{vars.TFSTATE_REGION}}
-          TF_VAR_ci_pp_solana_url: ${{ secrets.SOLANA_URL }}
+          TF_VAR_ci_pp_solana_url: ${{ secrets.CI_PP_SOLANA_URL }}
         uses: ./.github/actions/create-tf-stand
         with:
           ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
+          use_real_price: "1"
 
     outputs:
       proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}

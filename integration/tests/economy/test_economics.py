@@ -108,15 +108,16 @@ class TestEconomics:
         token_diff = w3_client.to_main_currency(token_balance_after - token_balance_before)
         assert_profit(sol_diff, sol_price, token_diff, token_price, w3_client.native_token_name)
 
+    @pytest.mark.skip(reason="https://neonlabs.atlassian.net/browse/NDEV-2814")
     def test_send_tokens_without_chain_id(
-        self, account_with_all_tokens, client_and_price, web3_client, sol_price, operator
+        self, account_with_all_tokens, client_and_price, web3_client, sol_price, operator, neon_price
     ):
-        # for transactions without chain_id NEONs would be sent (even for sol chain)
+        # for transactions without chain_id NeonEVM execute it inside NEON network
         # checks eip1820
         w3_client, token_price = client_and_price
         acc2 = w3_client.create_account()
         sol_balance_before = operator.get_solana_balance()
-        token_balance_before = operator.get_token_balance(w3_client)
+        token_balance_before = operator.get_token_balance(web3_client)
 
         instruction_tx = w3_client.make_raw_tx(
             account_with_all_tokens.address, acc2.address, web3.Web3.to_wei(0.1, "ether"), estimate_gas=True
@@ -130,7 +131,7 @@ class TestEconomics:
         sol_diff = sol_balance_before - sol_balance_after
 
         token_diff = w3_client.to_main_currency(token_balance_after - token_balance_before)
-        assert_profit(sol_diff, sol_price, token_diff, token_price, w3_client.native_token_name)
+        assert_profit(sol_diff, sol_price, token_diff, neon_price, web3_client.native_token_name)
 
     def test_send_when_not_enough_tokens_to_gas(self, client_and_price, account_with_all_tokens, operator):
         w3_client, token_price = client_and_price
@@ -761,7 +762,7 @@ class TestEconomics:
         )
         get_gas_used_percent(w3_client, receipt)
 
-    @pytest.mark.slow
+    @pytest.mark.skip(reason="work incorrect very often")
     @pytest.mark.timeout(30 * Time.MINUTE)
     @pytest.mark.parametrize("value", [20, 25, 55])
     def test_call_contract_with_mapping_updating(

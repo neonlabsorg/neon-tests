@@ -41,19 +41,19 @@ class TestNeonRPCBaseCalls:
         assert_fields_are_hex(
             result,
             [
-                "gas_price",
-                "suggested_gas_price",
-                "min_acceptable_gas_price",
-                "min_executable_gas_price",
-                "min_wo_chainid_acceptable_gas_price",
-                "sol_price_usd",
-                "neon_price_usd",
-                "operator_fee",
-                "gas_price_slippage",
+                "gasPrice",
+                "suggestedGasPrice",
+                "minAcceptableGasPrice",
+                "minExecutableGasPrice",
+                "minWoChainIDAcceptableGasPrice",
+                "solPriceUsd",
+                "neonPriceUsd",
+                "operatorFee",
+                "gasPriceSlippage",
             ],
         )
-        assert_fields_are_specified_type(bool, result, ["is_const_gas_price", "allow_underpriced_tx_wo_chainid"])
-        gas_price = result["gas_price"]
+        assert_fields_are_specified_type(bool, result, ["isConstGasPrice", "allowUnderpricedTxWoChainID"])
+        gas_price = result["gasPrice"]
         assert int(gas_price, 16) > 100000000, f"gas price should be greater 100000000, got {int(gas_price, 16)}"
 
     def test_neon_cli_version(self, json_rpc_client):

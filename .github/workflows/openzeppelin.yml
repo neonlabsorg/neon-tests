@@ -1,5 +1,5 @@
 name: "OpenZeppelin"
-run-name: "OpenZeppelin / ${{ github.event.inputs.network || 'night-stand' }}"
+run-name: "OpenZeppelin:${{ github.event.inputs.oz_tag || 'latest' }} / ${{ github.event.inputs.network || 'night-stand' }} / ${{ github.event.inputs.jobsNumber || '16' }} jobs"
 
 on:
   schedule:
@@ -18,11 +18,11 @@ on:
       jobsNumber:
         description: "Count of parallel jobs"
         required: true
-        default: "8"
-      oz_branch:
-        description: "Which OZ branch to use (if it is empty 'master', branch will be used)"
+        default: "16"
+      oz_tag:
+        description: "Which OZ tag to use (if it is empty, the 'latest' tag will be used)"
         required: false
-        default: master
+        default: latest
 
 env:
   JOBS_NUMBER: ${{ github.event.inputs.jobsNumber || '8' }}
@@ -33,7 +33,7 @@ env:
 
 jobs:
   dockerize:
-    if: github.ref_name != 'develop' || github.event.inputs.oz_branch !=''
+    if: github.ref_name != 'develop' || github.event.inputs.oz_tag !=''
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
@@ -43,7 +43,7 @@ jobs:
           image_tag: ${{ github.sha }}
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
-          oz_branch: ${{ github.event.inputs.oz_branch || 'master' }}
+          oz_tag: ${{ github.event.inputs.oz_tag || 'latest' }}
   prepare-env:
     runs-on: ubuntu-20.04
     steps:

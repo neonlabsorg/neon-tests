@@ -31,8 +31,8 @@ runs:
         if: always()
         run: |
           python3 ./clickfile.py infra destroy
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: AWS docker logs
+          name: Docker logs
           path: ./logs/*

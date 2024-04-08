@@ -1,4 +1,5 @@
 name: "Old OpenZeppelin with previous versions of solc"
+run-name: "Old OpenZeppelin / ${{ github.event.inputs.network || 'night-stand' }} / ${{ github.event.inputs.jobsNumber || '8' }} jobs"
 
 on:
   schedule:

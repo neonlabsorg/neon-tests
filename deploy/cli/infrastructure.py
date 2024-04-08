@@ -35,6 +35,7 @@ WEB3_CLIENT = NeonChainWeb3Client(os.environ.get("PROXY_URL"))
 REPORT_HEADERS = ["Action", "Fee", "Cost in $", "Accounts", "TRx", "Estimated Gas", "Used Gas", "Used % of EG"]
 NETWORK_MANAGER = NetworkManager()
 
+
 def set_github_env(envs: tp.Dict, upper=True) -> None:
     """Set environment for github action"""
     path = os.getenv("GITHUB_ENV", str())
@@ -44,14 +45,20 @@ def set_github_env(envs: tp.Dict, upper=True) -> None:
                 env_file.write(f"\n{key.upper() if upper else key}={str(value)}")
 
 
-def deploy_infrastructure(evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_branch) -> dict:
-    print(f"Deploy infrastructure with evm_tag: {evm_tag}, "
-          f"proxy_tag: {proxy_tag}, faucet_tag: {faucet_tag}, "
-          f"evm_branch: {evm_branch}, proxy_branch: {proxy_branch}")
+def deploy_infrastructure(
+    evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_branch, use_real_price: bool = False
+) -> dict:
+    print(
+        f"Deploy infrastructure with evm_tag: {evm_tag}, "
+        f"proxy_tag: {proxy_tag}, faucet_tag: {faucet_tag}, "
+        f"evm_branch: {evm_branch}, proxy_branch: {proxy_branch}"
+    )
     os.environ["TF_VAR_neon_evm_commit"] = evm_tag
     os.environ["TF_VAR_faucet_model_commit"] = faucet_tag
     os.environ["TF_VAR_proxy_image_tag"] = proxy_tag
     os.environ["TF_VAR_proxy_model_commit"] = proxy_branch
+    if use_real_price:
+        os.environ["TF_VAR_use_real_price"] = "1"
 
     terraform.init(backend_config=TF_BACKEND_CONFIG)
     return_code, stdout, stderr = terraform.apply(skip_plan=True)
@@ -117,7 +124,7 @@ def download_remote_docker_logs():
     ssh_client.load_system_host_keys()
     ssh_client.connect(solana_ip, username="root", key_filename=ssh_key, timeout=120)
 
-    upload_service_logs(ssh_client, "solana", artifact_logs)
+    upload_service_logs(ssh_client, "opt_solana_1", artifact_logs)
 
     ssh_client.connect(proxy_ip, username="root", key_filename=ssh_key, timeout=120)
     services = ["postgres", "dbcreation", "indexer", "proxy", "faucet"]

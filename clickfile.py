@@ -2,6 +2,7 @@
 import functools
 import glob
 import json
+import time
 from multiprocessing.dummy import Pool
 
 import yaml
@@ -28,7 +29,7 @@ try:
     from deploy.cli.network_manager import NetworkManager
     from deploy.cli import dapps as dapps_cli
 
-    from utils import create_allure_environment_opts
+    from utils import create_allure_environment_opts, time_measure
     from deploy.cli import infrastructure
     from utils import web3client
     from utils import cloud
@@ -181,11 +182,28 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
     cwd = (Path().parent / "compatibility/openzeppelin-contracts").absolute()
     if not list(cwd.glob("*")):
         subprocess.check_call("git submodule init && git submodule update", shell=True, cwd=cwd)
-    (cwd.parent / "results").mkdir(parents=True, exist_ok=True)
-    keys_env = [infrastructure.prepare_accounts(network, users, amount) for i in range(jobs)]
+        subprocess.check_call("npm ci", shell=True, cwd=cwd)
+    log_dir = cwd.parent / "results"
+    log_dir.mkdir(parents=True, exist_ok=True)
 
     tests = list(Path(f"{cwd}/test").rglob("*.test.js"))
-    tests = [str(test) for test in tests]
+    priority_names = [
+        "test/token/ERC721/ERC721.test.js",
+        "test/token/ERC721/ERC721Enumerable.test.js",
+        "test/token/ERC721/extensions/ERC721Wrapper.test.js",
+    ]
+    priority_tests = []
+    other_tests = []
+    for test in tests:
+        test = str(test)
+        if any(test.endswith(priority_name) for priority_name in priority_names):
+            priority_tests.append(test)
+        else:
+            other_tests.append(test)
+
+    prioritised_tests = priority_tests + other_tests
+
+    keys_env = [infrastructure.prepare_accounts(network, users, amount) for i in range(jobs)]
 
     def run_oz_file(file_name):
         print(f"Run {file_name}")
@@ -195,6 +213,7 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
         env["NETWORK_ID"] = str(network_manager.get_network_param(network, "network_ids.neon"))
         env["PROXY_URL"] = network_manager.get_network_param(network, "proxy_url")
 
+        start_time = time.time()
         out = subprocess.run(
             f"npx hardhat test {file_name}",
             shell=True,
@@ -202,11 +221,14 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
             capture_output=True,
             env=env,
         )
+        end_time = time.time()
         stdout = out.stdout.decode()
         stderr = out.stderr.decode()
+        time_info = time_measure(start_time=start_time, end_time=end_time, job_name=file_name)
         print(f"Test {file_name} finished with code {out.returncode}")
         print(stdout)
         print(stderr)
+        print(time_info)
         keys_env.append(keys)
         log_dirs = cwd.parent / "results" / file_name.replace(".", "_").replace("/", "_")
         log_dirs.mkdir(parents=True, exist_ok=True)
@@ -214,11 +236,23 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
             f.write(stdout)
         with open(log_dirs / "stderr.log", "w") as f:
             f.write(stderr)
+        with open(log_dirs / "time.log", "w") as f:
+            f.write(time_info)
 
+    print("Run tests in parallel")
     pool = Pool(jobs)
-    pool.map(run_oz_file, tests)
+    pool.map(run_oz_file, prioritised_tests)
     pool.close()
     pool.join()
+
+    with open(log_dir / "time.log", "w") as merged_log:
+        for sub_dir in log_dir.iterdir():
+            if sub_dir.is_dir():
+                time_log_path = sub_dir / "time.log"
+                if time_log_path.exists():
+                    with open(time_log_path, "r") as time_log:
+                        contents = time_log.read()
+                        merged_log.write(contents + "\n")
 
     # Add allure environment
     settings = network_manager.get_network_object(network)
@@ -232,6 +266,7 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
     # Add epic name for allure result files
     openzeppelin_reports = Path("./allure-results")
     res_file_list = [str(res_file) for res_file in openzeppelin_reports.glob("*-result.json")]
+    shutil.copyfile(log_dir / "time.log", openzeppelin_reports / "time_consolidated.log")
     print("Fix allure results: {}".format(len(res_file_list)))
 
     for res_file in res_file_list:
@@ -783,7 +818,7 @@ def upload_allure_report(name: str, network: str, source: str = "./allure-report
     print(f"Allure report link: {report_url}")
 
     with open("allure_report_info", "w") as f:
-        f.write(f"🔗Allure report: [link]({report_url})\n")
+        f.write(f"🔗 Allure [report]({report_url})\n")
 
 
 @allure_cli.command("generate", help="Generate allure history")
@@ -849,7 +884,8 @@ def infra():
 @click.option("--current_branch", help="Branch of neon-tests repository")
 @click.option("--head_branch", default="", help="Feature branch name")
 @click.option("--base_branch", default="", help="Target branch of the pull request")
-def deploy(current_branch, head_branch, base_branch):
+@click.option("--use-real-price", required=False, default="0", help="Remove CONST_GAS_PRICE from proxy")
+def deploy(current_branch, head_branch, base_branch, use_real_price):
     # use feature branch or version tag as tag for proxy, evm and faucet images or use latest
     proxy_tag, evm_tag, faucet_tag = "", "", ""
 
@@ -866,18 +902,21 @@ def deploy(current_branch, head_branch, base_branch):
         version_branch = None
 
     if version_branch:
-        proxy_tag = version_branch if is_branch_exist(PROXY_GITHUB_URL, version_branch) and not proxy_tag else ""
-        evm_tag = version_branch if is_branch_exist(NEON_EVM_GITHUB_URL, version_branch) and not evm_tag else ""
-        faucet_tag = version_branch if is_branch_exist(FAUCET_GITHUB_URL, version_branch) and not faucet_tag else ""
+        proxy_tag = version_branch if is_branch_exist(PROXY_GITHUB_URL, version_branch) and not proxy_tag else proxy_tag
+        evm_tag = version_branch if is_branch_exist(NEON_EVM_GITHUB_URL, version_branch) and not evm_tag else evm_tag
+        faucet_tag = (
+            version_branch if is_branch_exist(FAUCET_GITHUB_URL, version_branch) and not faucet_tag else faucet_tag
+        )
 
     proxy_tag = "latest" if not proxy_tag else proxy_tag
     evm_tag = "latest" if not evm_tag else evm_tag
     faucet_tag = "latest" if not faucet_tag else faucet_tag
+    use_real_price = True if use_real_price == "1" else False
 
     evm_branch = evm_tag if evm_tag != "latest" else "develop"
     proxy_branch = proxy_tag if proxy_tag != "latest" else "develop"
 
-    infrastructure.deploy_infrastructure(evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_branch)
+    infrastructure.deploy_infrastructure(evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_branch, use_real_price)
 
 
 @infra.command(name="destroy", help="Destroy test infrastructure")

@@ -254,7 +254,7 @@ def account_with_all_tokens(
     operator_keypair,
     evm_loader_keypair,
 ):
-    neon_account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account)
+    neon_account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account, amount=500)
     if web3_client_sol:
         sol_client_session.request_airdrop(solana_account.public_key, 1 * LAMPORT_PER_SOL)
         sol_client_session.deposit_wrapped_sol_from_solana_to_neon(
