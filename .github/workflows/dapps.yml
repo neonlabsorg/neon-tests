@@ -48,7 +48,7 @@ env:
   AWS_S3_BUCKET: neon-tests-dapps
   BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
   DUMP_ENVS: True
-  ALL_DAPPS: "aave,curve,uniswap-v2,uniswap-v3,saddle,yearn,robonomics,compound,curve-factory"
+  ALL_DAPPS: "aave,curve,uniswap-v2,uniswap-v3,saddle,yearn,robonomics,compound,curve-factory,pancake"
 
 jobs:
   prepare:
@@ -551,7 +551,7 @@ jobs:
 
   swap-report:
     runs-on: ubuntu-20.04
-    needs: [prepare, uniswap-v2, uniswap-v3, saddle, aave, curve, robonomics, yearn, compound, curve-factory]
+    needs: [prepare, uniswap-v2, uniswap-v3, saddle, aave, curve, robonomics, yearn, compound, curve-factory, pancake]
     if: always()
     env:
       SOLANA_URL: ${{ needs.prepare.outputs.solana_url }}
@@ -623,7 +623,7 @@ jobs:
 
   destroy:
     runs-on: ubuntu-20.04
-    needs: [ prepare, uniswap-v2, uniswap-v3, saddle, curve, aave, yearn, robonomics, swap-report, compound, curve-factory ]
+    needs: [ prepare, uniswap-v2, uniswap-v3, saddle, curve, aave, yearn, robonomics, swap-report, compound, curve-factory, pancake ]
     if: always() && needs.prepare.outputs.network == 'terraform'
     steps:
       - uses: actions/checkout@v4
@@ -646,7 +646,7 @@ jobs:
 
   notify:
     runs-on: ubuntu-20.04
-    needs: [prepare, uniswap-v2, uniswap-v3, saddle, aave, curve, robonomics, yearn, compound, curve-factory]
+    needs: [prepare, uniswap-v2, uniswap-v3, saddle, aave, curve, robonomics, yearn, compound, curve-factory, pancake]
     if: failure() && github.ref_name == 'develop'
     steps:
       - uses: actions/checkout@v4
