@@ -267,6 +267,20 @@ class EvmLoader:
         send_transaction(solana_client, trx, self.acc)
         return account_pubkey
 
+    def create_operator_balance_account(self, operator_keypair, ether, chain_id=CHAIN_ID):
+        account = self.ether2operator_balance(operator_keypair, ether)
+        trx = Transaction()
+        trx.add(TransactionInstruction(
+            keys=[
+                AccountMeta(pubkey=operator_keypair.public_key, is_signer=True, is_writable=True),
+                AccountMeta(pubkey=sp.SYS_PROGRAM_ID, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=account, is_signer=False, is_writable=True)
+            ],
+            program_id=PublicKey(EVM_LOADER),
+            data=bytes.fromhex("38") + self.ether2bytes(ether) + chain_id.to_bytes(8, 'little')
+        ))
+
+        send_transaction(solana_client, trx, operator_keypair)
     @staticmethod
     def ether2hex(ether: Union[str, bytes]):
         if isinstance(ether, str):
@@ -298,6 +312,17 @@ class EvmLoader:
         chain_id_bytes = CHAIN_ID.to_bytes(32, 'big')
         return PublicKey.find_program_address(
             [ACCOUNT_SEED_VERSION, address_bytes, chain_id_bytes],
+            PublicKey(EVM_LOADER)
+        )[0]
+    def ether2operator_balance(self, keypair: Keypair, ether_address: Union[str, bytes]) -> PublicKey:
+        address_bytes = self.ether2bytes(ether_address)
+        print(address_bytes)
+        key = bytes(keypair.public_key)
+        print(key)
+        chain_id_bytes = CHAIN_ID.to_bytes(32, 'big')
+        print(chain_id_bytes)
+        return PublicKey.find_program_address(
+            [ACCOUNT_SEED_VERSION, key, address_bytes, chain_id_bytes],
             PublicKey(EVM_LOADER)
         )[0]
 

@@ -40,10 +40,10 @@ def prepare_operator(key_file):
     operator_ether = eth_keys.PrivateKey(account.secret_key[:32]).public_key.to_canonical_address()
 
     evm_loader = EvmLoader(account)
-    ether_balance_pubkey = evm_loader.ether2balance(operator_ether)
+    ether_balance_pubkey = evm_loader.ether2operator_balance(account, operator_ether)
     acc_info = solana_client.get_account_info(ether_balance_pubkey, commitment=Confirmed)
     if acc_info.value is None:
-        evm_loader.create_balance_account(operator_ether)
+        evm_loader.create_operator_balance_account(account, operator_ether)
 
     return account
 

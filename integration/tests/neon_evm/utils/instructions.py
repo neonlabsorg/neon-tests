@@ -85,15 +85,16 @@ def make_ExecuteTrxFromInstruction(
 ):
     data = bytes([0x32]) + treasury_buffer + message
     operator_ether = eth_keys.PrivateKey(operator.secret_key[:32]).public_key.to_canonical_address()
+    operator_balance = PublicKey(evm_loader.ether2operator_balance(operator, operator_ether))
     print("make_ExecuteTrxFromInstruction accounts")
     print("Operator: ", operator.public_key)
     print("Treasury: ", treasury_address)
     print("Operator ether: ", operator_ether.hex())
-    print("Operator eth solana: ", evm_loader.ether2balance(operator_ether))
+    print("Operator eth solana: ", operator_balance)
     accounts = [
         AccountMeta(pubkey=operator.public_key, is_signer=True, is_writable=True),
         AccountMeta(pubkey=treasury_address, is_signer=False, is_writable=True),
-        AccountMeta(pubkey=PublicKey(evm_loader.ether2balance(operator_ether)), is_signer=False, is_writable=True),
+        AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
         AccountMeta(system_program, is_signer=False, is_writable=True),
     ]
     for acc in additional_accounts:
@@ -121,17 +122,18 @@ def make_ExecuteTrxFromAccountDataIterativeOrContinue(
     # 0x36 - TransactionStepFromAccountNoChainId
     data = tag.to_bytes(1, "little") + treasury.buffer + step_count.to_bytes(4, "little") + index.to_bytes(4, "little")
     operator_ether = eth_keys.PrivateKey(operator.secret_key[:32]).public_key.to_canonical_address()
+    operator_balance = PublicKey(evm_loader.ether2operator_balance(operator, operator_ether))
     print("make_ExecuteTrxFromAccountDataIterativeOrContinue accounts")
     print("Holder: ", holder_address)
     print("Operator: ", operator.public_key)
     print("Treasury: ", treasury.account)
     print("Operator ether: ", operator_ether.hex())
-    print("Operator eth solana: ", evm_loader.ether2balance(operator_ether))
+    print("Operator eth solana: ",operator_balance)
     accounts = [
         AccountMeta(pubkey=holder_address, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator.public_key, is_signer=True, is_writable=True),
         AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
-        AccountMeta(pubkey=PublicKey(evm_loader.ether2balance(operator_ether)), is_signer=False, is_writable=True),
+        AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
         AccountMeta(sys_program_id, is_signer=False, is_writable=True),
     ]
 
@@ -158,12 +160,12 @@ def make_PartialCallOrContinueFromRawEthereumTX(
         system_program=sp.SYS_PROGRAM_ID):
     data = bytes([0x34]) + treasury.buffer + step_count.to_bytes(4, "little") + index.to_bytes(4, "little") + instruction
     operator_ether = eth_keys.PrivateKey(operator.secret_key[:32]).public_key.to_canonical_address()
-
+    operator_balance = PublicKey(evm_loader.ether2operator_balance(operator, operator_ether))
     accounts = [
         AccountMeta(pubkey=storage_address, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator.public_key, is_signer=True, is_writable=True),
         AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
-        AccountMeta(pubkey=evm_loader.ether2balance(operator_ether), is_signer=False, is_writable=True),
+        AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
         AccountMeta(system_program, is_signer=False, is_writable=True),
     ]
     for acc in additional_accounts:
@@ -179,11 +181,12 @@ def make_PartialCallOrContinueFromRawEthereumTX(
 def make_Cancel(evm_loader: "EvmLoader", storage_address: PublicKey, operator: Keypair, hash: bytes, additional_accounts: tp.List[PublicKey]):
     data = bytes([0x37]) + hash
     operator_ether = eth_keys.PrivateKey(operator.secret_key[:32]).public_key.to_canonical_address()
+    operator_balance = PublicKey(evm_loader.ether2operator_balance(operator, operator_ether))
 
     accounts = [
         AccountMeta(pubkey=storage_address, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator.public_key, is_signer=True, is_writable=True),
-        AccountMeta(pubkey=evm_loader.ether2balance(operator_ether), is_signer=False, is_writable=True),
+        AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
     ]
 
     for acc in additional_accounts:
