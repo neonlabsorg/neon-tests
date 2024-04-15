@@ -80,7 +80,7 @@ class TestNeonRPCBaseCalls:
         response = json_rpc_client.send_rpc(method="neon_getSolanaTransactionByNeonTransaction", params=params)
         assert "result" in response
         result = response["result"]
-        assert len(result) == 5
+        assert len(result) == 6
         for tx in result:
             assert sol_client.wait_transaction(tx) is not None
 
