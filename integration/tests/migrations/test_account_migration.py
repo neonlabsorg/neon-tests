@@ -323,7 +323,7 @@ class TestAccountMigration:
 
         balance_before = erc20.contract.functions.balanceOf(tom.address).call()
         total_before = erc20.contract.functions.totalSupply().call()
-        resp = erc20.burn(tom, tom.address, amount)
+        resp = erc20.burn(tom, amount)
         trx_list.append(resp["transactionHash"])
 
         balance_after = erc20.contract.functions.balanceOf(tom.address).call()
