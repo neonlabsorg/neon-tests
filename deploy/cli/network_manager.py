@@ -24,7 +24,7 @@ class NetworkManager():
                     environments[NETWORK_NAME].update({var.lower(): os.environ.get(var, "")})
                 self.networks.update(environments)
 
-    def get_network_param(self, network, param):
+    def get_network_param(self, network, params):
         value = ""
         if network in self.networks:
             value = self.networks[network]

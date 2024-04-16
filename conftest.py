@@ -88,7 +88,7 @@ def pytest_configure(config: Config):
         env["use_bank"] = False
     if "eth_bank_account" not in env:
         env["eth_bank_account"] = ""
-    if network_name == "aws":
+    if network_name == "terraform":
         env["solana_url"] = env["solana_url"].replace(
             "<solana_ip>", os.environ.get("SOLANA_IP")
         )

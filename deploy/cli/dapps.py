@@ -158,7 +158,7 @@ def upload_service_logs(ssh_client, service, artifact_logs):
 
 def prepare_accounts(network_name, count, amount) -> tp.List:
     network_manager = NetworkManager()
-    if network_name == "aws":
+    if network_name == "terraform":
         network = {
             "proxy_url": os.environ.get("PROXY_URL"),
             "solana_url": os.environ.get("SOLANA_URL"),
