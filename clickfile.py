@@ -21,25 +21,25 @@ except ImportError:
     print("Please install click library: pip install click==8.0.3")
     sys.exit(1)
 
-try:
-    import requests
-    import tabulate
+# try:
+import requests
+import tabulate
 
-    from deploy.cli.github_api_client import GithubClient
-    from deploy.cli.network_manager import NetworkManager
-    from deploy.cli import dapps as dapps_cli
+from deploy.cli.github_api_client import GithubClient
+from deploy.cli.network_manager import NetworkManager
+from deploy.cli import dapps as dapps_cli
 
-    from utils import create_allure_environment_opts, time_measure
-    from deploy.cli import infrastructure
-    from utils import web3client
-    from utils import cloud
-    from utils.operator import Operator
-    from utils.web3client import NeonChainWeb3Client
-    from utils.prices import get_sol_price
-    from utils.helpers import wait_condition
-    from utils.apiclient import JsonRPCSession
-except ImportError:
-    print("Please run ./clickfile.py requirements to install all requirements")
+from utils import create_allure_environment_opts, time_measure
+from deploy.cli import infrastructure
+from utils import web3client
+from utils import cloud
+from utils.operator import Operator
+from utils.web3client import NeonWeb3Client
+from utils.prices import get_sol_price
+from utils.helpers import wait_condition
+from utils.apiclient import JsonRPCSession
+# except ImportError:
+#     print("Please run ./clickfile.py requirements to install all requirements")
 
 CMD_ERROR_LOG = "click_cmd_err.log"
 
@@ -132,12 +132,12 @@ def check_profitability(func: tp.Callable) -> tp.Callable:
     @functools.wraps(func)
     def wrapper(*args, **kwargs) -> None:
         network = network_manager.get_network_object(args[0])
-        w3client = web3client.NeonChainWeb3Client(network["proxy_url"])
+        w3client = web3client.NeonWeb3Client(network["proxy_url"], network["network_id"])
 
         def get_tokens_balances(operator: Operator) -> tp.Dict:
             """Return tokens balances"""
             return dict(
-                neon=w3client.to_main_currency(operator.get_token_balance()),
+                neon=operator.get_neon_balance(),
                 sol=operator.get_solana_balance() / 1_000_000_000,
             )
 
@@ -258,7 +258,7 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
 
     # Add allure environment
     settings = network_manager.get_network_object(network)
-    web3_client = web3client.NeonChainWeb3Client(settings["proxy_url"])
+    web3_client = web3client.NeonWeb3Client(settings["proxy_url"], settings["network_id"])
     opts = {
         "Proxy.Version": web3_client.get_proxy_version()["result"],
         "EVM.Version": web3_client.get_evm_version()["result"],
@@ -346,7 +346,7 @@ def print_oz_balances():
 
 def wait_for_tracer_service(network: str):
     settings = network_manager.get_network_object(network)
-    web3_client = web3client.NeonChainWeb3Client(proxy_url=settings["proxy_url"])
+    web3_client = web3client.NeonWeb3Client(settings["proxy_url"], settings["network_id"])
     tracer_api = JsonRPCSession(settings["tracer_url"])
 
     block = web3_client.get_block_number()

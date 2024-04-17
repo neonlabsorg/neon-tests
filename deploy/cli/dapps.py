@@ -11,7 +11,7 @@ from paramiko.client import SSHClient
 from deploy.cli.infrastructure import upload_service_logs, get_solana_accounts_in_tx
 from deploy.cli.network_manager import NetworkManager
 
-from utils.web3client import NeonChainWeb3Client
+from utils.web3client import NeonWeb3Client
 from utils.prices import get_neon_price
 
 
@@ -58,7 +58,8 @@ def download_remote_docker_logs():
 
 def prepare_report_data(directory):
     proxy_url = NETWORK_MANAGER.get_network_param(os.environ.get("NETWORK"), "proxy_url")
-    web3_client = NeonChainWeb3Client(proxy_url)
+    network_id = NETWORK_MANAGER.get_network_param(os.environ.get("NETWORK"), "network_id")
+    web3_client = NeonWeb3Client(proxy_url, network_id)
     out = {}
     reports = {}
     for path in glob.glob(str(pathlib.Path(directory) / "*-report.json")):

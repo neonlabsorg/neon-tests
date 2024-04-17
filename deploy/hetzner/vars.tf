@@ -1,40 +1,20 @@
-// AWS specific
-variable "allow_list" {
-  type = list(string)
-}
-
-variable "solana_instance_type" {
+variable "server_type" {
   type = string
 }
 
-variable "proxy_instance_type" {
+variable "location" {
+  type    = string
+  default = "nbg1"
+}
+
+variable "run_number" {
   type = string
 }
 
-variable "ami" {
+variable "ci_pp_solana_url" {
   type = string
 }
 
-// software specific
-variable "branch" {
+variable "dockerhub_org_name" {
   type = string
-  default = "develop"
-}
-
-
-variable "proxy_container_tag" {
-  type = string
-  default = "latest"
-}
-
-
-variable "neon_evm_container_tag" {
-  type = string
-  default = "latest"
-}
-
-
-variable "faucet_container_tag" {
-  type = string
-  default = "latest"
 }
