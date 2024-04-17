@@ -20,8 +20,9 @@ from python_terraform import Terraform
 
 TFSTATE_BUCKET = os.environ.get("TFSTATE_BUCKET")
 TFSTATE_REGION = os.environ.get("TFSTATE_REGION")
-TF_STATE_KEY = os.environ.get("TF_STATE_KEY")
-TF_BACKEND_CONFIG = {"bucket": TFSTATE_BUCKET, "key": TF_STATE_KEY, "region": TFSTATE_REGION}
+TFSTATE_KEY = os.environ.get("TF_STATE_KEY")
+
+TF_BACKEND_CONFIG = {"bucket": TFSTATE_BUCKET, "key": TFSTATE_KEY , "region": TFSTATE_REGION}
 
 
 os.environ["TF_VAR_run_number"] = os.environ.get("GITHUB_RUN_ID", "0")
