@@ -1,0 +1,98 @@
+name: "Debug"
+run-name: Debug / ${{ github.event.pull_request.title || github.event_name }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  pull_request:
+    types: [ opened, reopened, synchronize ]
+  workflow_dispatch:
+    inputs:
+      network:
+        type: choice
+        default: terraform
+        required: true
+        description: "Stand name"
+        options:
+          - terraform
+          - night-stand
+          - devnet
+          - mainnet
+      numprocesses:
+        type: choice
+        default: 8
+        required: true
+        description: "Number of parallel jobs"
+        options:
+          - 2
+          - 4
+          - 8
+          - 12
+          - auto
+env:
+  NETWORK: ${{ github.event.inputs.network || 'terraform' }}
+  NUMPROCESSES: ${{ github.event.inputs.numprocesses || 8 }}
+  BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  SOLANA_URL: "${{ secrets.SOLANA_URL }}"
+  FAUCET_URL: "${{ secrets.DEVNET_FAUCET_URL }}"
+  IMAGE:  neonlabsorg/neon_tests
+  CONTAINER:  basic-${{ github.run_id }}
+jobs:
+  prepare-env:
+    runs-on: ubuntu-20.04
+    if: always()
+    steps:
+      - name: Setup `terraform` by cron schedule
+        id: setup_terraform_stand
+        run: |
+          echo "NETWORK=terraform" >> $GITHUB_ENV
+      - uses: actions/checkout@v4
+
+      - name: "Prepare terraform stand"
+        id: prepare_terraform
+        if: ${{ env.NETWORK == 'terraform' }}
+        timeout-minutes: 15
+        env:
+          AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
+          AWS_DEFAULT_REGION: ${{secrets.AWS_DEFAULT_REGION}}
+          AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+          HCLOUD_TOKEN: ${{secrets.HCLOUD_TOKEN}}
+          TFSTATE_BUCKET: ${{vars.TFSTATE_BUCKET}}
+          TFSTATE_KEY: ${{ env.TFSTATE_KEY_PREFIX }}-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.run_number }}
+          TFSTATE_REGION: ${{vars.TFSTATE_REGION}}
+          TF_VAR_ci_pp_solana_url: ${{ secrets.SOLANA_URL }}
+        uses: ./.github/actions/create-tf-stand
+        with:
+          ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
+
+    outputs:
+      proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}
+      solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
+      network: ${{ env.NETWORK }}
+  sleep_5m:
+    runs-on: ubuntu-20.04
+    needs: prepare-env
+    steps:
+      - name: Sleep for 3 minutes
+        run: sleep 3m
+  destroy:
+    runs-on: ubuntu-20.04
+    needs: [ prepare-env, sleep_5m ]
+    if: always() && needs.prepare-env.outputs.network == 'terraform'
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Destroy stand"
+        env:
+          AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
+          AWS_DEFAULT_REGION: ${{secrets.AWS_DEFAULT_REGION}}
+          AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+          HCLOUD_TOKEN: ${{secrets.HCLOUD_TOKEN}}
+          TFSTATE_BUCKET: ${{vars.TFSTATE_BUCKET}}
+          TFSTATE_KEY: ${{ env.TFSTATE_KEY_PREFIX }}-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.run_number }}
+          TFSTATE_REGION: ${{vars.TFSTATE_REGION}}
+          PROXY_IP: ${{ needs.prepare-env.outputs.proxy_ip }}
+          SOLANA_IP: ${{ needs.prepare-env.outputs.solana_ip }}
+        uses: ./.github/actions/destroy-tf-stand
+        with:
+          ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
+
