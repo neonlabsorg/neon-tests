@@ -947,6 +947,8 @@ def deploy(current_branch, head_branch, base_branch, use_real_price):
     evm_branch = 'v1.4.x'
     evm_tag = 'v1.4.5'
     proxy_tag = '8121757a711618d6b97e096f65a8b2a5c88d2443'
+    faucet_tag = 'c81599e9673489efa2135d13783d4a8eccfc37f9'
+    proxy_branch = 'v1.4.x'
     infrastructure.deploy_infrastructure(evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_branch, use_real_price)
 
 
