@@ -68,7 +68,7 @@ runs:
             proxy_url=`python ./clickfile.py infra print-network-param -n '${{inputs.network}}' -p 'proxy_url'`
             solana_url=`python ./clickfile.py infra print-network-param -n '${{inputs.network}}' -p 'solana_url'`
             faucet_url=`python ./clickfile.py infra print-network-param -n '${{inputs.network}}' -p 'faucet_url'`
-            network_id=`python ./clickfile.py infra print-network-param -n '${{inputs.network}}' -p 'network_ids.neon'`
+            network_id=`python ./clickfile.py infra print-network-param -n '${{inputs.network}}' -p 'network_id'`
           fi;
           
           if [[ "${{ inputs.network }}" == "devnet" ]]; then

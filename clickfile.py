@@ -474,7 +474,7 @@ def download_evm_contracts(branch):
     else:
         neon_evm_branch = get_evm_pinned_version("develop")
     click.echo(f"Contracts would be downloaded from {neon_evm_branch} neon-evm branch")
-    Path(EXTERNAL_CONTRACT_PATH / "neon-evm").mkdir(parents=True, exist_ok=True)
+    Path(EXTERNAL_CONTRACT_PATH).mkdir(parents=True, exist_ok=True)
 
     click.echo(f"Check contract availability in neon-evm repo")
     response = requests.get(f"{NEON_EVM_GITHUB_URL}/contents/solidity?ref={neon_evm_branch}")
@@ -488,7 +488,7 @@ def download_evm_contracts(branch):
         click.echo(f"Downloading {item['name']}")
         r = requests.get(item["download_url"])
         if r.status_code == 200:
-            with open(EXTERNAL_CONTRACT_PATH / "neon-evm" / item["name"], "wb") as f:
+            with open(EXTERNAL_CONTRACT_PATH / item["name"], "wb") as f:
                 f.write(r.content)
             click.echo(f" {item['name']} downloaded")
         else:
@@ -503,12 +503,12 @@ def download_evm_contracts(branch):
 )
 def update_contracts(branch):
     download_evm_contracts(branch)
-    update_contracts_from_git(HOODIES_CHAINLINK_GITHUB_URL, "hoodies_chainlink", "main")
-
-    update_contracts_from_git(
-        "https://github.com/neonlabsorg/neon-contracts.git", "neon-contracts", "main", update_npm=False
-    )
-    subprocess.check_call(f'npm ci --prefix {EXTERNAL_CONTRACT_PATH / "neon-contracts" / "ERC20ForSPL"}', shell=True)
+    # update_contracts_from_git(HOODIES_CHAINLINK_GITHUB_URL, "hoodies_chainlink", "main")
+    #
+    # update_contracts_from_git(
+    #     "https://github.com/neonlabsorg/neon-contracts.git", "neon-contracts", "main", update_npm=False
+    # )
+    #subprocess.check_call(f'npm ci --prefix {EXTERNAL_CONTRACT_PATH / "neon-contracts" / "ERC20ForSPL"}', shell=True)
 
 
 @cli.command(help="Run any type of tests")
