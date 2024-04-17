@@ -31,7 +31,7 @@ os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("DOCKERHUB_ORG_NAME", "
 
 terraform = Terraform(working_dir=pathlib.Path(__file__).parent.parent / "hetzner")
 
-WEB3_CLIENT = NeonWeb3Client(os.environ.get("PROXY_URL"), int(os.environ.get("NETWORK_ID")))
+WEB3_CLIENT = NeonWeb3Client(os.environ.get("PROXY_URL"), 111)
 REPORT_HEADERS = ["Action", "Fee", "Cost in $", "Accounts", "TRx", "Estimated Gas", "Used Gas", "Used % of EG"]
 NETWORK_MANAGER = NetworkManager()
 
