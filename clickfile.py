@@ -132,7 +132,6 @@ def check_profitability(func: tp.Callable) -> tp.Callable:
     @functools.wraps(func)
     def wrapper(*args, **kwargs) -> None:
         network = network_manager.get_network_object(args[0])
-        w3client = web3client.NeonWeb3Client(network["proxy_url"], network["network_id"])
 
         def get_tokens_balances(operator: Operator) -> tp.Dict:
             """Return tokens balances"""
@@ -148,10 +147,15 @@ def check_profitability(func: tp.Callable) -> tp.Callable:
             op = Operator(
                 network["proxy_url"],
                 network["solana_url"],
+                network["network_id"],
                 network["operator_neon_rewards_address"],
                 network["spl_neon_mint"],
                 network["operator_keys"],
-                web3_client=w3client,
+                web3_client=NeonWeb3Client(
+                    network["proxy_url"],
+                    network["network_id"],
+                    session=requests.Session(),
+                ),
             )
             pre = get_tokens_balances(op)
             try:
@@ -939,6 +943,10 @@ def deploy(current_branch, head_branch, base_branch, use_real_price):
     evm_branch = evm_tag if evm_tag != "latest" else "develop"
     proxy_branch = proxy_tag if proxy_tag != "latest" else "develop"
 
+    #TODO: DELETE
+    evm_branch = 'v1.4.x'
+    evm_tag = 'v1.4.5'
+    proxy_tag = '8121757a711618d6b97e096f65a8b2a5c88d2443'
     infrastructure.deploy_infrastructure(evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_branch, use_real_price)
 
 
