@@ -158,19 +158,10 @@ def upload_service_logs(ssh_client, service, artifact_logs):
 
 def prepare_accounts(network_name, count, amount) -> tp.List:
     network_manager = NetworkManager()
-    if network_name == "terraform":
-        network = {
-            "proxy_url": os.environ.get("PROXY_URL"),
-            "solana_url": os.environ.get("SOLANA_URL"),
-            "faucet_url": os.environ.get("FAUCET_URL"),
-        }
-    else:
-        network = {
-            "proxy_url": network_manager.get_network_param(network_name, "proxy_url"),
-            "solana_url": network_manager.get_network_param(network_name, "solana_url"),
-            "faucet_url": network_manager.get_network_param(network_name, "faucet_url"),
-        }
-    network["network_id"] = (network_manager.get_network_param(network_name, "network_id"),)
+    network = {"proxy_url": network_manager.get_network_param(network_name, "proxy_url"),
+               "solana_url": network_manager.get_network_param(network_name, "solana_url"),
+               "faucet_url": network_manager.get_network_param(network_name, "faucet_url"),
+               "network_id": (network_manager.get_network_param(network_name, "network_id"),)}
     accounts = faucet_cli.prepare_wallets_with_balance(network, count, amount)
     if os.environ.get("CI"):
         set_github_env(dict(accounts=",".join(accounts)))
