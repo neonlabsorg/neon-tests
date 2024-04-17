@@ -179,7 +179,7 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
             "git submodule init && git submodule update", shell=True, cwd=cwd
         )
     (cwd.parent / "results").mkdir(parents=True, exist_ok=True)
-    keys_env = [dapps_cli.prepare_accounts(network, users, amount)]
+    keys_env = [dapps_cli.prepare_accounts(network, users, amount) for i in range(jobs)]
 
     tests = (
         subprocess.check_output("find \"test\" -name '*.test.js'", shell=True, cwd=cwd)
