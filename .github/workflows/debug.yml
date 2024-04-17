@@ -61,6 +61,7 @@ jobs:
           TFSTATE_KEY: ${{ vars.TFSTATE_KEY_PREFIX }}-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.run_number }}
           TFSTATE_REGION: ${{vars.TFSTATE_REGION}}
           TF_VAR_ci_pp_solana_url: ${{ secrets.SOLANA_URL }}
+          TF_LOG: DEBUG
         uses: ./.github/actions/create-tf-stand
         with:
           ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
@@ -92,6 +93,7 @@ jobs:
           TFSTATE_REGION: ${{vars.TFSTATE_REGION}}
           PROXY_IP: ${{ needs.prepare-env.outputs.proxy_ip }}
           SOLANA_IP: ${{ needs.prepare-env.outputs.solana_ip }}
+          TF_LOG: DEBUG
         uses: ./.github/actions/destroy-tf-stand
         with:
           ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
