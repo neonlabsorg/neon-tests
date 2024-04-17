@@ -36,4 +36,3 @@ class GithubClient:
             if response.status_code != 204:
                 print(f"Attempt to delete a comment on a PR failed: {response.text}")
 
-
