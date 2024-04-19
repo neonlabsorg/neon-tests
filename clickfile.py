@@ -949,7 +949,7 @@ def destroy():
 
 @infra.command(name="download-logs", help="Download remote docker logs")
 def download_logs():
-    dapps_cli.download_remote_docker_logs()
+    infrastructure.download_remote_docker_logs()
 
 
 @infra.command(name="gen-accounts", help="Setup accounts with balance")

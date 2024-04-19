@@ -29,33 +29,6 @@ def set_github_env(envs: tp.Dict, upper=True) -> None:
 
 
 
-def download_remote_docker_logs():
-    proxy_ip = os.environ.get("PROXY_IP")
-    solana_ip = os.environ.get("SOLANA_IP")
-
-    home_path = os.environ.get("HOME")
-    artifact_logs = "./logs"
-    ssh_key = "/tmp/ci-stands"
-    os.mkdir(artifact_logs)
-    if not os.path.exists(f"{home_path}/.ssh"):
-        os.mkdir(f"{home_path}/.ssh")
-
-    subprocess.run(f"ssh-keyscan -H {solana_ip} >> {home_path}/.ssh/known_hosts", shell=True)
-    subprocess.run(f"ssh-keyscan -H {proxy_ip} >> {home_path}/.ssh/known_hosts", shell=True)
-
-    ssh_client = SSHClient()
-    ssh_client.load_system_host_keys()
-    ssh_client.connect(solana_ip, username="root", key_filename=ssh_key, timeout=120)
-
-    upload_service_logs(ssh_client, "solana", artifact_logs)
-
-    ssh_client.connect(proxy_ip, username="root", key_filename=ssh_key, timeout=120)
-    services = ["postgres", "dbcreation", "indexer", "proxy", "faucet"]
-    for service in services:
-        upload_service_logs(ssh_client, service, artifact_logs)
-
-
-
 def prepare_report_data(directory):
     proxy_url = NETWORK_MANAGER.get_network_param(os.environ.get("NETWORK"), "proxy_url")
     web3_client = NeonChainWeb3Client(proxy_url)
