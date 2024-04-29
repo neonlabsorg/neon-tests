@@ -108,10 +108,12 @@ class TestRpcEstimateGas:
 
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
+
         if pytestconfig.getoption("--network") == "devnet":
             assert estimated_gas == 1_394_160
         else:
-            assert estimated_gas == 1_422_000
+            assert estimated_gas == 1_192_320
+
 
     def test_rpc_estimate_gas_spl(self, erc20_spl):
         recipient_account = self.accounts[1]

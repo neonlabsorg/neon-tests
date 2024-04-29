@@ -42,3 +42,7 @@ STORAGE_CELL_LAYOUT = Struct(
     "header_version"/ Int8ul,
     "revision" / Int32ul,
 )
+
+COUNTER_ACCOUNT_LAYOUT = Struct(
+    "count" / Int64ul,
+)

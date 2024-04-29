@@ -1,6 +1,6 @@
 import requests
 
-from .constants import CHAIN_ID
+from utils.evm_loader import CHAIN_ID
 
 
 class NeonApiRpcClient:

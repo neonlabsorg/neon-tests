@@ -39,6 +39,9 @@ class JsonRPCSession(Session):
 
         return response_body
 
+    def get_contract_code(self, contract_address: str) -> str:
+        response = self.send_rpc("eth_getCode", [contract_address, "latest"])
+        return response["result"]
 
 def wait_finalized_block(rpc_client: JsonRPCSession, block_num: int):
     fin_block_num = block_num - 32

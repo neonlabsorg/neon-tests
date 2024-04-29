@@ -213,10 +213,11 @@ class TestERC721:
 
     @pytest.mark.parametrize(*NOT_ENOUGH_GAS_PARAMS)
     def test_transferFrom_no_enough_gas(self, erc721, token_id, param, msg):
+        new_account = self.accounts.create_account()
         with pytest.raises(ValueError, match=msg):
             erc721.transfer_from(
                 erc721.account.address,
-                erc721.account.address,
+                new_account.address,
                 token_id,
                 erc721.account,
                 **param,

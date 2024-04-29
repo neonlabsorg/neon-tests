@@ -24,3 +24,9 @@ class Contract:
     eth_address: bytes
     solana_address: PublicKey
     balance_account_address: PublicKey
+
+@dataclass
+class TreasuryPool:
+    index: int
+    account: PublicKey
+    buffer: bytes

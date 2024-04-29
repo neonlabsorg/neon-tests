@@ -7,19 +7,22 @@ from eth_account.datastructures import SignedTransaction
 from eth_utils import abi
 from solana.keypair import Keypair
 
-from ..types.types import Caller, Contract, TreasuryPool
-from ..solana_utils import EvmLoader, write_transaction_to_holder_account, send_transaction_step_from_account
+from utils.evm_loader import EvmLoader
+from utils.types import Caller, TreasuryPool, Contract
+from .transaction_checks import check_transaction_logs_have_text
+
 from .storage import create_holder
 from .ethereum import create_contract_address, make_eth_transaction
+from semantic_version import Version
 
 from web3.auto import w3
 
 
 def get_contract_bin(
-    contract: str,
-    contract_name: tp.Optional[str] = None,
+        contract: str,
+        contract_name: tp.Optional[str] = None,
+        version: str = "0.7.6",
 ):
-    version = "0.7.6"
     if not contract.endswith(".sol"):
         contract += ".sol"
     if contract_name is None:
@@ -30,16 +33,16 @@ def get_contract_bin(
 
     solcx.install_solc(version)
 
-    contract_path = (pathlib.Path.cwd() / "contracts" / "neon_evm" / f"{contract}").absolute()
+    contract_path = (pathlib.Path.cwd() / "contracts" / "neon_evm" / contract).absolute()
     if not contract_path.exists():
-        contract_path = (pathlib.Path.cwd() / "contracts" / "external" / f"{contract}").absolute()
+        contract_path = (pathlib.Path.cwd() / "contracts" / f"{contract}").absolute()
 
     assert contract_path.exists(), f"Can't found contract: {contract_path}"
 
     compiled = solcx.compile_files(
         [contract_path],
         output_values=["abi", "bin"],
-        solc_version=version,
+        solc_version=Version(version),
         allow_paths=["."],
         optimize=True,
     )
@@ -53,31 +56,37 @@ def get_contract_bin(
 
 
 def make_deployment_transaction(
+    evm_loader: EvmLoader,
     user: Caller,
     contract_file_name: tp.Union[pathlib.Path, str],
     contract_name: tp.Optional[str] = None,
     encoded_args=None,
+    value: int = 0,
     gas: int = 999999999,
     chain_id=111,
     access_list=None,
+    version: str = "0.7.6",
+
 ) -> SignedTransaction:
-    data = get_contract_bin(contract_file_name, contract_name)
+    data = get_contract_bin(contract_file_name, contract_name, version)
     if encoded_args is not None:
         data = data + encoded_args.hex()
 
-    nonce = EvmLoader(user.solana_account).get_neon_nonce(user.eth_address)
+    nonce = evm_loader.get_neon_nonce(user.eth_address)
     tx = {"to": None, "value": 0, "gas": gas, "gasPrice": 0, "nonce": nonce, "data": data}
     if chain_id:
         tx["chainId"] = chain_id
     if access_list:
         tx["accessList"] = access_list
         tx["type"] = 1
+    if value:
+        tx["value"] = value
 
     return w3.eth.account.sign_transaction(tx, user.solana_account.secret_key[:32])
 
 
 def make_contract_call_trx(
-    user, contract, function_signature, params=None, value=0, chain_id=111, access_list=None, trx_type=None
+    evm_loader, user, contract, function_signature, params=None, value=0, chain_id=111, access_list=None, trx_type=None
 ):
     # does not work for tuple in params
     data = abi.function_signature_to_4byte_selector(function_signature)
@@ -87,8 +96,16 @@ def make_contract_call_trx(
         data += eth_abi.encode(types, params)
 
     signed_tx = make_eth_transaction(
-        contract.eth_address, data, user, value=value, chain_id=chain_id, access_list=access_list, type=trx_type
+        evm_loader,
+        contract.eth_address,
+        data,
+        user,
+        value=value,
+        chain_id=chain_id,
+        access_list=access_list,
+        type=trx_type,
     )
+
     return signed_tx
 
 
@@ -98,37 +115,21 @@ def deploy_contract(
     contract_file_name: tp.Union[pathlib.Path, str],
     evm_loader: EvmLoader,
     treasury_pool: TreasuryPool,
-    step_count: int = 1000,
+    value: int = 0,
     encoded_args=None,
     contract_name: tp.Optional[str] = None,
+    version: str = "0.7.6",
 ):
-    print("Deploying contract")
     contract: Contract = create_contract_address(user, evm_loader)
-    holder_acc = create_holder(operator)
-    signed_tx = make_deployment_transaction(user, contract_file_name, contract_name, encoded_args=encoded_args)
-    write_transaction_to_holder_account(signed_tx, holder_acc, operator)
+    holder_acc = create_holder(operator, evm_loader)
+    signed_tx = make_deployment_transaction(evm_loader, user, contract_file_name, contract_name, encoded_args=encoded_args, value=value, version=version)
+    evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator)
 
-    index = 0
-    contract_deployed = False
-    while not contract_deployed:
-        receipt = send_transaction_step_from_account(
-            operator,
-            evm_loader,
-            treasury_pool,
-            holder_acc,
-            [contract.solana_address, contract.balance_account_address, user.balance_account_address],
-            step_count,
-            operator,
-            index=index,
-        )
-        index += 1
-
-        if receipt.value.transaction.meta.err:
-            raise AssertionError(f"Can't deploy contract: {receipt.value.transaction.meta.err}")
-        for log in receipt.value.transaction.meta.log_messages:
-            if "exit_status" in log:
-                contract_deployed = True
-                break
-            if "ExitError" in log:
-                raise AssertionError(f"EVM Return error in logs: {receipt}")
+    resp = evm_loader.execute_transaction_steps_from_account(
+        operator,
+        treasury_pool,
+        holder_acc,
+        [contract.solana_address, contract.balance_account_address, user.balance_account_address],
+    )
+    check_transaction_logs_have_text(resp, "exit_status=0x12")
     return contract

@@ -83,6 +83,7 @@ class TestRpcBaseCalls:
         response = json_rpc_client.send_rpc("eth_call")
         assert "error" in response, "Error not in response"
 
+    @pytest.mark.mainnet
     @pytest.mark.parametrize("tag", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST])
     def test_eth_call(self, tag, json_rpc_client):
         """Verify implemented rpc calls work eth_call"""
@@ -120,6 +121,7 @@ class TestRpcBaseCalls:
         assert "error" not in response
         assert rpc_checks.is_hex(response["result"]), AssertMessage.WRONG_AMOUNT.value
 
+    @pytest.mark.mainnet
     @pytest.mark.parametrize("param", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST, None])
     def test_eth_get_code(self, event_caller_contract, param: tp.Union[Tag, None], json_rpc_client):
         """Verify implemented rpc calls work eth_getCode"""
@@ -138,6 +140,7 @@ class TestRpcBaseCalls:
         assert len(result) == 6678
         assert hex_str_consists_not_only_of_zeros(result), "Response result hex str should not consist only of zeros"
 
+    @pytest.mark.mainnet
     def test_eth_get_code_sender_address(self, json_rpc_client):
         sender_account = self.accounts[0]
         response = json_rpc_client.send_rpc(
@@ -170,6 +173,7 @@ class TestRpcBaseCalls:
         assert "error" not in response
         assert int(response["result"]) == self.web3_client.eth.chain_id, f"Invalid response result {response['result']}"
 
+    @pytest.mark.mainnet
     def test_eth_send_raw_transaction(self, json_rpc_client):
         """Verify implemented rpc calls work eth_sendRawTransaction"""
         sender_account = self.accounts[0]
@@ -207,12 +211,14 @@ class TestRpcBaseCalls:
         )
         assert rpc_checks.is_hex(contract.address)
 
+    @pytest.mark.mainnet
     def test_eth_block_number(self, json_rpc_client):
         """Verify implemented rpc calls work work eth_blockNumber"""
         response = json_rpc_client.send_rpc(method="eth_blockNumber")
         assert "error" not in response
         assert rpc_checks.is_hex(response["result"]), f"Invalid response result {response['result']}"
 
+    @pytest.mark.mainnet
     def test_eth_block_number_next_block_different(self, json_rpc_client):
         response = json_rpc_client.send_rpc(method="eth_blockNumber")
         time.sleep(1)
@@ -224,6 +230,7 @@ class TestRpcBaseCalls:
         assert rpc_checks.is_hex(response2["result"]), f"Invalid response result {response2['result']}"
         assert response["result"] != response2["result"]
 
+    @pytest.mark.mainnet
     @pytest.mark.parametrize("param", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST, Tag.SAFE, Tag.FINALIZED, None])
     def test_eth_get_storage_at(self, event_caller_contract, param: tp.Union[Tag, None], json_rpc_client):
         """Verify implemented rpc calls work eht_getStorageAt"""
@@ -271,12 +278,14 @@ class TestRpcBaseCalls:
         assert "result" in response
         assert new_data in web3.Web3.to_text(response["result"]), "wrong variable value"
 
+    @pytest.mark.mainnet
     def test_eth_mining(self, json_rpc_client):
         """Verify implemented rpc calls work eth_mining"""
         response = json_rpc_client.send_rpc(method="eth_mining")
         assert "error" not in response
         assert isinstance(response["result"], bool), f"Invalid response: {response['result']}"
 
+    @pytest.mark.mainnet
     def test_eth_syncing(self, json_rpc_client):
         """Verify implemented rpc calls work eth_syncing"""
         response = json_rpc_client.send_rpc(method="eth_syncing")
@@ -287,6 +296,7 @@ class TestRpcBaseCalls:
             else:
                 assert not response.result, err_msg
 
+    @pytest.mark.mainnet
     def test_net_peer_count(self, json_rpc_client):
         """Verify implemented rpc calls work net_peerCount"""
         response = json_rpc_client.send_rpc(method="net_peerCount")

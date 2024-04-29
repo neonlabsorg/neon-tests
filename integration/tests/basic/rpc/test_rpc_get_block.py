@@ -15,12 +15,13 @@ class TestRpcGetBlock:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
 
+    @pytest.mark.mainnet
     @pytest.mark.parametrize("full_trx", [False, True])
     def test_eth_get_block_by_hash(self, full_trx: bool, json_rpc_client):
         """Verify implemented rpc calls work eth_getBlockByHash"""
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
-        tx_receipt = self.web3_client.send_neon(sender_account, recipient_account, 10)
+        tx_receipt = self.web3_client.send_neon(sender_account, recipient_account, 1)
         params = [tx_receipt.blockHash.hex(), full_trx]
         response = json_rpc_client.send_rpc(method="eth_getBlockByHash", params=params)
         rpc_checks.assert_block_fields(response, full_trx, tx_receipt)
@@ -43,12 +44,13 @@ class TestRpcGetBlock:
         response = json_rpc_client.send_rpc(method="eth_getBlockByHash", params=[gen_hash_of_block(32), full_trx])
         assert "result" in response and response["result"] is None, "Result should be None"
 
+    @pytest.mark.mainnet
     @pytest.mark.parametrize("full_trx", [False, True])
     def test_eth_get_block_by_number_via_numbers(self, full_trx, json_rpc_client):
         """Verify implemented rpc calls work eth_getBlockByNumber"""
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
-        tx_receipt = self.web3_client.send_neon(sender_account, recipient_account, 10)
+        tx_receipt = self.web3_client.send_neon(sender_account, recipient_account, 1)
         response = json_rpc_client.send_rpc(
             method="eth_getBlockByNumber",
             params=[hex(tx_receipt.blockNumber), full_trx],
@@ -92,7 +94,7 @@ class TestRpcGetBlock:
         """Verify implemented rpc calls work eth_getBlockByNumber"""
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
-        self.web3_client.send_neon(sender_account, recipient_account, 10)
+        self.web3_client.send_neon(sender_account, recipient_account, 1)
         params = [quantity_tag.value, full_trx]
         response = json_rpc_client.send_rpc(method="eth_getBlockByNumber", params=params)
         rpc_checks.assert_block_fields(response, full_trx, None, quantity_tag == Tag.PENDING)

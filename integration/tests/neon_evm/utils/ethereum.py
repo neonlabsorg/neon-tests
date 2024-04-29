@@ -1,15 +1,12 @@
 from typing import Union
 
-# from sha3 import keccak_256
 from Crypto.Hash import keccak
 from solana.publickey import PublicKey
 from web3.auto import w3
 
-from .constants import CHAIN_ID
-
-from ..types.types import Caller, Contract
+from utils.evm_loader import CHAIN_ID, EvmLoader
+from utils.types import Caller, Contract
 from .eth_tx_utils import pack
-from ..solana_utils import EvmLoader
 
 
 def create_contract_address(user: Caller, evm_loader: EvmLoader) -> Contract:
@@ -28,9 +25,9 @@ def create_contract_address(user: Caller, evm_loader: EvmLoader) -> Contract:
     return Contract(contract_eth_address, PublicKey(contract_solana_address), contract_neon_address)
 
 
-def make_eth_transaction(to_addr: bytes, data: Union[bytes, None], caller: Caller,
+def make_eth_transaction(evm_loader: EvmLoader, to_addr: bytes, data: Union[bytes, None], caller: Caller,
                          value: int = 0, chain_id=CHAIN_ID, gas=9999999999, access_list=None, type=None):
-    nonce = EvmLoader(caller.solana_account).get_neon_nonce(caller.eth_address)
+    nonce = evm_loader.get_neon_nonce(caller.eth_address)
     tx = {'to': to_addr, 'value': value, 'gas': gas, 'gasPrice': 0,
           'nonce': nonce}
 

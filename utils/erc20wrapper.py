@@ -26,6 +26,7 @@ class ERC20Wrapper:
         account=None,
         mintable=True,
         contract_address=None,
+        bank_account=None,
     ):
         self.solana_associated_token_acc = None
         self.token_mint = None
@@ -35,7 +36,13 @@ class ERC20Wrapper:
         self.account = account
         if self.account is None:
             self.account = web3_client.create_account()
-            faucet.request_neon(self.account.address, 300)
+            if bank_account is not None:
+                web3_client.send_neon(bank_account, self.account.address, 50)
+            else:
+                faucet.request_neon(self.account.address, 150)
+        else:          
+            if bank_account is not None:
+                web3_client.send_neon(bank_account, self.account.address, 50)
         self.name = name
         self.symbol = symbol
         self.decimals = decimals

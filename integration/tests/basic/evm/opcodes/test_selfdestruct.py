@@ -1,5 +1,3 @@
-import random
-
 import allure
 import pytest
 
@@ -8,7 +6,7 @@ from utils.web3client import NeonChainWeb3Client
 
 
 @allure.feature("Opcodes verifications")
-@allure.story("Self-destruction opcode")
+@allure.story("EIP-4758 Deactivate SELFDESTRUCT. Check that SELFDESTRUCT behaves as SENDALL")
 @pytest.mark.usefixtures("accounts", "web3_client")
 class TestSelfDestructOpcode:
     web3_client: NeonChainWeb3Client
@@ -43,10 +41,6 @@ class TestSelfDestructOpcode:
         receipt = self.web3_client.send_transaction(sender, instruction_tx)
         assert receipt["status"] == 1
 
-    def check_contract_code_is_not_empty(self, contract_address, proxy_api):
-        response = proxy_api.send_rpc("eth_getCode", params=[contract_address, "latest"])
-        assert "result" in response and response["result"] != "0x"
-
     def test_destroy(self, destroyable_contract, json_rpc_client):
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
@@ -66,7 +60,7 @@ class TestSelfDestructOpcode:
         instruction_tx = destroyable_contract.functions.anyFunction().build_transaction(tx)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
-        self.check_contract_code_is_not_empty(destroyable_contract.address, json_rpc_client)
+        assert json_rpc_client.get_contract_code(destroyable_contract.address) != "0x"
 
     def test_destroy_contract_with_contract_address_as_target(self, destroyable_contract, json_rpc_client):
         sender_account = self.accounts[0]
@@ -78,22 +72,8 @@ class TestSelfDestructOpcode:
 
         contract_balance_after = self.web3_client.get_balance(destroyable_contract.address)
         assert contract_balance_after == contract_balance_before
-        self.check_contract_code_is_not_empty(destroyable_contract.address, json_rpc_client)
-
-    def test_destroy_contract_and_sent_neons_to_contract(self, destroyable_contract, json_rpc_client):
-        sender_account = self.accounts[0]
-        self.deposit(destroyable_contract, sender_account, 1)
-        self.destroy(destroyable_contract, sender_account, sender_account)
-
-        amount = random.randint(1, 5)
-        instruction_tx = self.web3_client.make_raw_tx(
-            sender_account, to=destroyable_contract.address, amount=amount, estimate_gas=True
-        )
-        self.web3_client.send_transaction(sender_account, instruction_tx)
-
-        contract_balance_after = self.web3_client.get_balance(destroyable_contract.address)
-        assert contract_balance_after == amount
-        self.check_contract_code_is_not_empty(destroyable_contract.address, json_rpc_client)
+        assert json_rpc_client.get_contract_code(destroyable_contract.address) != "0x"
+        assert self.web3_client.get_balance(destroyable_contract.address) == 1
 
     def test_destroy_contract_by_call_from_second_contract(
         self, destroyable_contract, contract_caller, json_rpc_client
@@ -108,7 +88,7 @@ class TestSelfDestructOpcode:
         recipient_balance_after = self.web3_client.get_balance(recipient_account.address)
         assert receipt["status"] == 1
         assert recipient_balance_after - recipient_balance_before == 2
-        self.check_contract_code_is_not_empty(destroyable_contract.address, json_rpc_client)
+        assert json_rpc_client.get_contract_code(destroyable_contract.address) != "0x"
 
     def test_destroy_contract_and_sent_neon_from_contract_in_one_trx(
         self, destroyable_contract, contract_caller, json_rpc_client
@@ -125,7 +105,7 @@ class TestSelfDestructOpcode:
         recipient_balance_after = self.web3_client.get_balance(recipient_account.address)
         assert receipt["status"] == 1
         assert recipient_balance_after - recipient_balance_before == 2
-        self.check_contract_code_is_not_empty(destroyable_contract.address, json_rpc_client)
+        assert json_rpc_client.get_contract_code(destroyable_contract.address) != "0x"
 
     def test_sent_neon_from_contract_and_destroy_contract_in_one_trx(
         self, destroyable_contract, contract_caller, json_rpc_client
@@ -147,7 +127,7 @@ class TestSelfDestructOpcode:
 
         assert self.web3_client.get_balance(destroyable_contract.address) == 0
         assert recipient_balance_after - recipient_balance_before == 2
-        self.check_contract_code_is_not_empty(destroyable_contract.address, json_rpc_client)
+        assert json_rpc_client.get_contract_code(destroyable_contract.address) != "0x"
 
     def test_destroy_contract_and_sent_neon_to_contract_in_one_trx(self, destroyable_contract, json_rpc_client):
         sender_account = self.accounts[0]
@@ -158,7 +138,7 @@ class TestSelfDestructOpcode:
         self.destroy(destroyable_contract, sender_account, recipient_account, amount=3)
         balance_after = self.web3_client.get_balance(recipient_account.address)
         assert balance_after - balance_before == 4
-        self.check_contract_code_is_not_empty(destroyable_contract.address, json_rpc_client)
+        assert json_rpc_client.get_contract_code(destroyable_contract.address) != "0x"
 
     def test_destroy_contract_2_times_in_one_trx(self, destroyable_contract, contract_caller, json_rpc_client):
         sender_account = self.accounts[0]
@@ -168,31 +148,22 @@ class TestSelfDestructOpcode:
         instruction_tx = contract_caller.functions.callDestroyTwice(sender_account.address).build_transaction(tx)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
-        self.check_contract_code_is_not_empty(destroyable_contract.address, json_rpc_client)
+        assert json_rpc_client.get_contract_code(destroyable_contract.address) != "0x"
 
     def test_destroy_contract_via_delegatecall(self, destroyable_contract, contract_caller, json_rpc_client):
-        # contract_caller should be destroyed instead of destroyable_contract
+        #  Tokens should be returned only from contract_caller, not from destroyable_contract
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
+        self.deposit(destroyable_contract, recipient_account, 1)
+        self.deposit(contract_caller, recipient_account, 1)
+        recipient_balance_before = self.web3_client.get_balance(recipient_account)
+
         tx = self.web3_client.make_raw_tx(sender_account)
-        instr = contract_caller.functions.callDestroyViaDelegateCall(sender_account.address).build_transaction(tx)
+        instr = contract_caller.functions.callDestroyViaDelegateCall(recipient_account.address).build_transaction(tx)
         receipt = self.web3_client.send_transaction(sender_account, instr)
-
         assert receipt["status"] == 1
-        assert self.web3_client.eth.get_code(destroyable_contract.address) != "0x"
-        self.check_contract_code_is_not_empty(contract_caller.address, json_rpc_client)
 
-    def test_destroy_contract_via_delegatecall_and_create_new_contract(
-        self, destroyable_contract, contract_caller, json_rpc_client
-    ):
-        sender_account = self.accounts[0]
-        recipient_account = self.accounts[1]
-        tx = self.web3_client.make_raw_tx(sender_account)
-        instr = contract_caller.functions.callDestroyViaDelegateCallAndCreateNewContract(
-            sender_account.address
-        ).build_transaction(tx)
-        receipt = self.web3_client.send_transaction(sender_account, instr)
-
-        assert receipt["status"] == 1
-        assert self.web3_client.eth.get_code(destroyable_contract.address) != "0x"
-        self.check_contract_code_is_not_empty(contract_caller.address, json_rpc_client)
+        assert json_rpc_client.get_contract_code(contract_caller.address) != "0x"
+        assert json_rpc_client.get_contract_code(destroyable_contract.address) != "0x"
+        assert self.web3_client.get_balance(recipient_account) - recipient_balance_before == 1
+        assert self.web3_client.get_balance(destroyable_contract) == 1

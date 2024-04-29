@@ -26,6 +26,9 @@ inputs:
   devnet_solana_url:
     description: 'Solana url for devnet'
     required: false
+  devnet_faucet_url:
+    description: 'Faucet url for devnet'
+    required: false
   proxy_url:
     description: 'Proxy url if the network is custom'
     required: false
@@ -54,8 +57,10 @@ runs:
       - name: Set outputs
         id: share
         env:
-          SOLANA_IP: ${{ env.SOLANA_IP }}
-          PROXY_IP: ${{ env.PROXY_IP }}
+          SOLANA_IP: ${{ env.SOLANA_IP || inputs.solana_ip }}
+          PROXY_IP: ${{ env.PROXY_IP || inputs.proxy_ip }}
+          DEVNET_FAUCET_URL: ${{ inputs.devnet_faucet_url }}
+          DEVNET_SOLANA_URL: ${{ inputs.devnet_solana_url }}
 
         shell: bash
         run: |
@@ -70,10 +75,7 @@ runs:
             faucet_url=`python ./clickfile.py infra print-network-param -n '${{inputs.network}}' -p 'faucet_url'`
             network_id=`python ./clickfile.py infra print-network-param -n '${{inputs.network}}' -p 'network_ids.neon'`
           fi;
-          
-          if [[ "${{ inputs.network }}" == "devnet" ]]; then
-            solana_url="${{ inputs.devnet_solana_url }}"
-          fi;
+
           echo "proxy_url=$proxy_url"
           echo "solana_url=$solana_url"
           echo "faucet_url=$faucet_url"

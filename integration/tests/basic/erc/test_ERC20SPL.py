@@ -3,6 +3,7 @@ import random
 import allure
 import pytest
 import web3
+from _pytest.config import Config
 from solana.rpc.types import TokenAccountOpts, TxOpts
 from solana.transaction import Transaction
 from spl.token import instructions
@@ -33,13 +34,16 @@ class TestERC20SPL:
     sol_client: SolanaClient
 
     @pytest.fixture(scope="class")
-    def erc20_contract(self, erc20_spl):
+    def erc20_contract(self, erc20_spl, eth_bank_account, pytestconfig: Config):
+        if pytestconfig.getoption("--network") == "mainnet":
+            self.web3_client.send_neon(eth_bank_account, erc20_spl.account.address, 10)
         return erc20_spl
 
     @pytest.fixture()
     def restore_balance(self, erc20_contract):
         pass
 
+    @pytest.mark.mainnet
     def test_metaplex_data(self, erc20_contract):
         metaplex.wait_account_info(self.sol_client, erc20_contract.token_mint.pubkey)
         metadata = metaplex.get_metadata(self.sol_client, erc20_contract.token_mint.pubkey)
@@ -47,9 +51,10 @@ class TestERC20SPL:
         assert metadata["data"]["symbol"] == erc20_contract.symbol
         assert metadata["is_mutable"] is True
 
+    @pytest.mark.mainnet
     def test_balanceOf(self, erc20_contract):
         recipient_account = self.accounts[1]
-        transfer_amount = random.randint(0, 100)
+        transfer_amount = random.randint(0, 1000)
         initial_balance = erc20_contract.get_balance(recipient_account)
         erc20_contract.transfer(erc20_contract.account, recipient_account, transfer_amount)
         assert erc20_contract.get_balance(recipient_account) == initial_balance + transfer_amount
@@ -69,6 +74,7 @@ class TestERC20SPL:
         symbol = erc20_contract.contract.functions.symbol().call()
         assert symbol == erc20_contract.symbol
 
+    @pytest.mark.mainnet
     def test_name(self, erc20_contract):
         name = erc20_contract.contract.functions.name().call()
         assert name == erc20_contract.name
@@ -107,8 +113,9 @@ class TestERC20SPL:
         with pytest.raises(ValueError, match=msg):
             erc20_contract.burn(erc20_contract.account, 1, **param)
 
+    @pytest.mark.mainnet
     def test_burnFrom(self, erc20_contract, restore_balance):
-        new_account = self.accounts[0]
+        new_account = self.accounts[1]
         balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         total_before = erc20_contract.contract.functions.totalSupply().call()
         amount = random.randint(0, 1000)
@@ -190,7 +197,7 @@ class TestERC20SPL:
         balance_acc1_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         balance_acc2_before = erc20_contract.contract.functions.balanceOf(new_account.address).call()
         total_before = erc20_contract.contract.functions.totalSupply().call()
-        amount = random.randint(1, 1000)
+        amount = random.randint(1, 10)
         erc20_contract.transfer(erc20_contract.account, new_account.address, amount)
         balance_acc1_after = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         balance_acc2_after = erc20_contract.contract.functions.balanceOf(new_account.address).call()
@@ -232,7 +239,7 @@ class TestERC20SPL:
         balance_acc1_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         balance_acc2_before = erc20_contract.contract.functions.balanceOf(new_account.address).call()
         total_before = erc20_contract.contract.functions.totalSupply().call()
-        amount = random.randint(1, 10000)
+        amount = random.randint(1, 10)
         erc20_contract.approve(erc20_contract.account, new_account.address, amount)
         erc20_contract.transfer_from(new_account, erc20_contract.account.address, new_account.address, amount)
         balance_acc1_after = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
@@ -494,11 +501,13 @@ class TestERC20SPLMintable(TestERC20SPL):
 
     def test_mint_by_no_minter_role(self, erc20_contract):
         recipient_account = self.accounts[1]
-        with pytest.raises(
-            web3.exceptions.ContractLogicError,
-            match="^0x118cdaa7",  # OwnableUnauthorizedAccount error
-        ):
+        try:
             erc20_contract.mint_tokens(recipient_account, recipient_account.address, 0)
+        except web3.exceptions.ContractLogicError as e:
+            assert "0x118cdaa7" in str(e)
+        else:
+            assert False, "No exception raised"
+
 
     @pytest.mark.parametrize(
         "address_to, expected_exception, msg",

@@ -16,13 +16,13 @@ from solana.rpc import commitment
 from solana.rpc.types import TxOpts
 
 from utils.apiclient import JsonRPCSession
-from utils.consts import LAMPORT_PER_SOL, Unit, MULTITOKEN_MINTS
+from utils.consts import LAMPORT_PER_SOL, MULTITOKEN_MINTS
 from utils.erc20 import ERC20
 from utils.erc20wrapper import ERC20Wrapper
+from utils.evm_loader import EvmLoader
 from utils.operator import Operator
 from utils.web3client import NeonChainWeb3Client, Web3Client
 from utils.prices import get_sol_price, get_neon_price
-from utils.transfers_inter_networks import token_from_solana_to_neon_tx
 
 NEON_AIRDROP_AMOUNT = 1_000
 
@@ -46,7 +46,8 @@ def pytest_collection_modifyitems(config, items):
         environments = json.load(f)
 
     if len(environments[network_name]["network_ids"]) == 1:
-        deselected_marks.append("multipletokens")
+        deselected_marks.append("multipletokens")    
+
     for item in items:
         if any([item.get_closest_marker(mark) for mark in deselected_marks]):
             deselected_items.append(item)
@@ -79,7 +80,6 @@ def sol_client(request, sol_client_session):
     if inspect.isclass(request.cls):
         request.cls.sol_client = sol_client_session
     yield sol_client_session
-
 
 @pytest.fixture(scope="session")
 def web3_client_sol(pytestconfig: Config) -> tp.Union[Web3Client, None]:
@@ -122,7 +122,10 @@ def operator(pytestconfig: Config, web3_client_session: NeonChainWeb3Client) -> 
 def bank_account(pytestconfig: Config) -> tp.Optional[Keypair]:
     account = None
     if pytestconfig.environment.use_bank:
-        private_key = os.environ.get("BANK_PRIVATE_KEY")
+        if pytestconfig.getoption("--network") == "devnet":
+            private_key = os.environ.get("BANK_PRIVATE_KEY")
+        elif pytestconfig.getoption("--network") == "mainnet":
+            private_key = os.environ.get("BANK_PRIVATE_KEY_MAINNET")
         key = base58.b58decode(private_key)
         account = Keypair.from_secret_key(key)
     yield account
@@ -133,6 +136,8 @@ def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Optional[K
     account = None
     if pytestconfig.environment.eth_bank_account != "":
         account = web3_client_session.eth.account.from_key(pytestconfig.environment.eth_bank_account)
+    if pytestconfig.getoption("--network") == "mainnet":
+        account = web3_client_session.eth.account.from_key(os.environ.get("ETH_BANK_PRIVATE_KEY_MAINNET"))
     yield account
 
 
@@ -153,10 +158,15 @@ def solana_account(bank_account, pytestconfig: Config, sol_client_session):
 
 
 @pytest.fixture(scope="class")
-def accounts(request, accounts_session):
+def accounts(request, accounts_session, web3_client_session, pytestconfig: Config, eth_bank_account):
     if inspect.isclass(request.cls):
         request.cls.accounts = accounts_session
     yield accounts_session
+    if pytestconfig.getoption("--network") == "mainnet":
+        if len(accounts_session.accounts_collector) > 0:
+            for item in accounts_session.accounts_collector:
+                with allure.step(f"Restoring eth account balance from {item.key.hex()} account"):
+                    web3_client_session.send_all_neons(item, eth_bank_account)
     accounts_session._accounts = []
 
 
@@ -167,6 +177,8 @@ def erc20_spl(
     pytestconfig: Config,
     sol_client_session,
     solana_account,
+    eth_bank_account,
+    accounts_session,
 ):
     symbol = "".join([random.choice(string.ascii_uppercase) for _ in range(3)])
     erc20 = ERC20Wrapper(
@@ -177,6 +189,8 @@ def erc20_spl(
         sol_client_session,
         solana_account=solana_account,
         mintable=False,
+        bank_account=eth_bank_account,
+        account=accounts_session[0],
         evm_loader_id=pytestconfig.environment.evm_loader,
     )
     erc20.token_mint.approve(
@@ -196,13 +210,24 @@ def erc20_spl(
 
 
 @pytest.fixture(scope="session")
-def erc20_simple(web3_client_session, faucet):
-    erc20 = ERC20(web3_client_session, faucet)
-    return erc20
+def erc20_simple(web3_client_session, 
+                 faucet, 
+                 accounts_session, 
+                 eth_bank_account
+):
+    erc20 = ERC20(web3_client=web3_client_session, faucet=faucet, bank_account=eth_bank_account, owner=accounts_session[0])
+    yield erc20
 
 
 @pytest.fixture(scope="session")
-def erc20_spl_mintable(web3_client_session: NeonChainWeb3Client, faucet, sol_client_session, solana_account):
+def erc20_spl_mintable(
+    web3_client_session: NeonChainWeb3Client, 
+    faucet, 
+    sol_client_session, 
+    solana_account, 
+    accounts_session,
+    eth_bank_account,
+):
     symbol = "".join([random.choice(string.ascii_uppercase) for _ in range(3)])
     erc20 = ERC20Wrapper(
         web3_client_session,
@@ -212,6 +237,8 @@ def erc20_spl_mintable(web3_client_session: NeonChainWeb3Client, faucet, sol_cli
         sol_client_session,
         solana_account=solana_account,
         mintable=True,
+        bank_account=eth_bank_account,
+        account=accounts_session[0],
     )
     erc20.mint_tokens(erc20.account, erc20.account.address)
     yield erc20
@@ -219,29 +246,30 @@ def erc20_spl_mintable(web3_client_session: NeonChainWeb3Client, faucet, sol_cli
 
 @pytest.fixture(scope="class")
 def class_account_sol_chain(
-    sol_client_session,
+    evm_loader,
     solana_account,
     web3_client,
     web3_client_sol,
-    pytestconfig,
     faucet,
     eth_bank_account,
 ):
     account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account)
-    sol_client_session.request_airdrop(solana_account.public_key, 1 * LAMPORT_PER_SOL)
-    sol_client_session.deposit_wrapped_sol_from_solana_to_neon(
+    evm_loader.request_airdrop(solana_account.public_key, 1 * LAMPORT_PER_SOL)
+    evm_loader.deposit_wrapped_sol_from_solana_to_neon(
         solana_account,
         account,
         web3_client_sol.eth.chain_id,
-        pytestconfig.environment.evm_loader,
         1 * LAMPORT_PER_SOL,
     )
     return account
 
+@pytest.fixture(scope="class")
+def evm_loader(pytestconfig):
+    return EvmLoader(pytestconfig.environment.evm_loader, pytestconfig.environment.solana_url)
 
 @pytest.fixture(scope="class")
 def account_with_all_tokens(
-    sol_client_session,
+    evm_loader,
     solana_account,
     web3_client,
     web3_client_usdt,
@@ -256,12 +284,11 @@ def account_with_all_tokens(
 ):
     neon_account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account, amount=500)
     if web3_client_sol:
-        sol_client_session.request_airdrop(solana_account.public_key, 1 * LAMPORT_PER_SOL)
-        sol_client_session.deposit_wrapped_sol_from_solana_to_neon(
+        evm_loader.request_airdrop(solana_account.public_key, 1 * LAMPORT_PER_SOL)
+        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
             solana_account,
             neon_account,
             web3_client_sol.eth.chain_id,
-            pytestconfig.environment.evm_loader,
             1 * LAMPORT_PER_SOL,
         )
     for client in [web3_client_usdt, web3_client_eth]:
@@ -272,18 +299,15 @@ def account_with_all_tokens(
                 mint = MULTITOKEN_MINTS["ETH"]
             token_mint = PublicKey(mint)
 
-            sol_client_session.mint_spl_to(token_mint, solana_account, 1000000000000000)
+            evm_loader.mint_spl_to(token_mint, solana_account, 1000000000000000)
 
-            tx = token_from_solana_to_neon_tx(
-                sol_client_session,
+            evm_loader.sent_token_from_solana_to_neon(
                 solana_account,
                 token_mint,
                 neon_account,
                 100000000,
-                pytestconfig.environment.evm_loader,
                 client.eth.chain_id,
             )
-            sol_client_session.send_tx_and_check_status_ok(tx, solana_account)
     return neon_account
 
 
@@ -295,7 +319,7 @@ def neon_mint(pytestconfig: Config):
 
 @pytest.fixture(scope="class")
 def withdraw_contract(web3_client, faucet, accounts):
-    contract, _ = web3_client.deploy_and_get_contract("precompiled/NeonToken", "0.8.10", account=accounts[0])
+    contract, _ = web3_client.deploy_and_get_contract("precompiled/NeonToken", "0.8.10", account=accounts[1])
     return contract
 
 
@@ -334,7 +358,7 @@ def wsol(web3_client_sol, class_account_sol_chain):
 
 
 @pytest.fixture(scope="class")
-def wneon(web3_client, faucet, accounts):
+def wneon(web3_client, accounts):
     contract, _ = web3_client.deploy_and_get_contract(
         "common/WNeon", "0.4.26", account=accounts[0], contract_name="WNEON"
     )

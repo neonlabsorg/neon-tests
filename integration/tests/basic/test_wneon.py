@@ -49,11 +49,12 @@ class TestWNeon:
         wneon_balance = self.web3_client.from_wei(wneon.functions.balanceOf(address).call(), "ether")
         return neon_balance, wneon_balance
 
+    @pytest.mark.mainnet
     def test_deposit_and_total_supply(self, wneon):
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
         neon_balance_before, wneon_balance_before = self.get_balances(wneon, recipient_account.address)
-        deposit_amount = random.randint(1, 10)
+        deposit_amount = random.randint(1, 5)
         receipt = self.deposit(wneon, deposit_amount, recipient_account)
         assert receipt["status"] == 1
         neon_balance_after, wneon_balance_after = self.get_balances(wneon, recipient_account.address)
@@ -65,15 +66,16 @@ class TestWNeon:
             < 1
         )
 
-        deposit_amount2 = random.randint(1, 10)
+        deposit_amount2 = random.randint(1, 5)
         self.deposit(wneon, deposit_amount2, sender_account)
         assert (
             self.web3_client._web3.from_wei(wneon.functions.totalSupply().call(), "ether")
             == deposit_amount + deposit_amount2
         )
 
+    @pytest.mark.mainnet
     def test_withdraw(self, wneon):
-        deposit_amount = 10
+        deposit_amount = 4
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
         self.deposit(wneon, deposit_amount, recipient_account)
@@ -96,7 +98,7 @@ class TestWNeon:
         assert wneon_balance_after == wneon_balance_before - withdraw_amount
 
     def test_transfer_and_check_token_does_not_use_spl(self, wneon):
-        deposit_amount = 10
+        deposit_amount = 5
         sender_account = self.accounts[0]
         new_account = self.accounts.create_account()
         self.deposit(wneon, deposit_amount, sender_account)
@@ -128,8 +130,9 @@ class TestWNeon:
         assert wneon_balance_sender_after == wneon_balance_sender_before - transfer_amount
         assert neon_balance_sender_after - neon_balance_sender_before < 0.2
 
+    @pytest.mark.mainnet
     def test_transfer_from(self, wneon):
-        deposit_amount = 10
+        deposit_amount = 5
         sender_account = self.accounts[0]
         new_account = self.accounts.create_account()
 
@@ -139,7 +142,7 @@ class TestWNeon:
             neon_balance_recipient_before,
             wneon_balance_recipient_before,
         ) = self.get_balances(wneon, new_account.address)
-        transfer_amount = random.randint(1, 10)
+        transfer_amount = random.randint(1, 2)
         transfer_amount_wei = self.web3_client._web3.to_wei(transfer_amount, "ether")
 
         with pytest.raises(web3.exceptions.ContractLogicError):
@@ -164,12 +167,13 @@ class TestWNeon:
         assert neon_balance_sender_after - neon_balance_sender_before < 0.2
         assert neon_balance_recipient_after - neon_balance_recipient_before < 0.2
 
+    @pytest.mark.mainnet
     def test_withdraw_wneon_from_neon_to_solana(self, wneon, neon_mint, solana_account, withdraw_contract):
-        deposit_amount = 10
+        deposit_amount = 5
         recipient_account = self.accounts[1]
         self.deposit(wneon, deposit_amount, recipient_account)
 
-        withdraw_amount = 5
+        withdraw_amount = 1
         full_amount = self.web3_client._web3.to_wei(withdraw_amount, "ether")
 
         neon_balance_before, wneon_balance_before = self.get_balances(wneon, recipient_account.address)

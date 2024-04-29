@@ -34,5 +34,5 @@ runs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: AWS docker logs
+          name: Docker logs
           path: ./logs/*

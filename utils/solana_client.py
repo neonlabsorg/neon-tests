@@ -2,9 +2,6 @@ import json
 import time
 import typing as tp
 import uuid
-from hashlib import sha256
-from random import randrange
-
 import requests
 import pathlib
 
@@ -13,23 +10,18 @@ import solana.rpc.api
 import spl.token.client
 from solana.keypair import Keypair
 from solana.publickey import PublicKey
-from solana.rpc.commitment import Commitment, Finalized
+from solana.rpc.commitment import Commitment, Finalized, Confirmed
 from solana.rpc.types import TxOpts
 from solders.rpc.responses import GetTransactionResp
 from solders.signature import Signature
-from solana.system_program import TransferParams, transfer
+from solana.system_program import TransferParams, transfer, create_account, CreateAccountParams
 from solana.transaction import Transaction
 from solders.rpc.errors import InternalErrorMessage
 from solders.rpc.responses import RequestAirdropResp
 from spl.token.instructions import get_associated_token_address, create_associated_token_account
-from spl.token.client import Token as SplToken
 
-from utils.consts import LAMPORT_PER_SOL, wSOL
 from utils.helpers import wait_condition
 from spl.token.constants import TOKEN_PROGRAM_ID
-
-from utils.instructions import create_account_with_seed, create_holder_account
-from utils.transfers_inter_networks import wSOL_tx, token_from_solana_to_neon_tx, mint_tx
 
 
 class SolanaClient(solana.rpc.api.Client):
@@ -72,13 +64,6 @@ class SolanaClient(solana.rpc.api.Client):
         else:
             raise AssertionError(f"Balance not changed in account {to}")
 
-    def ether2balance(self, address: tp.Union[str, bytes], chain_id: int, evm_loader_id: str) -> PublicKey:
-        # get public key associated with chain_id for an address
-        address_bytes = bytes.fromhex(address[2:])
-        chain_id_bytes = chain_id.to_bytes(32, "big")
-        return PublicKey.find_program_address(
-            [self.account_seed_version, address_bytes, chain_id_bytes], PublicKey(evm_loader_id)
-        )[0]
 
     @staticmethod
     def ether2bytes(ether: tp.Union[str, bytes]):
@@ -88,11 +73,6 @@ class SolanaClient(solana.rpc.api.Client):
             return bytes.fromhex(ether)
         return ether
 
-    def ether2program(self, ether: tp.Union[str, bytes], evm_loader_id: str) -> tp.Tuple[str, int]:
-        items = PublicKey.find_program_address(
-            [self.account_seed_version, self.ether2bytes(ether)], PublicKey(evm_loader_id)
-        )
-        return str(items[0]), items[1]
 
     def get_erc_auth_address(self, neon_account_address: str, token_address: str, evm_loader_id: str):
         neon_account_addressbytes = bytes(12) + bytes.fromhex(neon_account_address[2:])
@@ -133,66 +113,18 @@ class SolanaClient(solana.rpc.api.Client):
         sig_status = json.loads((self.confirm_transaction(sig)).to_json())
         assert sig_status["result"]["value"][0]["status"] == {"Ok": None}, f"error:{sig_status}"
 
+    def send_tx(self, trx: Transaction, *signers: Keypair, wait_status=Confirmed):
+        result = self.send_transaction(trx, *signers,
+                                         opts=TxOpts(skip_confirmation=True, preflight_commitment=wait_status))
+        self.confirm_transaction(result.value, commitment=Confirmed)
+        return self.get_transaction(result.value, commitment=Confirmed)
+
     def create_ata(self, solana_account, token_mint):
         trx = Transaction()
         trx.add(create_associated_token_account(solana_account.public_key, solana_account.public_key, token_mint))
         opts = TxOpts(skip_preflight=True, skip_confirmation=False)
         self.send_transaction(trx, solana_account, opts=opts)
 
-    def deposit_wrapped_sol_from_solana_to_neon(
-        self, solana_account, neon_account, chain_id, evm_loader_id, full_amount=None
-    ):
-        if not full_amount:
-            full_amount = int(0.1 * LAMPORT_PER_SOL)
-        mint_pubkey = wSOL["address_spl"]
-        ata_address = get_associated_token_address(solana_account.public_key, mint_pubkey)
-
-        self.create_ata(solana_account, mint_pubkey)
-
-        # wrap SOL
-        wSOL_account = self.get_account_info(ata_address).value
-        wrap_sol_tx = wSOL_tx(wSOL_account, wSOL, full_amount, solana_account.public_key, ata_address)
-        self.send_tx_and_check_status_ok(wrap_sol_tx, solana_account)
-
-        tx = token_from_solana_to_neon_tx(
-            self, solana_account, wSOL["address_spl"], neon_account, full_amount, evm_loader_id, chain_id
-        )
-        self.send_tx_and_check_status_ok(tx, solana_account)
-
-    def deposit_neon_like_tokens_from_solana_to_neon(
-        self,
-        neon_mint,
-        solana_account,
-        neon_account,
-        chain_id,
-        operator_keypair,
-        evm_loader_keypair,
-        evm_loader_id,
-        amount,
-    ):
-        spl_neon_token = SplToken(self, neon_mint, TOKEN_PROGRAM_ID, payer=operator_keypair)
-        associated_token_address = spl_neon_token.create_associated_token_account(solana_account.public_key)
-        # TODO: Refactor this and mint_spl_to methods
-        tx = mint_tx(
-            amount=amount,
-            dest=associated_token_address,
-            neon_mint=neon_mint,
-            mint_authority=evm_loader_keypair.public_key,
-        )
-        tx.fee_payer = operator_keypair.public_key
-
-        self.send_tx_and_check_status_ok(tx, operator_keypair, evm_loader_keypair)
-
-        tx = token_from_solana_to_neon_tx(
-            self,
-            solana_account,
-            neon_mint,
-            neon_account,
-            amount,
-            evm_loader_id,
-            chain_id,
-        )
-        self.send_tx_and_check_status_ok(tx, solana_account)
 
     def wait_transaction(self, tx):
         try:
@@ -239,28 +171,27 @@ class SolanaClient(solana.rpc.api.Client):
             operator_path = pathlib.Path(__file__).parent.parent / "operator-keypair.json"
             with open(operator_path, "r") as f:
                 authority = Keypair.from_seed(json.load(f)[:32])
+
         token = spl.token.client.Token(self, mint, TOKEN_PROGRAM_ID, authority)
+        token.payer = authority
         token.mint_to(token_account, authority, amount)
 
-    def create_holder(self, signer: Keypair, evm_loader: PublicKey, seed: str = None, size: int = None, fund: int = None,
-                      storage: PublicKey = None) -> PublicKey:
-        if size is None:
-            size = 128 * 1024
-        if fund is None:
-            fund = 10 ** 9
-        if seed is None:
-            seed = str(randrange(1000000))
-        if storage is None:
-            storage = PublicKey(
-                sha256(bytes(signer.public_key) + bytes(seed, 'utf8') + bytes(evm_loader)).digest())
+    def get_solana_balance(self, account):
+        return self.get_balance(account, commitment=Confirmed).value
 
-        print(f"Create holder account with seed: {seed}")
-
+    def create_account(self, payer, size, owner, account=None, lamports=None):
+        account = account or Keypair.generate()
+        lamports = lamports or self.get_minimum_balance_for_rent_exemption(size).value
         trx = Transaction()
-        trx.add(
-            create_account_with_seed(signer.public_key, signer.public_key, seed, fund, size, evm_loader),
-                  create_holder_account(storage, signer.public_key, bytes(seed, 'utf8'), evm_loader)
-        )
-        self.send_tx_and_check_status_ok(trx, signer)
-        print(f"Created holder account: {storage}")
-        return storage
+        trx.fee_payer=payer.public_key
+        instr = create_account(
+            CreateAccountParams(
+                payer.public_key,
+                account.public_key,
+                lamports,
+                size,
+                owner))
+        self.send_tx(trx.add(instr), payer, account)
+        return account
+
+

@@ -2,8 +2,8 @@ import eth_abi
 import requests
 from eth_utils import abi
 
-from .constants import CHAIN_ID
-from ..types.types import Caller, Contract
+from utils.evm_loader import CHAIN_ID
+from utils.types import Caller, Contract
 
 
 class NeonApiClient:
@@ -63,11 +63,10 @@ class NeonApiClient:
         }
         return requests.post(url=f"{self.url}/balance", json=body, headers=self.headers).json()
 
-    def call_contract_get_function(self, sender, contract, function_signature: str,
-                                       constructor_args=None):
+    def call_contract_get_function(self, sender, contract, function_signature: str, args=None):
         data = abi.function_signature_to_4byte_selector(function_signature)
-        if constructor_args is not None:
-            data += constructor_args
+        if args is not None:
+            data += args
         result = self.emulate(sender.eth_address.hex(),  contract.eth_address.hex(), data)
         return result["result"]
 

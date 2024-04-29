@@ -11,6 +11,10 @@ inputs:
   ci_stands_key_hcloud:
     description: 'Private key for hcloud'
     required: false
+  use_real_price:
+    description: 'Remove CONST_GAS_PRICE option from proxy'
+    default: '0'
+    required: false
 
 runs:
   using: composite
@@ -23,9 +27,10 @@ runs:
         id: deploy
         shell: bash
         run: |
+          echo "USE PRICE: ${{ inputs.use_real_price }}"
           ssh_key='/tmp/ci-stands'
           echo "${{ inputs.ci_stands_key_hcloud  }}" >> ${ssh_key} && chmod 400 ${ssh_key}
-          python3 ./clickfile.py infra deploy --current_branch ${{ github.ref_name}} --head_branch ${{ github.head_ref }} --base_branch ${{ github.base_ref }}
+          python3 ./clickfile.py infra deploy --current_branch ${{ github.ref_name}} --head_branch ${{ github.head_ref }} --base_branch ${{ github.base_ref }} --use-real-price ${{inputs.use_real_price}}
       - uses: actions/upload-artifact@v4
         with:
           name: tf-state

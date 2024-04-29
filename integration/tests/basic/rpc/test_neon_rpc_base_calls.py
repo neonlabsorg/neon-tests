@@ -73,6 +73,7 @@ class TestNeonRPCBaseCalls:
         sol_tx = response["result"][0]
         assert sol_client.wait_transaction(sol_tx) is not None
 
+    @pytest.mark.mainnet
     def test_neon_get_solana_transaction_by_neon_transaction_list_of_tx(self, json_rpc_client, sol_client):
         sender_account = self.accounts[0]
         _, tx_receipt = self.web3_client.deploy_and_get_contract("common/EventCaller", "0.8.12", sender_account)
@@ -80,7 +81,7 @@ class TestNeonRPCBaseCalls:
         response = json_rpc_client.send_rpc(method="neon_getSolanaTransactionByNeonTransaction", params=params)
         assert "result" in response
         result = response["result"]
-        assert len(result) == 5
+        assert len(result) == 6
         for tx in result:
             assert sol_client.wait_transaction(tx) is not None
 

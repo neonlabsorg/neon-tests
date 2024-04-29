@@ -1,5 +1,5 @@
 name: "OpenZeppelin"
-run-name: "OpenZeppelin:${{ github.event.inputs.oz_tag || 'latest' }} / ${{ github.event.inputs.network || 'night-stand' }} / ${{ github.event.inputs.jobsNumber || '16' }} jobs"
+run-name: "OpenZeppelin / ${{ github.event.inputs.network || 'terraform' }} / ${{ github.event.inputs.jobsNumber || '16' }} jobs"
 
 on:
   schedule:
@@ -8,7 +8,7 @@ on:
     inputs:
       network:
         type: choice
-        default: night-stand
+        default: terraform
         required: true
         description: "Stand name"
         options:
@@ -26,7 +26,7 @@ on:
 
 env:
   JOBS_NUMBER: ${{ github.event.inputs.jobsNumber || '8' }}
-  NETWORK: ${{ github.event.inputs.network || 'night-stand' }}
+  NETWORK: ${{ github.event.inputs.network || 'terraform' }}
   IMAGE:  neonlabsorg/neon_tests
   CONTAINER:  oz-${{ github.run_id }}
   BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
@@ -70,6 +70,7 @@ jobs:
         with:
           network: ${{ env.NETWORK }}
           devnet_solana_url: ${{ secrets.SOLANA_URL }}
+          devnet_faucet_url: ${{ secrets.DEVNET_FAUCET_URL }}
           proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}
           solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
           proxy_url: ${{ github.event.inputs.proxy_url }}
@@ -119,7 +120,7 @@ jobs:
             env="-e PROXY_IP=${{ needs.prepare-env.outputs.proxy_ip }} -e SOLANA_IP=${{ needs.prepare-env.outputs.solana_ip }}"
           fi
           echo "env=${env}"
-          docker exec -i -e OZ_BALANCES_REPORT_FLAG=1 ${env} ${{ env.CONTAINER }} python3 ./clickfile.py run oz \
+          docker exec -i -e OZ_BALANCES_REPORT_FLAG=1 -e DEVNET_FAUCET_URL=${{ env.DEVNET_FAUCET_URL }} ${env} ${{ env.CONTAINER }} python3 ./clickfile.py run oz \
             --network ${{ env.NETWORK }} \
             --jobs ${{ env.JOBS_NUMBER }} \
             --users 10

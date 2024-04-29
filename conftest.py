@@ -40,7 +40,7 @@ class EnvironmentConfig:
 
 
 def pytest_addoption(parser):
-    parser.addoption("--network", action="store", default="devnet", help="Which stand use")
+    parser.addoption("--network", action="store", default="night-stand", help="Which stand use")
     parser.addoption(
         "--make-report",
         action="store_true",
@@ -128,8 +128,8 @@ def evm_loader_keypair():
 @pytest.fixture(scope="session", autouse=True)
 def allure_environment(pytestconfig: Config, web3_client_session: NeonChainWeb3Client):
     opts = {}
-
-    if pytestconfig.getoption("--network") != "geth" and "neon_evm" not in os.getenv("PYTEST_CURRENT_TEST"):
+    network_name = pytestconfig.getoption("--network")
+    if  network_name != "geth" and network_name != "mainnet" and "neon_evm" not in os.getenv("PYTEST_CURRENT_TEST"):
         opts = {
             "Network": pytestconfig.environment.proxy_url,
             "Proxy.Version": web3_client_session.get_proxy_version()["result"],
@@ -187,6 +187,6 @@ def faucet(pytestconfig: Config, web3_client_session) -> Faucet:
 
 
 @pytest.fixture(scope="session")
-def accounts_session(web3_client_session, faucet, eth_bank_account):
+def accounts_session(pytestconfig: Config, web3_client_session, faucet, eth_bank_account):
     accounts = EthAccounts(web3_client_session, faucet, eth_bank_account)
-    yield accounts
+    return accounts

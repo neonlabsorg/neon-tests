@@ -4,6 +4,7 @@ import time
 import typing as tp
 from decimal import Decimal
 
+import logging
 import allure
 import eth_account.signers.local
 import requests
@@ -15,6 +16,8 @@ from web3.exceptions import TransactionNotFound
 from utils import helpers
 from utils.consts import InputTestConstants, Unit
 from utils.helpers import decode_function_signature
+
+LOG = logging.getLogger(__name__)
 
 
 class Web3Client:
@@ -340,6 +343,29 @@ class Web3Client:
         signed_tx = self.eth.account.sign_transaction(transaction, from_.key)
         tx = self.eth.send_raw_transaction(signed_tx.rawTransaction)
         return self.eth.wait_for_transaction_receipt(tx)
+
+    @allure.step("Send all neons from one account to another")
+    def send_all_neons(
+        self,
+        from_: eth_account.signers.local.LocalAccount,
+        to: tp.Union[str, eth_account.signers.local.LocalAccount],
+        gas: tp.Optional[int] = None,
+        gas_price: tp.Optional[int] = None,
+        nonce: int = None,
+    ) -> web3.types.TxReceipt:
+        value = self.get_balance(from_.address)
+        transaction = self.make_raw_tx(
+            from_, to, amount=value, gas=gas, gas_price=gas_price, nonce=nonce, estimate_gas=True
+        )
+        transaction["value"] = float(value) - float(transaction["gas"] * transaction["gasPrice"] * 1.1)
+
+        if transaction["value"] > 0:
+            transaction["value"] = web3.Web3.to_wei(transaction["value"], Unit.WEI)
+            signed_tx = self.eth.account.sign_transaction(transaction, from_.key)
+            tx = self.eth.send_raw_transaction(signed_tx.rawTransaction)
+            self.eth.wait_for_transaction_receipt(tx)
+        else:
+            LOG.info(f"Not enough funds to send all neons from {from_.address} account")
 
     @staticmethod
     @allure.step("To atomic currency")

@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  FAUCET_URL: ${{ secrets.DEVNET_FAUCET_URL }}
-  SOLANA_URL: ${{ secrets.SOLANA_URL }}
+  DEVNET_FAUCET_URL: ${{ secrets.DEVNET_FAUCET_URL }}
+  DEVNET_SOLANA_URL: ${{ secrets.SOLANA_URL }}
 
 jobs:
   tests:
