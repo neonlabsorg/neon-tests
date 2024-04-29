@@ -167,6 +167,7 @@ class EvmLoader(SolanaClient):
     def execute_trx_from_instruction(
         self,
         operator: Keypair,
+        holder_acc: PublicKey,
         treasury_address: PublicKey,
         treasury_buffer: bytes,
         instruction: SignedTransaction,
@@ -182,6 +183,7 @@ class EvmLoader(SolanaClient):
             make_ExecuteTrxFromInstruction(
                 operator,
                 operator_balance,
+                holder_acc,
                 self.loader_id,
                 treasury_address,
                 treasury_buffer,
@@ -196,6 +198,7 @@ class EvmLoader(SolanaClient):
     def execute_trx_from_instruction_with_solana_call(
         self,
         operator: Keypair,
+        holder_address: PublicKey,
         treasury_address: PublicKey,
         treasury_buffer: bytes,
         instruction: SignedTransaction,
@@ -210,6 +213,7 @@ class EvmLoader(SolanaClient):
             make_ExecuteTrxFromInstruction(
                 operator,
                 operator_balance_pubkey,
+                holder_address,
                 self.loader_id,
                 treasury_address,
                 treasury_buffer,

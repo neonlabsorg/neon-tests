@@ -6,11 +6,16 @@ import solana
 from solana.publickey import PublicKey
 from solana.rpc.commitment import Confirmed
 from solana.transaction import Transaction
+import solana.system_program as sp
 
 
 from utils.evm_loader import EvmLoader
-from utils.instructions import make_WriteHolder, make_CreateAccountWithSeed, make_ExecuteTrxFromInstruction, \
-    TransactionWithComputeBudget
+from utils.instructions import (
+    make_WriteHolder,
+    make_CreateAccountWithSeed,
+    make_ExecuteTrxFromInstruction,
+    TransactionWithComputeBudget, make_CreateHolderAccount,
+)
 from utils.layouts import HOLDER_ACCOUNT_INFO_LAYOUT
 
 
@@ -23,7 +28,7 @@ from .utils.storage import create_holder, delete_holder
 from .utils.transaction_checks import check_transaction_logs_have_text
 
 
-def transaction_from_holder(evm_loader:EvmLoader, key: PublicKey):
+def transaction_from_holder(evm_loader: EvmLoader, key: PublicKey):
     data = evm_loader.get_account_info(key, commitment=Confirmed).value.data
     header = HOLDER_ACCOUNT_INFO_LAYOUT.parse(data)
 
@@ -49,9 +54,14 @@ def test_create_the_same_holder_account_by_another_user(operator_keypair, sessio
         make_CreateAccountWithSeed(
             session_user.solana_account.public_key,
             session_user.solana_account.public_key,
-            seed, 10**9, 128 * 1024, evm_loader.loader_id
+            seed,
+            10**9,
+            128 * 1024,
+            evm_loader.loader_id,
         ),
-        make_CreateHolderAccount(storage, session_user.solana_account.public_key, bytes(seed, "utf8"), evm_loader.loader_id)
+        make_CreateHolderAccount(
+            storage, session_user.solana_account.public_key, bytes(seed, "utf8"), evm_loader.loader_id
+        ),
     )
 
     error = str.format(InstructionAsserts.INVALID_ACCOUNT, storage)
@@ -173,19 +183,15 @@ def test_holder_write_integer_overflow(operator_keypair, holder_acc, evm_loader)
         evm_loader.send_tx(trx, operator_keypair)
 
 
-def test_holder_write_account_size_overflow(operator_keypair, holder_acc,evm_loader):
+def test_holder_write_account_size_overflow(operator_keypair, holder_acc, evm_loader):
     overflow_offset = int(0xFFFFFFFF)
     trx = Transaction()
-    trx.add(make_WriteHolder(operator_keypair.public_key, holder_acc, b"\x00" * 32, overflow_offset, b"\x00" * 1))
+    trx.add(make_WriteHolder(operator_keypair.public_key, evm_loader.loader_id, holder_acc, b"\x00" * 32, overflow_offset, b"\x00" * 1))
     with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.HOLDER_INSUFFICIENT_SIZE):
-        evm_loader.send_tx(
-            trx,
-            operator_keypair)
+        evm_loader.send_tx(trx, operator_keypair)
 
 
-def test_temporary_holder_acc_is_free(
-    treasury_pool, sender_with_tokens, evm_loader
-):
+def test_temporary_holder_acc_is_free(treasury_pool, sender_with_tokens, evm_loader):
     # Check that Solana DOES NOT charge any additional fees for the temporary holder account
     # This case is used by neonpass
     user_as_operator = sender_with_tokens.solana_account
@@ -193,7 +199,21 @@ def test_temporary_holder_acc_is_free(
     operator_balance_before = evm_loader.get_solana_balance(user_as_operator.public_key)
 
     trx = TransactionWithComputeBudget(user_as_operator)
-    holder_pubkey, create_holder_instruction = make_CreateHolder(user_as_operator, fund=0)
+    seed = str(randrange(1000000))
+    holder_pubkey = PublicKey(sha256(bytes(user_as_operator.public_key) + bytes(seed, "utf8") + bytes(evm_loader.loader_id)).digest())
+    create_acc_with_seed_instr =  sp.create_account_with_seed(
+        sp.CreateAccountWithSeedParams(
+            from_pubkey=user_as_operator.public_key,
+            new_account_pubkey=holder_pubkey    ,
+            base_pubkey=user_as_operator.public_key,
+            seed=seed,
+            lamports=0,
+            space=128 * 1024,
+            program_id=evm_loader.loader_id,
+        )
+    )
+    create_holder_instruction = make_CreateHolderAccount(holder_pubkey, user_as_operator.public_key, bytes(seed, 'utf8'), evm_loader.loader_id)
+    trx.add(create_acc_with_seed_instr)
     trx.add(create_holder_instruction)
     signed_tx = make_eth_transaction(evm_loader, sender_with_tokens.eth_address, None, sender_with_tokens, amount)
 
@@ -211,16 +231,14 @@ def test_temporary_holder_acc_is_free(
             ],
         )
     )
-    resp = evm_loader.send_tx(
-        trx,
-        user_as_operator    )
+    resp = evm_loader.send_tx(trx, user_as_operator)
     check_transaction_logs_have_text(resp.value, "exit_status=0x11")
     operator_balance_after = evm_loader.get_solana_balance(user_as_operator.public_key)
     operator_gas_paid_with_holder = operator_balance_before - operator_balance_after
 
     signed_tx = make_eth_transaction(evm_loader, sender_with_tokens.eth_address, None, sender_with_tokens, amount)
 
-    holder_acc = create_holder(sender_with_tokens.solana_account)
+    holder_acc = create_holder(sender_with_tokens.solana_account, evm_loader, seed=str(randrange(1000000)))
     operator_balance_before = evm_loader.get_solana_balance(user_as_operator.public_key)
 
     resp = evm_loader.execute_trx_from_instruction(
@@ -232,7 +250,7 @@ def test_temporary_holder_acc_is_free(
         [
             sender_with_tokens.balance_account_address,
             sender_with_tokens.solana_account_address,
-        ]
+        ],
     )
     check_transaction_logs_have_text(resp.value, "exit_status=0x11")
     operator_balance_after = evm_loader.get_solana_balance(user_as_operator.public_key)
