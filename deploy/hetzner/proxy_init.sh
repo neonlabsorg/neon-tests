@@ -29,8 +29,7 @@ export NEON_EVM_COMMIT=${neon_evm_commit}
 export FAUCET_COMMIT=${faucet_model_commit}
 export CI_PP_SOLANA_URL=${ci_pp_solana_url}
 export DOCKERHUB_ORG_NAME=${dockerhub_org_name}
-
-
+export USE_REAL_GAS_PRICE=${use_real_price}
 
 # Generate docker-compose override file
 cat > docker-compose-ci.override.yml <<EOF
@@ -56,6 +55,8 @@ services:
     container_name: proxy
     environment:
       SOLANA_URL: $SOLANA_URL
+      PYTH_MAPPING_ACCOUNT: "BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2"
+      PP_SOLANA_URL: $CI_PP_SOLANA_URL
       EXTRA_ARGS: "--num-workers 16"
     ports:
       - "9090:9090"
@@ -80,8 +81,20 @@ services:
 EOF
 
 
+
 # Get list of services
 SERVICES=$(docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml config --services | grep -vP "solana|gas_tank|neon_test_invoke_program_loader")
+
+echo "CONST GAS PRICE VARIABLE IS: $USE_REAL_GAS_PRICE"
+if [[ -n $USE_REAL_GAS_PRICE ]] && [[ $USE_REAL_GAS_PRICE -eq "1" ]]; then
+  # remove some variables for economy (test)
+  sed -i '/CONST_GAS_PRICE/d' docker-compose-ci.yml
+else
+  # proxy tries to connect to solana devnet even if CONST_GAS_PRICE is set
+  sed -i '/PYTH_MAPPING_ACCOUNT/d' docker-compose-ci.override.yml
+  sed -i '/PP_SOLANA_URL/d' docker-compose-ci.override.yml
+fi
+
 
 # Pull latest versions
 docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml pull $SERVICES
@@ -93,7 +106,7 @@ function wait_service() {
   local DATA=$3
   local RESULT=$4
 
-  # Max attepts is 100 (each for 2 seconds)
+  # Max attempts is 100 (each for 2 seconds)
   local MAX_COUNT=100
   local CURRENT_ATTEMPT=1
 

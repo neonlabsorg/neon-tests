@@ -18,3 +18,8 @@ variable "ci_pp_solana_url" {
 variable "dockerhub_org_name" {
   type = string
 }
+
+variable "use_real_price" {
+  type = number
+  default = 0
+}
