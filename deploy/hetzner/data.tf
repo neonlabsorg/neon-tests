@@ -37,12 +37,12 @@ data "template_file" "solana_init" {
   template = file("solana_init.sh")
 
   vars = {
-    branch              = "${var.branch}"
-    proxy_model_commit  = "${var.proxy_model_commit}"
-    proxy_image_tag     = "${var.proxy_image_tag}"
-    neon_evm_commit     = "${var.neon_evm_commit}"
-    faucet_model_commit = "${var.faucet_model_commit}"
-    dockerhub_org_name  = "${var.dockerhub_org_name}"
+    branch              = var.branch
+    proxy_model_commit  = var.proxy_model_commit
+    proxy_image_tag     = var.proxy_image_tag
+    neon_evm_commit     = var.neon_evm_commit
+    faucet_model_commit = var.faucet_model_commit
+    dockerhub_org_name  = var.dockerhub_org_name
   }
 }
 
@@ -50,13 +50,14 @@ data "template_file" "proxy_init" {
   template = file("proxy_init.sh")
 
   vars = {
-    branch              = "${var.branch}"
-    proxy_model_commit  = "${var.proxy_model_commit}"
-    proxy_image_tag     = "${var.proxy_image_tag}"
+    branch              = var.branch
+    proxy_model_commit  = var.proxy_model_commit
+    proxy_image_tag     = var.proxy_image_tag
     solana_ip           = hcloud_server.solana.network.*.ip[0]
-    neon_evm_commit     = "${var.neon_evm_commit}"
-    faucet_model_commit = "${var.faucet_model_commit}"
-    ci_pp_solana_url    = "${var.ci_pp_solana_url}"
-    dockerhub_org_name  = "${var.dockerhub_org_name}"
+    neon_evm_commit     = var.neon_evm_commit
+    faucet_model_commit = var.faucet_model_commit
+    ci_pp_solana_url    = var.ci_pp_solana_url
+    dockerhub_org_name  = var.dockerhub_org_name
+    use_real_price      = var.use_real_price
   }
 }
