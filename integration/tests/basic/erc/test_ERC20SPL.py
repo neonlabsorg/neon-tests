@@ -480,12 +480,13 @@ class TestERC20SPLMintable(TestERC20SPL):
 
     def test_mint_by_no_minter_role(self, erc20_contract):
         recipient_account = self.accounts[1]
-        with pytest.raises(
-            web3.exceptions.ContractLogicError,
-            match="^0x118cdaa7",  # OwnableUnauthorizedAccount error
-        ):
+        try:
             erc20_contract.mint_tokens(recipient_account, recipient_account.address, 0)
-
+        except web3.exceptions.ContractLogicError as e:
+            assert "0x118cdaa7" in str(e)
+        else:
+            assert False, "No exception raised"
+            
     @pytest.mark.parametrize(
         "address_to, expected_exception, msg",
         [
