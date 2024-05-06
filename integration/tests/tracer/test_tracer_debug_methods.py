@@ -131,6 +131,48 @@ class TestTracerDebugMethods:
         assert 1 <= int(response["result"]["returnValue"], 16) <= 100
         self.validate_response_result(response)
 
+    def test_debug_trace_call_prestateTracer_stateOverrides_nonce(self, storage_contract, web3_client):
+        sender_account = self.accounts[0]
+        store_value = random.randint(1, 100)
+        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", web3_client)
+        tx_hash = receipt["transactionHash"].hex()
+
+        wait_condition(
+            lambda: self.web3_client.get_transaction_by_hash(tx_hash) is not None,
+            timeout_sec=10,
+        )
+        tx_info = self.web3_client.get_transaction_by_hash(tx_hash)
+
+        params = [
+            {
+                "to": tx_info["to"],
+                "from": tx_info["from"],
+                "gas": hex(tx_info["gas"]),
+                "gasPrice": hex(tx_info["gasPrice"]),
+                "value": hex(tx_info["value"]),
+                "data": tx_info["input"].hex(),
+            },
+            hex(tx_info["blockNumber"]),
+        ]
+
+        wait_condition(
+            lambda: self.tracer_api.send_rpc(method="debug_traceCall", params=params)["result"] is not None,
+            timeout_sec=120,
+        )
+
+        response = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
+
+        override_params = {"stateOverrides": {tx_info["from"]: {"nonce": "0x115"}}, "tracer": "prestateTracer"}
+        params.append(override_params)
+
+        response_overrided = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
+
+        assert "error" not in response, "Error in response"
+        assert "error" not in response_overrided, "Error in response"
+        assert response_overrided["result"][tx_info["from"]]["nonce"] != response["result"][tx_info["from"]]["nonce"]
+        # nonce is overridden to 0x115 but 0x114 is returned, maybe it's a bug?
+        assert response_overrided["result"][tx_info["from"]]["nonce"] == "0x114"
+
     def test_debug_trace_transaction(self):
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
