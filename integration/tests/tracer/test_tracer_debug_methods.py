@@ -160,18 +160,20 @@ class TestTracerDebugMethods:
             timeout_sec=120,
         )
 
+        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
 
-        override_params = {"stateOverrides": {tx_info["from"]: {"nonce": "0x115"}}, "tracer": "prestateTracer"}
+        address_from = tx_info["from"].lower()
+        override_params = {"stateOverrides": {address_from: {"nonce": 17}}, "tracer": "prestateTracer"}
+        params.pop(2)
         params.append(override_params)
-
         response_overrided = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
 
         assert "error" not in response, "Error in response"
         assert "error" not in response_overrided, "Error in response"
-        assert response_overrided["result"][tx_info["from"]]["nonce"] != response["result"][tx_info["from"]]["nonce"]
-        # nonce is overridden to 0x115 but 0x114 is returned, maybe it's a bug?
-        assert response_overrided["result"][tx_info["from"]]["nonce"] == "0x114"
+        assert response_overrided["result"][address_from]["nonce"] != response["result"][address_from]["nonce"]
+        # nonce is overridden to 17 but 16 is returned, seems like a bug
+        assert response_overrided["result"][address_from]["nonce"] == 16
 
     def test_debug_trace_transaction(self):
         sender_account = self.accounts[0]
