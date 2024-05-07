@@ -16,6 +16,7 @@ COUNTER_ID: PublicKey = PublicKey("4RJAXLPq1HrXWP4zFrMhvB5drrzqrRFwaRVNUnALcaeh"
 TRANSFER_SOL_ID: PublicKey = PublicKey("6x9dAYQehxXLh16EHAKXevnQADTZPKP6ZT4t8BfNDxtB")
 TRANSFER_TOKENS_ID: PublicKey = PublicKey("BFsGPJUwgE1rz4eoL322HaKZYNZ5wDLafwYtKwomv2XF")
 
+
 class Time:
     MINUTE = 60
     HOUR = 60 * MINUTE
@@ -39,11 +40,10 @@ class Unit(Enum):
 
 
 class InputTestConstants(Enum):
-    NEW_USER_REQUEST_AMOUNT = 20
+    NEW_USER_REQUEST_AMOUNT = 200
     DEFAULT_TRANSFER_AMOUNT = 0.1
     SAMPLE_AMOUNT = 0.5
     ROUND_DIGITS = 3
-
 
 
 wSOL = {

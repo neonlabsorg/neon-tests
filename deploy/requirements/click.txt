@@ -13,3 +13,5 @@ rlp==3.0.0
 python-terraform==0.10.1
 allure-pytest==2.9.45
 uv==0.1.13
+packaging==24.0
+deepdiff==7.0.1

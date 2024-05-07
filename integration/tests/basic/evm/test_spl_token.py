@@ -198,6 +198,7 @@ class TestPrecompiledSplToken:
         mint = log["args"]["value"]
         assert Mint(spl_token_caller.functions.getMint(mint).call()).is_initialized is True
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_initialize_acc_incorrect_mint(self, spl_token_caller):
         sender_account = self.accounts[1]
         tx = self.web3_client.make_raw_tx(sender_account)
@@ -250,6 +251,7 @@ class TestPrecompiledSplToken:
         assert account_info.owner == ZERO_HASH
         assert account_info.state == 0
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_close_non_initialized_acc(self, non_initialized_acc, spl_token_caller):
         tx = self.web3_client.make_raw_tx(non_initialized_acc)
         with pytest.raises(web3.exceptions.ContractLogicError, match=ErrorMessage.INVALID_ACC_DATA.value):
@@ -281,6 +283,7 @@ class TestPrecompiledSplToken:
 
         assert self.get_account(spl_token_caller, bob).state == 1
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_freeze_non_initialized_account(self, spl_token_caller, non_initialized_acc, token_mint):
         tx = self.web3_client.make_raw_tx(non_initialized_acc)
         with pytest.raises(web3.exceptions.ContractLogicError, match=ErrorMessage.INVALID_ACC_DATA.value):
@@ -298,6 +301,7 @@ class TestPrecompiledSplToken:
         except ValueError as e:
             assert ErrorMessage.INVALID_ACC_DATA.value in str(e)
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_freeze_non_initialized_token(self, spl_token_caller, non_initialized_token_mint):
         new_account = self.accounts.create_account()
 
@@ -324,6 +328,7 @@ class TestPrecompiledSplToken:
         except ValueError as e:
             assert "This token mint cannot freeze accounts" in str(e)
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_freeze_with_not_associated_mint(self, spl_token_caller, bob, non_initialized_token_mint):
         tx = self.web3_client.make_raw_tx(bob)
         with pytest.raises(web3.exceptions.ContractLogicError, match="custom program error: 0x3"):
@@ -341,6 +346,7 @@ class TestPrecompiledSplToken:
         except ValueError as e:
             assert "Error: Account not associated with this Mint" in str(e)
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_thaw_non_initialized_account(self, spl_token_caller, non_initialized_acc, token_mint):
         tx = self.web3_client.make_raw_tx(non_initialized_acc)
         with pytest.raises(web3.exceptions.ContractLogicError, match=ErrorMessage.INVALID_ACC_DATA.value):
@@ -358,6 +364,7 @@ class TestPrecompiledSplToken:
         except ValueError as e:
             assert ErrorMessage.INVALID_ACC_DATA.value in str(e)
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_thaw_non_freezed_account(self, spl_token_caller, bob, token_mint):
         tx = self.web3_client.make_raw_tx(bob)
         with pytest.raises(web3.exceptions.ContractLogicError, match="custom program error: 0xd"):
@@ -383,6 +390,7 @@ class TestPrecompiledSplToken:
         assert receipt["status"] == 1
         assert self.get_account(spl_token_caller, bob).amount == amount
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_mint_to_non_initialized_acc(self, spl_token_caller, token_mint, non_initialized_acc):
         tx = self.web3_client.make_raw_tx(non_initialized_acc)
         with pytest.raises(web3.exceptions.ContractLogicError, match=ErrorMessage.INVALID_ACC_DATA.value):
@@ -400,6 +408,7 @@ class TestPrecompiledSplToken:
         except ValueError as e:
             assert ErrorMessage.INVALID_ACC_DATA.value in str(e)
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_mint_to_non_initialized_token(self, spl_token_caller, non_initialized_token_mint):
         new_account = self.accounts.create_account()
 
@@ -447,6 +456,7 @@ class TestPrecompiledSplToken:
         assert b2_after - b2_before == amount
         assert b1_before - b1_after == amount
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_transfer_to_non_initialized_acc(self, spl_token_caller, token_mint, bob, non_initialized_acc):
         amount = 100
         tx = self.web3_client.make_raw_tx(bob)
@@ -482,6 +492,7 @@ class TestPrecompiledSplToken:
         with pytest.raises(TypeError, match=r"from field must match key's .*, but it was "):
             self.web3_client.send_transaction(alice, instruction_tx)
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_transfer_more_than_balance(self, spl_token_caller, token_mint, bob, alice):
         transfer_amount = self.get_account(spl_token_caller, bob).amount + 1
 
@@ -516,6 +527,7 @@ class TestPrecompiledSplToken:
         balance_after = self.get_account(spl_token_caller, bob).amount
         assert balance_before - balance_after == amount
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_burn_non_initialized_acc(self, spl_token_caller, token_mint, non_initialized_acc):
         tx = self.web3_client.make_raw_tx(non_initialized_acc)
         with pytest.raises(web3.exceptions.ContractLogicError, match=ErrorMessage.INVALID_ACC_DATA.value):
@@ -533,6 +545,7 @@ class TestPrecompiledSplToken:
         except ValueError as e:
             assert ErrorMessage.INVALID_ACC_DATA.value in str(e)
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_burn_more_then_balance(self, spl_token_caller, token_mint, bob):
         amount = self.get_account(spl_token_caller, bob).amount + 1
 

@@ -3,10 +3,13 @@ import re
 
 import allure
 import pytest
+import solana
+from solana.rpc.core import RPCException
 
 from integration.tests.basic.helpers.assert_message import ErrorMessage
 from integration.tests.basic.helpers.rpc_checks import is_hex
 from utils.accounts import EthAccounts
+from utils.solana_client import SolanaClient
 from utils.web3client import NeonChainWeb3Client
 from utils.helpers import gen_hash_of_block
 

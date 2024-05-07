@@ -6,7 +6,7 @@ concurrency:
   cancel-in-progress: true
 on:
   schedule:
-    - cron: "41 3 * * *"
+    - cron: "41 3 * * 2,5"
   workflow_dispatch:
     inputs:
       network:

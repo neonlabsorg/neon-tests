@@ -10,11 +10,14 @@ import allure
 import base58
 import pytest
 from _pytest.config import Config
+from packaging import version
 from solana.keypair import Keypair
 from solana.publickey import PublicKey
 from solana.rpc import commitment
 from solana.rpc.types import TxOpts
 
+from clickfile import network_manager
+from utils import web3client
 from utils.apiclient import JsonRPCSession
 from utils.consts import LAMPORT_PER_SOL, MULTITOKEN_MINTS
 from utils.erc20 import ERC20
@@ -33,6 +36,19 @@ def pytest_collection_modifyitems(config, items):
     deselected_marks = []
     network_name = config.getoption("--network")
 
+    settings = network_manager.get_network_object(network_name)
+    web3_client = web3client.NeonChainWeb3Client(settings["proxy_url"])
+
+
+    raw_proxy_version = web3_client.get_proxy_version()["result"]
+    if "Neon-proxy/" in raw_proxy_version:
+        raw_proxy_version = raw_proxy_version.split("Neon-proxy/")[1].strip()
+    proxy_dev = "dev" in raw_proxy_version
+
+    if "-" in raw_proxy_version:
+        raw_proxy_version = raw_proxy_version.split("-")[0].strip()
+    proxy_version = version.parse(raw_proxy_version)
+
     if network_name == "devnet":
         deselected_marks.append("only_stands")
     else:
@@ -49,9 +65,20 @@ def pytest_collection_modifyitems(config, items):
         deselected_marks.append("multipletokens")
 
     for item in items:
+        raw_item_pv = [mark.args[0] for mark in item.iter_markers(name="proxy_version")]
+        select_item = True
+
         if any([item.get_closest_marker(mark) for mark in deselected_marks]):
             deselected_items.append(item)
-        else:
+            select_item = False
+        elif len(raw_item_pv) > 0:
+            item_proxy_version = version.parse(raw_item_pv[0])
+
+            if not proxy_dev and item_proxy_version > proxy_version:
+                deselected_items.append(item)
+                select_item = False
+
+        if select_item:
             selected_items.append(item)
 
     config.hook.pytest_deselected(items=deselected_items)
@@ -121,6 +148,7 @@ def operator(pytestconfig: Config, web3_client_session: NeonChainWeb3Client) -> 
 
 @pytest.fixture(scope="session")
 def bank_account(pytestconfig: Config) -> tp.Optional[Keypair]:
+
     account = None
     if pytestconfig.environment.use_bank:
         if pytestconfig.getoption("--network") == "devnet":
@@ -145,6 +173,7 @@ def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Optional[K
 @pytest.fixture(scope="session")
 def solana_account(bank_account, pytestconfig: Config, sol_client_session):
     account = Keypair.generate()
+
     if pytestconfig.environment.use_bank:
         sol_client_session.send_sol(bank_account, account.public_key, int(0.5 * LAMPORT_PER_SOL))
     else:
@@ -346,6 +375,41 @@ def event_caller_contract(web3_client, accounts) -> tp.Any:
     event_caller, _ = web3_client.deploy_and_get_contract("common/EventCaller", "0.8.12", accounts[0])
     yield event_caller
 
+
+@pytest.fixture(scope="class")
+def tracer_caller_contract(web3_client, accounts) -> tp.Any:
+    contract, _ = web3_client.deploy_and_get_contract(
+        "common/tracer/ContractCaller", "0.8.15", account=accounts[0]
+    )
+    yield contract
+
+
+@pytest.fixture(scope="class")
+def tracer_callee_contract_address(web3_client, accounts) -> tp.Any:
+    _, contract_deploy_tx = web3_client.deploy_and_get_contract(
+        "common/tracer/ContractCallee", "0.8.15", account=accounts[0]
+    )
+    return contract_deploy_tx["contractAddress"]
+
+
+@pytest.fixture(scope="class")
+def opcodes_checker(web3_client, accounts):
+    contract, _ = web3_client.deploy_and_get_contract(
+        "opcodes/BaseOpCodes", "0.5.16", accounts[0], contract_name="BaseOpCodes"
+    )
+    return contract
+    
+
+@pytest.fixture(scope="class")
+def eip1052_checker(web3_client, accounts):
+    contract, _ = web3_client.deploy_and_get_contract(
+        "EIPs/EIP1052Extcodehash",
+        "0.8.10",
+        accounts[0],
+        contract_name="EIP1052Checker",
+    )
+    return contract
+    
 
 @pytest.fixture(scope="class")
 def wsol(web3_client_sol, class_account_sol_chain):

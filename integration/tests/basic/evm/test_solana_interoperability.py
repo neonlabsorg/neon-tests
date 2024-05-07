@@ -14,8 +14,7 @@ from utils.helpers import serialize_instruction
 from utils.web3client import NeonChainWeb3Client
 
 
-
-
+@pytest.mark.proxy_version("v1.12.0")
 @allure.feature("EVM tests")
 @allure.story("Verify precompiled solana call contract")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client_session")
@@ -57,8 +56,6 @@ class TestSolanaInteroperability:
         instruction_tx = call_solana_caller.functions.execute(lamports, serialized).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
-
-
 
     def test_transfer_with_pda_signature(self, call_solana_caller, sol_client, solana_account):
         sender = self.accounts[0]
@@ -112,8 +109,6 @@ class TestSolanaInteroperability:
         assert resp["status"] == 1
         assert int(mint.get_balance(to_token_account, commitment=Confirmed).value.amount) == amount
 
-
-
     def test_transfer_tokens_with_ext_authority(self, call_solana_caller, sol_client):
         sender = self.accounts[0]
         from_wallet = Keypair.generate()
@@ -137,17 +132,20 @@ class TestSolanaInteroperability:
             opts=TxOpts(skip_confirmation=False, skip_preflight=True),
         )
 
-        seed = self.web3_client.text_to_bytes32('myseed')
+        seed = self.web3_client.text_to_bytes32("myseed")
         authority = call_solana_caller.functions.getExtAuthority(seed).call({"from": sender.address})
 
-        mint.set_authority(from_token_account,
-                           from_wallet,
-                           spl.token.instructions.AuthorityType.ACCOUNT_OWNER,
-                           authority,
-                           opts=TxOpts(skip_confirmation=False, skip_preflight=True))
+        mint.set_authority(
+            from_token_account,
+            from_wallet,
+            spl.token.instructions.AuthorityType.ACCOUNT_OWNER,
+            authority,
+            opts=TxOpts(skip_confirmation=False, skip_preflight=True),
+        )
 
         instruction = transfer(
-            TransferParams(TOKEN_PROGRAM_ID, from_token_account, to_token_account, authority, amount))
+            TransferParams(TOKEN_PROGRAM_ID, from_token_account, to_token_account, authority, amount)
+        )
 
         serialized = serialize_instruction(TOKEN_PROGRAM_ID, instruction)
 

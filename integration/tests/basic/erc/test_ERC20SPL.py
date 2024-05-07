@@ -508,7 +508,6 @@ class TestERC20SPLMintable(TestERC20SPL):
         else:
             assert False, "No exception raised"
 
-
     @pytest.mark.parametrize(
         "address_to, expected_exception, msg",
         [

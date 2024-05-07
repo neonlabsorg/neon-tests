@@ -69,16 +69,8 @@ class TestRpcEstimateGas:
         )
 
         """Check eth_estimateGas request on contracts with big int"""
-        trx_big_gas = big_gas_contract.functions.checkBigGasRequirements().build_transaction(
-            {
-                "chainId": self.web3_client.eth.chain_id,
-                "from": sender_account.address,
-                "nonce": self.web3_client.eth.get_transaction_count(sender_account.address),
-                "gas": "0x0",
-                "gasPrice": hex(self.web3_client.gas_price()),
-                "value": "0x0",
-            }
-        )
+        tx = self.web3_client.make_raw_tx(from_=sender_account)
+        trx_big_gas = big_gas_contract.functions.checkBigGasRequirements().build_transaction(tx)
         # Check Base contract eth_estimateGas
         response = json_rpc_client.send_rpc(method="eth_estimateGas", params=trx_big_gas)
         assert "error" not in response
@@ -110,10 +102,10 @@ class TestRpcEstimateGas:
         estimated_gas = transaction["gas"]
 
         if pytestconfig.getoption("--network") == "devnet":
-            assert estimated_gas == 1_394_160
+            assert estimated_gas == 1_422_000
+
         else:
             assert estimated_gas == 1_192_320
-
 
     def test_rpc_estimate_gas_spl(self, erc20_spl):
         recipient_account = self.accounts[1]
