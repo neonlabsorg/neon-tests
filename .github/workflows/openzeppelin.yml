@@ -25,7 +25,7 @@ on:
         default: latest
 
 env:
-  JOBS_NUMBER: ${{ github.event.inputs.jobsNumber || '8' }}
+  JOBS_NUMBER: ${{ github.event.inputs.jobsNumber || '16' }}
   NETWORK: ${{ github.event.inputs.network || 'night-stand' }}
   IMAGE:  neonlabsorg/neon_tests
   CONTAINER:  oz-${{ github.run_id }}
