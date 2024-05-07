@@ -1,16 +1,13 @@
-import time
-
-import allure
 import pytest
 import solcx
 import web3
 import web3.exceptions
-from eth_utils import keccak
 from semantic_version import Version
 
+import allure
 from integration.tests.basic.helpers.assert_message import ErrorMessage
-from utils.helpers import get_contract_abi, cryptohex, int_to_hex
 from utils.accounts import EthAccounts
+from utils.helpers import cryptohex, get_contract_abi, int_to_hex
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -21,6 +18,18 @@ def revert_contract(web3_client, accounts):
         version="0.8.10",
         contract_name="TrivialRevert",
         account=accounts[0],
+    )
+    yield contract
+
+
+@pytest.fixture(scope="class")
+def revert_contract_caller(web3_client, accounts, revert_contract):
+    contract, _ = web3_client.deploy_and_get_contract(
+        contract="common/Revert",
+        version="0.8.10",
+        contract_name="Caller",
+        account=accounts[0],
+        constructor_args=[revert_contract.address],
     )
     yield contract
 
@@ -132,3 +141,18 @@ class TestContractReverting:
     def test_assert_revert(self, revert_contract):
         with pytest.raises(web3.exceptions.ContractPanicError, match="Panic error 0x01: Assert evaluates to false"):
             revert_contract.functions.doAssert().call()
+
+    def test_custom_error_revert_caller(self, revert_contract_caller):
+        """NDEV-1532"""
+        params = [1, 2]
+
+        with pytest.raises(
+            web3.exceptions.ContractCustomError,
+            match=cryptohex("NumberTooHigh(uint256,uint256)")[:10] + int_to_hex(params[0]) + int_to_hex(params[1]),
+        ):
+            revert_contract_caller.functions.doCustomErrorRevert(params[0], params[1]).build_transaction()
+
+    def test_assert_revert_caller(self, revert_contract_caller):
+        """NDEV-1532"""
+        with pytest.raises(web3.exceptions.ContractPanicError, match="Panic error 0x01: Assert evaluates to false"):
+            revert_contract_caller.functions.doAssert().call()

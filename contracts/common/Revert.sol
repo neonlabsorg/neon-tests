@@ -33,4 +33,12 @@ contract Caller {
     function doStringBasedRevert() public view {
         return myRevert.doStringBasedRevert();
     }
+
+    function doCustomErrorRevert(uint256 from, uint256 number) public view {
+        return myRevert.customErrorRevert(from, number);
+    }
+
+    function doAssert() public view {
+        return myRevert.doAssert();
+    }
 }
