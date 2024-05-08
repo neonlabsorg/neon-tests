@@ -30,6 +30,10 @@ contract Caller {
         myRevert = TrivialRevert(_address);
     }
 
+    function doTrivialRevert() public  view {
+        return  myRevert.doTrivialRevert();
+    }
+
     function doStringBasedRevert() public view {
         return myRevert.doStringBasedRevert();
     }
@@ -40,5 +44,9 @@ contract Caller {
 
     function doAssert() public view {
         return myRevert.doAssert();
+    }
+
+    function makeDeposit() public payable {
+        myRevert.deposit{value: msg.value}();
     }
 }
