@@ -1,7 +1,7 @@
 import time
 import typing as tp
 import random
-import json 
+
 from requests import Session
 
 
@@ -27,7 +27,6 @@ class JsonRPCSession(Session):
                 params = [params]
             body["params"] = params
 
-        print(json.dumps(body))
         resp = self.post(self.url, json=body, timeout=60)
         response_body = resp.json()
         if "result" not in response_body and "error" not in response_body:
