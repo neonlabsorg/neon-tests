@@ -122,50 +122,6 @@ class TestTracerDebugMethods:
         assert 1 <= int(response["result"]["returnValue"], 16) <= 100
         self.validate_response_result(response)
 
-    def test_debug_trace_call_prestateTracer_stateOverrides_nonce(self, storage_contract, web3_client):
-        sender_account = self.accounts[0]
-        store_value = random.randint(1, 100)
-        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", web3_client)
-        tx_hash = receipt["transactionHash"].hex()
-
-        wait_condition(
-            lambda: self.web3_client.get_transaction_by_hash(tx_hash) is not None,
-            timeout_sec=10,
-        )
-        tx_info = self.web3_client.get_transaction_by_hash(tx_hash)
-
-        params = [
-            {
-                "to": tx_info["to"],
-                "from": tx_info["from"],
-                "gas": hex(tx_info["gas"]),
-                "gasPrice": hex(tx_info["gasPrice"]),
-                "value": hex(tx_info["value"]),
-                "data": tx_info["input"].hex(),
-            },
-            hex(tx_info["blockNumber"]),
-        ]
-
-        wait_condition(
-            lambda: self.tracer_api.send_rpc(method="debug_traceCall", params=params)["result"] is not None,
-            timeout_sec=120,
-        )
-
-        params.append({"tracer": "prestateTracer"})
-        response = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
-
-        address_from = tx_info["from"].lower()
-        override_params = {"stateOverrides": {address_from: {"nonce": 17}}, "tracer": "prestateTracer"}
-        params.pop(2)
-        params.append(override_params)
-        response_overrided = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
-
-        assert "error" not in response, "Error in response"
-        assert "error" not in response_overrided, "Error in response"
-        assert response_overrided["result"][address_from]["nonce"] != response["result"][address_from]["nonce"]
-        # nonce is overridden to 17 but 16 is returned, seems like a bug
-        assert response_overrided["result"][address_from]["nonce"] == 16
-
     def test_debug_trace_transaction(self):
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]

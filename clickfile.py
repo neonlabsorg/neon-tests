@@ -544,7 +544,7 @@ def run(name, jobs, numprocesses, ui_item, amount, users, network):
         if numprocesses:
             command = f"{command} --numprocesses {numprocesses} --dist loadgroup"
     elif name == "tracer":
-        command = "py.test integration/tests/tracer -vk test_debug_trace_call_prestateTracer_stateOverrides_nonce"
+        command = "py.test integration/tests/tracer -vk test_stateOverrides_debug_traceCall_override_nonce"
     elif name == "services":
         command = "py.test integration/tests/services"
         if numprocesses:
