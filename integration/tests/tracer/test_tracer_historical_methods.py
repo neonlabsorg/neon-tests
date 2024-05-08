@@ -21,6 +21,7 @@ def store_value(sender_account, value, storage_contract, web3_client):
     )
     receipt = web3_client.send_transaction(sender_account, instruction_tx)
     assert receipt["status"] == 1
+    return receipt
 
 
 def retrieve_value(sender_account, storage_contract, web3_client):

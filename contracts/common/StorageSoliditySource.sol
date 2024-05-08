@@ -6,6 +6,7 @@ pragma solidity >=0.4.0;
  */
 contract Storage {
     uint256 number;
+    uint256[] public values;
 
     /**
      * @dev Stores value in variable
@@ -13,6 +14,7 @@ contract Storage {
      */
     function store(uint256 num) public {
         number = num;
+        values = [number];
     }
 
     /**
