@@ -11,29 +11,6 @@ from utils.helpers import cryptohex, get_contract_abi, int_to_hex
 from utils.web3client import NeonChainWeb3Client
 
 
-@pytest.fixture(scope="class")
-def revert_contract(web3_client, accounts):
-    contract, _ = web3_client.deploy_and_get_contract(
-        contract="common/Revert",
-        version="0.8.10",
-        contract_name="TrivialRevert",
-        account=accounts[0],
-    )
-    yield contract
-
-
-@pytest.fixture(scope="class")
-def revert_contract_caller(web3_client, accounts, revert_contract):
-    contract, _ = web3_client.deploy_and_get_contract(
-        contract="common/Revert",
-        version="0.8.10",
-        contract_name="Caller",
-        account=accounts[0],
-        constructor_args=[revert_contract.address],
-    )
-    yield contract
-
-
 @allure.feature("Ethereum compatibility")
 @allure.story("Contract Reverting")
 @pytest.mark.usefixtures("accounts", "web3_client")
@@ -156,3 +133,9 @@ class TestContractReverting:
         """NDEV-1532"""
         with pytest.raises(web3.exceptions.ContractPanicError, match="Panic error 0x01: Assert evaluates to false"):
             revert_contract_caller.functions.doAssert().call()
+
+    def test_assert_revert_transaction_caller(self, revert_contract_caller):
+        """NDEV-1532"""
+        tx = self.web3_client.make_raw_tx(self.accounts[0])
+        with pytest.raises(web3.exceptions.ContractPanicError, match="Panic error 0x01: Assert evaluates to false"):
+            revert_contract_caller.functions.doAssert().build_transaction(tx)

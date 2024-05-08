@@ -39,7 +39,6 @@ def pytest_collection_modifyitems(config, items):
     settings = network_manager.get_network_object(network_name)
     web3_client = web3client.NeonChainWeb3Client(settings["proxy_url"])
 
-
     raw_proxy_version = web3_client.get_proxy_version()["result"]
     if "Neon-proxy/" in raw_proxy_version:
         raw_proxy_version = raw_proxy_version.split("Neon-proxy/")[1].strip()
@@ -148,7 +147,6 @@ def operator(pytestconfig: Config, web3_client_session: NeonChainWeb3Client) -> 
 
 @pytest.fixture(scope="session")
 def bank_account(pytestconfig: Config) -> tp.Optional[Keypair]:
-
     account = None
     if pytestconfig.environment.use_bank:
         if pytestconfig.getoption("--network") == "devnet":
@@ -378,9 +376,7 @@ def event_caller_contract(web3_client, accounts) -> tp.Any:
 
 @pytest.fixture(scope="class")
 def tracer_caller_contract(web3_client, accounts) -> tp.Any:
-    contract, _ = web3_client.deploy_and_get_contract(
-        "common/tracer/ContractCaller", "0.8.15", account=accounts[0]
-    )
+    contract, _ = web3_client.deploy_and_get_contract("common/tracer/ContractCaller", "0.8.15", account=accounts[0])
     yield contract
 
 
@@ -398,7 +394,7 @@ def opcodes_checker(web3_client, accounts):
         "opcodes/BaseOpCodes", "0.5.16", accounts[0], contract_name="BaseOpCodes"
     )
     return contract
-    
+
 
 @pytest.fixture(scope="class")
 def eip1052_checker(web3_client, accounts):
@@ -409,7 +405,7 @@ def eip1052_checker(web3_client, accounts):
         contract_name="EIP1052Checker",
     )
     return contract
-    
+
 
 @pytest.fixture(scope="class")
 def wsol(web3_client_sol, class_account_sol_chain):
@@ -452,6 +448,29 @@ def storage_contract_with_deploy_tx(web3_client, accounts) -> tp.Any:
         constructor_args=[],
     )
     yield contract, contract_deploy_tx
+
+
+@pytest.fixture(scope="class")
+def revert_contract(web3_client, accounts):
+    contract, _ = web3_client.deploy_and_get_contract(
+        contract="common/Revert",
+        version="0.8.10",
+        contract_name="TrivialRevert",
+        account=accounts[0],
+    )
+    yield contract
+
+
+@pytest.fixture(scope="class")
+def revert_contract_caller(web3_client, accounts, revert_contract):
+    contract, _ = web3_client.deploy_and_get_contract(
+        contract="common/Revert",
+        version="0.8.10",
+        contract_name="Caller",
+        account=accounts[0],
+        constructor_args=[revert_contract.address],
+    )
+    yield contract
 
 
 @pytest.fixture(scope="session")
