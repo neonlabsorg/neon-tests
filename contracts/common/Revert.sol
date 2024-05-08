@@ -23,15 +23,24 @@ contract TrivialRevert {
     function deposit() payable external {}
 }
 
+
+contract FailingContract {
+    constructor(bool shouldFail) {
+        require(!shouldFail, "Constructor intentionally failed.");
+    }
+}
+
+
 contract Caller {
     TrivialRevert public myRevert;
+    FailingContract public deployedContract;
 
     constructor(address _address) {
         myRevert = TrivialRevert(_address);
     }
 
     function doTrivialRevert() public  view {
-        return  myRevert.doTrivialRevert();
+        return myRevert.doTrivialRevert();
     }
 
     function doStringBasedRevert() public view {
@@ -46,7 +55,8 @@ contract Caller {
         return myRevert.doAssert();
     }
 
-    function makeDeposit() public payable {
-        myRevert.deposit{value: msg.value}();
+    function deployContract() public {
+        new FailingContract(true);
     }
+    
 }

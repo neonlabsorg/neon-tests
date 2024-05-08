@@ -119,67 +119,94 @@ class TestContractReverting:
         with pytest.raises(web3.exceptions.ContractPanicError, match="Panic error 0x01: Assert evaluates to false"):
             revert_contract.functions.doAssert().call()
 
-    def test_method_raises_string_based_error_transaction_caller(self, revert_contract_caller):
-        """NDEV-1532"""
-        tx = self.web3_client.make_raw_tx(self.accounts[0])
-
-        with pytest.raises(web3.exceptions.ContractLogicError, match="execution reverted: Predefined revert happened"):
-            revert_contract_caller.functions.doStringBasedRevert().build_transaction(tx)
-
     def test_method_raises_string_based_error_caller(self, revert_contract_caller):
-        """NDEV-1532"""
         with pytest.raises(
             web3.exceptions.ContractLogicError,
             match="execution reverted: Predefined revert happened",
         ):
             revert_contract_caller.functions.doStringBasedRevert().call()
 
-    def test_method_raises_trivial_error_transaction_caller(self, revert_contract_caller):
+    def test_method_raises_string_based_error_tx_caller(self, revert_contract_caller):
         tx = self.web3_client.make_raw_tx(self.accounts[0])
+        with pytest.raises(web3.exceptions.ContractLogicError, match="execution reverted: Predefined revert happened"):
+            revert_contract_caller.functions.doStringBasedRevert().build_transaction(tx)
 
-        with pytest.raises(web3.exceptions.ContractLogicError, match="execution reverted"):
-            revert_contract_caller.functions.doTrivialRevert().build_transaction(tx)
+    def test_method_raises_string_based_error_tx_with_gas_caller(self, revert_contract_caller):
+        sender_account = self.accounts[0]
+        tx = self.web3_client.make_raw_tx(sender_account, gas=10000000)
+        instruction_tx = revert_contract_caller.functions.doStringBasedRevert().build_transaction(tx)
+        assert self.web3_client.send_transaction(sender_account, instruction_tx)["status"] == 0
 
     def test_method_raises_trivial_error_caller(self, revert_contract_caller):
         with pytest.raises(web3.exceptions.ContractLogicError, match="execution reverted"):
             revert_contract_caller.functions.doTrivialRevert().call()
 
-    def test_custom_error_revert_transaction_caller(self, revert_contract_caller):
-        """NDEV-1532"""
-        params = [1, 2]
+    def test_method_raises_trivial_error_tx_caller(self, revert_contract_caller):
+        tx = self.web3_client.make_raw_tx(self.accounts[0])
+        with pytest.raises(web3.exceptions.ContractLogicError, match="execution reverted"):
+            revert_contract_caller.functions.doTrivialRevert().build_transaction(tx)
 
-        with pytest.raises(
-            web3.exceptions.ContractCustomError,
-            match=cryptohex("NumberTooHigh(uint256,uint256)")[:10] + int_to_hex(params[0]) + int_to_hex(params[1]),
-        ):
-            revert_contract_caller.functions.doCustomErrorRevert(params[0], params[1]).build_transaction()
+    def test_method_raises_trivial_error_tx_with_gas_caller(self, revert_contract_caller):
+        sender_account = self.accounts[0]
+        tx = self.web3_client.make_raw_tx(sender_account, gas=10000000)
+        instruction_tx = revert_contract_caller.functions.doTrivialRevert().build_transaction(tx)
+        assert self.web3_client.send_transaction(sender_account, instruction_tx)["status"] == 0
 
     def test_custom_error_revert_caller(self, revert_contract_caller):
-        """NDEV-1532"""
         params = [1, 2]
-
         with pytest.raises(
             web3.exceptions.ContractCustomError,
             match=cryptohex("NumberTooHigh(uint256,uint256)")[:10] + int_to_hex(params[0]) + int_to_hex(params[1]),
         ):
             revert_contract_caller.functions.doCustomErrorRevert(params[0], params[1]).call()
 
+    def test_custom_error_revert_tx_caller(self, revert_contract_caller):
+        params = [1, 2]
+        with pytest.raises(
+            web3.exceptions.ContractCustomError,
+            match=cryptohex("NumberTooHigh(uint256,uint256)")[:10] + int_to_hex(params[0]) + int_to_hex(params[1]),
+        ):
+            revert_contract_caller.functions.doCustomErrorRevert(params[0], params[1]).build_transaction()
+
+    def test_custom_error_revert_tx_with_gas_caller(self, revert_contract_caller):
+        params = [1, 2]
+        sender_account = self.accounts[0]
+        tx = self.web3_client.make_raw_tx(sender_account, gas=10000000)
+        instruction_tx = revert_contract_caller.functions.doCustomErrorRevert(params[0], params[1]).build_transaction(
+            tx
+        )
+        assert self.web3_client.send_transaction(sender_account, instruction_tx)["status"] == 0
+
     def test_assert_revert_caller(self, revert_contract_caller):
-        """NDEV-1532"""
         with pytest.raises(web3.exceptions.ContractPanicError, match="Panic error 0x01: Assert evaluates to false"):
             revert_contract_caller.functions.doAssert().call()
 
-    def test_assert_revert_transaction_caller(self, revert_contract_caller):
-        """NDEV-1532"""
+    def test_assert_revert_tx_caller(self, revert_contract_caller):
         tx = self.web3_client.make_raw_tx(self.accounts[0])
         with pytest.raises(web3.exceptions.ContractPanicError, match="Panic error 0x01: Assert evaluates to false"):
             revert_contract_caller.functions.doAssert().build_transaction(tx)
 
-    def test_non_zero_ether_transaction_caller(self, revert_contract_caller):
-        """NDEV-1532"""
+    def test_assert_revert_tx_with_gas_caller(self, revert_contract_caller):
         sender_account = self.accounts[0]
-        tx = self.web3_client.make_raw_tx(sender_account, amount=1)
-        tx["gas"] = 1
-        instruction_tx = revert_contract_caller.functions.makeDeposit().build_transaction(tx)
-        with pytest.raises(ValueError, match=ErrorMessage.GAS_LIMIT_REACHED.value):
-            self.web3_client.send_transaction(sender_account, instruction_tx)
+        tx = self.web3_client.make_raw_tx(sender_account, gas=10000000)
+        instruction_tx = revert_contract_caller.functions.doAssert().build_transaction(tx)
+        assert self.web3_client.send_transaction(sender_account, instruction_tx)["status"] == 0
+
+    def test_deploy_failed_contract_caller(self, revert_contract_caller):
+        with pytest.raises(
+            web3.exceptions.ContractLogicError, match="'execution reverted: Constructor intentionally failed"
+        ):
+            revert_contract_caller.functions.deployContract().call()
+
+    def test_deploy_failed_contract_tx_caller(self, revert_contract_caller):
+        tx = self.web3_client.make_raw_tx(self.accounts[0])
+        with pytest.raises(
+            web3.exceptions.ContractLogicError, match="'execution reverted: Constructor intentionally failed"
+        ):
+            revert_contract_caller.functions.deployContract().build_transaction(tx)
+
+    def test_deploy_failed_contract_tx_with_gas_caller(self, revert_contract_caller):
+        sender_account = self.accounts[0]
+        tx = self.web3_client.make_raw_tx(sender_account, gas=10000000)
+        instruction_tx = revert_contract_caller.functions.deployContract().build_transaction(tx)
+        assert self.web3_client.send_transaction(sender_account, instruction_tx)["status"] == 0
