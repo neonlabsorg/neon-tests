@@ -248,24 +248,29 @@ class TestNonce:
         """
         account = self.accounts[0]
         contract_a, _ = self.web3_client.deploy_and_get_contract(
-            contract="EIPs/EIP161/contract_a_function.sol", version="0.8.12", account=account, contract_name="ContractA"
+            contract="EIPs/EIP161/contract_a_function.sol",
+            version="0.8.12",
+            account=account,
+            contract_name="ContractA",
         )
 
         contract_a_nonce_initial = self.web3_client.get_nonce(contract_a.address)
-        msg = f"Contract has nonce {contract_a_nonce_initial} right after deployment"
+        msg = f"ContractA has nonce {contract_a_nonce_initial} right after deployment"
         assert contract_a_nonce_initial == 1, msg
 
-        tx_data = contract_a.functions.deploy_contract().build_transaction(
-            {
-                "from": account.address,
-                "nonce": self.web3_client.eth.get_transaction_count(account.address),
-                "gasPrice": self.web3_client.gas_price(),
-            }
+        tx = self.web3_client.make_raw_tx(account)
+        tx_data = contract_a.functions.deploy_contract().build_transaction(tx)
+
+        tx_receipt = self.web3_client.send_transaction(
+            account=account,
+            transaction=tx_data,
         )
-        signed_tx = self.web3_client.eth.account.sign_transaction(tx_data, account.key)
-        tx_hash = self.web3_client.eth.send_raw_transaction(signed_tx.rawTransaction)
-        self.web3_client.eth.wait_for_transaction_receipt(tx_hash)
 
         contract_a_nonce_after_deploy = self.web3_client.get_nonce(contract_a.address)
-        msg = f"Contract has nonce {contract_a_nonce_initial} right after deploying another contract"
+        msg = f"ContractA has nonce {contract_a_nonce_initial} right after deploying another contract"
         assert contract_a_nonce_after_deploy == 2, msg
+
+        contract_b_address = tx_receipt.logs[0].address
+        contract_b_nonce = self.web3_client.get_nonce(contract_b_address)
+        msg = f"ContractB has nonce {contract_b_nonce} right after deployment"
+        assert contract_b_nonce == 1, msg
