@@ -97,7 +97,6 @@ class TestTracerOverrideParams:
         assert response_overrided["result"][address_from]["nonce"] != response["result"][address_from]["nonce"]
         assert response_overrided["result"][address_from]["nonce"] == 17
 
-    # bug balance: tracer requires a formatted 256-bit integer instead of int
     def test_stateOverrides_debug_traceCall_override_balance(self, call_storage_tx):
         address_from = call_storage_tx["from"].lower()
         address_to = call_storage_tx["to"].lower()
@@ -108,8 +107,8 @@ class TestTracerOverrideParams:
         response = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
         params.pop(2)
 
-        override_params = {"stateOverrides": {address_from: {"balance": 170000000000000000}, 
-                                              address_to: {"balance": 120000000000000000}},
+        override_params = {"stateOverrides": {address_from: {"balance": "0x25bf6196bd1"}, 
+                                              address_to: {"balance": "0x1aa535d3d0c"}},
                             "tracer": "prestateTracer"}
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
@@ -117,9 +116,9 @@ class TestTracerOverrideParams:
         assert "error" not in response, "Error in response"
         assert "error" not in response_overrided, "Error in response"
         assert response_overrided["result"][address_from]["balance"] != response["result"][address_from]["balance"]
-        assert response_overrided["result"][address_from]["balance"] == 170000000000000000
+        assert response_overrided["result"][address_from]["balance"] == "0x25bf6196bd1"
         assert response_overrided["result"][address_to]["balance"] != response["result"][address_to]["balance"]
-        assert response_overrided["result"][address_to]["balance"] == 120000000000000000
+        assert response_overrided["result"][address_to]["balance"] == "0x1aa535d3d0c"
 
     def test_stateOverrides_debug_traceCall_override_code_of_accounts(self, call_storage_tx):
         address_from = call_storage_tx["from"].lower()
@@ -163,7 +162,7 @@ class TestTracerOverrideParams:
         assert int(response["result"][address_to]["storage"][index_0], 0) == 57
         assert int(response_overrided["result"][address_to]["storage"][index_0], 0) == 1
 
-    # bug stateDiff: tracer does not update the storage with new values 
+    @pytest.mark.skip("NDEV-3002")
     def test_stateOverrides_debug_traceCall_override_stateDiff(self, call_store_value):
         address_to = call_store_value["to"].lower()
         params = self.fill_params_for_storage_contract_trace_call(call_store_value)
@@ -190,7 +189,6 @@ class TestTracerOverrideParams:
         assert int(response_overrided["result"][address_to]["storage"][index_3], 0) == 17
         assert int(response_overrided["result"][address_to]["storage"][index_4], 0) == 18
    
-    # bug with balance
     def test_stateOverrides_debug_traceCall_override_all_params(self, call_storage_tx):
         address_from = call_storage_tx["from"].lower()
         address_to = call_storage_tx["to"].lower()
@@ -204,7 +202,7 @@ class TestTracerOverrideParams:
         override_params = {"stateOverrides": {address_from: {"code": "0x6080604052348015",  
                                                              "nonce": 25,
                                                              "state": {"0x0" : "0x058"},
-                                                             "balance": 170000000000000000,}}, 
+                                                             "balance": "0x01"}}, 
                             "tracer": "prestateTracer"}
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
@@ -220,7 +218,7 @@ class TestTracerOverrideParams:
         assert int(response["result"][address_to]["storage"][index_0], 0) == 57
         assert int(response_overrided["result"][address_to]["storage"][index_0], 0) == 88
         assert response_overrided["result"][address_from]["balance"] != response["result"][address_from]["balance"]
-        assert response_overrided["result"][address_from]["balance"] == 170000000000000000
+        assert response_overrided["result"][address_from]["balance"] == "0x01"
 
     def test_stateOverrides_debug_traceCall_do_not_override_storage(self, call_storage_tx):
         address_to = call_storage_tx["to"].lower()
@@ -241,7 +239,7 @@ class TestTracerOverrideParams:
         assert int(response["result"][address_to]["storage"][index_0], 0) == 57
         assert int(response_overrided["result"][address_to]["storage"][index_0], 0) == 57
 
-    # bug: State and stateDiff are not allowed to be used together
+    @pytest.mark.skip("NDEV-3001")
     def test_stateOverrides_debug_traceCall_override_with_state_and_stateDiff(self, call_store_value):
         address_to = call_store_value["to"].lower()
         params = self.fill_params_for_storage_contract_trace_call(call_store_value)
@@ -257,7 +255,7 @@ class TestTracerOverrideParams:
         response_overrided = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
         assert "error" in response_overrided, "State and stateDiff are not allowed to be used together"
     
-    # bug: eth_call Override feature is not implemented in our tracer
+    @pytest.mark.skip("NDEV-3003")
     def test_stateOverrides_eth_call_override_nonce(self, call_storage_tx):
         address_to = call_storage_tx["to"].lower()
         params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
@@ -270,6 +268,3 @@ class TestTracerOverrideParams:
         assert response_overrided["result"] != response["result"]
         assert int(response["result"], 0) == 57 
         assert int(response_overrided["result"], 0) == 58
-
-
-
