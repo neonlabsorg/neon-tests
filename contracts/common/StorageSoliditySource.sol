@@ -32,14 +32,19 @@ contract Storage {
     function at(address _addr) public view returns (bytes memory) {
         return _addr.code;
     }
+
+    function storeBlock() public {
+        number = block.number;
+        values = [number];
+    }
 }
 
 contract StorageMultipleVars {
     string public data = "test";
-    uint256 constant public number = 1;
+    uint256 public constant number = 1;
     uint256 public notSet;
 
-    function setData(string memory _data) public  {
+    function setData(string memory _data) public {
         data = _data;
     }
 }

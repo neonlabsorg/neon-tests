@@ -20,6 +20,26 @@ class TestTracerOverrideParams:
     tracer_api: TracerClient
 
     @pytest.fixture(scope="class")
+    def retrieve_block_tx(self, storage_contract, web3_client):
+        sender_account = self.accounts[0]
+        nonce = web3_client.eth.get_transaction_count(sender_account.address)
+        instruction_tx = storage_contract.functions.storeBlock().build_transaction(
+            {
+                "nonce": nonce,
+                "gasPrice": web3_client.gas_price(),
+            }
+        )
+        receipt = web3_client.send_transaction(sender_account, instruction_tx)
+        assert receipt["status"] == 1
+        tx_hash = receipt["transactionHash"].hex()
+
+        wait_condition(
+            lambda: self.web3_client.get_transaction_by_hash(tx_hash) is not None,
+            timeout_sec=10,
+        )
+        return self.web3_client.get_transaction_by_hash(tx_hash)
+
+    @pytest.fixture(scope="class")
     def call_storage_tx(self, storage_contract, web3_client):
         sender_account = self.accounts[0]
         _, _, receipt = call_storage(sender_account, storage_contract, 57, "blockNumber", web3_client)
@@ -268,3 +288,20 @@ class TestTracerOverrideParams:
         assert response_overrided["result"] != response["result"]
         assert int(response["result"], 0) == 57 
         assert int(response_overrided["result"], 0) == 58
+
+    def test_blockOverrides_eth_call_override_block(self, retrieve_block_tx):
+        address_to = retrieve_block_tx["to"].lower()
+        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx)
+        self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+
+        params.append({"tracer": "prestateTracer"})
+        response = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
+        params.pop(2)
+        
+        block = self.web3_client.get_block_number()
+
+        override_params = {"blockOverrides": {address_to: {"number": block}}, "tracer": "prestateTracer"}
+        params.append(override_params)
+        response_overrided = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
+
+        assert response_overrided["result"] != response["result"]    
