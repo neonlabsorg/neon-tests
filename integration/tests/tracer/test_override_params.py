@@ -188,23 +188,95 @@ class TestTracerOverrideParams:
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
         params.pop(2)
 
-        override_params = {"stateOverrides": {address_to: {"stateDiff": {"0x3" : "0x11", "0x4": "0x12"}}}, "tracer": "prestateTracer"}
+        index_2 = padhexa(hex(2))
+        override_params = {"stateOverrides": {address_to: {"stateDiff": {index_0 : "0x11", index_2: "0x12"}}}, "tracer": "prestateTracer"}
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
         assert "error" not in response_overrided, "Error in response"
-        index = "0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6"
-        index_1 = padhexa(hex(1))
-        index_3 = padhexa(hex(3))
-        index_4 = padhexa(hex(4))
-        assert int(response["result"][address_to]["storage"][index_0], 0) == int(response_overrided["result"][address_to]["storage"][index_0], 0)
-        assert int(response["result"][address_to]["storage"][index_1], 0) == int(response_overrided["result"][address_to]["storage"][index_1], 0)
-        assert int(response["result"][address_to]["storage"][index], 0) == int(response_overrided["result"][address_to]["storage"][index], 0)
-        assert int(response_overrided["result"][address_to]["storage"][index_3], 0) == 17
-        assert int(response_overrided["result"][address_to]["storage"][index_4], 0) == 18
-   
-    def test_stateOverrides_debug_traceCall_override_all_params(self, call_storage_tx):
+        index = "0x405787fa12a823e0f2b7631cc41b3ba8828b3321ca811111fa75cd3aa3bb5ace"
+        assert response["result"][address_to]["storage"][index] == response_overrided["result"][address_to]["storage"][index]
+        assert response_overrided["result"][address_to]["storage"][index_0] == padhexa("0x11")
+        assert response_overrided["result"][address_to]["storage"][index_2] == padhexa("0x12")
+
+    @pytest.mark.skip("NDEV-3002")
+    def test_stateOverrides_debug_traceCall_override_stateDiff_add_non_existent_index_and_existed_one(self, call_store_value_tx):
+        address_to = call_store_value_tx["to"].lower()
+        params = self.fill_params_for_storage_contract_trace_call(call_store_value_tx)
+
+        params.append({"tracer": "prestateTracer"})
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+        params.pop(2)
+
+        index_5 = padhexa(hex(5))
+        override_params = {"stateOverrides": {address_to: {"stateDiff": {index_0 : "0x11", index_5: "0x12"}}}, "tracer": "prestateTracer"}
+        params.append(override_params)
+        response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
+
+        assert "error" not in response, "Error in response"
+        assert "error" not in response_overrided, "Error in response"
+        index = "0x405787fa12a823e0f2b7631cc41b3ba8828b3321ca811111fa75cd3aa3bb5ace"
+        index_2 = padhexa(hex(2))
+        assert response["result"][address_to]["storage"][index] == response_overrided["result"][address_to]["storage"][index]
+        assert response_overrided["result"][address_to]["storage"][index_0] == padhexa("0x11")
+        assert response_overrided["result"][address_to]["storage"][index_2] == padhexa("0x1")
+        assert index_5 not in response_overrided["result"][address_to]["storage"]
+    
+    @pytest.mark.skip("NDEV-3002")
+    def test_stateOverrides_debug_traceCall_override_stateDiff_add_non_existent_index(self, call_store_value_tx):
+        address_to = call_store_value_tx["to"].lower()
+        params = self.fill_params_for_storage_contract_trace_call(call_store_value_tx)
+
+        params.append({"tracer": "prestateTracer"})
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+        params.pop(2)
+
+        index_5 = padhexa(hex(5))
+        override_params = {"stateOverrides": {address_to: {"stateDiff": {index_5: "0x12"}}}, "tracer": "prestateTracer"}
+        params.append(override_params)
+        response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
+
+        assert "error" not in response, "Error in response"
+        assert "error" not in response_overrided, "Error in response"
+        index = "0x405787fa12a823e0f2b7631cc41b3ba8828b3321ca811111fa75cd3aa3bb5ace"
+        index_2 = padhexa(hex(2))
+        assert response["result"][address_to]["storage"][index] == response_overrided["result"][address_to]["storage"][index]
+        assert response_overrided["result"][address_to]["storage"][index_0] == response_overrided["result"][address_to]["storage"][index_0]
+        assert response_overrided["result"][address_to]["storage"][index_2] == padhexa("0x1")
+        assert index_5 not in response_overrided["result"][address_to]["storage"]
+
+    @pytest.mark.skip("NDEV-3002")
+    def test_stateOverrides_debug_traceCall_override_all_params_with_stateDiff(self, call_storage_tx):
+        address_from = call_storage_tx["from"].lower()
+        address_to = call_storage_tx["to"].lower()
+        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+
+        params.append({"tracer": "prestateTracer"})
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+        params.pop(2)
+
+        override_params = {"stateOverrides": {address_from: {"code": "0x6080604052348015",  
+                                                             "nonce": 25,
+                                                             "stateDiff": {index_0 : "0x58"},
+                                                             "balance": "0x01"}}, 
+                            "tracer": "prestateTracer"}
+        params.append(override_params)
+        response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
+
+        assert "error" not in response, "Error in response"
+        assert "error" not in response_overrided, "Error in response"
+        assert "code" not in response["result"][address_from], "Code have not to be in response"
+        assert response_overrided["result"][address_to]["code"] != response["result"][address_to]["code"]
+        assert response_overrided["result"][address_from]["code"] == "0x6080604052348015"
+        assert response_overrided["result"][address_from]["nonce"] != response["result"][address_from]["nonce"]
+        assert response_overrided["result"][address_from]["nonce"] == 25
+        assert int(response["result"][address_to]["storage"][index_0], 0) == self.storage_value
+        assert response_overrided["result"][address_to]["storage"][index_0] == padhexa("0x58")
+        assert response_overrided["result"][address_from]["balance"] != response["result"][address_from]["balance"]
+        assert response_overrided["result"][address_from]["balance"] == "0x01"
+
+    def test_stateOverrides_debug_traceCall_override_all_params_with_state(self, call_storage_tx):
         address_from = call_storage_tx["from"].lower()
         address_to = call_storage_tx["to"].lower()
         params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
