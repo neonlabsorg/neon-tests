@@ -3,6 +3,7 @@ import random
 import allure
 import pytest
 
+from deepdiff import DeepDiff
 from utils.helpers import wait_condition
 from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
@@ -289,19 +290,23 @@ class TestTracerOverrideParams:
         assert int(response["result"], 0) == 57 
         assert int(response_overrided["result"], 0) == 58
 
-    def test_blockOverrides_eth_call_override_block(self, retrieve_block_tx):
-        address_to = retrieve_block_tx["to"].lower()
+    def test_blockOverrides_trace_call_override_block(self, retrieve_block_tx, call_storage_tx):
         params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx)
         self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
-        params.pop(2)
-        
-        block = self.web3_client.get_block_number()
 
-        override_params = {"blockOverrides": {address_to: {"number": block}}, "tracer": "prestateTracer"}
+        override_params = {"blockOverrides": {"number": call_storage_tx["blockNumber"]}}
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc(method="debug_traceCall", params=params)
 
-        assert response_overrided["result"] != response["result"]    
+        diff = DeepDiff(response["result"], response_overrided["result"])
+
+        zero_index = '00000000000000000000000000000000000000000000000000000000000'
+        diff_storage = {'new_value': zero_index + hex(call_storage_tx["blockNumber"])[2:], 
+                        'old_value': zero_index + hex(retrieve_block_tx["blockNumber"])[2:]}
+        diff_block = {'new_value': hex(call_storage_tx["blockNumber"]), 
+                      'old_value': hex(retrieve_block_tx["blockNumber"])}
+        
+        for _,v in diff['values_changed'].items():
+            assert v == diff_block or v == diff_storage
