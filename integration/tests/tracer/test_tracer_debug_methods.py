@@ -37,12 +37,14 @@ class TestTracerDebugMethods:
         validator = Draft4Validator(schema)
         assert validator.is_valid(response["result"])
 
+   # NDEV-3009
     def test_debug_trace_call_invalid_params(self):
         response = self.tracer_api.send_rpc(method="debug_traceCall", params=[{}, "0x0"])
         assert "error" in response, "No errors in response"
         assert response["error"]["code"] == -32603, "Invalid error code"
         assert response["error"]["message"] == "neon_api::trace failed"
 
+    # NDEV-3009
     def test_debug_trace_call_empty_params_valid_block(self):
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
