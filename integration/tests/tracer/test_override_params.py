@@ -277,11 +277,12 @@ class TestTracerOverrideParams:
         assert "error" in response_overrided, "State and stateDiff are not allowed to be used together"
     
     @pytest.mark.skip("NDEV-3003")
-    def test_stateOverrides_eth_call_override_nonce(self, call_storage_tx):
+    def test_stateOverrides_eth_call_override_code(self, call_storage_tx):
         address_to = call_storage_tx["to"].lower()
         params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
         response = self.tracer_api.send_rpc_and_wait_response("eth_call", params)
 
+        # CODE_OVERRIDED bytecode of storage_contract wich returns (number + 1) instead of number from retrieve() function
         override_params = {address_to: {"code": CODE_OVERRIDED} }
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc("eth_call", params)
