@@ -37,6 +37,13 @@ contract Storage {
         number = block.number;
         values = [number];
     }
+
+    function storeBlockTimestamp() public returns (uint256) {
+        number = block.timestamp;
+        values = [number];
+        return block.timestamp;
+    }
+
 }
 
 contract StorageMultipleVars {

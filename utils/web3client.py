@@ -16,6 +16,7 @@ from web3.exceptions import TransactionNotFound
 from utils import helpers
 from utils.consts import InputTestConstants, Unit
 from utils.helpers import decode_function_signature
+from utils.helpers import wait_condition
 
 LOG = logging.getLogger(__name__)
 
@@ -106,6 +107,17 @@ class Web3Client:
     @allure.step("Get transaction by hash")
     def get_transaction_by_hash(self, transaction_hash):
         try:
+            return self._web3.eth.get_transaction(transaction_hash)
+        except TransactionNotFound:
+            return None
+    
+    @allure.step("Get transaction by hash with wait for result is available")
+    def wait_get_transaction_by_hash(self, transaction_hash, timeout=10):
+        try:
+            wait_condition(
+                lambda: self._web3.eth.get_transaction(transaction_hash) is not None,
+                timeout_sec=timeout,
+            )
             return self._web3.eth.get_transaction(transaction_hash)
         except TransactionNotFound:
             return None
