@@ -516,6 +516,7 @@ def update_contracts(branch):
 @click.option("-p", "--numprocesses", help="Number of parallel jobs for basic tests")
 @click.option("-a", "--amount", default=20000, help="Requested amount from faucet")
 @click.option("-u", "--users", default=8, help="Accounts numbers used in OZ tests")
+@click.option("-c", "--case", default='', type=str, help="Specific test case name pattern to run")
 @click.option(
     "--ui-item",
     default="all",
@@ -528,7 +529,7 @@ def update_contracts(branch):
     type=click.Choice(["economy", "basic", "tracer", "services", "oz", "ui", "evm", "compiler_compatibility"]),
 )
 @catch_traceback
-def run(name, jobs, numprocesses, ui_item, amount, users, network):
+def run(name, jobs, numprocesses, ui_item, amount, users, network, case):
     if not network and name == "ui":
         network = "devnet"
     if DST_ALLURE_CATEGORIES.parent.exists():
@@ -574,6 +575,9 @@ def run(name, jobs, numprocesses, ui_item, amount, users, network):
     if name == "tracer":
         assert wait_for_tracer_service(network)
 
+    if case != '':
+        command += " -vk {}".format(case)
+        
     command += f" -s --network={network} --make-report"
     cmd = subprocess.run(command, shell=True)
     if name != "ui":
