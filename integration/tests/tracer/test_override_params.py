@@ -162,7 +162,7 @@ class TestTracerOverrideParams:
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
         params.pop(2)
 
-        override_params = {"stateOverrides": {address_from: {"balance": "0x25bf6196bd1"}, 
+        override_params = {"stateOverrides": {address_from: {"balance": "0xd8d726b7177a80000"}, 
                                               address_to: {"balance": "0x1aa535d3d0c"}},
                             "tracer": "prestateTracer"}
         params.append(override_params)
@@ -171,9 +171,27 @@ class TestTracerOverrideParams:
         assert "error" not in response, "Error in response"
         assert "error" not in response_overrided, "Error in response"
         assert response_overrided["result"][address_from]["balance"] != response["result"][address_from]["balance"]
-        assert response_overrided["result"][address_from]["balance"] == "0x25bf6196bd1"
+        assert response_overrided["result"][address_from]["balance"] == "0xd8d726b7177a80000"
         assert response_overrided["result"][address_to]["balance"] != response["result"][address_to]["balance"]
         assert response_overrided["result"][address_to]["balance"] == "0x1aa535d3d0c"
+    
+    # NDEV-3009
+    def test_stateOverrides_debug_traceCall_override_balance_insufficient_for_tx(self, call_storage_tx):
+        address_from = call_storage_tx["from"].lower()
+        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+
+        params.append({"tracer": "prestateTracer"})
+        self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+        params.pop(2)
+
+        override_params = {"stateOverrides": {address_from: {"balance": "0x1aa535d3d0c"}},
+                            "tracer": "prestateTracer"}
+        params.append(override_params)
+        response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
+
+        assert "error" in response_overrided, "No errors in response"
+        assert response_overrided["error"]["code"] == -32603, "Invalid error code"
+        assert response_overrided["error"]["message"] == "neon_api::trace failed"
 
     def test_stateOverrides_debug_traceCall_override_balance_invalid_format(self, call_storage_tx):
         address_from = call_storage_tx["from"].lower()
