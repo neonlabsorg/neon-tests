@@ -1,0 +1,20 @@
+name: "Tracer tests"
+run-name: Tracer tests / ${{ github.event.pull_request.title || github.event_name }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  pull_request:
+    types: [ labeled ]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        if: contains(github.event.pull_request.labels.*.name, 'runTracerTests')
+        steps:
+         - name: Checkout code
+           uses: actions/checkout@v2
+
+         - name: Run a script
+           run: echo "PR was labeled with runTracerTests!"
+      
