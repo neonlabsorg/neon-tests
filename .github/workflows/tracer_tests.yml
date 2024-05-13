@@ -10,7 +10,7 @@ on:
 jobs:
     job1:
         if: contains(github.event.pull_request.labels.*.name, 'runTracerTests')
-        uses: neonlabsorg/tracer-api/blob/main/.github/workflows/ci.yaml
+        uses: neonlabsorg/tracer-api/blob/main/.github/workflows/ci.yaml@v1
     build:
         runs-on: ubuntu-latest
         if: contains(github.event.pull_request.labels.*.name, 'runTracerTests')
