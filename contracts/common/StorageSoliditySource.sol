@@ -6,6 +6,7 @@ pragma solidity >=0.4.0;
  */
 contract Storage {
     uint256 number;
+    uint256 time;
     uint256[] public values;
 
     /**
@@ -44,6 +45,11 @@ contract Storage {
         return block.timestamp;
     }
 
+    function storeBlockInfo() public {
+        number = block.number;
+        time = block.timestamp;
+        values = [number, time];
+    }
 }
 
 contract StorageMultipleVars {
