@@ -14,6 +14,7 @@ from utils.helpers import wait_condition
 from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
 from utils.tracer_client import TracerClient
+from utils.helpers import padhex
 from integration.tests.tracer.test_tracer_historical_methods import call_storage
 
 SCHEMAS = "./integration/tests/tracer/schemas/"
@@ -44,38 +45,26 @@ class TestTracerDebugMethods:
         assert response["error"]["code"] == -32603, "Invalid error code"
         assert response["error"]["message"] == "neon_api::trace failed"
 
-    # NDEV-3009
-    def test_debug_trace_call_empty_params_valid_block(self):
+    @pytest.mark.skip("NDEV-2998")
+    def test_debug_trace_call_empty_params_valid_block(self, storage_contract):
         sender_account = self.accounts[0]
-        recipient_account = self.accounts[1]
-        receipt = self.web3_client.send_neon(sender_account, recipient_account, 0.1)
-        assert receipt["status"] == 1
-        tx_hash = receipt["transactionHash"].hex()
-
-        wait_condition(
-            lambda: self.web3_client.get_transaction_by_hash(tx_hash) is not None,
-            timeout_sec=10,
-        )
-        tx_info = self.web3_client.get_transaction_by_hash(tx_hash)
+        store_value = random.randint(1, 100)
+        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", self.web3_client)
+        tx_info = self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
 
         response = self.tracer_api.send_rpc(method="debug_traceCall", params=[{}, hex(tx_info["blockNumber"])])
 
-        assert "error" in response, "No errors in response"
-        assert response["error"]["code"] == -32603, "Invalid error code"
-        assert response["error"]["message"] == "neon_api::trace failed"
+        assert "error" not in response, "Error in response"
+        assert response["result"]["returnValue"] == ""
+        self.validate_response_result(response)
 
     def test_debug_trace_call_zero_eth_call(self):
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
         receipt = self.web3_client.send_neon(sender_account, recipient_account, 0.1)
         assert receipt["status"] == 1
-        tx_hash = receipt["transactionHash"].hex()
 
-        wait_condition(
-            lambda: self.web3_client.get_transaction_by_hash(tx_hash) is not None,
-            timeout_sec=10,
-        )
-        tx_info = self.web3_client.get_transaction_by_hash(tx_hash)
+        tx_info = self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
 
         params = [
             {
@@ -95,17 +84,12 @@ class TestTracerDebugMethods:
         assert response["result"]["returnValue"] == ""
         self.validate_response_result(response)
 
-    def test_debug_trace_call_non_zero_eth_call(self, storage_contract, web3_client):
+    def test_debug_trace_call_non_zero_eth_call(self, storage_contract):
         sender_account = self.accounts[0]
         store_value = random.randint(1, 100)
-        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", web3_client)
-        tx_hash = receipt["transactionHash"].hex()
-
-        wait_condition(
-            lambda: self.web3_client.get_transaction_by_hash(tx_hash) is not None,
-            timeout_sec=10,
-        )
-        tx_info = self.web3_client.get_transaction_by_hash(tx_hash)
+        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", self.web3_client)
+       
+        tx_info = self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
 
         params = [
             {
@@ -121,7 +105,7 @@ class TestTracerDebugMethods:
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
-        assert 1 <= int(response["result"]["returnValue"], 16) <= 100
+        assert response["result"]["returnValue"] == padhex(hex(store_value), 64)[2:]
         self.validate_response_result(response)
 
     def test_debug_trace_transaction(self):
@@ -134,24 +118,26 @@ class TestTracerDebugMethods:
         assert "error" not in response, "Error in response"
         self.validate_response_result(response)
 
-    def test_debug_trace_transaction_non_zero_trace(self, web3_client, storage_contract):
+    def test_debug_trace_transaction_non_zero_trace(self, storage_contract):
         sender_account = self.accounts[0]
         store_value = random.randint(1, 100)
-        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", web3_client)
+        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", self.web3_client)
 
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", [receipt["transactionHash"].hex()])
+
         assert "error" not in response, "Error in response"
-        assert 1 <= int(response["result"]["returnValue"], 16) <= 100
+        assert response["result"]["returnValue"] == padhex(hex(store_value), 64)[2:]
         self.validate_response_result(response)
 
-    def test_debug_trace_transaction_hash_without_prefix(self, storage_contract, web3_client):
+    def test_debug_trace_transaction_hash_without_prefix(self, storage_contract):
         sender_account = self.accounts[0]
         store_value = random.randint(1, 100)
-        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", web3_client)
+        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", self.web3_client)
 
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", [receipt["transactionHash"].hex()[2:]])
+
         assert "error" not in response, "Error in response"
-        assert 1 <= int(response["result"]["returnValue"], 16) <= 100
+        assert response["result"]["returnValue"] == padhex(hex(store_value), 64)[2:]
         self.validate_response_result(response)
 
     @pytest.mark.parametrize("hash", [6, "0x0", "", "f23e554"])

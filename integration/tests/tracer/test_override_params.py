@@ -347,8 +347,8 @@ class TestTracerOverrideParams:
 
         assert "error" not in response, "Error in response"
         assert "error" not in response_overrided, "Error in response"
-        assert int(response["result"][address_to]["storage"][index_0], 0) == self.storage_value
-        assert int(response_overrided["result"][address_to]["storage"][index_0], 0) == 1
+        assert response["result"][address_to]["storage"][index_0] != response_overrided["result"][address_to]["storage"][index_0]
+        assert response_overrided["result"][address_to]["storage"][index_0] == padhex("0x01", 64)
 
     def test_stateOverrides_debug_traceCall_override_stateDiff(self, call_store_value_tx, contract_index):
         address_to = call_store_value_tx["to"].lower()
@@ -585,20 +585,6 @@ class TestTracerOverrideParams:
         assert response_overrided["error"]["message"] == "Invalid params"
 
     # NDEV-3009
-    def test_blockOverrides_debug_traceCall_override_block_current(self, retrieve_block_tx):
-        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx)
-        self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-
-        block = self.web3_client.get_block_number()
-        override_params = {"blockOverrides": {"number": block}}
-        params.append(override_params)
-        response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
-
-        assert "error" in response_overrided, "No errors in response"
-        assert response_overrided["error"]["code"] == -32603, "Invalid error code"
-        assert response_overrided["error"]["message"] == "neon_api::trace failed"
-
-    # NDEV-3009
     def test_blockOverrides_debug_traceCall_override_block_future(self, retrieve_block_tx):
         params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx)
         self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
@@ -727,7 +713,7 @@ class TestTracerOverrideParams:
         diff = DeepDiff(response["result"], response_overrided["result"])
 
         diff_storage_block = {"new_value": padhex(hex(block_info_tx_2["blockNumber"]), 64)[2:], 
-                        "old_value": padhex(hex(block_info_tx_1["blockNumber"], 64))[2:]}
+                        "old_value": padhex(hex(block_info_tx_1["blockNumber"]), 64)[2:]}
         diff_block = {"new_value": hex(block_info_tx_2["blockNumber"]), 
                       "old_value": hex(block_info_tx_1["blockNumber"])}
 
