@@ -98,15 +98,17 @@ class TestTracerOverrideParams:
             hex(tx["blockNumber"]),
         ]
 
+    def fill_params_for_storage_contract_trace_call_prestate(self, tx):
+        response = self.fill_params_for_storage_contract_trace_call(tx)
+        response.append({"tracer": "prestateTracer"})
+        return response
+
     def test_stateOverrides_debug_traceCall_override_nonce(self, call_storage_tx):
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
-        params.append({"tracer": "prestateTracer"})
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         address_from = call_storage_tx["from"].lower()
-        override_params = {"stateOverrides": {address_from: {"nonce": 17}}, "tracer": "prestateTracer"}
-        params.pop(2)
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_from: {"nonce": 17}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -115,8 +117,7 @@ class TestTracerOverrideParams:
         assert response_overrided["result"][address_from]["nonce"] == 17
 
     def test_stateOverrides_debug_traceCall_override_nonce_to_lower_value(self, call_storage_tx):
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
-        params.append({"tracer": "prestateTracer"})
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
         nonce = response["result"][call_storage_tx["from"].lower()]["nonce"]
 
@@ -125,9 +126,7 @@ class TestTracerOverrideParams:
             nonce_overrided = nonce - 1
 
         address_from = call_storage_tx["from"].lower()
-        params.pop(2)
-        override_params = {"stateOverrides": {address_from: {"nonce": nonce_overrided}}, "tracer": "prestateTracer"}
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_from: {"nonce": nonce_overrided}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -152,15 +151,11 @@ class TestTracerOverrideParams:
     def test_stateOverrides_debug_traceCall_override_nonce_both_accounts(self, call_storage_tx, nonce):
         address_from = call_storage_tx["from"].lower()
         address_to = call_storage_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
 
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
         
-        override_params = {"stateOverrides": {address_from: {"nonce": nonce[0]}, address_to: {"nonce": nonce[1]}}, 
-                           "tracer": "prestateTracer"}
-        params.pop(2)
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_from: {"nonce": nonce[0]}, address_to: {"nonce": nonce[1]}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -173,14 +168,11 @@ class TestTracerOverrideParams:
     def test_stateOverrides_debug_traceCall_override_balance_of_contract_account(self, call_storage_tx):
         address_from = call_storage_tx["from"].lower()
         address_to = call_storage_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
 
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
 
-        override_params = {"stateOverrides": {address_to: {"balance": "0x1"}}, "tracer": "prestateTracer"}
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_to: {"balance": "0x1"}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -203,17 +195,16 @@ class TestTracerOverrideParams:
 
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
-        params.append({"tracer": "prestateTracer"})
-        response_prestate = self.tracer_api.send_rpc("debug_traceCall", params)
-        params.pop(2)
+        params_prestate = self.fill_params_for_storage_contract_trace_call_prestate(tx)
+        response_prestate = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
         override_params = {"stateOverrides": {address_from: {"balance": "0xd8d726b7177a80001"}, 
                                               address_to: {"balance": "0x1aa535d3d0c"}}}
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
-        params[2]["tracer"] = "prestateTracer"
-        response_prestate_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
+        params_prestate[2]["stateOverrides"] = override_params["stateOverrides"]
+        response_prestate_overrided = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
         assert "error" not in response_prestate, "Error in response"
         assert "error" not in response_prestate_overrided, "Error in response"
@@ -230,15 +221,11 @@ class TestTracerOverrideParams:
     # NDEV-3009
     def test_stateOverrides_debug_traceCall_override_balance_insufficient_for_tx(self, call_storage_tx):
         address_from = call_storage_tx["from"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
 
-        params.append({"tracer": "prestateTracer"})
         self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
 
-        override_params = {"stateOverrides": {address_from: {"balance": "0x1aa535d3d0c"}},
-                            "tracer": "prestateTracer"}
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_from: {"balance": "0x1aa535d3d0c"}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" in response_overrided, "No errors in response"
@@ -269,17 +256,16 @@ class TestTracerOverrideParams:
 
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
-        params.append({"tracer": "prestateTracer"})
-        response_prestate = self.tracer_api.send_rpc("debug_traceCall", params)
-        params.pop(2)
+        params_prestate = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
+        response_prestate = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
         override_params = {"stateOverrides": {address_from: {"code": code[0]}, 
                                               address_to: {"code": code[1]}}}
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
-        params[2]["tracer"] = "prestateTracer"
-        response_prestate_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
+        params_prestate[2]["stateOverrides"] = override_params["stateOverrides"]
+        response_prestate_overrided = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
         assert "error" not in response_prestate, "Error in response"
         assert "error" not in response_prestate_overrided, "Error in response"
@@ -300,16 +286,15 @@ class TestTracerOverrideParams:
 
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
-        params.append({"tracer": "prestateTracer"})
-        response_prestate = self.tracer_api.send_rpc("debug_traceCall", params)
-        params.pop(2)
+        params_prestate = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
+        response_prestate = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
         override_params = {"stateOverrides": {address_to: {"code": "0x43"}}}
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
-        params[2]["tracer"] = "prestateTracer"
-        response_prestate_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
+        params_prestate[2]["stateOverrides"] = override_params["stateOverrides"]
+        response_prestate_overrided = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
         assert "error" not in response_prestate, "Error in response"
         assert "error" not in response_prestate_overrided, "Error in response"
@@ -330,16 +315,15 @@ class TestTracerOverrideParams:
 
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
-        params.append({"tracer": "prestateTracer"})
-        response_prestate = self.tracer_api.send_rpc("debug_traceCall", params)
-        params.pop(2)
+        params_prestate = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
+        response_prestate = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
         override_params = {"stateOverrides": {address_to: {"code": CODE_OVERRIDED}}}
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
-        params[2]["tracer"] = "prestateTracer"
-        response_prestate_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
+        params_prestate[2]["stateOverrides"] = override_params["stateOverrides"]
+        response_prestate_overrided = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
         assert "error" not in response_prestate, "Error in response"
         assert "error" not in response_prestate_overrided, "Error in response"
@@ -360,16 +344,15 @@ class TestTracerOverrideParams:
 
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
-        params.append({"tracer": "prestateTracer"})
-        response_prestate = self.tracer_api.send_rpc("debug_traceCall", params)
-        params.pop(2)
+        params_prestate = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
+        response_prestate = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
         override_params = {"stateOverrides": {address_from: {"code": "0x92a3"}}}
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
-        params[2]["tracer"] = "prestateTracer"
-        response_prestate_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
+        params_prestate[2]["stateOverrides"] = override_params["stateOverrides"]
+        response_prestate_overrided = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
         assert "error" not in response_prestate, "Error in response"
         assert "error" not in response_prestate_overrided, "Error in response"
@@ -397,14 +380,11 @@ class TestTracerOverrideParams:
 
     def test_stateOverrides_debug_traceCall_override_state(self, call_storage_tx):
         address_to = call_storage_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
 
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
 
-        override_params = {"stateOverrides": {address_to: {"state": {"0x0" : "0x01"}}}, "tracer": "prestateTracer"}
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_to: {"state": {"0x0" : "0x01"}}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -414,14 +394,11 @@ class TestTracerOverrideParams:
 
     def test_stateOverrides_debug_traceCall_override_state_non_existent_index(self, call_storage_tx):
         address_to = call_storage_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
 
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
 
-        override_params = {"stateOverrides": {address_to: {"state": {"0x5" : "0x81"}}}, "tracer": "prestateTracer"}
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_to: {"state": {"0x5" : "0x81"}}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -431,14 +408,11 @@ class TestTracerOverrideParams:
 
     def test_stateOverrides_debug_traceCall_override_state_invalid_index(self, call_storage_tx):
         address_to = call_storage_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
 
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
 
-        override_params = {"stateOverrides": {address_to: {"state": {"index" : "0x863"}}}, "tracer": "prestateTracer"}
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_to: {"state": {"index" : "0x863"}}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -448,14 +422,11 @@ class TestTracerOverrideParams:
 
     def test_stateOverrides_debug_traceCall_override_stateDiff(self, call_store_value_tx, contract_index):
         address_to = call_store_value_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_store_value_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_store_value_tx)
 
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
 
-        override_params = {"stateOverrides": {address_to: {"stateDiff": {index_0 : "0x11", index_2: "0x12"}}}, "tracer": "prestateTracer"}
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_to: {"stateDiff": {index_0 : "0x11", index_2: "0x12"}}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -466,14 +437,11 @@ class TestTracerOverrideParams:
 
     def test_stateOverrides_debug_traceCall_override_stateDiff_add_non_existent_index_and_existed_one(self, call_store_value_tx, contract_index):
         address_to = call_store_value_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_store_value_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_store_value_tx)
 
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
 
-        override_params = {"stateOverrides": {address_to: {"stateDiff": {index_0 : "0x11", index_5: "0x12"}}}, "tracer": "prestateTracer"}
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_to: {"stateDiff": {index_0 : "0x11", index_5: "0x12"}}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -485,14 +453,11 @@ class TestTracerOverrideParams:
     
     def test_stateOverrides_debug_traceCall_override_stateDiff_add_non_existent_index(self, call_store_value_tx, contract_index):
         address_to = call_store_value_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_store_value_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_store_value_tx)
 
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
 
-        override_params = {"stateOverrides": {address_to: {"stateDiff": {index_5: "0x12"}}}, "tracer": "prestateTracer"}
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_to: {"stateDiff": {index_5: "0x12"}}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -504,17 +469,11 @@ class TestTracerOverrideParams:
 
     def test_stateOverrides_debug_traceCall_override_all_params_without_storage(self, call_storage_tx):
         address_to = call_storage_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
 
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
 
-        override_params = {"stateOverrides": {address_to: {"code": "0x9029",  
-                                                            "nonce": 5,
-                                                            "balance": "0x20"}}, 
-                            "tracer": "prestateTracer"}
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_to: {"code": "0x9029", "nonce": 5, "balance": "0x20"}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -532,18 +491,14 @@ class TestTracerOverrideParams:
     @pytest.mark.skip("NDEV-3002")
     def test_stateOverrides_debug_traceCall_override_all_params_with_stateDiff(self, call_storage_tx):
         address_to = call_storage_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
 
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
 
-        override_params = {"stateOverrides": {address_to: {"code": "0x6080604052348015",  
+        params[2]["stateOverrides"] = {address_to: {"code": "0x6080604052348015",  
                                                             "nonce": 25,
                                                             "balance": "0x21",
-                                                            "stateDiff": {index_0 : "0x58"}}}, 
-                            "tracer": "prestateTracer"}
-        params.append(override_params)
+                                                            "stateDiff": {index_0 : "0x58"}}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -564,18 +519,14 @@ class TestTracerOverrideParams:
     def test_stateOverrides_debug_traceCall_override_all_params_with_state(self, call_storage_tx):
         address_from = call_storage_tx["from"].lower()
         address_to = call_storage_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
 
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
 
-        override_params = {"stateOverrides": {address_from: {"code": "0x6080604052348015",  
-                                                             "nonce": 25,
-                                                             "state": {"0x0" : "0x058"},
-                                                             "balance": "0x01"}}, 
-                            "tracer": "prestateTracer"}
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_from: {"code": "0x6080604052348015",  
+                                                      "nonce": 25,
+                                                      "state": {"0x0" : "0x058"},
+                                                      "balance": "0x01"}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -592,14 +543,11 @@ class TestTracerOverrideParams:
 
     def test_stateOverrides_debug_traceCall_do_not_override_storage(self, call_storage_tx):
         address_to = call_storage_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
         
-        params.append({"tracer": "prestateTracer"})
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
 
-        override_params = {"stateOverrides": {address_to: {"storage": {"0x0": "0x058"}} }, "tracer": "prestateTracer"}
-        params.append(override_params)
+        params[2]["stateOverrides"] = {address_to: {"storage": {"0x0": "0x058"}}}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" not in response, "Error in response"
@@ -620,13 +568,10 @@ class TestTracerOverrideParams:
         assert "error" in response_overrided, "State and stateDiff are not allowed to be used together"
     
     def test_stateOverrides_debug_traceCall_wrong_override_format(self, call_storage_tx):
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
-        params.append({"tracer": "prestateTracer"})
+        params = self.fill_params_for_storage_contract_trace_call_prestate(call_storage_tx)
         self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
-        override_params = {"stateOverrides": {"nonce": 17}, "tracer": "prestateTracer"}
-        params.pop(2)
-        params.append(override_params)
+        params[2]["stateOverrides"] = {"nonce": 17}
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         assert "error" in response_overrided, "No errors in response"
@@ -704,8 +649,7 @@ class TestTracerOverrideParams:
         assert response_overrided["error"]["message"] == "Invalid params"
 
     def test_blockOverrides_debug_traceCall_override_block_timestamp(self, storage_contract, retrieve_block_timestamp_tx):
-        params_prestate = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx)
-        params_prestate.append({"tracer": "prestateTracer"})
+        params_prestate = self.fill_params_for_storage_contract_trace_call_prestate(retrieve_block_timestamp_tx)
         response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_prestate)
         address_to = retrieve_block_timestamp_tx["to"].lower()
         timestamp_new = int(response_prestate["result"][address_to]["storage"][index_0], 0)
@@ -717,8 +661,7 @@ class TestTracerOverrideParams:
         assert receipt["status"] == 1
         retrieve_block_timestamp_tx_new = self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
 
-        params_new_prestate = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx_new)
-        params_new_prestate.append({"tracer": "prestateTracer"})
+        params_new_prestate = self.fill_params_for_storage_contract_trace_call_prestate(retrieve_block_timestamp_tx_new)
         response_new_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_new_prestate)
         address_to = retrieve_block_timestamp_tx_new["to"].lower()
         timestamp = int(response_new_prestate["result"][address_to]["storage"][index_0], 0)
@@ -752,13 +695,12 @@ class TestTracerOverrideParams:
         assert response_overrided["error"]["message"] == "Invalid params"
 
     def test_blockOverrides_debug_traceCall_override_block_timestamp_to_timestamp_now(self, retrieve_block_timestamp_tx):
-        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx)
-        params.append({"tracer": "prestateTracer"})
-        response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        params.pop(2)
+        params_prestate = self.fill_params_for_storage_contract_trace_call_prestate(retrieve_block_timestamp_tx)
+        response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_prestate)
         address_to = retrieve_block_timestamp_tx["to"].lower()
         timestamp = int(response_prestate["result"][address_to]["storage"][index_0], 0)
 
+        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx)
         response = self.tracer_api.send_rpc("debug_traceCall", params)
 
         timestamp_new = int(time.time())
@@ -776,26 +718,24 @@ class TestTracerOverrideParams:
             assert v == diff_block_timestamp or v == diff_storage
 
     def test_blockOverrides_debug_traceCall_override_block_number_and_timestamp(self, storage_contract):
-        block_info_tx_1 = self.retrieve_block_info_tx(storage_contract, self.web3_client)
-        params_1 = self.fill_params_for_storage_contract_trace_call(block_info_tx_1)
-        params_1.append({"tracer": "prestateTracer"})
-        response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_1)
-        params_1.pop(2)
+        block_info_tx_1 = self.retrieve_block_info_tx(storage_contract)
+        params_1_prestate = self.fill_params_for_storage_contract_trace_call_prestate(block_info_tx_1)
+        response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_1_prestate)
         address_to_1 = block_info_tx_1["to"].lower()
         timestamp_1 = int(response_prestate["result"][address_to_1]["storage"][index_1], 0)
 
-        response = self.tracer_api.send_rpc("debug_traceCall", params_1)
+        params = self.fill_params_for_storage_contract_trace_call(block_info_tx_1)
+        response = self.tracer_api.send_rpc("debug_traceCall", params)
 
-        block_info_tx_2 = self.retrieve_block_info_tx(storage_contract, self.web3_client)
-        params_2 = self.fill_params_for_storage_contract_trace_call(block_info_tx_2)
-        params_2.append({"tracer": "prestateTracer"})
-        response_prestate_2 = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_2)
+        block_info_tx_2 = self.retrieve_block_info_tx(storage_contract)
+        params_2_prestate = self.fill_params_for_storage_contract_trace_call_prestate(block_info_tx_2)
+        response_prestate_2 = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_2_prestate)
         address_to_2 = block_info_tx_2["to"].lower()
         timestamp_2 = int(response_prestate_2["result"][address_to_2]["storage"][index_1], 0)
 
         override_params = {"blockOverrides": {"number": block_info_tx_2["blockNumber"], "time": timestamp_2}}
-        params_1.append(override_params)
-        response_overrided = self.tracer_api.send_rpc("debug_traceCall", params_1)
+        params.append(override_params)
+        response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
         diff = DeepDiff(response["result"], response_overrided["result"])
 
@@ -813,11 +753,11 @@ class TestTracerOverrideParams:
             assert v == diff_block or v == diff_storage_block or v == diff_time or v == diff_storage_time
 
     def test_blockOverrides_debug_traceCall_override_block_number_and_invalid_timestamp(self, storage_contract):
-        block_info_tx = self.retrieve_block_info_tx(storage_contract, self.web3_client)
+        block_info_tx = self.retrieve_block_info_tx(storage_contract)
         params = self.fill_params_for_storage_contract_trace_call(block_info_tx)
         self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
-        block_info_tx_override = self.retrieve_block_info_tx(storage_contract, self.web3_client)
+        block_info_tx_override = self.retrieve_block_info_tx(storage_contract)
         override_params = {"blockOverrides": {"number": block_info_tx_override["blockNumber"], "time": "1715360635"}}
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
