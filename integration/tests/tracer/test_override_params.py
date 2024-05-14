@@ -31,13 +31,8 @@ class TestTracerOverrideParams:
     @pytest.fixture(scope="class")
     def retrieve_block_tx(self, storage_contract):
         sender_account = self.accounts[0]
-        nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
-        instruction_tx = storage_contract.functions.storeBlock().build_transaction(
-            {
-                "nonce": nonce,
-                "gasPrice": self.web3_client.gas_price(),
-            }
-        )
+        tx = self.web3_client.make_raw_tx(sender_account)
+        instruction_tx = storage_contract.functions.storeBlock().build_transaction(tx)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
@@ -46,13 +41,8 @@ class TestTracerOverrideParams:
     @pytest.fixture(scope="class")
     def retrieve_block_timestamp_tx(self, storage_contract):
         sender_account = self.accounts[0]
-        nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
-        instruction_tx = storage_contract.functions.storeBlockTimestamp().build_transaction(
-            {
-                "nonce": nonce,
-                "gasPrice": self.web3_client.gas_price(),
-            }
-        )
+        tx = self.web3_client.make_raw_tx(sender_account)
+        instruction_tx = storage_contract.functions.storeBlockTimestamp().build_transaction(tx)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
@@ -88,13 +78,8 @@ class TestTracerOverrideParams:
 
     def retrieve_block_info_tx(self, storage_contract):   
         sender_account = self.accounts[0]
-        nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
-        instruction_tx = storage_contract.functions.storeBlockInfo().build_transaction(
-            {
-                "nonce": nonce,
-                "gasPrice": self.web3_client.gas_price(),
-            }
-        )
+        tx = self.web3_client.make_raw_tx(sender_account)
+        instruction_tx = storage_contract.functions.storeBlockInfo().build_transaction(tx)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
@@ -206,18 +191,12 @@ class TestTracerOverrideParams:
 
     def test_stateOverrides_debug_traceCall_override_balance_both_accounts(self, storage_contract):
         sender_account = self.accounts[0]
-        nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
-        instruction_tx = storage_contract.functions.retrieveSenderBalance().build_transaction(
-            {
-                "nonce": nonce,
-                "gasPrice": self.web3_client.gas_price(),
-            }
-        )
+        tx_raw = self.web3_client.make_raw_tx(sender_account)
+        instruction_tx = storage_contract.functions.retrieveSenderBalance().build_transaction(tx_raw)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
         tx = self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
-
         address_from = tx["from"].lower()
         address_to = tx["to"].lower()
         params = self.fill_params_for_storage_contract_trace_call(tx)
@@ -732,13 +711,8 @@ class TestTracerOverrideParams:
         timestamp_new = int(response_prestate["result"][address_to]["storage"][index_0], 0)
         
         sender_account = self.accounts[0]
-        nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
-        instruction_tx = storage_contract.functions.storeBlockTimestamp().build_transaction(
-            {
-                "nonce": nonce,
-                "gasPrice": self.web3_client.gas_price(),
-            }
-        )
+        tx = self.web3_client.make_raw_tx(sender_account)
+        instruction_tx = storage_contract.functions.storeBlockTimestamp().build_transaction(tx)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
         retrieve_block_timestamp_tx_new = self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
