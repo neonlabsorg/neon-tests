@@ -3,6 +3,7 @@ import pytest
 
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.basic import Tag
+from integration.tests.basic.helpers.errors import Error32602
 from utils.helpers import gen_hash_of_block
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
@@ -27,16 +28,16 @@ class TestRpcGetBlock:
         rpc_checks.assert_block_fields(response, full_trx, tx_receipt)
 
     @pytest.mark.parametrize(
-        "hash_len, full_trx, msg",
-        [(31, False, "bad block hash"), ("bad_hash", True, "bad block hash bad_hash")],
+        "hash_len, full_trx",
+        [(31, False), ("bad_hash", True)],
     )
-    def test_eth_get_block_by_hash_with_incorrect_hash(self, hash_len, full_trx, msg, json_rpc_client):
+    def test_eth_get_block_by_hash_with_incorrect_hash(self, hash_len, full_trx, json_rpc_client):
         """Verify implemented rpc calls work eth_getBlockByHash with incorrect hash"""
         block_hash = gen_hash_of_block(hash_len) if isinstance(hash_len, int) else hash_len
         response = json_rpc_client.send_rpc(method="eth_getBlockByHash", params=[block_hash, full_trx])
         assert "error" in response, "Error not in response"
-        assert response["error"]["code"] == -32602
-        assert msg in response["error"]["message"]
+        assert response["error"]["code"] == Error32602.CODE
+        assert response["error"]["message"] == Error32602.INVALID_BLOCKHASH
 
     @pytest.mark.parametrize("full_trx", [False, True])
     def test_eth_get_block_by_hash_with_not_existing_hash(self, full_trx, json_rpc_client):
@@ -61,8 +62,8 @@ class TestRpcGetBlock:
         """Verify implemented rpc calls work eth_getBlockByNumber"""
         response = json_rpc_client.send_rpc(method="eth_getBlockByNumber", params=["bad_tag", True])
         assert "error" in response, "Error not in response"
-        assert response["error"]["code"] == -32602
-        assert "failed to parse block tag: bad_tag" in response["error"]["message"]
+        assert response["error"]["code"] == Error32602.CODE
+        assert response["error"]["message"] == Error32602.INVALID_PARAMETERS
 
     @pytest.mark.parametrize(
         "number, full_trx",

@@ -5,9 +5,9 @@ import pytest
 
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.basic import Tag
-from integration.tests.basic.helpers.errors import Error32000, Error32602
-from utils.helpers import gen_hash_of_block
+from integration.tests.basic.helpers.errors import Error32602
 from utils.accounts import EthAccounts
+from utils.helpers import gen_hash_of_block
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -35,13 +35,9 @@ class TestRpcGetBlockTransaction:
         assert "message" in response["error"], "message field not in response"
         code = response["error"]["code"]
         message = response["error"]["message"]
-        if param is None:
-            assert code == Error32000.CODE, "wrong code"
-            assert Error32000.MISSING_ARGUMENT in message, "wrong message"
-            return
 
         assert code == Error32602.CODE, "wrong code"
-        assert Error32602.BAD_BLOCK_HASH in message, "wrong message"
+        assert Error32602.INVALID_BLOCKHASH in message, "wrong message"
 
     @pytest.mark.mainnet
     def test_eth_get_block_transaction_count_by_hash(self, json_rpc_client):

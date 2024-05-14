@@ -9,10 +9,10 @@ from eth_utils import keccak
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.assert_message import AssertMessage
 from integration.tests.basic.helpers.basic import Tag
-from integration.tests.basic.helpers.errors import Error32000, Error32602
+from integration.tests.basic.helpers.errors import Error32602
 from integration.tests.basic.helpers.rpc_checks import is_hex, hex_str_consists_not_only_of_zeros
-from utils.helpers import gen_hash_of_block, cryptohex
 from utils.accounts import EthAccounts
+from utils.helpers import gen_hash_of_block, cryptohex
 from utils.web3client import NeonChainWeb3Client
 
 GET_LOGS_TEST_DATA = [
@@ -159,7 +159,7 @@ class TestRpcBaseCalls:
         )
         assert "error" in response
         assert "message" in response["error"]
-        assert "bad address" in response["error"]["message"]
+        assert Error32602.INVALID_ADDRESS in response["error"]["message"]
 
     def test_web3_client_version(self, json_rpc_client):
         """Verify implemented rpc calls work web3_clientVersion"""
@@ -317,12 +317,8 @@ class TestRpcBaseCalls:
             assert "message" in response["error"]
             code = response["error"]["code"]
             message = response["error"]["message"]
-            if param is None:
-                assert code == Error32000.CODE, "wrong code"
-                assert Error32000.MISSING_ARGUMENT in message, "wrong error message"
-            else:
-                assert code == Error32602.CODE, "wrong code"
-                assert Error32602.NOT_HEX in message, "wrong error message"
+            assert Error32602.CODE == code, "wrong code"
+            assert Error32602.INVALID_DATA == message, "wrong error message"
 
     @pytest.mark.parametrize("method", UNSUPPORTED_METHODS)
     def test_check_unsupported_methods(self, method: str, json_rpc_client):
@@ -335,16 +331,16 @@ class TestRpcBaseCalls:
     def test_get_evm_params(self, json_rpc_client):
         response = json_rpc_client.send_rpc(method="neon_getEvmParams", params=[])
         expected_fields = [
-            "NEON_ACCOUNT_SEED_VERSION",
-            "NEON_EVM_STEPS_LAST_ITERATION_MAX",
-            "NEON_EVM_STEPS_MIN",
-            "NEON_GAS_LIMIT_MULTIPLIER_NO_CHAINID",
-            "NEON_HOLDER_MSG_SIZE",
-            "NEON_PAYMENT_TO_TREASURE",
-            "NEON_STORAGE_ENTRIES_IN_CONTRACT_ACCOUNT",
-            "NEON_TREASURY_POOL_COUNT",
-            "NEON_TREASURY_POOL_SEED",
-            "NEON_EVM_ID",
+            "neonAccountSeedVersion",
+            "neonMaxEvmStepsInLastIteration",
+            "neonMinEvmStepsInIteration",
+            "neonGasLimitMultiplierWithoutChainId",
+            "neonHolderMessageSize",
+            "neonPaymentToTreasury",
+            "neonStorageEntriesInContractAccount",
+            "neonTreasuryPoolCount",
+            "neonTreasuryPoolSeed",
+            "neonEvmProgramId",
         ]
         for field in expected_fields:
             assert field in response["result"], f"Field {field} is not in response: {response}"
