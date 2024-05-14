@@ -15,10 +15,11 @@ from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
 from utils.tracer_client import TracerClient
 from utils.helpers import padhex
-from integration.tests.tracer.test_tracer_historical_methods import call_storage
+
 
 SCHEMAS = "./integration/tests/tracer/schemas/"
 GOOD_CALLDATA = ["0x60fe60005360016000f3"]
+
 
 @allure.feature("Tracer API")
 @allure.story("Tracer API RPC calls debug methods check")
@@ -46,10 +47,10 @@ class TestTracerDebugMethods:
         assert response["error"]["message"] == "neon_api::trace failed"
 
     @pytest.mark.skip("NDEV-2998")
-    def test_debug_trace_call_empty_params_valid_block(self, storage_contract):
+    def test_debug_trace_call_empty_params_valid_block(self, storage_object):
         sender_account = self.accounts[0]
         store_value = random.randint(1, 100)
-        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", self.web3_client)
+        _, _, receipt = storage_object.call_storage(sender_account, store_value, "blockNumber", self.web3_client)
         tx_info = self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
 
         response = self.tracer_api.send_rpc(method="debug_traceCall", params=[{}, hex(tx_info["blockNumber"])])
@@ -84,10 +85,10 @@ class TestTracerDebugMethods:
         assert response["result"]["returnValue"] == ""
         self.validate_response_result(response)
 
-    def test_debug_trace_call_non_zero_eth_call(self, storage_contract):
+    def test_debug_trace_call_non_zero_eth_call(self, storage_object):
         sender_account = self.accounts[0]
         store_value = random.randint(1, 100)
-        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", self.web3_client)
+        _, _, receipt = storage_object.call_storage(sender_account, store_value, "blockNumber")
        
         tx_info = self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
 
@@ -118,10 +119,10 @@ class TestTracerDebugMethods:
         assert "error" not in response, "Error in response"
         self.validate_response_result(response)
 
-    def test_debug_trace_transaction_non_zero_trace(self, storage_contract):
+    def test_debug_trace_transaction_non_zero_trace(self, storage_object):
         sender_account = self.accounts[0]
         store_value = random.randint(1, 100)
-        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", self.web3_client)
+        _, _, receipt = storage_object.call_storage(sender_account, store_value, "blockNumber")
 
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", [receipt["transactionHash"].hex()])
 
@@ -129,10 +130,10 @@ class TestTracerDebugMethods:
         assert response["result"]["returnValue"] == padhex(hex(store_value), 64)[2:]
         self.validate_response_result(response)
 
-    def test_debug_trace_transaction_hash_without_prefix(self, storage_contract):
+    def test_debug_trace_transaction_hash_without_prefix(self, storage_object):
         sender_account = self.accounts[0]
         store_value = random.randint(1, 100)
-        _, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", self.web3_client)
+        _, _, receipt = storage_object.call_storage(sender_account, store_value, "blockNumber")
 
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", [receipt["transactionHash"].hex()[2:]])
 
