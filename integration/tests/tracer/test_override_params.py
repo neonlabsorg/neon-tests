@@ -29,31 +29,31 @@ class TestTracerOverrideParams:
     storage_value = 57
 
     @pytest.fixture(scope="class")
-    def retrieve_block_tx(self, storage_contract, web3_client):
+    def retrieve_block_tx(self, storage_contract):
         sender_account = self.accounts[0]
-        nonce = web3_client.eth.get_transaction_count(sender_account.address)
+        nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
         instruction_tx = storage_contract.functions.storeBlock().build_transaction(
             {
                 "nonce": nonce,
-                "gasPrice": web3_client.gas_price(),
+                "gasPrice": self.web3_client.gas_price(),
             }
         )
-        receipt = web3_client.send_transaction(sender_account, instruction_tx)
+        receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
         return self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
     
     @pytest.fixture(scope="class")
-    def retrieve_block_timestamp_tx(self, storage_contract, web3_client):
+    def retrieve_block_timestamp_tx(self, storage_contract):
         sender_account = self.accounts[0]
-        nonce = web3_client.eth.get_transaction_count(sender_account.address)
+        nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
         instruction_tx = storage_contract.functions.storeBlockTimestamp().build_transaction(
             {
                 "nonce": nonce,
-                "gasPrice": web3_client.gas_price(),
+                "gasPrice": self.web3_client.gas_price(),
             }
         )
-        receipt = web3_client.send_transaction(sender_account, instruction_tx)
+        receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
         return self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
@@ -75,27 +75,27 @@ class TestTracerOverrideParams:
         return index
 
     @pytest.fixture(scope="class")
-    def call_storage_tx(self, storage_contract, web3_client):
+    def call_storage_tx(self, storage_contract):
         sender_account = self.accounts[0]
-        _, _, receipt = call_storage(sender_account, storage_contract, self.storage_value, "blockNumber", web3_client)
+        _, _, receipt = call_storage(sender_account, storage_contract, self.storage_value, "blockNumber", self.web3_client)
         return self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
 
     @pytest.fixture(scope="class")
-    def call_store_value_tx(self, storage_contract, web3_client):
+    def call_store_value_tx(self, storage_contract):
         sender_account = self.accounts[0]
-        receipt = store_value(sender_account, self.storage_value, storage_contract, web3_client)
+        receipt = store_value(sender_account, self.storage_value, storage_contract, self.web3_client)
         return self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
 
-    def retrieve_block_info_tx(self, storage_contract, web3_client):   
+    def retrieve_block_info_tx(self, storage_contract):   
         sender_account = self.accounts[0]
-        nonce = web3_client.eth.get_transaction_count(sender_account.address)
+        nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
         instruction_tx = storage_contract.functions.storeBlockInfo().build_transaction(
             {
                 "nonce": nonce,
-                "gasPrice": web3_client.gas_price(),
+                "gasPrice": self.web3_client.gas_price(),
             }
         )
-        receipt = web3_client.send_transaction(sender_account, instruction_tx)
+        receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
         return self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
@@ -185,7 +185,7 @@ class TestTracerOverrideParams:
         assert response_overrided["result"][address_from]["nonce"] != response["result"][address_from]["nonce"]
         assert response_overrided["result"][address_from]["nonce"] == nonce[0]
 
-    def test_stateOverrides_debug_traceCall_override_balance_of_one_account(self, call_storage_tx):
+    def test_stateOverrides_debug_traceCall_override_balance_of_contract_account(self, call_storage_tx):
         address_from = call_storage_tx["from"].lower()
         address_to = call_storage_tx["to"].lower()
         params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
@@ -204,27 +204,49 @@ class TestTracerOverrideParams:
         assert response_overrided["result"][address_to]["balance"] != response["result"][address_to]["balance"]
         assert response_overrided["result"][address_to]["balance"] == "0x1"
 
-    def test_stateOverrides_debug_traceCall_override_balance_both_accounts(self, call_storage_tx):
-        address_from = call_storage_tx["from"].lower()
-        address_to = call_storage_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_storage_tx)
+    def test_stateOverrides_debug_traceCall_override_balance_both_accounts(self, storage_contract):
+        sender_account = self.accounts[0]
+        nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
+        instruction_tx = storage_contract.functions.retrieveSenderBalance().build_transaction(
+            {
+                "nonce": nonce,
+                "gasPrice": self.web3_client.gas_price(),
+            }
+        )
+        receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
+        assert receipt["status"] == 1
+
+        tx = self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
+
+        address_from = tx["from"].lower()
+        address_to = tx["to"].lower()
+        params = self.fill_params_for_storage_contract_trace_call(tx)
+
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         params.append({"tracer": "prestateTracer"})
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+        response_prestate = self.tracer_api.send_rpc("debug_traceCall", params)
         params.pop(2)
 
-        override_params = {"stateOverrides": {address_from: {"balance": "0xd8d726b7177a80000"}, 
-                                              address_to: {"balance": "0x1aa535d3d0c"}},
-                            "tracer": "prestateTracer"}
+        override_params = {"stateOverrides": {address_from: {"balance": "0xd8d726b7177a80001"}, 
+                                              address_to: {"balance": "0x1aa535d3d0c"}}}
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
+        params[2]["tracer"] = "prestateTracer"
+        response_prestate_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
+
+        assert "error" not in response_prestate, "Error in response"
+        assert "error" not in response_prestate_overrided, "Error in response"
+        assert response_prestate_overrided["result"][address_from]["balance"] != response_prestate["result"][address_from]["balance"]
+        assert response_prestate_overrided["result"][address_from]["balance"] == "0xd8d726b7177a80001"
+        assert response_prestate_overrided["result"][address_to]["balance"] != response_prestate["result"][address_to]["balance"]
+        assert response_prestate_overrided["result"][address_to]["balance"] == "0x1aa535d3d0c"
+
         assert "error" not in response, "Error in response"
         assert "error" not in response_overrided, "Error in response"
-        assert response_overrided["result"][address_from]["balance"] != response["result"][address_from]["balance"]
-        assert response_overrided["result"][address_from]["balance"] == "0xd8d726b7177a80000"
-        assert response_overrided["result"][address_to]["balance"] != response["result"][address_to]["balance"]
-        assert response_overrided["result"][address_to]["balance"] == "0x1aa535d3d0c"
+        assert response["result"]["returnValue"] != response_overrided["result"]["returnValue"]
+        assert response_overrided["result"]["returnValue"] == padhex("0xd8d726b7177a80001", 64)[2:]
     
     # NDEV-3009
     def test_stateOverrides_debug_traceCall_override_balance_insufficient_for_tx(self, call_storage_tx):

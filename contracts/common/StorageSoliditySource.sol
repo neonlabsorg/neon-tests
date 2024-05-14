@@ -26,6 +26,10 @@ contract Storage {
         return number;
     }
 
+    function retrieveSenderBalance() public view returns (uint256) {
+        return msg.sender.balance;
+    }
+
     /**
      * @dev Returns code for given address
      * @return value of '_addr.code'
