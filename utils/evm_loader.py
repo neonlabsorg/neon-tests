@@ -32,14 +32,15 @@ from utils.instructions import (
     make_ExecuteTrxFromAccountDataIterativeOrContinue,
     make_CreateBalanceAccount,
     make_CreateAssociatedTokenIdempotent,
-    make_DepositV03, make_wSOL,
+    make_DepositV03,
+    make_wSOL,
+    make_OperatorBalanceAccount,
 )
 from utils.layouts import BALANCE_ACCOUNT_LAYOUT, CONTRACT_ACCOUNT_LAYOUT, STORAGE_CELL_LAYOUT
 from utils.solana_client import SolanaClient
 from utils.types import Caller
 
 EVM_STEPS = 500
-
 
 
 class EvmLoader(SolanaClient):
@@ -65,8 +66,6 @@ class EvmLoader(SolanaClient):
             [bytes(TREASURY_POOL_SEED, "utf8"), pool_index.to_bytes(4, "little")], self.loader_id
         )[0]
 
-
-
     @staticmethod
     def ether2bytes(ether: Union[str, bytes]):
         if isinstance(ether, str):
@@ -83,7 +82,14 @@ class EvmLoader(SolanaClient):
             return ether
         return ether.hex()
 
-
+    def ether2operator_balance(self, keypair: Keypair, ether_address: Union[str, bytes], chain_id=CHAIN_ID) -> PublicKey:
+        address_bytes = self.ether2bytes(ether_address)
+        key = bytes(keypair.public_key)
+        chain_id_bytes = chain_id.to_bytes(32, 'big')
+        return PublicKey.find_program_address(
+            [self.account_seed_version, key, address_bytes, chain_id_bytes],
+            self.loader_id
+        )[0]
     def get_neon_nonce(self, account: Union[str, bytes], chain_id=CHAIN_ID) -> int:
         solana_address = self.ether2balance(account, chain_id)
 
@@ -137,7 +143,8 @@ class EvmLoader(SolanaClient):
                 self.send_transaction(
                     trx,
                     operator,
-                    opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed),)
+                    opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed),
+                )
             )
             offset += len(part)
 
@@ -145,10 +152,7 @@ class EvmLoader(SolanaClient):
             self.confirm_transaction(rcpt.value, commitment=Confirmed)
 
     def ether2program(self, ether: tp.Union[str, bytes]) -> tp.Tuple[str, int]:
-
-        items = PublicKey.find_program_address(
-            [self.account_seed_version, self.ether2bytes(ether)], self.loader_id
-        )
+        items = PublicKey.find_program_address([self.account_seed_version, self.ether2bytes(ether)], self.loader_id)
         return str(items[0]), items[1]
 
     def ether2balance(self, address: tp.Union[str, bytes], chain_id=CHAIN_ID) -> PublicKey:
@@ -162,7 +166,8 @@ class EvmLoader(SolanaClient):
 
     def get_operator_balance_pubkey(self, operator: Keypair):
         operator_ether = eth_keys.PrivateKey(operator.secret_key[:32]).public_key.to_canonical_address()
-        return self.ether2balance(operator_ether)
+        return self.ether2operator_balance(operator, operator_ether)
+
 
     def execute_trx_from_instruction(
         self,
@@ -496,14 +501,11 @@ class EvmLoader(SolanaClient):
         print(f"Account solana address: {caller_balance}")
         return Caller(key, PublicKey(caller_solana), caller_balance, caller_ether, caller_token)
 
-
-
     def sent_token_from_solana_to_neon(self, solana_account, mint, neon_account, amount, chain_id):
         """Transfer any token from solana to neon transaction"""
         balance_pubkey = self.ether2balance(neon_account.address, chain_id)
         contract_pubkey = PublicKey(self.ether2program(neon_account.address)[0])
         associated_token_address = get_associated_token_address(solana_account.public_key, mint)
-        #authority_pool = PublicKey.find_program_address([text.encode()], PublicKey(evm_loader_id))[0]
         authority_pool = PublicKey.find_program_address([b"Deposit"], self.loader_id)[0]
 
         pool = get_associated_token_address(authority_pool, mint)
@@ -522,23 +524,22 @@ class EvmLoader(SolanaClient):
         )
 
         tx.add(
-            make_DepositV03(bytes.fromhex(neon_account.address[2:]),
-                            chain_id,
-                            balance_pubkey,
-                            contract_pubkey,
-                            mint,
-                            associated_token_address,
-                            pool,
-                            TOKEN_PROGRAM_ID,
-                            solana_account.public_key,
-                            self.loader_id)
+            make_DepositV03(
+                bytes.fromhex(neon_account.address[2:]),
+                chain_id,
+                balance_pubkey,
+                contract_pubkey,
+                mint,
+                associated_token_address,
+                pool,
+                TOKEN_PROGRAM_ID,
+                solana_account.public_key,
+                self.loader_id,
+            )
         )
         self.send_tx_and_check_status_ok(tx, solana_account)
 
-
-    def deposit_wrapped_sol_from_solana_to_neon(
-        self, solana_account, neon_account, chain_id, full_amount=None
-    ):
+    def deposit_wrapped_sol_from_solana_to_neon(self, solana_account, neon_account, chain_id, full_amount=None):
         if not full_amount:
             full_amount = int(0.1 * LAMPORT_PER_SOL)
         mint_pubkey = wSOL["address_spl"]
@@ -550,9 +551,7 @@ class EvmLoader(SolanaClient):
         wrap_sol_tx = make_wSOL(full_amount, solana_account.public_key, ata_address)
         self.send_tx_and_check_status_ok(wrap_sol_tx, solana_account)
 
-        self.sent_token_from_solana_to_neon(
-            solana_account, wSOL["address_spl"], neon_account, full_amount, chain_id
-        )
+        self.sent_token_from_solana_to_neon(solana_account, wSOL["address_spl"], neon_account, full_amount, chain_id)
 
     def deposit_neon_like_tokens_from_solana_to_neon(
         self,
@@ -572,3 +571,10 @@ class EvmLoader(SolanaClient):
             amount,
             chain_id,
         )
+
+    def create_operator_balance_account(self, operator_keypair, operator_ether, chain_id=CHAIN_ID):
+        account = self.ether2operator_balance(operator_keypair, operator_ether, chain_id)
+        trx = make_OperatorBalanceAccount(
+            operator_keypair, account, self.ether2bytes(operator_ether), chain_id, self.loader_id
+        )
+        self.send_tx(trx, operator_keypair)
