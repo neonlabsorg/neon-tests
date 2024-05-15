@@ -6,6 +6,7 @@ pragma solidity >=0.4.0;
  */
 contract Storage {
     uint256 number;
+    uint256 numberTwo;
     uint256 time;
     uint256[] public values;
 
@@ -30,6 +31,11 @@ contract Storage {
         return msg.sender.balance;
     }
 
+    function storeSumOfNumbers(uint256 num1, uint256 num2) public returns (uint256) {
+        number = num1;
+        numberTwo = num2;
+        return number + numberTwo;
+    }
     /**
      * @dev Returns code for given address
      * @return value of '_addr.code'

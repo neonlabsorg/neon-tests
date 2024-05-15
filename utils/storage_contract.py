@@ -67,3 +67,10 @@ class StorageContract:
         receipt = self._web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
         return receipt
+
+    def retrieve_sum_of_values(self, sender_account, value_1, value_2):
+        tx = self._web3_client.make_raw_tx(sender_account)
+        instruction_tx = self._storage_contract.functions.storeSumOfNumbers(value_1, value_2).build_transaction(tx)
+        receipt = self._web3_client.send_transaction(sender_account, instruction_tx)
+        assert receipt["status"] == 1
+        return receipt
