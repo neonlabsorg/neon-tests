@@ -244,7 +244,7 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
 
     print("Run tests in parallel")
     pool = Pool(jobs)
-    pool.map(run_oz_file, prioritised_tests)
+    pool.map(run_oz_file, prioritised_tests, chunksize=1)
     pool.close()
     pool.join()
 
