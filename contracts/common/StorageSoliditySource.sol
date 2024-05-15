@@ -10,19 +10,11 @@ contract Storage {
     uint256 time;
     uint256[] public values;
 
-    /**
-     * @dev Stores value in variable
-     * @param num value to store
-     */
     function store(uint256 num) public {
         number = num;
         values = [number];
     }
 
-    /**
-     * @dev Returns value
-     * @return value of 'number'
-     */
     function retrieve() public view returns (uint256) {
         return number;
     }
@@ -31,15 +23,14 @@ contract Storage {
         return msg.sender.balance;
     }
 
-    function storeSumOfNumbers(uint256 num1, uint256 num2) public returns (uint256) {
-        number = num1;
+   function storeSumOfNumbers(uint256 num1, uint256 num2) public returns (uint256) {
+        if (number == 101) {
+            num1 = 0;
+        }
         numberTwo = num2;
-        return number + numberTwo;
+        return num1 + numberTwo;
     }
-    /**
-     * @dev Returns code for given address
-     * @return value of '_addr.code'
-     */
+
     function at(address _addr) public view returns (bytes memory) {
         return _addr.code;
     }
