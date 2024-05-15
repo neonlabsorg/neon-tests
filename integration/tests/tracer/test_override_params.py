@@ -73,7 +73,12 @@ class TestTracerOverrideParams:
                 break
         return index
 
-    def fill_params_for_storage_contract_trace_call(self, tx, is_prestate=False):
+    def fill_params_for_storage_contract_trace_call(self, tx, is_prestate=False, is_tx_block=False):
+        if is_tx_block:
+            block_number = hex(tx["blockNumber"])
+        else:
+            block_number = hex(tx["blockNumber"] - 1)
+
         params = [
             {
                 "to": tx["to"],
@@ -83,7 +88,7 @@ class TestTracerOverrideParams:
                 "value": hex(tx["value"]),
                 "data": tx["input"].hex(),
             },
-            hex(tx["blockNumber"] - 1),
+            block_number,
         ]
 
         if is_prestate:
@@ -694,7 +699,7 @@ class TestTracerOverrideParams:
         assert response_overrided["result"] == padhex(hex(self.storage_value + 1), 64)
 
     def test_blockOverrides_debug_traceCall_override_block(self, retrieve_block_tx, call_storage_tx):
-        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx)
+        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx, is_tx_block=True)
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         override_params = {"blockOverrides": {"number": call_storage_tx["blockNumber"]}}
@@ -712,7 +717,7 @@ class TestTracerOverrideParams:
             assert v == diff_block or v == diff_storage
 
     def test_blockOverrides_debug_traceCall_override_block_invalid(self, retrieve_block_tx):
-        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx)
+        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx, is_tx_block=True)
         self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         override_params = {"blockOverrides": {"number": 0.1}}
@@ -725,7 +730,7 @@ class TestTracerOverrideParams:
 
     # NDEV-3009
     def test_blockOverrides_debug_traceCall_override_block_future(self, retrieve_block_tx):
-        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx)
+        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx, is_tx_block=True)
         self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         block = self.web3_client.get_block_number()
@@ -739,7 +744,7 @@ class TestTracerOverrideParams:
 
     @pytest.mark.skip("NDEV-3010")
     def test_blockOverrides_debug_traceCall_wrong_override_format(self, retrieve_block_tx, call_storage_tx):
-        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx)
+        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx, is_tx_block=True)
         self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         override_params = {"blockOverrides": {retrieve_block_tx["to"].lower(): {"number": call_storage_tx["blockNumber"]}}}
@@ -751,7 +756,9 @@ class TestTracerOverrideParams:
         assert response_overrided["error"]["message"] == "Invalid params"
 
     def test_blockOverrides_debug_traceCall_override_block_timestamp(self, storage_contract, retrieve_block_timestamp_tx):
-        params_prestate = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx, is_prestate=True)
+        params_prestate = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx, 
+                                                                           is_prestate=True, 
+                                                                           is_tx_block=True)
         response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_prestate)
         address_to = retrieve_block_timestamp_tx["to"].lower()
         timestamp_new = int(response_prestate["result"][address_to]["storage"][index_0], 0)
@@ -763,12 +770,14 @@ class TestTracerOverrideParams:
         assert receipt["status"] == 1
         retrieve_block_timestamp_tx_new = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
 
-        params_new_prestate = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx_new, is_prestate=True)
+        params_new_prestate = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx_new, 
+                                                                               is_prestate=True,
+                                                                               is_tx_block=True)
         response_new_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_new_prestate)
         address_to = retrieve_block_timestamp_tx_new["to"].lower()
         timestamp = int(response_new_prestate["result"][address_to]["storage"][index_0], 0)
 
-        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx_new)
+        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx_new, is_tx_block=True)
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         override_params = {"blockOverrides": {"time": timestamp_new}}
@@ -785,7 +794,7 @@ class TestTracerOverrideParams:
             assert v == diff_block_timestamp or v == diff_storage
 
     def test_blockOverrides_debug_traceCall_override_block_timestamp_invalid_one(self, retrieve_block_timestamp_tx):
-        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx)
+        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx, is_tx_block=True)
         self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         override_params = {"blockOverrides": {"time": "1715360635"}}
@@ -797,12 +806,14 @@ class TestTracerOverrideParams:
         assert response_overrided["error"]["message"] == "Invalid params"
 
     def test_blockOverrides_debug_traceCall_override_block_timestamp_to_timestamp_now(self, retrieve_block_timestamp_tx):
-        params_prestate = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx, is_prestate=True)
+        params_prestate = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx, 
+                                                                           is_prestate=True, 
+                                                                           is_tx_block=True)
         response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_prestate)
         address_to = retrieve_block_timestamp_tx["to"].lower()
         timestamp = int(response_prestate["result"][address_to]["storage"][index_0], 0)
 
-        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx)
+        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_timestamp_tx, is_tx_block=True)
         response = self.tracer_api.send_rpc("debug_traceCall", params)
 
         timestamp_new = int(time.time())
@@ -821,19 +832,24 @@ class TestTracerOverrideParams:
 
     def test_blockOverrides_debug_traceCall_override_block_number_and_timestamp(self, storage_object):
         block_info_tx_1 = self.retrieve_block_info_tx(storage_object)
-        params_1_prestate = self.fill_params_for_storage_contract_trace_call(block_info_tx_1, is_prestate=True)
+        params_1_prestate = self.fill_params_for_storage_contract_trace_call(block_info_tx_1, 
+                                                                             is_prestate=True, 
+                                                                             is_tx_block=True)
         response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_1_prestate)
+        print(response_prestate)
         address_to_1 = block_info_tx_1["to"].lower()
-        timestamp_1 = int(response_prestate["result"][address_to_1]["storage"][index_1], 0)
+        timestamp_1 = int(response_prestate["result"][address_to_1]["storage"][index_2], 0)
 
-        params = self.fill_params_for_storage_contract_trace_call(block_info_tx_1)
+        params = self.fill_params_for_storage_contract_trace_call(block_info_tx_1, is_tx_block=True)
         response = self.tracer_api.send_rpc("debug_traceCall", params)
 
         block_info_tx_2 = self.retrieve_block_info_tx(storage_object)
-        params_2_prestate = self.fill_params_for_storage_contract_trace_call(block_info_tx_2, is_prestate=True)
+        params_2_prestate = self.fill_params_for_storage_contract_trace_call(block_info_tx_2, 
+                                                                             is_prestate=True, 
+                                                                             is_tx_block=True)
         response_prestate_2 = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_2_prestate)
         address_to_2 = block_info_tx_2["to"].lower()
-        timestamp_2 = int(response_prestate_2["result"][address_to_2]["storage"][index_1], 0)
+        timestamp_2 = int(response_prestate_2["result"][address_to_2]["storage"][index_2], 0)
 
         override_params = {"blockOverrides": {"number": block_info_tx_2["blockNumber"], "time": timestamp_2}}
         params.append(override_params)
@@ -856,7 +872,7 @@ class TestTracerOverrideParams:
 
     def test_blockOverrides_debug_traceCall_override_block_number_and_invalid_timestamp(self, storage_object):
         block_info_tx = self.retrieve_block_info_tx(storage_object)
-        params = self.fill_params_for_storage_contract_trace_call(block_info_tx)
+        params = self.fill_params_for_storage_contract_trace_call(block_info_tx, is_tx_block=True)
         self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         block_info_tx_override = self.retrieve_block_info_tx(storage_object)
@@ -870,7 +886,7 @@ class TestTracerOverrideParams:
 
     def test_blockOverrides_and_stateOverrides_debug_traceCall(self, call_storage_tx, retrieve_block_tx):
         address_from = retrieve_block_tx["from"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx)
+        params = self.fill_params_for_storage_contract_trace_call(retrieve_block_tx, is_tx_block=True)
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         override_params = {"blockOverrides": {"number": call_storage_tx["blockNumber"]}, 
