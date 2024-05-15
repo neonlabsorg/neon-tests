@@ -373,8 +373,7 @@ class TestTracerOverrideParams:
 
         response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_prestate)
 
-        params_prestate[2]["stateOverrides"] = {address_to: {"code": response_prestate["result"][address_to]["code"],  
-                                                             "state": {"0x0" : hex(self.storage_value + 3)}}}
+        params_prestate[2]["stateOverrides"] = {address_to: {"state": {"0x0" : hex(self.storage_value + 3)}}}
         response_overrided_prestate = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
         response = self.tracer_api.send_rpc("debug_traceCall", params)
@@ -443,8 +442,7 @@ class TestTracerOverrideParams:
 
         response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_prestate)
 
-        params_prestate[2]["stateOverrides"] = {address_to: {"code": response_prestate["result"][address_to]["code"],
-                                                             "stateDiff": {index_0 : hex(self.storage_value + 1)}}}
+        params_prestate[2]["stateOverrides"] = {address_to: {"stateDiff": {index_0 : hex(self.storage_value + 1)}}}
         response_overrided_prestate = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
         response = self.tracer_api.send_rpc("debug_traceCall", params)
