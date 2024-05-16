@@ -3,7 +3,7 @@ import re
 import allure
 import pytest
 
-from integration.tests.basic.helpers.errors import Error32000, Error32602
+from integration.tests.basic.helpers.errors import Error32602
 from integration.tests.basic.helpers.rpc_checks import assert_fields_are_hex, assert_fields_are_specified_type
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
@@ -19,7 +19,6 @@ class TestNeonRPCBaseCalls:
     @pytest.mark.parametrize(
         "params, error_code, error_message",
         [
-            ([], Error32000.CODE, Error32000.MISSING_ARGUMENT),
             ([{"from": "0x0"}], Error32602.CODE, Error32602.BAD_FROM_ADDRESS),
         ],
     )
@@ -46,13 +45,12 @@ class TestNeonRPCBaseCalls:
                 "minAcceptableGasPrice",
                 "minExecutableGasPrice",
                 "minWoChainIDAcceptableGasPrice",
-                "solPriceUsd",
-                "neonPriceUsd",
+                "chainTokenPriceUsd",
+                "tokenPriceUsd",
                 "operatorFee",
-                "gasPriceSlippage",
             ],
         )
-        assert_fields_are_specified_type(bool, result, ["isConstGasPrice", "allowUnderpricedTxWoChainID"])
+        assert_fields_are_specified_type(bool, result, ["isConstGasPrice"])
         gas_price = result["gasPrice"]
         assert int(gas_price, 16) > 100000000, f"gas price should be greater 100000000, got {int(gas_price, 16)}"
 
@@ -81,28 +79,28 @@ class TestNeonRPCBaseCalls:
         response = json_rpc_client.send_rpc(method="neon_getSolanaTransactionByNeonTransaction", params=params)
         assert "result" in response
         result = response["result"]
-        assert len(result) == 6
+        assert len(result) == 5
         for tx in result:
             assert sol_client.wait_transaction(tx) is not None
 
     @pytest.mark.parametrize(
-        "params, error_code, error_message",
+        "params",
         [
-            ([0x0], Error32602.CODE, Error32602.BAD_TRANSACTION_ID_FORMAT),
-            ([None], Error32602.CODE, Error32602.BAD_TRANSACTION_ID_FORMAT),
-            (["0x0"], Error32602.CODE, Error32602.NOT_HEX),
-            ([], Error32000.CODE, Error32000.MISSING_ARGUMENT),
+            ([0x0],),
+            ([None],),
+            (["0x0"],),
+            ([],),
         ],
     )
     def test_neon_get_solana_transaction_by_neon_transaction_negative(
-        self, params, error_code, error_message, json_rpc_client
+        self, params, json_rpc_client
     ):
         response = json_rpc_client.send_rpc(method="neon_getSolanaTransactionByNeonTransaction", params=params)
         assert "error" in response, "error field not in response"
         assert "code" in response["error"]
         assert "message" in response["error"], "message field not in response"
-        assert error_code == response["error"]["code"]
-        assert error_message in response["error"]["message"]
+        assert Error32602.CODE == response["error"]["code"]
+        assert Error32602.INVALID_TRANSACTIONID == response["error"]["message"]
 
     def test_neon_get_solana_transaction_by_neon_transaction_non_existent_tx(self, json_rpc_client):
         response = json_rpc_client.send_rpc(

@@ -1,7 +1,7 @@
 import allure
 import pytest
 
-from utils.consts import ZERO_ADDRESS, MAX_UINT_256
+from utils.consts import ZERO_ADDRESS, MAX_UINT_256, MAX_UINT_64
 
 
 @allure.feature("Opcodes verifications")
@@ -25,4 +25,4 @@ class TestUnsupportedOpcodes:
         assert contract.functions.gaslimit().call() == MAX_UINT_256
 
     def test_gas_left(self, contract):
-        assert contract.functions.gasLeft().call() == MAX_UINT_256
+        assert contract.functions.gasLeft().call() == MAX_UINT_64
