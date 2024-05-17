@@ -470,26 +470,17 @@ class TestTracerOverrideParams:
         params_prestate = self.fill_params_for_storage_contract_trace_call(call_sum_of_values_tx, is_prestate=True)
 
         response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_prestate)
-        print(response_prestate)
 
         params_prestate[2]["stateOverrides"] = {address_to: {"stateDiff": {index_0: padhex(hex(101), 64), 
-                                                                           index_1: padhex(hex(self.storage_value + 1), 64)}}}
+                                                                           index_1: padhex(hex(103), 64)}}}
 
         response_overrided_prestate = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
-        print(response_overrided_prestate)
 
         response = self.tracer_api.send_rpc("debug_traceCall", params)
-        print()
-        print(response["result"]["returnValue"])
 
         override_params = {"stateOverrides": params_prestate[2]["stateOverrides"]}
         params.append(override_params)
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
-        print()
-        print(response_overrided["result"]["returnValue"])
-
-        print()
-        print(self.storage_value)
 
         assert "error" not in response_prestate, "Error in response"
         assert "error" not in response_overrided_prestate, "Error in response"
