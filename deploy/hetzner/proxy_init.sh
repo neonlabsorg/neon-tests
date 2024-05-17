@@ -19,7 +19,7 @@ sudo chmod +x /usr/local/bin/docker-compose
 
 # Get docker-compose file
 cd /opt
-curl -O https://raw.githubusercontent.com/neonlabsorg/proxy-model.py/${proxy_model_commit}/docker-compose/docker-compose-ci.yml
+curl -O https://raw.githubusercontent.com/neonlabsorg/neon-proxy.py/${proxy_model_commit}/docker-compose/docker-compose-ci.yml
 
 
 # Set required environment variables
@@ -30,6 +30,7 @@ export FAUCET_COMMIT=${faucet_model_commit}
 export CI_PP_SOLANA_URL=${ci_pp_solana_url}
 export DOCKERHUB_ORG_NAME=${dockerhub_org_name}
 export USE_REAL_GAS_PRICE=${use_real_price}
+export PROXY_IMAGE_NAME="neon-proxy.py"
 
 # Generate docker-compose override file
 cat > docker-compose-ci.override.yml <<EOF
