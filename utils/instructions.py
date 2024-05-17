@@ -349,6 +349,6 @@ def make_OperatorBalanceAccount(operator_keypair, operator_balance_pubkey, ether
             AccountMeta(pubkey=operator_balance_pubkey, is_signer=False, is_writable=True)
         ],
         program_id=evm_loader_id,
-        data=bytes.fromhex("38") + ether_bytes + chain_id.to_bytes(8, 'little')
+        data=bytes.fromhex("3A") + ether_bytes + chain_id.to_bytes(8, 'little')
     ))
     return trx
