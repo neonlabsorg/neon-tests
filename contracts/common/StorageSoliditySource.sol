@@ -23,12 +23,14 @@ contract Storage {
         return msg.sender.balance;
     }
 
-   function storeSumOfNumbers(uint256 num1, uint256 num2) public returns (uint256) {
+   function storeSumOfNumbers(uint256 num1, uint256 num2) public view returns (uint256) {
         if (number == 101) {
             num1 = 0;
         }
-        numberTwo = num2;
-        return num1 + numberTwo;
+        if (numberTwo == 103) {
+            num2 = 5;
+        }
+        return num1 + num2;
     }
 
     function at(address _addr) public view returns (bytes memory) {
@@ -50,6 +52,13 @@ contract Storage {
         number = block.number;
         time = block.timestamp;
         values = [number, time];
+    }
+
+    function returnDoubledNumber(uint256 num) public view returns (uint256) {
+        if (number == 102) {
+            num = 10;
+        }
+        return num * 2;
     }
 }
 

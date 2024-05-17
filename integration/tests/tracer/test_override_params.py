@@ -494,21 +494,21 @@ class TestTracerOverrideParams:
         assert "error" not in response_prestate, "Error in response"
         assert "error" not in response_overrided_prestate, "Error in response"
         assert response_overrided_prestate["result"][address_to]["storage"][index_0] == padhex(hex(101), 64)
-        assert response_overrided_prestate["result"][address_to]["storage"][index_1] == padhex(hex(self.storage_value + 1), 64)
+        assert response_overrided_prestate["result"][address_to]["storage"][index_1] == padhex(hex(103), 64)
 
         assert "error" not in response, "Error in response"
         assert "error" not in response_overrided, "Error in response"
         assert response["result"]["returnValue"] == padhex(hex(2*self.storage_value), 64)[2:]
-        assert response_overrided["result"]["returnValue"] == padhex(hex(self.storage_value + 1), 64)[2:]
+        assert response_overrided["result"]["returnValue"] == index_5[2:]
 
-    def test_stateOverrides_debug_traceCall_override_stateDiff_add_non_existent_index_and_existed_one(self, call_sum_of_values_tx, contract_index):
+    def test_stateOverrides_debug_traceCall_override_stateDiff_add_non_existent_index_and_existed_one(self, call_sum_of_values_tx):
         address_to = call_sum_of_values_tx["to"].lower()
         params = self.fill_params_for_storage_contract_trace_call(call_sum_of_values_tx)
         params_prestate = self.fill_params_for_storage_contract_trace_call(call_sum_of_values_tx, is_prestate=True)
 
         response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_prestate)
 
-        params_prestate[2]["stateOverrides"] = {address_to: {"stateDiff": {index_0: padhex(hex(self.storage_value + 1), 64), 
+        params_prestate[2]["stateOverrides"] = {address_to: {"stateDiff": {index_0: padhex(hex(101), 64), 
                                                                            index_5: padhex("0x12", 64)}}}
         response_overrided_prestate = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
 
@@ -520,32 +520,39 @@ class TestTracerOverrideParams:
 
         assert "error" not in response_prestate, "Error in response"
         assert "error" not in response_overrided_prestate, "Error in response"
-        assert response_prestate["result"][address_to]["storage"][contract_index] == \
-            response_overrided_prestate["result"][address_to]["storage"][contract_index]
-        assert response_overrided_prestate["result"][address_to]["storage"][index_0] == padhex(hex(self.storage_value + 1), 64)
-        assert response_overrided_prestate["result"][address_to]["storage"][index_2] == padhex(hex(self.storage_value), 64)
-        assert index_5 not in response_overrided["result"][address_to]["storage"]
+        assert response_overrided_prestate["result"][address_to]["storage"][index_0] == padhex(hex(101), 64)
+        assert response_overrided_prestate["result"][address_to]["storage"][index_1] == response_prestate["result"][address_to]["storage"][index_1]
+        assert index_5 not in response_overrided_prestate["result"][address_to]["storage"]
 
         assert "error" not in response, "Error in response"
         assert "error" not in response_overrided, "Error in response"
         assert response["result"]["returnValue"] == padhex(hex(2*self.storage_value), 64)[2:]
-        assert response_overrided["result"]["returnValue"] == padhex(hex(2*self.storage_value + 1), 64)[2:]
+        assert response_overrided["result"]["returnValue"] == padhex(hex(self.storage_value), 64)[2:]
     
-    def test_stateOverrides_debug_traceCall_override_stateDiff_add_non_existent_index(self, call_store_value_tx, contract_index):
+    def test_stateOverrides_debug_traceCall_override_stateDiff_add_non_existent_index(self, call_store_value_tx):
         address_to = call_store_value_tx["to"].lower()
-        params = self.fill_params_for_storage_contract_trace_call(call_store_value_tx, is_prestate=True)
+        params = self.fill_params_for_storage_contract_trace_call(call_store_value_tx)
+        params_prestate = self.fill_params_for_storage_contract_trace_call(call_store_value_tx, is_prestate=True)
 
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+        response_prestate = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params_prestate)
 
-        params[2]["stateOverrides"] = {address_to: {"stateDiff": {index_5: padhex("0x12", 64)}}}
+        params_prestate[2]["stateOverrides"] = {address_to: {"stateDiff": {index_5: padhex("0x12", 64)}}}
+        response_prestate_overrided = self.tracer_api.send_rpc("debug_traceCall", params_prestate)
+
+        response = self.tracer_api.send_rpc("debug_traceCall", params)
+
+        override_params = {"stateOverrides": params_prestate[2]["stateOverrides"]}
+        params.append(override_params)
         response_overrided = self.tracer_api.send_rpc("debug_traceCall", params)
 
+        assert "error" not in response_prestate, "Error in response"
+        assert "error" not in response_prestate_overrided, "Error in response"
+        assert response_prestate_overrided["result"][address_to]["storage"] == \
+            response_prestate_overrided["result"][address_to]["storage"]
+        
         assert "error" not in response, "Error in response"
         assert "error" not in response_overrided, "Error in response"
-        assert response["result"][address_to]["storage"][contract_index] == response_overrided["result"][address_to]["storage"][contract_index]
-        assert response_overrided["result"][address_to]["storage"][index_0] == response_overrided["result"][address_to]["storage"][index_0]
-        assert response_overrided["result"][address_to]["storage"][index_2] == response_overrided["result"][address_to]["storage"][index_2]
-        assert index_5 not in response_overrided["result"][address_to]["storage"]
+        assert response["result"]["returnValue"] == response_overrided["result"]["returnValue"]
 
     def test_stateOverrides_debug_traceCall_override_all_params_without_storage(self, call_storage_tx):
         address_to = call_storage_tx["to"].lower()

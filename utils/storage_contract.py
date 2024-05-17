@@ -23,6 +23,13 @@ class StorageContract:
         receipt = self._web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
         return instruction_tx, receipt
+    
+    def retrieve_doubled_value(self, sender_account, value):
+        tx = self._web3_client.make_raw_tx(sender_account)
+        instruction_tx = self._storage_contract.functions.returnDoubledNumber(value).build_transaction(tx)
+        receipt = self._web3_client.send_transaction(sender_account, instruction_tx)
+        assert receipt["status"] == 1
+        return instruction_tx, receipt
 
     def call_storage(self, sender_account, storage_value, request_type):
         request_value = None
