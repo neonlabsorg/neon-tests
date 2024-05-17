@@ -5,15 +5,16 @@ import pytest
 from solana.publickey import PublicKey
 from web3.contract import Contract
 from solana.keypair import Keypair
-from solders.pubkey import Pubkey
 
+from utils.accounts import EthAccounts
 from utils.helpers import wait_condition
 from utils.solana_client import SolanaClient
+from utils.web3client import NeonChainWeb3Client
 
 
 class TestQueryAccountLib:
     # ---------------------------------------- owner ----------------------------------------
-    def test_owner_positive(
+    async def test_owner_positive(
         self,
         query_account_caller_contract: Contract,
         solana_account: Keypair,
@@ -35,7 +36,39 @@ class TestQueryAccountLib:
         assert success is True
         assert actual_owner_address == expected_owner_address
 
-    def test_owner_negative_address_max_int(
+    async def test_owner_through_transaction_positive(
+            self,
+            accounts: EthAccounts,
+            sol_client_session: SolanaClient,
+            solana_account: Keypair,
+            query_account_caller_contract: Contract,
+            web3_client: NeonChainWeb3Client,
+    ):
+        account = accounts[0]
+        new_solana_account = sol_client_session.create_account(
+            payer=solana_account,
+            size=0,
+            owner=solana_account.public_key,
+        )
+
+        solana_account_address_uint256 = int.from_bytes(new_solana_account.public_key, byteorder="big")
+        tx = web3_client.make_raw_tx(account)
+
+        instruction_tx = query_account_caller_contract.functions.queryOwner(
+            solana_account_address_uint256
+        ).build_transaction(tx)
+
+        tx_receipt = web3_client.send_transaction(account, instruction_tx)
+        log_raw = tx_receipt.logs[0]
+        log_processed = query_account_caller_contract.events.QueryResultUint256().process_log(log_raw)
+        success = log_processed.args.success
+        actual_owner_address = log_processed.args.result
+        expected_owner_address = int.from_bytes(solana_account.public_key, byteorder="big")
+
+        assert success is True
+        assert actual_owner_address == expected_owner_address
+
+    async def test_owner_negative_address_max_int(
         self,
         query_account_caller_contract: Contract,
         max_non_existent_solana_address: int,
@@ -48,7 +81,7 @@ class TestQueryAccountLib:
         assert actual_owner_address == 0
 
     # ---------------------------------------- length ----------------------------------------
-    def test_length_positive(
+    async def test_length_positive(
         self,
         query_account_caller_contract: Contract,
         solana_account: Keypair,
@@ -70,7 +103,7 @@ class TestQueryAccountLib:
         assert success is True
         assert actual_length == expected_length
 
-    def test_length_negative_address_max_int(
+    async def test_length_negative_address_max_int(
         self,
         query_account_caller_contract: Contract,
         max_non_existent_solana_address: int,
@@ -83,7 +116,7 @@ class TestQueryAccountLib:
         assert actual_owner_address == 0
 
     # ---------------------------------------- lamports ----------------------------------------
-    def test_lamports_positive(
+    async def test_lamports_positive(
         self,
         query_account_caller_contract: Contract,
         solana_account: Keypair,
@@ -119,7 +152,7 @@ class TestQueryAccountLib:
         assert success is True
         assert actual_lamports_after == expected_lamports_after
 
-    def test_lamports_negative_address_max_int(
+    async def test_lamports_negative_address_max_int(
         self,
         query_account_caller_contract: Contract,
         max_non_existent_solana_address: int,
@@ -132,7 +165,7 @@ class TestQueryAccountLib:
         assert actual_owner_address == 0
 
     # ---------------------------------------- executable ----------------------------------------
-    def test_executable_true(
+    async def test_executable_true(
         self,
         request: pytest.FixtureRequest,
         query_account_caller_contract: Contract,
@@ -149,7 +182,7 @@ class TestQueryAccountLib:
         assert success is True
         assert is_executable is True
 
-    def test_executable_false(
+    async def test_executable_false(
         self,
         query_account_caller_contract: Contract,
         solana_account: Keypair,
@@ -164,7 +197,7 @@ class TestQueryAccountLib:
         assert success is True
         assert is_executable is False
 
-    def test_executable_negative_address_max_int(
+    async def test_executable_negative_address_max_int(
         self,
         query_account_caller_contract: Contract,
         max_non_existent_solana_address: int,
@@ -177,7 +210,7 @@ class TestQueryAccountLib:
         assert actual_owner_address == 0
 
     # ---------------------------------------- rent epoch ----------------------------------------
-    def test_rent_epoch_positive(
+    async def test_rent_epoch_positive(
         self,
         solana_account: Keypair,
         query_account_caller_contract: Contract,
@@ -198,20 +231,20 @@ class TestQueryAccountLib:
         rent_epoch_expected = account_info.value.rent_epoch
         assert rent_epoch_actual == rent_epoch_expected
 
-    def test_rent_epoch_negative_address_max_int(
+    async def test_rent_epoch_negative_address_max_int(
         self,
         query_account_caller_contract: Contract,
         max_non_existent_solana_address: int,
     ):
-        success, actual_owner_address = query_account_caller_contract.functions.queryRentEpoch(
+        success, actual_rent_epoch = query_account_caller_contract.functions.queryRentEpoch(
             max_non_existent_solana_address
         ).call()
 
         assert success is True
-        assert actual_owner_address == 0
+        assert actual_rent_epoch == 0
 
     # ---------------------------------------- data ----------------------------------------
-    def test_data_positive(
+    async def test_data_positive(
         self,
         request: pytest.FixtureRequest,
         query_account_caller_contract: Contract,
@@ -224,19 +257,56 @@ class TestQueryAccountLib:
         evm_loader_public_key = PublicKey(evm_loader_address_base58)
         length = len(sol_client_session.get_account_info(evm_loader_public_key).value.data)
 
-        success, data = query_account_caller_contract.functions.queryData(
+        success, actual_data = query_account_caller_contract.functions.queryData(
             solana_account_address_uint256,
             0,
             length,
         ).call()
 
         assert success is True
-        assert "error" not in data.decode("utf-8", errors="ignore").lower()
+        assert "error" not in actual_data.decode("utf-8", errors="ignore").lower()
 
         account_info = sol_client_session.get_account_info(evm_loader_public_key)
-        assert data == account_info.value.data
+        expected_data = account_info.value.data
+        assert actual_data == expected_data
 
-    def test_data_negative_address_max_int(
+    async def test_data_through_transaction_positive(
+            self,
+            request: pytest.FixtureRequest,
+            query_account_caller_contract: Contract,
+            sol_client_session: SolanaClient,
+            web3_client: NeonChainWeb3Client,
+            accounts: EthAccounts,
+    ):
+        evm_loader_address_base58 = request.config.environment.evm_loader  # noqa
+        evm_loader_address = base58.b58decode(evm_loader_address_base58)
+        solana_account_address_uint256 = int.from_bytes(evm_loader_address, byteorder="big")
+
+        evm_loader_public_key = PublicKey(evm_loader_address_base58)
+        length = len(sol_client_session.get_account_info(evm_loader_public_key).value.data)
+
+        account = accounts[0]
+        tx = web3_client.make_raw_tx(account)
+
+        instruction_tx = query_account_caller_contract.functions.queryData(
+            solana_account_address_uint256,
+            0,
+            length,
+        ).build_transaction(tx)
+
+        tx_receipt = web3_client.send_transaction(account, instruction_tx)
+        log_raw = tx_receipt.logs[0]
+        log_processed = query_account_caller_contract.events.QueryResultBytes().process_log(log_raw)
+        success = log_processed.args.success
+        actual_data = log_processed.args.result
+
+        account_info = sol_client_session.get_account_info(evm_loader_public_key)
+        expected_data = account_info.value.data
+
+        assert success is True
+        assert actual_data == expected_data
+
+    async def test_data_negative_address_max_int(
         self,
         query_account_caller_contract: Contract,
         max_non_existent_solana_address: int,
@@ -250,7 +320,7 @@ class TestQueryAccountLib:
         assert success is False
         assert "out of bounds" in data.decode("utf-8", errors="ignore").lower()
 
-    def test_data_negative_invalid_offset(
+    async def test_data_negative_invalid_offset(
         self,
         request: pytest.FixtureRequest,
         query_account_caller_contract: Contract,
@@ -271,7 +341,7 @@ class TestQueryAccountLib:
         assert success is False
         assert "out of bounds" in data.decode("utf-8", errors="ignore").lower()
 
-    def test_data_negative_length_zero(
+    async def test_data_negative_length_zero(
         self,
         request: pytest.FixtureRequest,
         query_account_caller_contract: Contract,
@@ -288,15 +358,12 @@ class TestQueryAccountLib:
         ).call()
 
         assert success is False
-        assert (
-            data.decode("utf-8", errors="ignore")
-            .lower()
-            .endswith(
-                "length == 0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-            )
-        )
 
-    def test_data_negative_invalid_length(
+        length_bytes = data.split(b"length == ")[-1]
+        actual_length = int(length_bytes.decode().rstrip("\x00"))
+        assert actual_length == 0
+
+    async def test_data_negative_invalid_length(
         self,
         request: pytest.FixtureRequest,
         query_account_caller_contract: Contract,
