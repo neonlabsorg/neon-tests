@@ -75,7 +75,7 @@ HOME_DIR = Path(__file__).absolute().parent
 OZ_BALANCES = "./compatibility/results/oz_balance.json"
 NEON_EVM_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-evm"
 HOODIES_CHAINLINK_GITHUB_URL = "https://github.com/hoodieshq/chainlink-neon"
-PROXY_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/proxy-model.py"
+PROXY_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-proxy.py"
 FAUCET_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-faucet"
 EXTERNAL_CONTRACT_PATH = Path.cwd() / "contracts" / "external"
 VERSION_BRANCH_TEMPLATE = r"[vt]{1}\d{1,2}\.\d{1,2}\.x.*"
@@ -244,7 +244,7 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
 
     print("Run tests in parallel")
     pool = Pool(jobs)
-    pool.map(run_oz_file, prioritised_tests)
+    pool.map(run_oz_file, prioritised_tests, chunksize=1)
     pool.close()
     pool.join()
 

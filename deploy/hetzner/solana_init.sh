@@ -41,10 +41,11 @@ export REVISION=${proxy_image_tag}
 export NEON_EVM_COMMIT=${neon_evm_commit}
 export FAUCET_COMMIT=${faucet_model_commit}
 export DOCKERHUB_ORG_NAME=${dockerhub_org_name}
+export PROXY_IMAGE_NAME="neon-proxy.py"
 
 # Receive docker-compose file and create override file
 cd /opt
-curl -O https://raw.githubusercontent.com/neonlabsorg/proxy-model.py/${proxy_model_commit}/docker-compose/docker-compose-ci.yml
+curl -O https://raw.githubusercontent.com/neonlabsorg/neon-proxy.py/${proxy_model_commit}/docker-compose/docker-compose-ci.yml
 cat > docker-compose-ci.override.yml<<EOF
 version: "3"
 

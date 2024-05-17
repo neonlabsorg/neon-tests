@@ -114,33 +114,33 @@ def assert_log_field_in_neon_trx_receipt(response, events_count):
     all_logs = []
 
     for trx in response["result"]["solanaTransactions"]:
-        expected_hex_fields = ["solanaBlockNumber", "solanaLamportSpent"]
-        assert_fields_are_hex(trx, expected_hex_fields)
+        expected_int_fields = ["solanaBlockSlot", "solanaLamportExpense"]
+        assert_fields_are_specified_type(int, trx, expected_int_fields)
 
         assert trx["solanaTransactionIsSuccess"] == True
         instructions = trx["solanaInstructions"]
         assert instructions != []
         for instruction in instructions:
-            expected_hex_fields = [
+            expected_int_fields = [
                 "solanaInstructionIndex",
                 "svmHeapSizeLimit",
-                "svmHeapSizeUsed",
                 "svmCyclesLimit",
                 "svmCyclesUsed",
                 "neonInstructionCode",
-                "neonAlanIncome",
+                "neonEvmSteps",
+                "neonTotalEvmSteps",
+                "neonTransactionFee",
                 "neonGasUsed",
                 "neonTotalGasUsed",
             ]
-            assert_fields_are_hex(instruction, expected_hex_fields)
+            assert_fields_are_specified_type(int, instruction, expected_int_fields)
             assert instruction["solanaProgram"] == "NeonEVM"
             assert instruction["solanaInnerInstructionIndex"] is None
-            assert instruction["neonStepLimit"] is None
             neon_logs = instruction["neonLogs"]
             assert neon_logs != []
             for log in neon_logs:
                 all_logs.append(log)
-    event_types = [log["neonEventType"] for log in sorted(all_logs, key=lambda x: int(x["neonEventOrder"], 16))]
+    event_types = [log["neonEventType"] for log in sorted(all_logs, key=lambda x: x["neonEventOrder"])]
 
     assert event_types == expected_event_types, f"Actual: {event_types}; Expected: {expected_event_types}"
 

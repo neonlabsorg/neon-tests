@@ -53,6 +53,7 @@ jobs:
         with:
           ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
           use_real_price: "1"
+        timeout-minutes: 15
 
     outputs:
       proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}

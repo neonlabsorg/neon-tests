@@ -5,7 +5,7 @@ import pytest
 
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.basic import Tag
-from integration.tests.basic.helpers.errors import Error32000
+from integration.tests.basic.helpers.errors import Error32602
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 
@@ -52,8 +52,8 @@ class TestRpcEstimateGas:
         assert "message" in response["error"], "message field not in response"
         code = response["error"]["code"]
         message = response["error"]["message"]
-        assert code == Error32000.CODE, "wrong code"
-        assert Error32000.MISSING_ARGUMENT in message, "wrong message"
+        assert code == Error32602.CODE, "wrong code"
+        assert message == Error32602.INVALID_CALL, "wrong message"
 
     @pytest.mark.parametrize("contract_name", ["BigGasFactory1", "BigGasFactory2"])
     @pytest.mark.parametrize("process_gas, reserve_gas", [(850_000, 15_000), (8_500_000, 150_000)])

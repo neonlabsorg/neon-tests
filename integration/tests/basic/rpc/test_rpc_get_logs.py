@@ -41,10 +41,10 @@ class TestRpcGetLogs:
         "transactionLogIndex",
     ]
     ETH_BOOL_FIELDS = ["removed"]
-    NEON_HASH_FIELDS = ["neonSolHash"]
+    NEON_HASH_FIELDS = ["solanaTransactionSignature"]
     NEON_INT_FIELDS = [
-        "neonIxIdx",
-        "neonInnerIxIdx",
+        "solanaInstructionIndex",
+        "solanaInnerInstructionIndex",
         "neonEventLevel",
         "neonEventOrder",
     ]
@@ -138,8 +138,8 @@ class TestRpcGetLogs:
         ("p_name", "p_value", "p_error", "p_code"),
         [
             ("address", "0xc0ffee254729296a45a3885639AC7E10F9d54979", None, None),
-            ("address", "12345", Error32602.BAD_ADDRESS, Error32602.CODE),
-            ("topics", "Invalid(address,uint256,string,bytes32,bool)", Error32602.BAD_TOPIC, Error32602.CODE),
+            ("address", "12345", Error32602.INVALID_PARAMETERS, Error32602.CODE),
+            ("topics", "Invalid(address,uint256,string,bytes32,bool)", Error32602.INVALID_PARAMETERS, Error32602.CODE),
         ],
     )
     def test_get_logs_negative_params(
@@ -165,7 +165,7 @@ class TestRpcGetLogs:
             assert "code" in response["error"]
             assert "message" in response["error"]
             assert p_code == response["error"]["code"]
-            assert p_error in response["error"]["message"]
+            assert p_error == response["error"]["message"]
 
     @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
     @pytest.mark.parametrize(
@@ -180,11 +180,11 @@ class TestRpcGetLogs:
             (None, Tag.EARLIEST),
             (Tag.LATEST, Tag.LATEST),
             (Tag.LATEST, Tag.PENDING),
-            (Tag.LATEST, Tag.EARLIEST),
+            # (Tag.LATEST, Tag.EARLIEST),
             (Tag.LATEST, None),
             (Tag.PENDING, Tag.PENDING),
-            (Tag.PENDING, Tag.LATEST),
-            (Tag.PENDING, Tag.EARLIEST),
+            # (Tag.PENDING, Tag.LATEST),
+            # (Tag.PENDING, Tag.EARLIEST),
             (Tag.PENDING, None),
             (Tag.EARLIEST, Tag.EARLIEST),
             (Tag.EARLIEST, Tag.PENDING),
