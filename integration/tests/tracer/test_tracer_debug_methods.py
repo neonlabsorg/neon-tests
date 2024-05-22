@@ -65,7 +65,7 @@ class TestTracerDebugMethods:
         receipt = self.web3_client.send_neon(sender_account, recipient_account, 0.1)
         assert receipt["status"] == 1
 
-        tx_info = self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
+        tx_info = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
 
         params = [
             {
@@ -90,7 +90,7 @@ class TestTracerDebugMethods:
         store_value = random.randint(1, 100)
         _, _, receipt = storage_object.call_storage(sender_account, store_value, "blockNumber")
        
-        tx_info = self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
+        tx_info = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
 
         params = [
             {
