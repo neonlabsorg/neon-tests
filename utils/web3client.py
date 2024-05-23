@@ -110,17 +110,6 @@ class Web3Client:
             return self._web3.eth.get_transaction(transaction_hash)
         except TransactionNotFound:
             return None
-    
-    @allure.step("Get transaction by hash with wait for result is available")
-    def wait_get_transaction_by_hash(self, transaction_hash, timeout=10):
-        try:
-            wait_condition(
-                lambda: self._web3.eth.get_transaction(transaction_hash) is not None,
-                timeout_sec=timeout,
-            )
-            return self._web3.eth.get_transaction(transaction_hash)
-        except TransactionNotFound:
-            return None
 
     @allure.step("Get gas price")
     def gas_price(self):
