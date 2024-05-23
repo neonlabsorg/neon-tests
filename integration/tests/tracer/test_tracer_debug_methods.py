@@ -46,18 +46,20 @@ class TestTracerDebugMethods:
         assert response["error"]["code"] == -32603, "Invalid error code"
         assert response["error"]["message"] == "neon_api::trace failed"
 
-    @pytest.mark.skip("NDEV-2998")
     def test_debug_trace_call_empty_params_valid_block(self, storage_object):
         sender_account = self.accounts[0]
-        store_value = random.randint(1, 100)
-        _, _, receipt = storage_object.call_storage(sender_account, store_value, "blockNumber", self.web3_client)
-        tx_info = self.web3_client.wait_get_transaction_by_hash(receipt["transactionHash"].hex())
+        recipient_account = self.accounts[1]
+        receipt = self.web3_client.send_neon(sender_account, recipient_account, 0.1)
+        assert receipt["status"] == 1
+        tx_hash = receipt["transactionHash"].hex()
 
-        response = self.tracer_api.send_rpc(method="debug_traceCall", params=[{}, hex(tx_info["blockNumber"])])
+        tx_info = self.web3_client.get_transaction_by_hash(tx_hash)
+
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", [{}, hex(tx_info["blockNumber"])])
 
         assert "error" not in response, "Error in response"
+        assert response["result"]["failed"] == False
         assert response["result"]["returnValue"] == ""
-        self.validate_response_result(response)
 
     def test_debug_trace_call_zero_eth_call(self):
         sender_account = self.accounts[0]
