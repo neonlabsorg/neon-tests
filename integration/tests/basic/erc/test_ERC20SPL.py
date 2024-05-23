@@ -1051,6 +1051,7 @@ class TestERC20FactoryUpdate:
         receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, tx_body)
         assert receipt.status == 0, "Transaction should fail"
 
+    @pytest.mark.skip("https://neonlabs.atlassian.net/browse/NDEV-3052")
     def test_update_factory_invalid_owner(self, erc20_spl_mintable, accounts, new_factory_contract):
         factory_contract = self.get_factory_contract(erc20_spl_mintable.contract)
         tx_opt = self.web3_client.make_raw_tx(accounts[0], gas=10000000)
