@@ -8,7 +8,7 @@ from solana.transaction import AccountMeta, TransactionInstruction, Transaction
 
 from utils.consts import COMPUTE_BUDGET_ID
 from solana.system_program import SYS_PROGRAM_ID
-from solana.sysvar import SYSVAR_RENT_PUBKEY
+from solana.sysvar import SYSVAR_RENT_PUBKEY, SYSVAR_INSTRUCTIONS_PUBKEY
 from spl.token.constants import ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address
 
@@ -78,6 +78,7 @@ def make_ExecuteTrxFromInstruction(
     message: bytes,
     additional_accounts: tp.List[PublicKey],
     system_program=sp.SYS_PROGRAM_ID,
+    sysvar = SYSVAR_INSTRUCTIONS_PUBKEY,
     tag=0x32,
 ):
     data = bytes([tag]) + treasury_buffer + message
@@ -90,6 +91,7 @@ def make_ExecuteTrxFromInstruction(
         AccountMeta(pubkey=treasury_address, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
         AccountMeta(system_program, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=sysvar, is_signer=False, is_writable=True)
     ]
     for acc in additional_accounts:
         print("Additional acc ", acc)
@@ -110,6 +112,7 @@ def make_ExecuteTrxFromAccount(
     additional_accounts: tp.List[PublicKey],
     additional_signers: tp.List[Keypair] = None,
     system_program=sp.SYS_PROGRAM_ID,
+    sysvar = SYSVAR_INSTRUCTIONS_PUBKEY,
     tag=0x33,
 ):
     data = bytes([tag]) + treasury_buffer
@@ -123,6 +126,7 @@ def make_ExecuteTrxFromAccount(
         AccountMeta(pubkey=treasury_address, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
         AccountMeta(system_program, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=sysvar, is_signer=False, is_writable=True)
     ]
     for acc in additional_accounts:
         print("Additional acc ", acc)
@@ -147,6 +151,7 @@ def make_ExecuteTrxFromAccountDataIterativeOrContinue(
     treasury,  #: TreasuryPool,
     additional_accounts: tp.List[PublicKey],
     sys_program_id=sp.SYS_PROGRAM_ID,
+    sysvar = SYSVAR_INSTRUCTIONS_PUBKEY,
     tag=0x35,
 ):
     # 0x35 - TransactionStepFromAccount
@@ -163,6 +168,7 @@ def make_ExecuteTrxFromAccountDataIterativeOrContinue(
         AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
         AccountMeta(sys_program_id, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=sysvar, is_signer=False, is_writable=True)
     ]
 
     for acc in additional_accounts:
@@ -185,6 +191,7 @@ def make_PartialCallOrContinueFromRawEthereumTX(
     treasury: TreasuryPool,
     additional_accounts: tp.List[PublicKey],
     system_program=sp.SYS_PROGRAM_ID,
+    sysvar = SYSVAR_INSTRUCTIONS_PUBKEY,
     tag=0x34,  # TransactionStepFromInstruction
 ):
     data = bytes([tag]) + treasury.buffer + step_count.to_bytes(4, "little") + index.to_bytes(4, "little") + instruction
@@ -195,6 +202,7 @@ def make_PartialCallOrContinueFromRawEthereumTX(
         AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
         AccountMeta(system_program, is_signer=False, is_writable=True),
+        AccountMeta(pubkey = sysvar, is_signer=False, is_writable=True)
     ]
     for acc in additional_accounts:
         accounts.append(
@@ -346,7 +354,9 @@ def make_OperatorBalanceAccount(operator_keypair, operator_balance_pubkey, ether
         keys=[
             AccountMeta(pubkey=operator_keypair.public_key, is_signer=True, is_writable=True),
             AccountMeta(pubkey=sp.SYS_PROGRAM_ID, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=operator_balance_pubkey, is_signer=False, is_writable=True)
+            AccountMeta(pubkey=operator_balance_pubkey, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=SYSVAR_INSTRUCTIONS_PUBKEY, is_signer=False, is_writable=True)
+
         ],
         program_id=evm_loader_id,
         data=bytes.fromhex("3A") + ether_bytes + chain_id.to_bytes(8, 'little')

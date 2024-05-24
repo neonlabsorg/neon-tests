@@ -9,6 +9,7 @@ class InstructionAsserts:
     ACC_NOT_FOUND = "AccountNotFound"
     NOT_AUTHORIZED_OPERATOR = "Operator is not authorized"
     NOT_SYSTEM_PROGRAM = "Account {} - is not system program"
+    NOT_SYSVAR_PROGRAM = "Account {} - is not sysvar program"
     NOT_NEON_PROGRAM = "Account {} - is not Neon program"
     NOT_PROGRAM_OWNED = "Account {} - invalid owner"
     INVALID_HOLDER_OWNER = "Holder Account - invalid owner"
