@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from hexbytes import HexBytes
 from web3 import types
 
+from conftest import EnvName
 from integration.tests.basic.helpers.assert_message import AssertMessage
 
 NoneType = type(None)
@@ -30,10 +31,10 @@ def hex_str_consists_not_only_of_zeros(hex_data: str) -> bool:
     return False
 
 
-def assert_block_fields(block: dict, full_trx: bool, tx_receipt: tp.Optional[types.TxReceipt], pending: bool = False):
-    assert "error" not in block
-    assert "result" in block, AssertMessage.DOES_NOT_CONTAIN_RESULT
-    result = block["result"]
+def assert_block_fields(env_name: EnvName, response: dict, full_trx: bool, tx_receipt: tp.Optional[types.TxReceipt], pending: bool = False):
+    assert "error" not in response
+    assert "result" in response, AssertMessage.DOES_NOT_CONTAIN_RESULT
+    result = response["result"]
     expected_hex_fields = [
         "difficulty",
         "gasLimit",
@@ -61,14 +62,23 @@ def assert_block_fields(block: dict, full_trx: bool, tx_receipt: tp.Optional[typ
         assert (
             result["hash"] == tx_receipt.blockHash.hex()
         ), f"Actual:{result['hash']}; Expected: {tx_receipt.blockHash.hex()}"
+
         assert result["number"] == hex(
             tx_receipt.blockNumber
         ), f"Actual:{result['number']}; Expected: {hex(tx_receipt.blockNumber)}"
+
         assert int(result["gasUsed"], 16) >= int(
             hex(tx_receipt.gasUsed), 16
         ), f"Actual:{result['gasUsed']} or more; Expected: {hex(tx_receipt.gasUsed)}"
-        assert result["extraData"] == "0x"
-        assert result["totalDifficulty"] == "0x0"
+
+        assert result["extraData"].startswith("0x")  # this field's value is optional
+
+        difficulty = result["totalDifficulty"]
+        if env_name is EnvName.GETH:
+            assert is_hex(difficulty)
+        else:
+            assert difficulty == "0x0"
+
     assert result["uncles"] == []
     transactions = result["transactions"]
     if full_trx:
@@ -184,4 +194,11 @@ def assert_equal_fields(result, comparable_object, comparable_fields, keys_mappi
             r = hex(r)
         if isinstance(r, HexBytes):
             r = r.hex()
-        assert l == r, f"The field '{field}' {l} from response  is not equal to {field} from receipt {r}"
+
+        if is_hex(r):
+            # Ethereum is case-insensitive to addresses and block hashes
+            # Geth sometimes returns the same hash with a few characters in different register (upper or lower)
+            l = l.lower()
+            r = r.lower()
+
+        assert l.lower() == r.lower(), f"The field '{field}' {l} from response  is not equal to {field} from receipt {r}"

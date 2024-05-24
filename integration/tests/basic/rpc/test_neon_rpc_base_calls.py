@@ -12,6 +12,7 @@ from utils.web3client import NeonChainWeb3Client
 @allure.feature("JSON-RPC validation")
 @allure.story("Verify JSON-RPC proxy calls work")
 @pytest.mark.usefixtures("accounts", "web3_client")
+@pytest.mark.neon_only
 class TestNeonRPCBaseCalls:
     accounts: EthAccounts
     web3_client: NeonChainWeb3Client

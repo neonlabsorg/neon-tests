@@ -2,6 +2,7 @@ import typing as tp
 
 import allure
 import pytest
+from web3 import Web3
 
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.basic import Tag
@@ -19,6 +20,7 @@ class TestRpcGetBlockTransaction:
     accounts: EthAccounts
 
     @pytest.mark.parametrize("param", [32, 16, None])
+    @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of the test
     def test_eth_get_block_transaction_count_by_hash_negative(self, param: tp.Union[int, None], json_rpc_client):
         response = json_rpc_client.send_rpc(
             method="eth_getBlockTransactionCountByHash",
@@ -80,7 +82,7 @@ class TestRpcGetBlockTransaction:
         recipient_account = self.accounts[1]
         receipt = self.web3_client.send_neon(sender_account, recipient_account, amount=0.001)
         response = json_rpc_client.send_rpc(
-            method="eth_getBlockTransactionCountByNumber", params=receipt["blockNumber"]
+            method="eth_getBlockTransactionCountByNumber", params=Web3.to_hex(receipt["blockNumber"])
         )
         assert "error" not in response
         result = response["result"]

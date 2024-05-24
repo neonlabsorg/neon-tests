@@ -1,3 +1,4 @@
+import enum
 import os
 import json
 import shutil
@@ -20,8 +21,22 @@ from utils.solana_client import SolanaClient
 pytest_plugins = ["ui.plugins.browser"]
 
 
+class EnvName(str, enum.Enum):
+    NIGHT_STAND = "night-stand"
+    RELEASE_STAND = "release-stand"
+    MAINNET = "mainnet"
+    DEVNET = "devnet"
+    TESTNET = "testnet"
+    LOCAL = "local"
+    TERRAFORM = "terraform"
+    GETH = "geth"
+    TRACER_CI = "tracer_ci"
+    CUSTOM = "custom"
+
+
 @dataclass
 class EnvironmentConfig:
+    name: EnvName
     evm_loader: str
     proxy_url: str
     tracer_url: str
@@ -40,7 +55,13 @@ class EnvironmentConfig:
 
 
 def pytest_addoption(parser):
-    parser.addoption("--network", action="store", default="night-stand", help="Which stand use")
+    parser.addoption(
+        "--network",
+        action="store",
+        choices=[env.value for env in EnvName],  # noqa
+        default="night-stand",
+        help="Which stand use",
+    )
     parser.addoption(
         "--make-report",
         action="store_true",
@@ -79,6 +100,7 @@ def pytest_configure(config: Config):
         environments = json.load(f)
     assert network_name in environments, f"Environment {network_name} doesn't exist in envs.json"
     env = environments[network_name]
+    env["name"] = EnvName(network_name)
     if network_name in ["devnet", "tracer_ci"]:
         for solana_env_var in solana_url_env_vars:
             if solana_env_var in os.environ and os.environ[solana_env_var]:
@@ -109,6 +131,11 @@ def pytest_configure(config: Config):
         env["faucet_url"] = env["faucet_url"].replace("<proxy_ip>", os.environ.get("PROXY_IP"))
     config.environment = EnvironmentConfig(**env)
     setup_logging()
+
+
+@pytest.fixture(scope="session")
+def env_name(pytestconfig: Config) -> EnvName:
+    return pytestconfig.environment.name  # noqa
 
 
 @pytest.fixture(scope="session")
