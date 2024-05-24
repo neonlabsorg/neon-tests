@@ -12,6 +12,7 @@ from solana.publickey import PublicKey
 import solana.system_program as sp
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
+from solana.sysvar import SYSVAR_INSTRUCTIONS_PUBKEY
 from solana.transaction import Transaction
 from solders.rpc.responses import SendTransactionResp, GetTransactionResp
 from spl.token.instructions import get_associated_token_address, MintToParams, ApproveParams, approve
@@ -82,14 +83,16 @@ class EvmLoader(SolanaClient):
             return ether
         return ether.hex()
 
-    def ether2operator_balance(self, keypair: Keypair, ether_address: Union[str, bytes], chain_id=CHAIN_ID) -> PublicKey:
+    def ether2operator_balance(
+        self, keypair: Keypair, ether_address: Union[str, bytes], chain_id=CHAIN_ID
+    ) -> PublicKey:
         address_bytes = self.ether2bytes(ether_address)
         key = bytes(keypair.public_key)
-        chain_id_bytes = chain_id.to_bytes(32, 'big')
+        chain_id_bytes = chain_id.to_bytes(32, "big")
         return PublicKey.find_program_address(
-            [self.account_seed_version, key, address_bytes, chain_id_bytes],
-            self.loader_id
+            [self.account_seed_version, key, address_bytes, chain_id_bytes], self.loader_id
         )[0]
+
     def get_neon_nonce(self, account: Union[str, bytes], chain_id=CHAIN_ID) -> int:
         solana_address = self.ether2balance(account, chain_id)
 
@@ -168,7 +171,6 @@ class EvmLoader(SolanaClient):
         operator_ether = eth_keys.PrivateKey(operator.secret_key[:32]).public_key.to_canonical_address()
         return self.ether2operator_balance(operator, operator_ether)
 
-
     def execute_trx_from_instruction(
         self,
         operator: Keypair,
@@ -178,6 +180,7 @@ class EvmLoader(SolanaClient):
         additional_accounts,
         signer: Keypair = None,
         system_program=sp.SYS_PROGRAM_ID,
+        sysvar=SYSVAR_INSTRUCTIONS_PUBKEY,
     ) -> SendTransactionResp:
         signer = operator if signer is None else signer
         trx = TransactionWithComputeBudget(operator)
@@ -193,6 +196,7 @@ class EvmLoader(SolanaClient):
                 instruction.rawTransaction,
                 additional_accounts,
                 system_program,
+                sysvar
             )
         )
 
@@ -269,6 +273,7 @@ class EvmLoader(SolanaClient):
         steps_count,
         signer: Keypair,
         system_program=sp.SYS_PROGRAM_ID,
+        sysvar=SYSVAR_INSTRUCTIONS_PUBKEY,
         index=0,
         tag=0x34,
     ) -> GetTransactionResp:
@@ -286,6 +291,7 @@ class EvmLoader(SolanaClient):
                 treasury,
                 additional_accounts,
                 system_program,
+                sysvar,
                 tag,
             )
         )
@@ -341,6 +347,7 @@ class EvmLoader(SolanaClient):
         steps_count,
         signer: Keypair,
         system_program=sp.SYS_PROGRAM_ID,
+        sysvar=SYSVAR_INSTRUCTIONS_PUBKEY,
         tag=0x35,
         index=0,
     ) -> GetTransactionResp:
@@ -356,13 +363,20 @@ class EvmLoader(SolanaClient):
                 treasury,
                 additional_accounts,
                 system_program,
+                sysvar,
                 tag,
             )
         )
         return self.send_tx(trx, signer)
 
     def execute_transaction_steps_from_account(
-        self, operator: Keypair, treasury, storage_account, additional_accounts, signer: Keypair = None
+        self,
+        operator: Keypair,
+        treasury,
+        storage_account,
+        additional_accounts,
+        signer: Keypair = None,
+        sysvar=SYSVAR_INSTRUCTIONS_PUBKEY,
     ) -> GetTransactionResp:
         signer = operator if signer is None else signer
         operator_balance_pubkey = self.get_operator_balance_pubkey(operator)
@@ -412,7 +426,7 @@ class EvmLoader(SolanaClient):
                 EVM_STEPS,
                 signer,
                 tag=0x36,
-                index=index,
+                index=index
             )
             index += 1
 
