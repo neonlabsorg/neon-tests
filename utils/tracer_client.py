@@ -10,7 +10,7 @@ class TracerClient:
         wait_condition(
             lambda: self.tracer_api.send_rpc(method=method_name, params=params)["result"]
             is not None,
-            timeout_sec=120,
+            timeout_sec=660,
         )
 
         return self.tracer_api.send_rpc(
