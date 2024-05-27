@@ -22,6 +22,14 @@ contract CallSolanaCaller {
 
     function execute(uint64 lamports, bytes calldata instruction) public {
         _callSolana.execute(lamports, instruction);
+        (, bytes memory returnData) = _callSolana.getReturnData();
+        emit LogBytes(bytes32(returnData));
+
+    }
+
+    function execute_with_return(uint64 lamports, bytes calldata instruction) public {
+        bytes32 returnData = bytes32(_callSolana.execute(lamports, instruction));
+        emit LogBytes(returnData);
     }
 
     function batchExecute(ExecuteArgs[] memory _args) public {
@@ -56,6 +64,11 @@ contract CallSolanaCaller {
     }
 
     function executeWithSeed(uint64 lamports, bytes32 salt, bytes calldata instruction) public {
-        _callSolana.executeWithSeed(lamports, salt, instruction);
+        bytes32 returnData = bytes32(_callSolana.executeWithSeed(lamports, salt, instruction));
+        emit LogBytes(returnData);
+    }
+
+    function getReturnData() public returns (bytes32, bytes memory){
+        return _callSolana.getReturnData();
     }
 }

@@ -36,17 +36,30 @@ class TestSolanaInteroperability:
         self.web3_client.send_transaction(sender, instruction_tx)
 
         return contract.functions.getResourceAddress(salt).call()
+    
+    @pytest.fixture(scope="class")
+    def counter_resource_address(self, call_solana_caller):
+        yield self.create_resource(call_solana_caller, "1", self.accounts[0], COUNTER_ID)
+    
+    @pytest.fixture(scope="class")
+    def get_counter_value(self):
+        def gen_increment_counter():
+            count = 0
+            while True:
+                count += 1
+                yield count
+        
+        return gen_increment_counter()
 
-    def test_counter(self, call_solana_caller):
+
+    def test_counter(self, call_solana_caller, counter_resource_address, get_counter_value):
         sender = self.accounts[0]
-
-        resource_addr = self.create_resource(call_solana_caller, "1", sender, COUNTER_ID)
         lamports = 0
 
         instruction = TransactionInstruction(
             program_id=COUNTER_ID,
             keys=[
-                AccountMeta(resource_addr, is_signer=False, is_writable=True),
+                AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
             ],
             data=bytes([0x1]),
         )
@@ -56,6 +69,49 @@ class TestSolanaInteroperability:
         instruction_tx = call_solana_caller.functions.execute(lamports, serialized).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
+        event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
+        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
+    
+    def test_counter_with_seed(self, call_solana_caller, counter_resource_address, get_counter_value):
+        sender = self.accounts[0]
+        lamports = 0
+
+        instruction = TransactionInstruction(
+            program_id=COUNTER_ID,
+            keys=[
+                AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
+            ],
+            data=bytes([0x1]),
+        )
+        serialized = serialize_instruction(COUNTER_ID, instruction)
+
+        seed = self.web3_client.text_to_bytes32("myseed")
+        tx = self.web3_client.make_raw_tx(sender.address)
+        instruction_tx = call_solana_caller.functions.executeWithSeed(lamports, seed, serialized).build_transaction(tx)
+        resp = self.web3_client.send_transaction(sender, instruction_tx)
+        assert resp["status"] == 1
+        event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
+        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
+    
+    def test_counter_execute_with_return(self, call_solana_caller, counter_resource_address, get_counter_value):
+        sender = self.accounts[0]
+        lamports = 0
+
+        instruction = TransactionInstruction(
+            program_id=COUNTER_ID,
+            keys=[
+                AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
+            ],
+            data=bytes([0x1]),
+        )
+        serialized = serialize_instruction(COUNTER_ID, instruction)
+
+        tx = self.web3_client.make_raw_tx(sender.address)
+        instruction_tx = call_solana_caller.functions.execute_with_return(lamports, serialized).build_transaction(tx)
+        resp = self.web3_client.send_transaction(sender, instruction_tx)
+        assert resp["status"] == 1
+        event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
+        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
 
     def test_transfer_with_pda_signature(self, call_solana_caller, sol_client, solana_account, pytestconfig, bank_account):
         sender = self.accounts[0]
