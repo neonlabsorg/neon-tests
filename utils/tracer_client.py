@@ -1,3 +1,5 @@
+import os
+
 from utils.apiclient import JsonRPCSession
 from utils.helpers import wait_condition
 
@@ -7,10 +9,11 @@ class TracerClient:
         self.tracer_api = JsonRPCSession(url)
     
     def send_rpc_and_wait_response(self, method_name, params):
+        print(f"### {method_name} params = {params}")
         wait_condition(
             lambda: self.tracer_api.send_rpc(method=method_name, params=params)["result"]
             is not None,
-            timeout_sec=660,
+            timeout_sec=120,
         )
 
         return self.tracer_api.send_rpc(
