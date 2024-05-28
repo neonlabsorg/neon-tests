@@ -28,6 +28,7 @@ NO_ENOUGH_GAS_PARAMS = [
 @allure.feature("ERC Verifications")
 @allure.story("ERC20SPL: Tests for ERC20ForSPL contract")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+@pytest.mark.neon_only
 class TestERC20SPL:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
@@ -436,6 +437,7 @@ class TestERC20SPL:
 @allure.feature("ERC Verifications")
 @allure.story("ERC20SPL: Tests for ERC20ForSPLMintable contract")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+@pytest.mark.neon_only
 class TestERC20SPLMintable(TestERC20SPL):
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
@@ -680,6 +682,7 @@ class TestERC20SPLMintable(TestERC20SPL):
 @allure.feature("ERC Verifications")
 @allure.story("ERC20SPL: Tests for multiple actions in one transaction")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+@pytest.mark.neon_only
 class TestMultipleActionsForERC20:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
@@ -992,6 +995,7 @@ def new_token_contract(web3_client, erc20_spl_mintable):
 @allure.feature("ERC Verifications")
 @allure.story("ERC20SPL: Tests for factory update")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+@pytest.mark.neon_only
 class TestERC20FactoryUpdate:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts

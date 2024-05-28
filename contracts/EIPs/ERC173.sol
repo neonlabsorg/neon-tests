@@ -47,7 +47,8 @@ contract ERC173Caller {
     }
 
     function transferOwnership(address newOwner) external {
-        address(erc173_address).call(abi.encodeWithSignature("transferOwnership(address)", newOwner));
+        (bool success, ) = address(erc173_address).call(abi.encodeWithSignature("transferOwnership(address)", newOwner));
+        require(success, "Ownership transfer failed"); // fails without this on Geth
     }
 
 }
