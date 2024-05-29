@@ -37,13 +37,13 @@ def pytest_collection_modifyitems(config, items):
     deselected_marks = []
     network_name = config.getoption("--network")
 
+    if network_name == "geth":
+        return
+
     settings = network_manager.get_network_object(network_name)
     web3_client = web3client.NeonChainWeb3Client(settings["proxy_url"])
 
-    if network_name == "geth":
-        raw_proxy_version = "10000000000000"  # don't deselect any tests for geth based on the proxy version
-    else:
-        raw_proxy_version = web3_client.get_proxy_version()["result"]
+    raw_proxy_version = web3_client.get_proxy_version()["result"]
 
     if "Neon-proxy/" in raw_proxy_version:
         raw_proxy_version = raw_proxy_version.split("Neon-proxy/")[1].strip()
