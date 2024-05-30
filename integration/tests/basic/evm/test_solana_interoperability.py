@@ -57,12 +57,15 @@ class TestSolanaInteroperability:
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
 
-    def test_transfer_with_pda_signature(self, call_solana_caller, sol_client, solana_account):
+    def test_transfer_with_pda_signature(self, call_solana_caller, sol_client, solana_account, pytestconfig, bank_account):
         sender = self.accounts[0]
         from_wallet = Keypair.generate()
         to_wallet = Keypair.generate()
         amount = 100000
-        sol_client.request_airdrop(from_wallet.public_key, 1000 * 10**9, commitment=Confirmed)
+        if pytestconfig.environment.use_bank:
+            sol_client.send_sol(bank_account, from_wallet.public_key, int(0.5 * 10**9))
+        else:
+            sol_client.request_airdrop(from_wallet.public_key, 1000 * 10**9, commitment=Confirmed)
 
         mint = spl.token.client.Token.create_mint(
             conn=sol_client,
@@ -109,12 +112,15 @@ class TestSolanaInteroperability:
         assert resp["status"] == 1
         assert int(mint.get_balance(to_token_account, commitment=Confirmed).value.amount) == amount
 
-    def test_transfer_tokens_with_ext_authority(self, call_solana_caller, sol_client):
+    def test_transfer_tokens_with_ext_authority(self, call_solana_caller, sol_client, pytestconfig, bank_account):
         sender = self.accounts[0]
         from_wallet = Keypair.generate()
         to_wallet = Keypair.generate()
         amount = 100000
-        sol_client.request_airdrop(from_wallet.public_key, 1000 * 10**9, commitment=Confirmed)
+        if pytestconfig.environment.use_bank:
+            sol_client.send_sol(bank_account, from_wallet.public_key, int(0.5 * 10**9))
+        else:
+            sol_client.request_airdrop(from_wallet.public_key, 1000 * 10**9, commitment=Confirmed)
         mint = spl.token.client.Token.create_mint(
             conn=sol_client,
             payer=from_wallet,
