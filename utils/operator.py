@@ -1,17 +1,15 @@
 import json
 import os
 import pathlib
-import random
 import typing as tp
 
-import requests
 import solana.rpc.api
 from solana.keypair import Keypair
 from solana.publickey import PublicKey
 from solana.rpc.commitment import Confirmed, Commitment
 from eth_keys import keys as eth_keys
 
-from utils.consts import OPERATOR_KEPAIR_PATH
+from utils.consts import OPERATOR_KEYPAIR_PATH
 from utils.layouts import OPERATOR_BALANCE_ACCOUNT_LAYOUT
 from utils.web3client import NeonChainWeb3Client
 
@@ -36,7 +34,7 @@ class Operator:
         self.evm_loader = evm_loader
 
     def get_operator_keypairs(self):
-        directory = OPERATOR_KEPAIR_PATH
+        directory = OPERATOR_KEYPAIR_PATH
         operator_keys = []
         for key in os.listdir(directory):
             key_file = pathlib.Path(f"{directory}/{key}")

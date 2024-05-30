@@ -1,4 +1,5 @@
 import json
+import pathlib
 
 import eth_abi
 import pytest
@@ -8,7 +9,7 @@ from eth_keys import keys as eth_keys
 from solana.publickey import PublicKey
 from solana.rpc.commitment import Confirmed
 
-from utils.consts import OPERATOR_KEPAIR_PATH
+from utils.consts import OPERATOR_KEYPAIR_PATH
 from utils.evm_loader import EvmLoader
 from utils.types import Contract, Caller, TreasuryPool
 from .utils.constants import NEON_CORE_API_URL, NEON_CORE_API_RPC_URL, SOLANA_URL, EVM_LOADER
@@ -47,7 +48,7 @@ def default_operator_keypair(evm_loader) -> Keypair:
     """
     Initialized solana keypair with balance. Get private keys from ci/operator-keypairs/id.json
     """
-    key_file = OPERATOR_KEPAIR_PATH / "id.json"
+    key_file = pathlib.Path(OPERATOR_KEYPAIR_PATH / "id.json")
     return prepare_operator(key_file, evm_loader)
 
 
@@ -57,10 +58,10 @@ def operator_keypair(worker_id, evm_loader) -> Keypair:
     Initialized solana keypair with balance. Get private keys from ci/operator-keypairs
     """
     if worker_id in ("master", "gw1"):
-        key_file = OPERATOR_KEPAIR_PATH / "id.json"
+        key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id.json")
     else:
         file_id = int(worker_id[-1]) + 2
-        key_file = OPERATOR_KEPAIR_PATH / f"id{file_id}.json"
+        key_file = OPERATOR_KEYPAIR_PATH / f"id{file_id}.json"
     return prepare_operator(key_file, evm_loader)
 
 
@@ -70,10 +71,10 @@ def second_operator_keypair(worker_id, evm_loader) -> Keypair:
     Initialized solana keypair with balance. Get private key from cli or ./ci/operator-keypairs
     """
     if worker_id in ("master", "gw1"):
-        key_file = OPERATOR_KEPAIR_PATH / "id20.json"
+        key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id20.json")
     else:
         file_id = 20 + int(worker_id[-1]) + 2
-        key_file = OPERATOR_KEPAIR_PATH / f"id{file_id}.json"
+        key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
 
     return prepare_operator(key_file, evm_loader)
 

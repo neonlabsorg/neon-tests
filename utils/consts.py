@@ -1,9 +1,8 @@
-from dataclasses import dataclass
 from enum import Enum
 
 from solana.publickey import PublicKey
 
-OPERATOR_KEPAIR_PATH = "deploy/operator-keypairs"
+OPERATOR_KEYPAIR_PATH = "deploy/operator-keypairs"
 LAMPORT_PER_SOL = 1_000_000_000
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ZERO_HASH = "0000000000000000000000000000000000000000000000000000000000000000"
