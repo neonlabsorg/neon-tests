@@ -36,6 +36,15 @@ BALANCE_ACCOUNT_LAYOUT = Struct(
     "balance" / Bytes(32),
 )
 
+OPERATOR_BALANCE_ACCOUNT_LAYOUT = Struct(
+    "type" / Int8ul,
+    "header_version"/ Int8ul,
+    "owner" / Bytes(32),
+    "address" / Bytes(20),
+    "chain_id" / Int64ul,
+    "balance" / Bytes(32),
+)
+
 STORAGE_CELL_LAYOUT = Struct(
     "type" / Int8ul,
     "header_version"/ Int8ul,

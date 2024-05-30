@@ -4,10 +4,10 @@ import string
 import pathlib
 import inspect
 import json
+import time
 import typing as tp
 
 import allure
-import base58
 import pytest
 from _pytest.config import Config
 from packaging import version
@@ -143,10 +143,9 @@ def operator(pytestconfig: Config, web3_client_session: NeonChainWeb3Client) -> 
     return Operator(
         pytestconfig.environment.proxy_url,
         pytestconfig.environment.solana_url,
-        pytestconfig.environment.operator_neon_rewards_address,
         pytestconfig.environment.spl_neon_mint,
-        pytestconfig.environment.operator_keys,
         web3_client=web3_client_session,
+        evm_loader=pytestconfig.environment.evm_loader,
     )
 
 
@@ -283,14 +282,19 @@ def class_account_sol_chain(
     web3_client_sol,
     faucet,
     eth_bank_account,
+    bank_account,
+    pytestconfig
 ):
     account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account)
-    evm_loader.request_airdrop(solana_account.public_key, 1 * LAMPORT_PER_SOL)
+    if pytestconfig.environment.use_bank:
+        evm_loader.send_sol(bank_account, solana_account.public_key, int(1 * LAMPORT_PER_SOL))
+    else:
+        evm_loader.request_airdrop(solana_account.public_key, 1 * LAMPORT_PER_SOL)
     evm_loader.deposit_wrapped_sol_from_solana_to_neon(
         solana_account,
         account,
         web3_client_sol.eth.chain_id,
-        1 * LAMPORT_PER_SOL,
+        int(1 * LAMPORT_PER_SOL),
     )
     return account
 
@@ -314,15 +318,20 @@ def account_with_all_tokens(
     neon_mint,
     operator_keypair,
     evm_loader_keypair,
+    bank_account
+
 ):
     neon_account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account, amount=500)
     if web3_client_sol:
-        evm_loader.request_airdrop(solana_account.public_key, 1 * LAMPORT_PER_SOL)
+        if pytestconfig.environment.use_bank:
+            evm_loader.send_sol(bank_account, solana_account.public_key, int(1 * LAMPORT_PER_SOL))
+        else:
+            evm_loader.request_airdrop(solana_account.public_key, 1 * LAMPORT_PER_SOL)
         evm_loader.deposit_wrapped_sol_from_solana_to_neon(
             solana_account,
             neon_account,
             web3_client_sol.eth.chain_id,
-            1 * LAMPORT_PER_SOL,
+            int(1 * LAMPORT_PER_SOL),
         )
     for client in [web3_client_usdt, web3_client_eth]:
         if client:
@@ -482,6 +491,12 @@ def revert_contract_caller(web3_client, accounts, revert_contract):
 def sol_price() -> float:
     """Get SOL price from Solana mainnet"""
     price = get_sol_price()
+    started = time.time()
+    timeout = 120
+    while price is None and (time.time() - started) < timeout:
+        print("Can't get SOL price")
+        time.sleep(3)
+        price = get_sol_price()
     with allure.step(f"SOL price {price}$"):
         return price
 

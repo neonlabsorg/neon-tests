@@ -43,10 +43,8 @@ class EnvironmentConfig:
     solana_url: str
     faucet_url: str
     network_ids: dict
-    operator_neon_rewards_address: tp.List[str]
     spl_neon_mint: str
     neon_erc20wrapper_address: str
-    operator_keys: tp.List[str]
     use_bank: bool
     eth_bank_account: str
     neonpass_url: str = ""

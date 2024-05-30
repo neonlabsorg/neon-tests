@@ -33,7 +33,7 @@ class ERC20:
     def _make_tx_object(self, from_address):
         tx = {
             "from": from_address,
-            "nonce": self.web3_client.eth.get_transaction_count(from_address),
+            "nonce": self.web3_client.get_nonce(from_address),
             "gasPrice": self.web3_client.gas_price(),
         }
         return tx

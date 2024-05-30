@@ -149,10 +149,9 @@ def check_profitability(func: tp.Callable) -> tp.Callable:
             op = Operator(
                 network["proxy_url"],
                 network["solana_url"],
-                network["operator_neon_rewards_address"],
                 network["spl_neon_mint"],
-                network["operator_keys"],
                 web3_client=w3client,
+                evm_loader=network["evm_loader"],
             )
             pre = get_tokens_balances(op)
             try:
@@ -888,9 +887,8 @@ def get_operator_balances(network: str):
     operator = Operator(
         net["proxy_url"],
         net["solana_url"],
-        net["operator_neon_rewards_address"],
         net["spl_neon_mint"],
-        net["operator_keys"],
+        evm_loader=net["evm_loader"]
     )
     neon_balance = operator.get_token_balance()
     sol_balance = operator.get_solana_balance()

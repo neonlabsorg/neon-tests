@@ -115,12 +115,8 @@ class TestRpcEstimateGas:
 
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
+        assert estimated_gas == 1_192_320
 
-        if env_name is EnvName.DEVNET:
-            assert estimated_gas == 1_422_000
-
-        else:
-            assert estimated_gas == 1_192_320
 
     @pytest.mark.neon_only  # Geth returns a different estimate
     def test_rpc_estimate_gas_spl(self, erc20_spl):

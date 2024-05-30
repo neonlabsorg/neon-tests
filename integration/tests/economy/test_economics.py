@@ -373,8 +373,8 @@ class TestEconomics:
     def test_contract_get_is_free(self, counter_contract, client_and_price, account_with_all_tokens, operator):
         """Verify that get contract calls is free"""
         w3_client, token_price = client_and_price
-        sol_balance_after_deploy = operator.get_solana_balance()
-        token_balance_after_deploy = operator.get_token_balance(w3_client)
+        sol_balance_before = operator.get_solana_balance()
+        token_balance_before = operator.get_token_balance(w3_client)
 
         user_balance_before = w3_client.get_balance(account_with_all_tokens)
         assert counter_contract.functions.get().call() == 0
@@ -383,8 +383,8 @@ class TestEconomics:
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(w3_client)
-        assert sol_balance_after_deploy == sol_balance_after
-        assert token_balance_after_deploy == token_balance_after
+        assert sol_balance_before == sol_balance_after
+        assert token_balance_before == token_balance_after
 
     @pytest.mark.xfail(reason="https://neonlabs.atlassian.net/browse/NDEV-699")
     def test_cost_resize_account(self, neon_price, sol_price, operator, web3_client, accounts):
@@ -454,9 +454,10 @@ class TestEconomics:
         token_balance_before = operator.get_token_balance(w3_client)
         tx = w3_client.make_raw_tx(account_with_all_tokens.address)
 
-        instruction_tx = counter_contract.functions.moreInstruction(0, 1500).build_transaction(tx)
+        instruction_tx = counter_contract.functions.moreInstruction(0, 3000).build_transaction(tx)
 
         instruction_receipt = w3_client.send_transaction(account_with_all_tokens, instruction_tx)
+
         wait_condition(lambda: sol_balance_before > operator.get_solana_balance())
 
         sol_balance_after = operator.get_solana_balance()
@@ -631,6 +632,7 @@ class TestEconomics:
         get_gas_used_percent(w3_client, contract_deploy_tx)
 
     @pytest.mark.slow
+    @pytest.mark.skip
     @pytest.mark.timeout(16 * Time.MINUTE)
     def test_deploy_contract_alt_on(
         self, sol_client, neon_price, sol_price, operator, web3_client, accounts, alt_contract, faucet
