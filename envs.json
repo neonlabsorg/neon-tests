@@ -87,12 +87,8 @@
     "solana_url": "http://proxy.release.stand.neontest.xyz/node-solana",
     "faucet_url": "http://proxy.release.stand.neontest.xyz/",
     "tracer_url": "",
-    "operator_neon_rewards_address": [],
     "spl_neon_mint": "HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU",
-    "neon_erc20wrapper_address": "",
-    "operator_keys": [
-      "BMp6gEnveANdvSvspESJUrNczuHz1GF5UQKjVLCkAZih"
-    ]
+    "neon_erc20wrapper_address": ""
   },
   "mainnet": {
     "evm_loader": "NeonVMyRX5GbCrsAHnUwx1nYYoJAtskU1bWUo6JGNyG",
@@ -108,13 +104,7 @@
     "spl_neon_mint": "NeonTjSjsuo3rexg9o6vHuMXw62f9V7zvmu8M8Zut44",
     "neon_erc20wrapper_address": "0x202C35e517Fa803B537565c40F0a6965D7204609",
     "eth_bank_account": "",
-    "use_bank": true,
-    "operator_neon_rewards_address": [
-      ""
-    ],
-    "operator_keys": [
-      ""
-    ]
+    "use_bank": true
   },
   "devnet": {
     "evm_loader": "eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU",
@@ -129,13 +119,7 @@
     "ws_subscriber_url": "wss://ws.devnet.neonevm.org/websocket/",
     "spl_neon_mint": "89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g",
     "neon_erc20wrapper_address": "0x053e3d1b12726f648B2e45CEAbDF9078B742576D",
-    "use_bank": true,
-    "operator_neon_rewards_address": [
-      "0x04fb33d72b5c836e468e217f79c404a32fe5003a"
-    ],
-    "operator_keys": [
-      "1W6Z2oWehbpAK4AHvtEhXbqPQPyZpTKT74SMS4hGd39"
-    ]
+    "use_bank": true
   },
   "testnet": {
     "evm_loader": "eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU",
@@ -148,13 +132,7 @@
     "tracer_url": "",
     "spl_neon_mint": "89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g",
     "neon_erc20wrapper_address": "0x053e3d1b12726f648B2e45CEAbDF9078B742576D",
-    "use_bank": true,
-    "operator_neon_rewards_address": [
-      "0x04fb33d72b5c836e468e217f79c404a32fe5003a"
-    ],
-    "operator_keys": [
-      "1W6Z2oWehbpAK4AHvtEhXbqPQPyZpTKT74SMS4hGd39"
-    ]
+    "use_bank": true
   },
   "local": {
     "evm_loader": "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io",
@@ -325,13 +303,7 @@
     "tracer_url": "",
     "spl_neon_mint": "",
     "neon_erc20wrapper_address": "",
-    "eth_bank_account": "0x9c10beb3e7eae0fa3e4695fe378bfa3bbf668aded6440e4a8412844d319c19b4",
-    "operator_neon_rewards_address": [
-      ""
-    ],
-    "operator_keys": [
-      ""
-    ]
+    "eth_bank_account": "0x9c10beb3e7eae0fa3e4695fe378bfa3bbf668aded6440e4a8412844d319c19b4"
   },
   "tracer_ci": {
     "evm_loader": "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io",
