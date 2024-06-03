@@ -217,38 +217,74 @@ contract ERC1820Registry {
 }
 
 
-contract ContractA {
+contract ContractA is ERC1820ImplementerInterface{
     ERC1820Registry private registry;
+    address public owner;
+    bytes32 constant private CONTRACT_A_INTERFACE_HASH = keccak256(abi.encodePacked("sayHello"));
 
-    constructor() public {
-        registry = ERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
-        registerInterface();
+    constructor(address _registryAddress) public {
+        registry = ERC1820Registry(_registryAddress);
+        owner = msg.sender;
     }
 
-    function registerInterface() private {
-        bytes32 interfaceHash = keccak256(abi.encodePacked("ContractA"));
-        registry.setInterfaceImplementer(address(this), interfaceHash, address(this));
+    function canImplementInterfaceForAddress(bytes32 interfaceHash, address /* addr */) external view returns(bytes32) {
+        if (interfaceHash == CONTRACT_A_INTERFACE_HASH) {
+            return keccak256(abi.encodePacked("ERC1820_ACCEPT_MAGIC"));
+        } else {
+            return bytes32(0);
+        }
     }
 
-    function doSomething() external pure returns (string memory) {
-        return "Contract A did something";
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not the owner");
+        _;
+    }
+
+    function setRegistryManager(address managerAddress) external onlyOwner {
+        registry.setManager(address(this), managerAddress);
+
+    }
+
+    function sayHello() external pure returns (string memory) {
+        return "Hello from ContractA";
     }
 }
 
 contract ContractB {
     ERC1820Registry private registry;
+    address private registryAddress;
+    address private contractAAddress;
 
-    constructor() public {
-        registry = ERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
+    constructor(address _registryAddress, address _contractAAddress) public {
+        registry = ERC1820Registry(_registryAddress);
+        contractAAddress = _contractAAddress;
     }
 
-    function callContractA() external view returns (string memory) {
-        bytes32 interfaceHash = keccak256(abi.encodePacked("ContractA"));
-        address contractAAddress = registry.getInterfaceImplementer(address(this), interfaceHash);
-        require(contractAAddress != address(0), "ContractA not registered");
+    function callSayHello(address contractManagerAddress) external view returns (string memory) {
+        bytes32 interfaceHash = keccak256(abi.encodePacked("sayHello"));
+        address implementerAddress = registry.getInterfaceImplementer(contractAAddress, interfaceHash);
+        require(implementerAddress != address(0), "Implementer for sayHello interface not registered");
 
-        (bool success, bytes memory data) = contractAAddress.staticcall(abi.encodeWithSignature("doSomething()"));
-        require(success, "Call to ContractA failed");
+        (bool success, bytes memory data) = implementerAddress.staticcall(abi.encodeWithSignature("sayHello()"));
+        require(success, "Call to the implementer failed");
         return abi.decode(data, (string));
     }
+
+}
+
+
+contract ContractManager {
+    ERC1820Registry private registry;
+    address private contractAAddress;
+
+    constructor(address _registryAddress, address _contractAAddress) public {
+        registry = ERC1820Registry(_registryAddress);
+        contractAAddress = _contractAAddress;
+    }
+
+    function registerInterface() external {
+        bytes32 interfaceHash = keccak256(abi.encodePacked("sayHello"));
+        registry.setInterfaceImplementer(contractAAddress, interfaceHash, contractAAddress);
+    }
+    
 }

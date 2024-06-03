@@ -1,183 +1,74 @@
-from _pytest.config import Config
-from eth_account._utils.signing import sign_transaction_dict
-from eth_account._utils.typed_transactions import TypedTransaction
-from web3._utils import transactions
-import rlp
+import allure
 
+from conftest import EnvName
 from utils.accounts import EthAccounts
-from utils.faucet import Faucet
 from utils.web3client import NeonChainWeb3Client
-from eth_account._utils.legacy_transactions import encode_transaction, serializable_unsigned_transaction_from_dict, \
-    UnsignedTransaction, Transaction
 
 
+@allure.feature("ERC Verifications")
+@allure.story("ERC-1820: Pseudo Introspection Registry Contract")
 class TestERC1820PseudoIntrospectionRegistryContract:
-    def test_(
+    def test_pseudo_introspection_registry(
             self,
             web3_client: NeonChainWeb3Client,
             accounts: EthAccounts,
-            pytestconfig: Config,
-            faucet: Faucet,
+            env_name: EnvName,
     ):
-        web3_client.eth.send_raw_transaction('0xf90a388085174876e800830c35008080b909e5608060405234801561001057600080fd5b506109c5806100206000396000f3fe608060405234801561001057600080fd5b50600436106100a5576000357c010000000000000000000000000000000000000000000000000000000090048063a41e7d5111610078578063a41e7d51146101d4578063aabbb8ca1461020a578063b705676514610236578063f712f3e814610280576100a5565b806329965a1d146100aa5780633d584063146100e25780635df8122f1461012457806365ba36c114610152575b600080fd5b6100e0600480360360608110156100c057600080fd5b50600160a060020a038135811691602081013591604090910135166102b6565b005b610108600480360360208110156100f857600080fd5b5035600160a060020a0316610570565b60408051600160a060020a039092168252519081900360200190f35b6100e06004803603604081101561013a57600080fd5b50600160a060020a03813581169160200135166105bc565b6101c26004803603602081101561016857600080fd5b81019060208101813564010000000081111561018357600080fd5b82018360208201111561019557600080fd5b803590602001918460018302840111640100000000831117156101b757600080fd5b5090925090506106b3565b60408051918252519081900360200190f35b6100e0600480360360408110156101ea57600080fd5b508035600160a060020a03169060200135600160e060020a0319166106ee565b6101086004803603604081101561022057600080fd5b50600160a060020a038135169060200135610778565b61026c6004803603604081101561024c57600080fd5b508035600160a060020a03169060200135600160e060020a0319166107ef565b604080519115158252519081900360200190f35b61026c6004803603604081101561029657600080fd5b508035600160a060020a03169060200135600160e060020a0319166108aa565b6000600160a060020a038416156102cd57836102cf565b335b9050336102db82610570565b600160a060020a031614610339576040805160e560020a62461bcd02815260206004820152600f60248201527f4e6f7420746865206d616e616765720000000000000000000000000000000000604482015290519081900360640190fd5b6103428361092a565b15610397576040805160e560020a62461bcd02815260206004820152601a60248201527f4d757374206e6f7420626520616e204552433136352068617368000000000000604482015290519081900360640190fd5b600160a060020a038216158015906103b85750600160a060020a0382163314155b156104ff5760405160200180807f455243313832305f4143434550545f4d4147494300000000000000000000000081525060140190506040516020818303038152906040528051906020012082600160a060020a031663249cb3fa85846040518363ffffffff167c01000000000000000000000000000000000000000000000000000000000281526004018083815260200182600160a060020a0316600160a060020a031681526020019250505060206040518083038186803b15801561047e57600080fd5b505afa158015610492573d6000803e3d6000fd5b505050506040513d60208110156104a857600080fd5b5051146104ff576040805160e560020a62461bcd02815260206004820181905260248201527f446f6573206e6f7420696d706c656d656e742074686520696e74657266616365604482015290519081900360640190fd5b600160a060020a03818116600081815260208181526040808320888452909152808220805473ffffffffffffffffffffffffffffffffffffffff19169487169485179055518692917f93baa6efbd2244243bfee6ce4cfdd1d04fc4c0e9a786abd3a41313bd352db15391a450505050565b600160a060020a03818116600090815260016020526040812054909116151561059a5750806105b7565b50600160a060020a03808216600090815260016020526040902054165b919050565b336105c683610570565b600160a060020a031614610624576040805160e560020a62461bcd02815260206004820152600f60248201527f4e6f7420746865206d616e616765720000000000000000000000000000000000604482015290519081900360640190fd5b81600160a060020a031681600160a060020a0316146106435780610646565b60005b600160a060020a03838116600081815260016020526040808220805473ffffffffffffffffffffffffffffffffffffffff19169585169590951790945592519184169290917f605c2dbf762e5f7d60a546d42e7205dcb1b011ebc62a61736a57c9089d3a43509190a35050565b600082826040516020018083838082843780830192505050925050506040516020818303038152906040528051906020012090505b92915050565b6106f882826107ef565b610703576000610705565b815b600160a060020a03928316600081815260208181526040808320600160e060020a031996909616808452958252808320805473ffffffffffffffffffffffffffffffffffffffff19169590971694909417909555908152600284528181209281529190925220805460ff19166001179055565b600080600160a060020a038416156107905783610792565b335b905061079d8361092a565b156107c357826107ad82826108aa565b6107b85760006107ba565b815b925050506106e8565b600160a060020a0390811660009081526020818152604080832086845290915290205416905092915050565b6000808061081d857f01ffc9a70000000000000000000000000000000000000000000000000000000061094c565b909250905081158061082d575080155b1561083d576000925050506106e8565b61084f85600160e060020a031961094c565b909250905081158061086057508015155b15610870576000925050506106e8565b61087a858561094c565b909250905060018214801561088f5750806001145b1561089f576001925050506106e8565b506000949350505050565b600160a060020a0382166000908152600260209081526040808320600160e060020a03198516845290915281205460ff1615156108f2576108eb83836107ef565b90506106e8565b50600160a060020a03808316600081815260208181526040808320600160e060020a0319871684529091529020549091161492915050565b7bffffffffffffffffffffffffffffffffffffffffffffffffffffffff161590565b6040517f01ffc9a7000000000000000000000000000000000000000000000000000000008082526004820183905260009182919060208160248189617530fa90519096909550935050505056fea165627a7a72305820377f4a2d4301ede9949f163f319021a6e9c687c292a5e2b2c4734c126b524e6c00291ba01820182018201820182018201820182018201820182018201820182018201820a01820182018201820182018201820182018201820182018201820182018201820')
-
-
 
         account = accounts[0]
-        deployment_account = '0xa990077c3205cbDf861e17Fa532eeB069cE9fF96'
 
-        # Fund the deployment account with 0.08 ether
-        # web3_client.send_neon(from_=faucet, to=deployment_account, amount=web3_client._web3.to_wei(0.08, 'ether'))
-        faucet.request_neon(deployment_account, amount=web3_client._web3.to_wei(0.08, 'ether'))
-        # fund_tx = {
-        #     # 'chainId': pytestconfig.environment.network_ids["neon"],
-        #     "nonce": web3_client.eth.get_transaction_count(account.address),
-        #     'from': account.address,
-        #     'to': deployment_account,
-        #     'value': web3_client._web3.to_wei(0.08, 'ether'),
-        #     'gas': 21000,
-        #     'gasPrice': web3_client._web3.to_wei(100, 'gwei')
-        # }
-        # signed_fund_tx = web3_client.eth.account.sign_transaction(fund_tx, account.key)
-        # fund_tx_hash = web3_client.eth.send_raw_transaction(signed_fund_tx.rawTransaction)
-        # web3_client.eth.wait_for_transaction_receipt(fund_tx_hash)
-        b = web3_client.get_balance(deployment_account)
+        if env_name in (EnvName.DEVNET, EnvName.MAINNET):
+            registry_address = "0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24"
 
+        else:
+            registry, _ = web3_client.deploy_and_get_contract(
+                contract="EIPs/ERC1820PseudoIntrospectionRegistry.sol",
 
-        from solcx import compile_standard
-        from semantic_version import Version
-
-        # Read the Solidity contract
-        with open('/Users/ivanadamov/PycharmProjects/neon-tests/contracts/EIPs/ERC1820PseudoIntrospectionRegistry.sol', 'r') as file:
-            erc1820_registry_source = file.read()
-
-        # Compile the contract
-        compiled_sol = compile_standard(
-            input_data={
-                'language': 'Solidity',
-                'sources': {
-                    'ERC1820Registry.sol': {
-                        'content': erc1820_registry_source
-                    }
-                },
-                'settings': {
-                    'outputSelection': {
-                        '*': {
-                            '*': ['abi', 'evm.bytecode']
-                        }
-                    }
-                }
-            },
-            solc_version=Version("0.5.3"),
-        )
-
-        # Extract the bytecode
-        bytecode = compiled_sol['contracts']['ERC1820Registry.sol']['ERC1820Registry']['evm']['bytecode']['object']
-
-        tx_data = {
-            # 'chainId': pytestconfig.environment.network_ids["neon"],
-            'nonce': web3_client.eth.get_transaction_count(deployment_account),
-            'gasPrice': web3_client._web3.to_wei(100, 'gwei'),
-            'gas': 3000000,  # an adequate gas limit
-            'to': '',
-            'value': 0,
-            'data': '0x' + bytecode,
-            # 'v': 27,
-            # 'r': '0x1820182018201820182018201820182018201820182018201820182018201820',
-            # 's': '0x1820182018201820182018201820182018201820182018201820182018201820',
-        }
-
-        # Prepare the raw transaction for deployment
-        unsigned_transaction: UnsignedTransaction = serializable_unsigned_transaction_from_dict(tx_data)
-        encoded_transaction = encode_transaction(
-            unsigned_transaction=unsigned_transaction,
-            vrs=(
-                27,
-                0x1820182018201820182018201820182018201820182018201820182018201820,
-                0x1820182018201820182018201820182018201820182018201820182018201820,
+                version="0.5.3",
+                account=account,
+                contract_name="ERC1820Registry",
             )
-        )
+            registry_address = registry.address
 
-        # Send the deployment transaction
-        deploy_tx_hash = web3_client.eth.send_raw_transaction(encoded_transaction)
-        deploy_receipt = web3_client.eth.wait_for_transaction_receipt(deploy_tx_hash)
-
-        print(f'ERC1820 Registry deployed at {deploy_receipt.contractAddress}')
-
-        registry_address = '0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24'
-
-        print()
-
-
-        # registry, _ = web3_client.deploy_and_get_contract(
-        #     contract="EIPs/ERC1820PseudoIntrospectionRegistry.sol",
-        #     version="0.5.3",
-        #     account=account,
-        #     contract_name="ERC1820Registry",
-        # )
-
-        contract_a, _ = web3_client.deploy_and_get_contract(
+        contract_a, contract_a_receipt = web3_client.deploy_and_get_contract(
             contract="EIPs/ERC1820PseudoIntrospectionRegistry.sol",
             version="0.5.3",
             account=account,
             contract_name="ContractA",
+            constructor_args=[registry_address],
         )
 
-        contract_b, _ = web3_client.deploy_and_get_contract(
+        contract_b, contract_b_receipt = web3_client.deploy_and_get_contract(
             contract="EIPs/ERC1820PseudoIntrospectionRegistry.sol",
             version="0.5.3",
             account=account,
             contract_name="ContractB",
+            constructor_args=[registry_address, contract_a.address],
         )
 
-        result = contract_b.functions.callContractA().call()
-        assert result == "Contract A did something"
+        contract_manager, contract_setup_receipt = web3_client.deploy_and_get_contract(
+            contract="EIPs/ERC1820PseudoIntrospectionRegistry.sol",
+            version="0.5.3",
+            account=account,
+            contract_name="ContractManager",
+            constructor_args=[registry_address, contract_a.address],
+        )
 
-        print()
+        # Set ContractManager as the manager for ContractA
+        tx_contract_manager = web3_client.make_raw_tx(from_=account)
+        instruction_tx_contract_manager = contract_a.functions.setRegistryManager(
+            contract_manager.address,
+        ).build_transaction(tx_contract_manager)
+        tx_contract_manager_receipt = web3_client.send_transaction(account, instruction_tx_contract_manager)
+        assert tx_contract_manager_receipt.logs, "ERC1820Registry.setManager() failed"
 
-    def test_nicks_method(
-            self,
-            web3_client: NeonChainWeb3Client,
-            accounts: EthAccounts,
-    ):
-        account = accounts[0]
-        # Define deployment parameters
-        deployment_account = '0xa990077c3205cbDf861e17Fa532eeB069cE9fF96'
-        contract_bytecode = '0x0123456789abcdef'  # Example bytecode of the contract to deploy
+        # ContractManager sets ContractA as the implementer for "sayHello" interface for ContractA address
+        tx_contract_a = web3_client.make_raw_tx(from_=account)
+        instruction_tx_contract_a = contract_manager.functions.registerInterface().build_transaction(tx_contract_a)
+        tx_contract_a_receipt = web3_client.send_transaction(account, instruction_tx_contract_a)
+        assert tx_contract_a_receipt.logs, "ERC1820Registry.setInterfaceImplementer() failed"
 
-        # Generate transaction to deploy the contract
-        tx = {
-            'nonce': web3_client.eth.get_transaction_count(deployment_account),
-            'gasPrice': web3_client._web3.to_wei(100, 'gwei'),
-            'gas': 3000000,  # an adequate gas limit
-            'to': None,  # Create a new contract, so 'to' is None
-            'value': 0,
-            'data': contract_bytecode,
-        }
-
-        # Set the v, r, and s values of the transaction signature
-        v = 27
-        r = 0x1820182018201820182018201820182018201820182018201820182018201820
-        s = 0x1820182018201820182018201820182018201820182018201820182018201820
-
-        # Fund the deployment account with the required amount of ether (0.08 ETH)
-        fund_tx = {
-            'nonce': web3_client.eth.get_transaction_count(deployment_account),
-            'from': account.address,
-            'to': deployment_account,
-            'value': web3_client._web3.to_wei(0.08, 'ether'),
-            'gas': 21000,
-            'gasPrice': web3_client._web3.to_wei(100, 'gwei')
-        }
-
-        # Sign the fund transaction
-        signed_fund_tx = web3_client.eth.account.sign_transaction(fund_tx, private_key=account.key)
-
-        # Broadcast the fund transaction
-        fund_tx_hash = web3_client.eth.send_raw_transaction(signed_fund_tx.rawTransaction)
-
-        # Sign the deployment transaction
-        signed_tx = web3_client.eth.account.sign_transaction(tx, private_key=None)
-
-        # Broadcast the deployment transaction
-        deploy_tx_hash = web3_client.eth.send_raw_transaction(signed_tx.rawTransaction)
+        # contractB queries registry to see what address implements "sayHello" for contractA address
+        # in response gets the implementer address, and then calls sayHello() in it
+        result = contract_b.functions.callSayHello(contract_manager.address).call()
+        assert result == "Hello from ContractA", "ERC1820Registry.getInterfaceImplementer() failed"
