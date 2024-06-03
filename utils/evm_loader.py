@@ -348,10 +348,11 @@ class EvmLoader(SolanaClient):
         signer: Keypair,
         system_program=sp.SYS_PROGRAM_ID,
         sysvar=SYSVAR_INSTRUCTIONS_PUBKEY,
+        compute_unit_price = None,
         tag=0x35,
         index=0,
     ) -> GetTransactionResp:
-        trx = TransactionWithComputeBudget(operator)
+        trx = TransactionWithComputeBudget(operator, compute_unit_price=compute_unit_price)
         trx.add(
             make_ExecuteTrxFromAccountDataIterativeOrContinue(
                 index,
@@ -377,6 +378,7 @@ class EvmLoader(SolanaClient):
         additional_accounts,
         signer: Keypair = None,
         sysvar=SYSVAR_INSTRUCTIONS_PUBKEY,
+        compute_unit_price = None
     ) -> GetTransactionResp:
         signer = operator if signer is None else signer
         operator_balance_pubkey = self.get_operator_balance_pubkey(operator)
@@ -394,6 +396,8 @@ class EvmLoader(SolanaClient):
                 EVM_STEPS,
                 signer,
                 index=index,
+                sysvar=sysvar,
+                compute_unit_price=compute_unit_price
             )
             index += 1
 
@@ -429,6 +433,7 @@ class EvmLoader(SolanaClient):
                 index=index
             )
             index += 1
+
 
             if receipt.value.transaction.meta.err:
                 raise AssertionError(f"Can't deploy contract: {receipt.value.transaction.meta.err}")

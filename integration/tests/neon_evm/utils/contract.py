@@ -88,7 +88,17 @@ def make_deployment_transaction(
 
 
 def make_contract_call_trx(
-    evm_loader, user, contract, function_signature, params=None, value=0, chain_id=111, access_list=None, trx_type=None
+    evm_loader,
+    user,
+    contract,
+    function_signature,
+    params=None,
+    value=0,
+    chain_id=111,
+    access_list=None,
+    maxPriorityFeePerGas=None,
+    maxFeePerGas=None,
+    trx_type=None,
 ):
     # does not work for tuple in params
     data = abi.function_signature_to_4byte_selector(function_signature)
@@ -109,6 +119,8 @@ def make_contract_call_trx(
         value=value,
         chain_id=chain_id,
         access_list=access_list,
+        maxPriorityFeePerGas=maxPriorityFeePerGas,
+        maxFeePerGas=maxFeePerGas,
         type=trx_type,
     )
 

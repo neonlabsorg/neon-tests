@@ -35,7 +35,21 @@ class ComputeBudget:
             keys=[AccountMeta(PublicKey(operator.public_key), is_signer=True, is_writable=False)],
             data=bytes.fromhex("01") + heap_frame.to_bytes(4, "little"),
         )
+    #  @staticmethod
+    # def set_compute_units_limit(limit, operator):
+    #     return TransactionInstruction(
+    #         program_id=COMPUTE_BUDGET_ID,
+    #         keys=[AccountMeta(PublicKey(operator.public_key), is_signer=True, is_writable=False)],
+    #         data=bytes.fromhex("02") + limit.to_bytes(4, "little"),
+    #     )
 
+    @staticmethod
+    def set_compute_units_price(price, operator):
+        return TransactionInstruction(
+            program_id=COMPUTE_BUDGET_ID,
+            keys=[AccountMeta(PublicKey(operator.public_key), is_signer=True, is_writable=False)],
+            data=bytes.fromhex("03") + price.to_bytes(8, "little"),
+        )
 
 class TransactionWithComputeBudget(Transaction):
     def __init__(
@@ -44,14 +58,19 @@ class TransactionWithComputeBudget(Transaction):
         units=DEFAULT_UNITS,
         additional_fee=DEFAULT_ADDITIONAL_FEE,
         heap_frame=DEFAULT_HEAP_FRAME,
+        compute_unit_price=None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         if units:
             self.add(ComputeBudget.request_units(operator, units, additional_fee))
+
         if heap_frame:
             self.add(ComputeBudget.request_heap_frame(operator, heap_frame))
+        if compute_unit_price:
+            self.add(ComputeBudget.set_compute_units_price(compute_unit_price,  operator))
+
 
 
 def make_WriteHolder(
