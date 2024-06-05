@@ -1,5 +1,6 @@
 import json
 import pathlib
+import sys
 import time
 import typing as tp
 from decimal import Decimal
@@ -11,11 +12,12 @@ import requests
 import web3
 import web3.types
 from eth_abi import abi
+from eth_typing import BlockIdentifier
 from web3.exceptions import TransactionNotFound
 
 from utils import helpers
 from utils.consts import InputTestConstants, Unit
-from utils.helpers import decode_function_signature
+from utils.helpers import decode_function_signature, case_snake_to_camel
 
 LOG = logging.getLogger(__name__)
 
@@ -131,7 +133,7 @@ class Web3Client:
     def get_nonce(
         self,
         address: tp.Union[eth_account.signers.local.LocalAccount, str],
-        block: str = "pending",
+        block: BlockIdentifier = "pending",
     ):
         address = address if isinstance(address, str) else address.address
         return self._web3.eth.get_transaction_count(address, block)
@@ -231,6 +233,70 @@ class Web3Client:
         instruction_tx = self._web3.eth.account.sign_transaction(transaction, account.key)
         signature = self._web3.eth.send_raw_transaction(instruction_tx.rawTransaction)
         return self._web3.eth.wait_for_transaction_receipt(signature, timeout=timeout)
+
+    @allure.step("Create raw transaction EIP-1559")
+    def make_raw_tx_eip_1559(
+            self,
+            *,
+            chain_id: tp.Union[int, tp.Literal["auto"], None],
+            from_: str,
+            to: tp.Union[str, None],
+            value: tp.Union[int, float, Decimal, str, None],
+            nonce: tp.Union[int, tp.Literal["auto"], None],
+            data: tp.Union[str, bytes, None],
+            access_list: tp.Union[tp.List[web3.types.AccessListEntry], None],
+            gas: tp.Union[int, tp.Literal["auto"], None],
+            max_priority_fee_per_gas: tp.Union[int, tp.Literal["auto"], None],
+            max_fee_per_gas: tp.Union[int, tp.Literal["auto"], None],
+            max_fee_per_gas_multiplier: int = 2,
+    ) -> web3.types.TxParams:
+
+        # Create a copy of local variables and remove the redundant ones
+        kwargs = locals().copy()
+        del kwargs["self"]
+        del kwargs["max_fee_per_gas_multiplier"]
+
+        # Move parameters related to gas to the end as they should be handled last
+        for arg_name in ("gas", "max_priority_fee_per_gas", "max_fee_per_gas"):
+            arg_value = kwargs[arg_name]
+            del kwargs[arg_name]
+            kwargs.update({arg_name: arg_value})
+
+        # Initialize parameters with a default value "type": 2 for EIP-1559 transactions
+        params = {"type": 2}
+
+        # Map parameters with 'auto' value to their corresponding values
+        base_fee_per_gas = 10
+
+        if max_priority_fee_per_gas == "auto" or max_fee_per_gas == "auto":
+            latest_block: web3.types.BlockData = self._web3.eth.get_block(block_identifier="latest")  # noqa
+            base_fee_per_gas = latest_block.baseFeePerGas  # noqa
+
+        auto_map = {
+            "chain_id": lambda: self.chain_id,
+            "nonce": lambda: self.get_nonce(from_),
+            "gas": lambda: self._web3.eth.estimate_gas(params),
+            "max_priority_fee_per_gas": self._web3.eth._max_priority_fee,  # noqa
+            "max_fee_per_gas": lambda: (max_fee_per_gas_multiplier * base_fee_per_gas) + params["maxPriorityFeePerGas"],
+        }
+
+        # Iterate over parameters and add them to the params dictionary
+        for param_name, param_value in kwargs.items():
+            if param_value is None:
+                continue
+
+            if param_value == "auto":
+                # get the auto value
+                param_value = auto_map[param_name]()
+
+            # Convert parameter name from snake_case to camelCase
+            camel_case = case_snake_to_camel(param_name)
+
+            # Add parameter to the params dictionary
+            params[camel_case] = param_value
+
+        # params keys validation happens here
+        return web3.types.TxParams(params)
 
     @allure.step("Deploy and get contract")
     def deploy_and_get_contract(
@@ -344,6 +410,39 @@ class Web3Client:
         tx = self.eth.send_raw_transaction(signed_tx.rawTransaction)
         return self.eth.wait_for_transaction_receipt(tx)
 
+    @allure.step("Send tokens under EIP-1559")
+    def send_tokens_eip_1559(
+            self,
+            *,
+            from_: eth_account.signers.local.LocalAccount,
+            to: str,
+            value: tp.Union[int, float, Decimal, str, None],
+            chain_id: tp.Union[int, tp.Literal["auto"], None] = "auto",
+            nonce: tp.Union[int, tp.Literal["auto"], None] = "auto",
+            gas: tp.Union[int, tp.Literal["auto"], None] = "auto",
+            max_priority_fee_per_gas: tp.Union[int, tp.Literal["auto"], None] = "auto",
+            max_fee_per_gas: tp.Union[int, tp.Literal["auto"], None] = "auto",
+            max_fee_per_gas_multiplier: int = 2,
+            access_list: tp.Optional[tp.List[web3.types.AccessListEntry]] = None,
+    ) -> web3.types.TxReceipt:
+
+        tx_params = self.make_raw_tx_eip_1559(
+            chain_id=chain_id,
+            from_=from_.address,
+            to=to,
+            value=value,
+            nonce=nonce,
+            gas=gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            max_fee_per_gas=max_fee_per_gas,
+            data=None,
+            access_list=access_list,
+            max_fee_per_gas_multiplier=max_fee_per_gas_multiplier,
+        )
+
+        receipt = self.send_transaction(account=from_, transaction=tx_params)
+        return receipt
+
     @allure.step("Send all neons from one account to another")
     def send_all_neons(
         self,
@@ -410,7 +509,7 @@ class NeonChainWeb3Client(Web3Client):
         faucet,
         amount: int = InputTestConstants.NEW_USER_REQUEST_AMOUNT.value,
         bank_account=None,
-    ):
+    ) -> eth_account.signers.local.LocalAccount:
         """Creates a new account with balance"""
         account = self.create_account()
         if bank_account is not None:
