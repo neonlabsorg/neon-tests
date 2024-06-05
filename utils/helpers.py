@@ -5,6 +5,7 @@ import string
 import time
 import typing
 import typing as tp
+import logging
 
 
 import allure
@@ -15,7 +16,7 @@ from eth_abi import abi
 from eth_utils import keccak
 from solana.publickey import PublicKey
 from solcx import link_code
-
+import polling2
 
 
 @allure.step("Get contract abi")
@@ -90,19 +91,36 @@ def generate_text(min_len: int = 2, max_len: int = 200, simple: bool = True) -> 
 
 
 @allure.step("Wait condition")
-def wait_condition(func_cond, timeout_sec=15, delay=0.5):
-    start_time = time.time()
-    while True:
-        if time.time() - start_time > timeout_sec:
-            raise TimeoutError(f"The condition not reached within {timeout_sec} sec")
-        try:
-            if func_cond():
-                break
-
-        except Exception as e:
-            print(f"Error during waiting: {e}")
-        time.sleep(delay)
-    return True
+def wait_condition(
+        func_cond,
+        timeout_sec=15,
+        delay=0.5,
+        args=(),
+        kwargs=None,
+        max_tries=None,
+        check_success=polling2.is_truthy,
+        step_function=polling2.step_constant,
+        ignore_exceptions=(),
+        poll_forever=False,
+        collect_values=None,
+        log=logging.NOTSET,
+        log_error=logging.NOTSET
+):
+    return polling2.poll(
+        target=func_cond,
+        timeout=timeout_sec,
+        step=delay,
+        args=args,
+        kwargs=kwargs,
+        max_tries=max_tries,
+        check_success=check_success,
+        step_function=step_function,
+        ignore_exceptions=ignore_exceptions,
+        poll_forever=poll_forever,
+        collect_values=collect_values,
+        log=log,
+        log_error=log_error,
+    )
 
 
 @allure.step("Decode function signature")
@@ -184,3 +202,9 @@ def serialize_instruction(program_id, instruction) -> bytes:
 
     serialized += len(instruction.data).to_bytes(8, "little") + instruction.data
     return serialized
+
+
+def case_snake_to_camel(snake_str: str) -> str:
+    components = snake_str.split('_')
+    camel_case = components[0].lower() + ''.join(x.title() for x in components[1:])
+    return camel_case
