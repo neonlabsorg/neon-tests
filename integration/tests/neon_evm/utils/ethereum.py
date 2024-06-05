@@ -32,8 +32,8 @@ def make_eth_transaction(
     value: int = 0,
     chain_id=CHAIN_ID,
     gas=9999999999,
-    maxPriorityFeePerGas=None,
-    maxFeePerGas=None,
+    max_priority_fee_per_gas=None,
+    max_fee_per_gas=None,
     access_list=None,
     type=None,
 ):
@@ -49,11 +49,11 @@ def make_eth_transaction(
     if access_list is not None:
         tx["accessList"] = access_list
 
-    if maxPriorityFeePerGas is not None:
-        tx["maxPriorityFeePerGas"] = maxPriorityFeePerGas
+    if max_priority_fee_per_gas is not None:
+        tx["maxPriorityFeePerGas"] = max_priority_fee_per_gas
 
-    if maxFeePerGas is not None:
-        tx["maxFeePerGas"] = maxFeePerGas
+    if max_fee_per_gas is not None:
+        tx["maxFeePerGas"] = max_fee_per_gas
         tx.pop("gasPrice")
 
     if type is not None:
