@@ -114,6 +114,33 @@ class TestSolanaInteroperability:
         event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
 
+    def test_counter_batch_execute(self, call_solana_caller, counter_resource_address, get_counter_value):
+        sender = self.accounts[0]
+        call_params = []
+        current_counter = 0
+
+        for _ in range(10):
+            instruction = TransactionInstruction(
+            program_id=COUNTER_ID,
+            keys=[
+                AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
+            ],
+            data=bytes([0x1]),
+        )
+            serialized = serialize_instruction(COUNTER_ID, instruction)
+            call_params.append((0, serialized))
+            current_counter = next(get_counter_value)
+
+        tx = self.web3_client.make_raw_tx(sender.address)
+        instruction_tx = call_solana_caller.functions.batchExecute(call_params).build_transaction(tx)
+
+        resp = self.web3_client.send_transaction(sender, instruction_tx)
+        assert resp["status"] == 1
+        event_logs = call_solana_caller.events.LogData().process_receipt(resp)
+        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == current_counter
+        assert bytes32_to_solana_pubkey(event_logs[0].args.program.hex()) == COUNTER_ID
+
+
     def test_transfer_with_pda_signature(self, call_solana_caller, sol_client, solana_account, pytestconfig, bank_account):
         sender = self.accounts[0]
         from_wallet = Keypair.generate()

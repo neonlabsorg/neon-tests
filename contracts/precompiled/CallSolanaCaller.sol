@@ -37,6 +37,8 @@ contract CallSolanaCaller {
         for(uint i = 0; i < _args.length; i++) {
             _callSolana.execute(_args[i].lamports, _args[i].instruction);
         }
+        (bytes32 program, bytes memory returnData) = _callSolana.getReturnData();
+        emit LogData(program, returnData);
     }
 
     function getPayer() public returns (bytes32){
