@@ -10,7 +10,7 @@ from spl.token.constants import TOKEN_PROGRAM_ID
 
 from utils.accounts import EthAccounts
 from utils.consts import COUNTER_ID, TRANSFER_TOKENS_ID
-from utils.helpers import serialize_instruction
+from utils.helpers import serialize_instruction, bytes32_to_solana_pubkey
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -52,7 +52,7 @@ class TestSolanaInteroperability:
         return gen_increment_counter()
 
 
-    def test_counter(self, call_solana_caller, counter_resource_address, get_counter_value):
+    def test_counter_execute_with_get_return_data(self, call_solana_caller, counter_resource_address, get_counter_value):
         sender = self.accounts[0]
         lamports = 0
 
@@ -66,11 +66,12 @@ class TestSolanaInteroperability:
         serialized = serialize_instruction(COUNTER_ID, instruction)
 
         tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.execute(lamports, serialized).build_transaction(tx)
+        instruction_tx = call_solana_caller.functions.execute_with_get_return_data(lamports, serialized).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
-        event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
+        event_logs = call_solana_caller.events.LogData().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
+        assert bytes32_to_solana_pubkey(event_logs[0].args.program.hex()) == COUNTER_ID
     
     def test_counter_with_seed(self, call_solana_caller, counter_resource_address, get_counter_value):
         sender = self.accounts[0]
@@ -93,7 +94,7 @@ class TestSolanaInteroperability:
         event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
     
-    def test_counter_execute_with_return(self, call_solana_caller, counter_resource_address, get_counter_value):
+    def test_counter_execute(self, call_solana_caller, counter_resource_address, get_counter_value):
         sender = self.accounts[0]
         lamports = 0
 
@@ -107,7 +108,7 @@ class TestSolanaInteroperability:
         serialized = serialize_instruction(COUNTER_ID, instruction)
 
         tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.execute_with_return(lamports, serialized).build_transaction(tx)
+        instruction_tx = call_solana_caller.functions.execute(lamports, serialized).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
         event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
@@ -167,6 +168,8 @@ class TestSolanaInteroperability:
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
         assert int(mint.get_balance(to_token_account, commitment=Confirmed).value.amount) == amount
+        event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
+        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == 0
 
     def test_transfer_tokens_with_ext_authority(self, call_solana_caller, sol_client, pytestconfig, bank_account):
         sender = self.accounts[0]
@@ -216,3 +219,5 @@ class TestSolanaInteroperability:
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
         assert int(mint.get_balance(to_token_account, commitment=Confirmed).value.amount) == amount
+        event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
+        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == 0

@@ -14,6 +14,7 @@ contract CallSolanaCaller {
 
     event LogBytes(bytes32 value);
     event LogStr(string value);
+    event LogData(bytes32 program, bytes value);
 
     function getNeonAddress(address addr) public returns (bytes32){
         bytes32 solanaAddr = _callSolana.getNeonAddress(addr);
@@ -21,15 +22,15 @@ contract CallSolanaCaller {
     }
 
     function execute(uint64 lamports, bytes calldata instruction) public {
-        _callSolana.execute(lamports, instruction);
-        (, bytes memory returnData) = _callSolana.getReturnData();
-        emit LogBytes(bytes32(returnData));
+        bytes32 returnData = bytes32(_callSolana.execute(lamports, instruction));
+        emit LogBytes(returnData);
 
     }
 
-    function execute_with_return(uint64 lamports, bytes calldata instruction) public {
-        bytes32 returnData = bytes32(_callSolana.execute(lamports, instruction));
-        emit LogBytes(returnData);
+    function execute_with_get_return_data(uint64 lamports, bytes calldata instruction) public {
+        _callSolana.execute(lamports, instruction);
+        (bytes32 program, bytes memory returnData) = _callSolana.getReturnData();
+        emit LogData(program, returnData);
     }
 
     function batchExecute(ExecuteArgs[] memory _args) public {
