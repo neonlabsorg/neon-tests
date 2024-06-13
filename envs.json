@@ -81,7 +81,7 @@
       "usdt": 113,
       "eth": 114
     },
-    "solana_url": "http://127.0.0.1:8899/",
+    "solana_url": "http://127.0.0.1:8080/",
     "faucet_url": "http://127.0.0.1:3333/",
     "tracer_url": "http://127.0.0.1:9091",
     "spl_neon_mint": "HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU",
