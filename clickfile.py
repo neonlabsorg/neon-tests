@@ -13,6 +13,7 @@ import sys
 import typing as tp
 from pathlib import Path
 from urllib.parse import urlparse
+import urllib.request
 
 try:
     import click
@@ -37,6 +38,7 @@ try:
     from utils.prices import get_sol_price
     from utils.helpers import wait_condition
     from utils.apiclient import JsonRPCSession
+    from utils.request_stat import parse_log_file, calculate_stats
 except ImportError:
     print("Please run ./clickfile.py requirements to install all requirements")
 
@@ -994,6 +996,27 @@ def make_dapps_report(directory, pr_url_for_report, token):
         gh_client.delete_last_comment(pr_url_for_report)
         format_data = dapps_cli.format_report_for_github_comment(report_data)
         gh_client.add_comment_to_pr(pr_url_for_report, format_data)
+
+
+@cli.group("stats", help="Manage stats")
+def stats():
+    pass
+
+
+@stats.command("get_logs", help="Get logs from nginx")
+@click.option("-o", "--out", default="nginx_access.log", help="File with logs")
+@click.option("-n", "--nginx_ip", default=os.environ.get("NGINX_IP"), help="Address of nginx")
+def get_logs_for_nginx(out, nginx_ip):
+    content = requests.get(f"http://{nginx_ip}:8080", verify=False).text()
+    with open(out, "w") as f:
+        f.write(content)
+
+
+@stats.command("parse_logs", help="Get logs from nginx")
+@click.option("-f", "--filename", default="nginx_access.log", help="File with logs")
+def parse_logs_for_nginx(filename):
+    stats = parse_log_file(filename)
+    return calculate_stats(stats)
 
 
 if __name__ == "__main__":
