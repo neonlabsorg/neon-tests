@@ -1,9 +1,7 @@
 import json
 import re
 from collections import defaultdict
-import pandas as pd
 import statistics
-from pprint import pprint
 
 
 # Regular expression to match the log format
@@ -18,7 +16,7 @@ def extract_method(request_body):
         return "unknown"
 
 
-def parse_log_entry(log_file_path):
+def parse_log_file(log_file_path) -> dict:
     # Read and parse the log file
     stats = defaultdict(lambda: {"times": list()})
     with open(log_file_path, "r") as log_file:
@@ -73,7 +71,7 @@ if __name__ == "__main__":
     # log_file_path = 'log.log'
     log_file = "/Users/andreineonlabs/Documents/neon-proxy.py/docker-compose/access.log"
 
-    method_data = parse_log_entry(log_file)
+    method_data = parse_log_file(log_file)
     calculated_stats = calculate_stats(method_data)
 
     # df = pd.DataFrame.from_dict(calculated_stats, orient="index")

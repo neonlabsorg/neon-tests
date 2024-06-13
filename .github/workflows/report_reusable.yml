@@ -1,0 +1,88 @@
+name: Report reusable
+run-name: Report reusable (${{ inputs.network }})
+
+on:
+  workflow_call:
+    inputs:
+        network:
+          type: string
+          default: terraform
+          required: true
+          description: "Stand name"
+        tests_tag:
+          type: string
+          required: true
+          description: "Tag of the tests"
+        solana_url:
+          type: string
+          required: true
+          description: "solana_url (fill only for custom stand)"
+        faucet_url:
+          type: string
+          required: true
+          description: "faucet_url (fill only for custom stand)"
+        pr_url_for_report:
+          type: string
+          required: true
+          description: "Url to send the report as comment for PR"
+        proxy_ip:
+          type: string
+          required: true
+        solana_ip:
+          type: string
+          required: true
+        nginx_ip:
+          type: string
+          required: true
+        external_call:
+          description: 'To distinguish calls from other repositories and the current one'
+          type: boolean
+          required: false
+          default: true
+
+env:
+  NETWORK: ${{ inputs.network }}
+  DUMP_ENVS: True
+  DEVNET_FAUCET_URL: ${{ secrets.DEVNET_FAUCET_URL }}
+  DEVNET_SOLANA_URL: ${{ secrets.SOLANA_URL }}
+  NGINX_IP: ${{ inputs.nginx_ip }}
+
+jobs:
+  requests-report:
+    runs-on: ubuntu-20.04
+    if: always()
+    env:
+      SOLANA_URL: ${{ inputs.solana_url }}
+      NETWORK: ${{ inputs.network }}
+      SOLANA_IP: ${{ inputs.solana_ip }}
+      PROXY_IP: ${{ inputs.proxy_ip }}
+      NEON_TEST_IMAGE: neonlabsorg/neon_tests
+      CONTAINER: report-${{ github.run_id }}
+      TESTS_TAG: ${{ inputs.tests_tag }}
+      NGINX_IP: ${{ inputs.nginx_ip }}
+    steps:
+      # - uses: actions/checkout@v4
+      # - if: ${{ inputs.external_call }}
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: neonlabsorg/neon-tests
+      #     ref: ndev_2475_collect_metrics_for_requests
+      - name: Pull docker image
+        run: docker pull ${{ env.NEON_TEST_IMAGE }}:${{ env.TESTS_TAG }}
+      - name: Run docker container
+        run: |
+          docker run -i -e PROXY_IP=${{env.PROXY_IP}} \
+          -e SOLANA_IP=${{env.SOLANA_IP}} \
+          -e NETWORK=${{ env.NETWORK }} \
+          -d --name=${{ env.CONTAINER }} ${{ env.NEON_TEST_IMAGE }}:${{ env.TESTS_TAG }} /bin/bash
+      - name: Download report
+        run: |
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py stats get_logs --nginx_ip=${{ env.NGINX_IP }}
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: nginx-access-log
+          path: nginx_access.log
+      - name: "Request report"
+        run: |
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py stats parse_logs
