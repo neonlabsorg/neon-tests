@@ -6,7 +6,7 @@ import time
 import typing
 import typing as tp
 import logging
-
+from queue import Queue
 
 import allure
 import base58
@@ -92,19 +92,19 @@ def generate_text(min_len: int = 2, max_len: int = 200, simple: bool = True) -> 
 
 @allure.step("Wait condition")
 def wait_condition(
-        func_cond,
-        timeout_sec=15,
-        delay=0.5,
-        args=(),
-        kwargs=None,
-        max_tries=None,
-        check_success=polling2.is_truthy,
-        step_function=polling2.step_constant,
-        ignore_exceptions=(),
-        poll_forever=False,
-        collect_values=None,
-        log=logging.NOTSET,
-        log_error=logging.NOTSET
+        func_cond: tp.Callable[..., tp.Union[bool, tp.Any]],
+        timeout_sec: float = 15,
+        delay: float = 0.5,
+        args: tp.Tuple = (),
+        kwargs: tp.Optional[dict[str, tp.Any]] = None,
+        max_tries: tp.Optional[int] = None,
+        check_success: tp.Callable[[tp.Any], bool] = polling2.is_truthy,
+        step_function: tp.Callable[[int], float] = polling2.step_constant,
+        ignore_exceptions: tp.Tuple[Exception, ...] = (),
+        poll_forever: bool = False,
+        collect_values: tp.Optional[Queue] = None,
+        log: int = logging.NOTSET,
+        log_error: int = logging.NOTSET
 ):
     return polling2.poll(
         target=func_cond,

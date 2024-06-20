@@ -381,3 +381,14 @@ def make_OperatorBalanceAccount(operator_keypair, operator_balance_pubkey, ether
         data=bytes.fromhex("3A") + ether_bytes + chain_id.to_bytes(8, 'little')
     ))
     return trx
+
+
+def get_compute_unit_price_eip_1559(
+        gas_price: int,
+        max_priority_fee_per_gas: int,
+) -> int:
+    """
+    :return: micro lamports
+    """
+    cu_price = max(1, int(max_priority_fee_per_gas * 1_000_000 * 5000.0 / (gas_price * DEFAULT_UNITS)))
+    return cu_price
