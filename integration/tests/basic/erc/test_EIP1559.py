@@ -437,8 +437,7 @@ class TestSendRawTransaction:
         sender = self.accounts[0]
         recipient = self.web3_client.create_account()
 
-        latest_block: web3.types.BlockData = self.web3_client._web3.eth.get_block(block_identifier="latest")  # noqa
-        base_fee_per_gas = latest_block.baseFeePerGas  # noqa
+        base_fee_per_gas = self.web3_client.base_fee_per_gas()
 
         tx_params = self.web3_client.make_raw_tx_eip_1559(
             chain_id="auto",
@@ -762,8 +761,7 @@ class TestRpcNeonMethods:
         sender = accounts[0]
         recipient = accounts[1]
         nonce = web3_client.get_nonce(address=sender.address)
-        latest_block: web3.types.BlockData = web3_client._web3.eth.get_block(block_identifier="latest")  # noqa
-        base_fee_per_gas = latest_block.baseFeePerGas  # noqa
+        base_fee_per_gas = self.web3_client.base_fee_per_gas()
         max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
         max_fee_per_gas = (5 * base_fee_per_gas) + max_priority_fee_per_gas
 
@@ -819,8 +817,7 @@ class TestRpcNeonMethods:
         sender = accounts[0]
         recipient = accounts[1]
 
-        latest_block: web3.types.BlockData = web3_client._web3.eth.get_block(block_identifier="latest")  # noqa
-        base_fee_per_gas = latest_block.baseFeePerGas  # noqa
+        base_fee_per_gas = self.web3_client.base_fee_per_gas()
         max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
         max_fee_per_gas = (5 * base_fee_per_gas) + max_priority_fee_per_gas
 
@@ -856,8 +853,7 @@ class TestRpcEthMethods:
         sender = accounts[0]
         recipient = web3_client.create_account()
 
-        latest_block: web3.types.BlockData = web3_client._web3.eth.get_block(block_identifier="latest")  # noqa
-        base_fee_per_gas = latest_block.baseFeePerGas  # noqa
+        base_fee_per_gas = self.web3_client.base_fee_per_gas()
         max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
         max_fee_per_gas = (5 * base_fee_per_gas) + max_priority_fee_per_gas
 
@@ -889,8 +885,7 @@ class TestRpcEthMethods:
         sender = accounts[0]
         recipient = web3_client.create_account()
 
-        latest_block: web3.types.BlockData = web3_client._web3.eth.get_block(block_identifier="latest")  # noqa
-        base_fee_per_gas = latest_block.baseFeePerGas  # noqa
+        base_fee_per_gas = self.web3_client.base_fee_per_gas()
         max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
         max_fee_per_gas = (5 * base_fee_per_gas) + max_priority_fee_per_gas
 
@@ -922,8 +917,7 @@ class TestRpcEthMethods:
         sender = accounts[0]
         recipient = web3_client.create_account()
 
-        latest_block: web3.types.BlockData = web3_client._web3.eth.get_block(block_identifier="latest")  # noqa
-        base_fee_per_gas = latest_block.baseFeePerGas  # noqa
+        base_fee_per_gas = self.web3_client.base_fee_per_gas()
         max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
         max_fee_per_gas = (5 * base_fee_per_gas) + max_priority_fee_per_gas
 
@@ -961,8 +955,7 @@ class TestRpcEthMethods:
         sender = accounts[0]
         recipient = web3_client.create_account()
 
-        latest_block: web3.types.BlockData = web3_client._web3.eth.get_block(block_identifier="latest")  # noqa
-        base_fee_per_gas = latest_block.baseFeePerGas  # noqa
+        base_fee_per_gas = self.web3_client.base_fee_per_gas()
 
         receipt = web3_client.send_tokens_eip_1559(
             from_=sender,
@@ -996,8 +989,7 @@ class TestRpcEthMethods:
         sender = accounts[0]
         recipient = web3_client.create_account()
 
-        latest_block: web3.types.BlockData = web3_client._web3.eth.get_block(block_identifier="latest")  # noqa
-        base_fee_per_gas = latest_block.baseFeePerGas  # noqa
+        base_fee_per_gas = self.web3_client.base_fee_per_gas()
 
         receipt = web3_client.send_tokens_eip_1559(
             from_=sender,
@@ -1026,8 +1018,7 @@ class TestRpcEthMethods:
         sender = accounts[0]
         recipient = web3_client.create_account()
 
-        latest_block: web3.types.BlockData = web3_client._web3.eth.get_block(block_identifier="latest")  # noqa
-        base_fee_per_gas = latest_block.baseFeePerGas  # noqa
+        base_fee_per_gas = self.web3_client.base_fee_per_gas()
         max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
         max_fee_per_gas = 2 * base_fee_per_gas + max_priority_fee_per_gas
 
@@ -1280,8 +1271,7 @@ class TestBASEFEEOpcode:
             version="0.8.10",
             account=account,
         )
-        latest_block = web3_client._web3.eth.get_block(block_identifier="latest")
-        base_fee_rpc = latest_block.baseFeePerGas
+        base_fee_rpc = self.web3_client.base_fee_per_gas()
         base_fee_contract = contract.functions.baseFee().call()
         assert base_fee_contract == base_fee_rpc
 

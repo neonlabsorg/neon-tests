@@ -1,3 +1,4 @@
+import logging
 import inspect
 import json
 import os
@@ -16,6 +17,7 @@ from solana.keypair import Keypair
 from solana.publickey import PublicKey
 from solana.rpc import commitment
 from solana.rpc.types import TxOpts
+from web3.contract import Contract
 from web3.exceptions import InvalidAddress
 
 import allure
@@ -33,6 +35,8 @@ from utils.solana_client import SolanaClient
 from utils.prices import get_sol_price
 from utils.web3client import NeonChainWeb3Client, Web3Client
 
+log = logging.getLogger(__name__)
+
 NEON_AIRDROP_AMOUNT = 1_000
 
 
@@ -40,23 +44,22 @@ def pytest_collection_modifyitems(config, items):
     deselected_items = []
     selected_items = []
     deselected_marks = []
+    end_of_session_items = []
     network_name = config.getoption("--network")
-
-    if network_name == "geth":
-        return
 
     settings = network_manager.get_network_object(network_name)
     web3_client = web3client.NeonChainWeb3Client(settings["proxy_url"])
 
-    raw_proxy_version = web3_client.get_proxy_version()["result"]
+    if network_name != "geth":
+        raw_proxy_version = web3_client.get_proxy_version()["result"]
 
-    if "Neon-proxy/" in raw_proxy_version:
-        raw_proxy_version = raw_proxy_version.split("Neon-proxy/")[1].strip()
-    proxy_dev = "dev" in raw_proxy_version
+        if "Neon-proxy/" in raw_proxy_version:
+            raw_proxy_version = raw_proxy_version.split("Neon-proxy/")[1].strip()
+        proxy_dev = "dev" in raw_proxy_version
 
-    if "-" in raw_proxy_version:
-        raw_proxy_version = raw_proxy_version.split("-")[0].strip()
-    proxy_version = version.parse(raw_proxy_version)
+        if "-" in raw_proxy_version:
+            raw_proxy_version = raw_proxy_version.split("-")[0].strip()
+        proxy_version = version.parse(raw_proxy_version)
 
     if network_name == "devnet":
         deselected_marks.append("only_stands")
@@ -80,15 +83,25 @@ def pytest_collection_modifyitems(config, items):
         elif len(raw_item_pv) > 0:
             item_proxy_version = version.parse(raw_item_pv[0])
 
-            if not proxy_dev and item_proxy_version > proxy_version:
-                deselected_items.append(item)
-                select_item = False
+            if network_name != "geth":
+                if not proxy_dev and item_proxy_version > proxy_version:
+                    deselected_items.append(item)
+                    select_item = False
 
         if select_item:
-            selected_items.append(item)
+            execute_in_the_end_of_session = item.get_closest_marker("execute_in_the_end_of_session")
+            if execute_in_the_end_of_session:
+                log.debug(f"Move {item} execution to the end of the session")
+
+                if end_of_session_items:
+                    log.warning(f"Other tests have also been moved to the end of the session: {end_of_session_items}")
+
+                end_of_session_items.append(item)
+            else:
+                selected_items.append(item)
 
     config.hook.pytest_deselected(items=deselected_items)
-    items[:] = selected_items
+    items[:] = selected_items + end_of_session_items
 
 
 @pytest.fixture(scope="session")
@@ -102,7 +115,7 @@ def json_rpc_client(pytestconfig: Config) -> JsonRPCSession:
 
 
 @pytest.fixture(scope="class")
-def web3_client(request, web3_client_session):
+def web3_client(request, web3_client_session) -> NeonChainWeb3Client:
     if inspect.isclass(request.cls):
         request.cls.web3_client = web3_client_session
     yield web3_client_session
@@ -361,7 +374,7 @@ def neon_mint(pytestconfig: Config):
 
 
 @pytest.fixture(scope="class")
-def withdraw_contract(web3_client, faucet, accounts):
+def withdraw_contract(web3_client, faucet, accounts) -> Contract:
     contract, _ = web3_client.deploy_and_get_contract("precompiled/NeonToken", "0.8.10", account=accounts[1])
     return contract
 
