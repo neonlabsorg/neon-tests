@@ -100,7 +100,7 @@ class TestSolanaInteroperability:
                 AccountMeta(mint.pubkey, is_signer=False, is_writable=True),
                 AccountMeta(to_token_account, is_signer=False, is_writable=True),
                 AccountMeta(authority_pubkey, is_signer=False, is_writable=True),
-                AccountMeta(TOKEN_PROGRAM_ID, is_signer=False, is_writable=True),
+                AccountMeta(TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
             ],
             data=bytes([0x0]),
         )
