@@ -161,6 +161,9 @@ def get_solana_accounts_in_tx(eth_transaction):
     web3_client = NeonChainWeb3Client(proxy_url)
     trx = web3_client.get_solana_trx_by_neon(eth_transaction)
     print(f"neon_getSolanaTransactionByNeonTransaction(eth_transaction={eth_transaction}): {trx}")
+    print(f"minimum_ledger_slot={sol_client.get_minimum_ledger_slot()}")
+    print(f"first_available_block={sol_client.get_first_available_block()}")
+    print(f"get_slot={sol_client.get_slot()}")
     tr = sol_client.get_transaction(Signature.from_string(trx["result"][0]), max_supported_transaction_version=0,
                                     commitment='confirmed')
     print(f"get_transaction({trx}): {tr}")
