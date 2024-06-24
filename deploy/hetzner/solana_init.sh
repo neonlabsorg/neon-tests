@@ -68,11 +68,10 @@ services:
       NEON_API_LISTENER_ADDR: 0.0.0.0:8085
       SOLANA_URL: http://solana:8899
       EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
-      # operator-keypairs/id.json
       SOLANA_KEY_FOR_CONFIG: BMp6gEnveANdvSvspESJUrNczuHz1GF5UQKjVLCkAZih
       COMMITMENT: confirmed
       NEON_DB_CLICKHOUSE_URLS: "http://45.250.253.36:8123;http://45.250.253.38:8123"
-    image: {DOCKERHUB_ORG_NAME}/evm_loader:${neon_evm_commit}
+    image: $DOCKERHUB_ORG_NAME/evm_loader:$NEON_EVM_COMMIT
     ports:
     - "8085:8085"
     expose:
@@ -101,7 +100,7 @@ services:
       NEON_DB_INDEXER_PASSWORD: "vUlpDyAP0gA98R5Bu"
       KEYPAIR: /opt/operator-keypairs/id.json
       FEEPAIR: /opt/operator-keypairs/id.json
-    image: {DOCKERHUB_ORG_NAME}/evm_loader:${neon_evm_commit}
+    image: $DOCKERHUB_ORG_NAME/evm_loader:$NEON_EVM_COMMIT
     ports:
       - "3100:3100"
     expose:
