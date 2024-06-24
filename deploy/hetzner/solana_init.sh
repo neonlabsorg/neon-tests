@@ -48,18 +48,66 @@ cd /opt
 curl -O https://raw.githubusercontent.com/neonlabsorg/neon-proxy.py/${proxy_model_commit}/docker-compose/docker-compose-ci.yml
 cat > docker-compose-ci.override.yml<<EOF
 version: "3"
-
 services:
   solana:
     ports:
       - "8899:8899"
-      - "9900:9900"
-      - "8900:8900"
-      - "8001:8001"
-      - "8001-8009:8001-8009/udp"
+    networks:
+      - net
+  neon-core-api:
+    container_name: neon-core-api
+    restart: unless-stopped
+    hostname: neon_api
+    entrypoint:
+      /opt/neon-api -H 0.0.0.0:8085
+    environment:
+      RUST_BACKTRACE: 1
+      RUST_LOG: debug
+      NEON_API_LISTENER_ADDR: 0.0.0.0:8085
+      SOLANA_URL: http://solana:8899
+      EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
+      SOLANA_KEY_FOR_CONFIG: BMp6gEnveANdvSvspESJUrNczuHz1GF5UQKjVLCkAZih
+      COMMITMENT: confirmed
+      NEON_DB_CLICKHOUSE_URLS: "http://45.250.253.36:8123;http://45.250.253.38:8123"
+    image: $DOCKERHUB_ORG_NAME/evm_loader:$NEON_EVM_COMMIT
+    ports:
+    - "8085:8085"
+    expose:
+    - "8085"
+    networks:
+      - net
+  neon-core-rpc:
+    restart: unless-stopped
+    container_name: neon-core-rpc
+    hostname: neon_core_rpc
+    entrypoint: /opt/neon-rpc /opt/libs/current
+    environment:
+      RUST_BACKTRACE: full
+      RUST_LOG: neon=debug
+      NEON_API_LISTENER_ADDR: 0.0.0.0:3100
+      SOLANA_URL: http://solana:8899
+      EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
+      NEON_TOKEN_MINT: HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU
+      NEON_CHAIN_ID: 111
+      COMMITMENT: confirmed
+      NEON_DB_CLICKHOUSE_URLS: "http://45.250.253.36:8123;http://45.250.253.38:8123"
+      NEON_DB_INDEXER_HOST: 45.250.253.32
+      NEON_DB_INDEXER_PORT: 5432
+      NEON_DB_INDEXER_DATABASE: indexer
+      NEON_DB_INDEXER_USER: postgres
+      NEON_DB_INDEXER_PASSWORD: "vUlpDyAP0gA98R5Bu"
+      KEYPAIR: /opt/operator-keypairs/id.json
+      FEEPAIR: /opt/operator-keypairs/id.json
+    image: $DOCKERHUB_ORG_NAME/evm_loader:$NEON_EVM_COMMIT
+    ports:
+      - "3100:3100"
+    expose:
+      - "3100"
+    networks:
+      - net
 EOF
 
 
 # wake up Solana
 docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml pull solana
-docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml up -d solana
+docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml up -d solana neon-core-api neon-core-rpc
