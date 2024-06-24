@@ -1,5 +1,5 @@
-name: "Basic tests"
-run-name: Basic tests / ${{ github.event.pull_request.title || github.event_name }}
+name: "Basic&EVM tests"
+run-name: Basic&EVM tests / ${{ github.event.pull_request.title || github.event_name }}
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -92,7 +92,7 @@ jobs:
       network: ${{ env.NETWORK }}
 
   tests:
-    name: Basic tests
+    name: Run tests
     needs:
       - dockerize
       - prepare-env
@@ -128,8 +128,8 @@ jobs:
             /bin/bash -c "export SOLANA_URL=http://${{ env.SOLANA_IP }}:8899 \
             && export NEON_CORE_API_URL=http://${{ env.SOLANA_IP }}:8085/api \
             && export NEON_CORE_API_RPC_URL=http://${{ env.SOLANA_IP }}:3100 \
-            && python3 ./clickfile.py run evm --numprocesses 6 -n ${{ env.NETWORK }}"
-      - name: Run basic tests
+            && python3 ./clickfile.py run evm --numprocesses 8 -n ${{ env.NETWORK }}"
+      - name: Run basic proxy tests
         timeout-minutes: 60
         id: basic
         run: |

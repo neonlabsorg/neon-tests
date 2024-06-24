@@ -48,9 +48,7 @@ cd /opt
 curl -O https://raw.githubusercontent.com/neonlabsorg/neon-proxy.py/${proxy_model_commit}/docker-compose/docker-compose-ci.yml
 cat > docker-compose-ci.override.yml<<EOF
 version: "3"
-
 services:
-
   solana:
     ports:
       - "8899:8899"
