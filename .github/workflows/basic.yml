@@ -125,7 +125,10 @@ jobs:
         if: needs.prepare-env.outputs.network == 'terraform'
         run: |
           docker exec -i ${{ env.CONTAINER }} \
-            /bin/bash -c "python3 ./clickfile.py run evm --numprocesses 6"
+            /bin/bash -c "export SOLANA_URL=${{ env.SOLANA_URL }} \
+            && export NEON_CORE_API_URL=http://${{ env.SOLANA_IP }}:8085/api \
+            && export NEON_CORE_API_RPC_URL=http://${{ env.SOLANA_IP }}:3100 \
+            && python3 ./clickfile.py run evm --numprocesses 6 -n ${{ env.NETWORK }}"
       - name: Run basic tests
         timeout-minutes: 60
         id: basic
