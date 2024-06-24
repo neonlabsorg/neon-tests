@@ -125,7 +125,7 @@ jobs:
         if: needs.prepare-env.outputs.network == 'terraform'
         run: |
           docker exec -i ${{ env.CONTAINER }} \
-            /bin/bash -c "export SOLANA_URL=${{ env.SOLANA_URL }} \
+            /bin/bash -c "export SOLANA_URL=http://${{ env.SOLANA_IP }}:8899 \
             && export NEON_CORE_API_URL=http://${{ env.SOLANA_IP }}:8085/api \
             && export NEON_CORE_API_RPC_URL=http://${{ env.SOLANA_IP }}:3100 \
             && python3 ./clickfile.py run evm --numprocesses 6 -n ${{ env.NETWORK }}"
@@ -134,7 +134,7 @@ jobs:
         id: basic
         run: |
           docker exec -i ${{ env.CONTAINER }} \
-            /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && export SOLANA_URL=${{ env.SOLANA_URL }} && \
+            /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && \
             python3 ./clickfile.py run basic -n ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
       - name: "Notify on failure."
         if: failure()
