@@ -72,14 +72,13 @@ services:
       SOLANA_KEY_FOR_CONFIG: BMp6gEnveANdvSvspESJUrNczuHz1GF5UQKjVLCkAZih
       COMMITMENT: confirmed
       NEON_DB_CLICKHOUSE_URLS: "http://45.250.253.36:8123;http://45.250.253.38:8123"
-    image: {DOCKERHUB_ORG_NAME}/evm_loader:${NEON_EVM_COMMIT}
+    image: {DOCKERHUB_ORG_NAME}/evm_loader:${neon_evm_commit}
     ports:
     - "8085:8085"
     expose:
     - "8085"
     networks:
       - net
-
   neon-core-rpc:
     restart: unless-stopped
     container_name: neon-core-rpc
@@ -102,7 +101,7 @@ services:
       NEON_DB_INDEXER_PASSWORD: "vUlpDyAP0gA98R5Bu"
       KEYPAIR: /opt/operator-keypairs/id.json
       FEEPAIR: /opt/operator-keypairs/id.json
-    image: {DOCKERHUB_ORG_NAME}/evm_loader:${NEON_EVM_COMMIT}
+    image: {DOCKERHUB_ORG_NAME}/evm_loader:${neon_evm_commit}
     ports:
       - "3100:3100"
     expose:
