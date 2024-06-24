@@ -39,6 +39,7 @@ class EnvironmentConfig:
     name: EnvName
     evm_loader: str
     proxy_url: str
+    bestarch_proxy_url: str
     tracer_url: str
     solana_url: str
     faucet_url: str

@@ -75,6 +75,7 @@
   "local": {
     "evm_loader": "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io",
     "proxy_url": "http://127.0.0.1:9090/solana",
+    "bestarch_proxy_url": "http://127.0.0.1:8018/solana",
     "network_ids": {
       "neon": 111,
       "sol": 112,

@@ -99,6 +99,9 @@ def ws_subscriber_url(pytestconfig: tp.Any) -> tp.Optional[str]:
 def json_rpc_client(pytestconfig: Config) -> JsonRPCSession:
     return JsonRPCSession(pytestconfig.environment.proxy_url)
 
+@pytest.fixture(scope="session")
+def json_rpc_client_bestarch(pytestconfig: Config) -> JsonRPCSession:
+    return JsonRPCSession(pytestconfig.environment.bestarch_proxy_url)
 
 @pytest.fixture(scope="class")
 def web3_client(request, web3_client_session):
