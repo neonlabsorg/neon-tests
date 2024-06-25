@@ -98,7 +98,7 @@ jobs:
       SOLANA_IP: ${{ needs.prepare-env.outputs.solana_ip }}
       PROXY_IP: ${{ needs.prepare-env.outputs.proxy_ip }}
       NETWORK: ${{ needs.prepare-env.outputs.network }}
-      CONTAINER: basic-${{ github.run_id }}
+      CONTAINER: basic-tests-${{ github.run_id }}
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&
