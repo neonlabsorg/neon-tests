@@ -14,7 +14,7 @@ inputs:
     description: 'aws secret access key'
     required: true
   tests_name:
-    description: 'basic/oz/economic/ui'
+    description: 'basic/oz/economic/ui/evm'
     required: true
 runs:
   using: composite
@@ -28,7 +28,7 @@ runs:
     - uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: "allure-results.tar.gz"
+        name: ${{ inputs.tests_name }}-allure-results.tar.gz
         path: allure-results.tar.gz
     - name: "Download allure history"
       if: always()
