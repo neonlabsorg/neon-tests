@@ -39,15 +39,13 @@ env:
   SOLANA_URL: "${{ secrets.SOLANA_URL }}"
   FAUCET_URL: "${{ secrets.DEVNET_FAUCET_URL }}"
   IMAGE:  neonlabsorg/neon_tests
-  CONTAINER:  basic-${{ github.run_id }}
 jobs:
   dockerize:
     if: ${{ github.ref_name != 'develop'}}
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
-      - name: "Dockerize neon tests"
-        id: requirements
+      - name: Dockerize neon tests
         uses: ./.github/actions/dockerize-neon-tests
         with:
           image_tag: ${{ github.sha }}
@@ -63,7 +61,6 @@ jobs:
         run: |
           echo "NETWORK=terraform" >> $GITHUB_ENV
       - name: Setup `devnet` by cron schedule
-        id: setup_devnet
         if: github.event.schedule=='0 4 * * 0,1,2,3,4'
         run: |
           echo "NETWORK=devnet" >> $GITHUB_ENV
@@ -101,6 +98,7 @@ jobs:
       SOLANA_IP: ${{ needs.prepare-env.outputs.solana_ip }}
       PROXY_IP: ${{ needs.prepare-env.outputs.proxy_ip }}
       NETWORK: ${{ needs.prepare-env.outputs.network }}
+      CONTAINER: basic-${{ github.run_id }}
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&
@@ -135,7 +133,6 @@ jobs:
           -b ${{ env.BUILD_URL }} -n ${{ env.NETWORK }}
       - name: "Generate allure report"
         if: always()
-        id: requirements
         uses: ./.github/actions/generate-allure-report
         with:
           container: ${{ env.CONTAINER }}
@@ -157,6 +154,7 @@ jobs:
       SOLANA_IP: ${{ needs.prepare-env.outputs.solana_ip }}
       PROXY_IP: ${{ needs.prepare-env.outputs.proxy_ip }}
       NETWORK: ${{ needs.prepare-env.outputs.network }}
+      CONTAINER: evm-tests-${{ github.run_id }}
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&
