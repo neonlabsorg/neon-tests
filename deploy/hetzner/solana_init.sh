@@ -52,6 +52,7 @@ services:
   solana:
     ports:
       - "8899:8899"
+      - "8900:8900"
     networks:
       - net
   neon-core-api:
