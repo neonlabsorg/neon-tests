@@ -96,7 +96,7 @@
       "usdt": 113,
       "eth": 114
     },
-    "solana_url": "http://<solana_ip>:8080/",
+    "solana_url": "http://<proxy_ip>:8080/",
     "faucet_url": "http://<proxy_ip>:3333/",
     "tracer_url": "",
     "spl_neon_mint": "HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU",
