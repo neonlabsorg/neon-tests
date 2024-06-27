@@ -13,7 +13,8 @@ import sys
 import typing as tp
 from pathlib import Path
 from urllib.parse import urlparse
-import urllib.request
+from paramiko import SSHClient
+from scp import SCPClient
 
 try:
     import click
@@ -1002,18 +1003,29 @@ def make_dapps_report(directory, pr_url_for_report, token):
 def stats():
     pass
 
+@stats.command(name="get_nginx_logs")
+def get_nginx_logs():
+    home_path = os.environ.get("HOME")
+    # artifact_logs = "./nginx_logs"
+    ssh_key = f"{home_path}/.ssh/ci-stands"
+    # os.mkdir(artifact_logs)
+    nginx_ip = os.environ.get("PROXY_IP")
 
-@stats.command("get_logs", help="Get logs from nginx")
-@click.option("-o", "--out", default="nginx_access.log", help="File with logs")
-@click.option("-n", "--nginx_ip", default=os.environ.get("NGINX_IP"), help="Address of nginx")
-def get_logs_for_nginx(out, nginx_ip):
-    content = requests.get(f"http://{nginx_ip}:8080", verify=False).text()
-    with open(out, "w") as f:
-        f.write(content)
+    subprocess.run(
+        f'ssh-keygen -R {nginx_ip} -f {home_path}/.ssh/known_hosts', shell=True)
+    subprocess.run(
+        f'ssh-keyscan -H {nginx_ip} >> {home_path}/.ssh/known_hosts', shell=True)
+    ssh_client = SSHClient()
+    ssh_client.load_system_host_keys()
+    ssh_client.connect(hostname=nginx_ip, username='root',
+                       key_filename=ssh_key, timeout=120)
+    
+    scp_client = SCPClient(transport=ssh_client.get_transport())
+    scp_client.get('/var/log/nginx/access.log', "nginx.log")
 
 
 @stats.command("parse_logs", help="Get logs from nginx")
-@click.option("-f", "--filename", default="nginx_access.log", help="File with logs")
+@click.option("-f", "--filename", default="nginx.log", help="File with logs")
 def parse_logs_for_nginx(filename):
     stats = parse_log_file(filename)
     return calculate_stats(stats)
