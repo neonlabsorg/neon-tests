@@ -89,7 +89,7 @@ jobs:
       network: ${{ env.NETWORK }}
 
   tests:
-    name: Run basic proxy tests
+    name: Run basic+evm tests
     needs:
       - dockerize
       - prepare-env
