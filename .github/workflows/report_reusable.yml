@@ -61,28 +61,25 @@ jobs:
       TESTS_TAG: ${{ inputs.tests_tag }}
       NGINX_IP: ${{ inputs.nginx_ip }}
     steps:
-      # - uses: actions/checkout@v4
-      # - if: ${{ inputs.external_call }}
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: neonlabsorg/neon-tests
-      #     ref: ndev_2475_collect_metrics_for_requests
-      - name: Pull docker image
-        run: docker pull ${{ env.NEON_TEST_IMAGE }}:${{ env.TESTS_TAG }}
-      - name: Run docker container
+      - uses: actions/checkout@v4
+      - if: ${{ inputs.external_call }}
+        uses: actions/checkout@v4
+        with:
+          repository: neonlabsorg/neon-tests
+          ref: ndev_2475_collect_metrics_for_requests
+      - name: Run requests report
         run: |
-          docker run -i -e PROXY_IP=${{env.PROXY_IP}} \
-          -e SOLANA_IP=${{env.SOLANA_IP}} \
-          -e NETWORK=${{ env.NETWORK }} \
-          -d --name=${{ env.CONTAINER }} ${{ env.NEON_TEST_IMAGE }}:${{ env.TESTS_TAG }} /bin/bash
-      - name: Download report
-        run: |
-          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py stats get_logs --nginx_ip=${{ env.NGINX_IP }}
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py get_nginx_logs > nginx.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nginx-logs
+          path: nginx.log
       - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          name: nginx-access-log
-          path: nginx_access.log
+          name: nginx-logs
+          path: nginx.log
       - name: "Request report"
         run: |
           docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py stats parse_logs
