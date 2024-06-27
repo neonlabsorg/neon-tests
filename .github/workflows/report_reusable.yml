@@ -67,9 +67,12 @@ jobs:
         with:
           repository: neonlabsorg/neon-tests
           ref: ndev_2475_collect_metrics_for_requests
+      - name: Install python requirements
+        id: requirements
+        uses: ./.github/actions/python-requirements
       - name: Run requests report
         run: |
-          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py get_nginx_logs > nginx.log
+          python3 ./clickfile.py get_nginx_logs > nginx.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -82,4 +85,4 @@ jobs:
           path: nginx.log
       - name: "Request report"
         run: |
-          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py stats parse_logs
+          python3 ./clickfile.py stats parse_logs
