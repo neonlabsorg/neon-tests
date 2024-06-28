@@ -7,7 +7,7 @@ import pytest
 from web3.types import TxParams
 
 from integration.tests.basic.helpers.basic import Tag
-from integration.tests.basic.helpers.errors import Error32602, Error32600
+from integration.tests.basic.helpers.errors import Error32602
 from integration.tests.basic.helpers.rpc_checks import (
     assert_fields_are_hex,
     assert_fields_are_specified_type,
@@ -132,8 +132,8 @@ class TestRpcGetLogs:
         assert "error" in response
         assert "code" in response["error"]
         assert "message" in response["error"]
-        assert Error32600.CODE == response["error"]["code"]
-        assert Error32600.INVALID_FILTER in response["error"]["message"]
+        assert Error32602.CODE == response["error"]["code"]
+        assert Error32602.INVALID_FILTER in response["error"]["message"]
 
     @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
     @pytest.mark.parametrize(

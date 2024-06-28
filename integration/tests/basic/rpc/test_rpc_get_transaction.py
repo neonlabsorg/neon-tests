@@ -132,7 +132,7 @@ class TestRpcGetTransaction:
 
         response = json_rpc_client.send_rpc(method=method, params=gen_hash_of_block(31))
         assert "error" in response
-        assert response["error"]["message"] == "invalid parameter transaction_hash"
+        assert response["error"]["message"] == Error32602.INVALID_TRANSACTIONID
 
     @pytest.mark.parametrize("param", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST, None])
     @pytest.mark.mainnet
