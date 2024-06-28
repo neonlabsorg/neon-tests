@@ -181,9 +181,10 @@ class EvmLoader(SolanaClient):
         signer: Keypair = None,
         system_program=sp.SYS_PROGRAM_ID,
         sysvar=SYSVAR_INSTRUCTIONS_PUBKEY,
+        compute_unit_price=None
     ) -> SendTransactionResp:
         signer = operator if signer is None else signer
-        trx = TransactionWithComputeBudget(operator)
+        trx = TransactionWithComputeBudget(operator, compute_unit_price=compute_unit_price)
         operator_balance = self.get_operator_balance_pubkey(operator)
 
         trx.add(
