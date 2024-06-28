@@ -14,14 +14,14 @@ from utils.types import Caller
 
 class TestEIP1559Transactions:
     def test_contract_interaction_iterative_transactions(
-        self,
-        operator_keypair,
-        holder_acc,
-        treasury_pool,
-        sender_with_tokens,
-        evm_loader,
-        calculator_contract,
-        calculator_caller_contract,
+            self,
+            operator_keypair,
+            holder_acc,
+            treasury_pool,
+            sender_with_tokens,
+            evm_loader,
+            calculator_contract,
+            calculator_caller_contract,
     ):
         signed_tx = make_contract_call_trx(
             evm_loader,
@@ -50,7 +50,7 @@ class TestEIP1559Transactions:
         check_transaction_logs_have_text(resp, "exit_status=0x12")
 
     def test_contract_deploy_iterative_transaction(
-        self, operator_keypair, holder_acc, treasury_pool, sender_with_tokens, evm_loader
+            self, operator_keypair, holder_acc, treasury_pool, sender_with_tokens, evm_loader
     ):
         contract_filename = "hello_world"
         contract = create_contract_address(sender_with_tokens, evm_loader)
@@ -77,14 +77,14 @@ class TestEIP1559Transactions:
         check_transaction_logs_have_text(resp, "exit_status=0x12")
 
     def test_max_fee_less_then_max_priority_fee(
-        self,
-        operator_keypair,
-        holder_acc,
-        treasury_pool,
-        sender_with_tokens,
-        evm_loader,
-        calculator_contract,
-        calculator_caller_contract,
+            self,
+            operator_keypair,
+            holder_acc,
+            treasury_pool,
+            sender_with_tokens,
+            evm_loader,
+            calculator_contract,
+            calculator_caller_contract,
     ):
         signed_tx = make_contract_call_trx(
             evm_loader,
@@ -111,13 +111,13 @@ class TestEIP1559Transactions:
             )
 
     def test_simple_transfer_non_iterative_transaction(
-        self,
-        operator_keypair,
-        treasury_pool,
-        sender_with_tokens: Caller,
-        session_user: Caller,
-        evm_loader,
-        neon_api_client,
+            self,
+            operator_keypair,
+            treasury_pool,
+            sender_with_tokens: Caller,
+            session_user: Caller,
+            evm_loader,
+            neon_api_client,
     ):
         amount = 10
         max_fee_per_gas = 50000
@@ -152,7 +152,6 @@ class TestEIP1559Transactions:
             ],
             compute_unit_price=5000,
         )
-        print(resp)
 
         sender_balance_after = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
         recipient_balance_after = evm_loader.get_neon_balance(session_user.eth_address)
