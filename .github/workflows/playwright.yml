@@ -72,7 +72,8 @@ jobs:
             python3 ./clickfile.py send-notification \
             -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
             -b ${{ env.BUILD_URL }} \
-            -n ${{ env.NETWORK }}
+            -n ${{ env.NETWORK }} \
+            --test-group ui
       - name: Remove docker container
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}

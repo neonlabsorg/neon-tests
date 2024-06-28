@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
+import enum
 import functools
 import glob
 import json
 import time
+from collections import defaultdict
 from multiprocessing.dummy import Pool
 
 import os
@@ -13,6 +15,10 @@ import sys
 import typing as tp
 from pathlib import Path
 from urllib.parse import urlparse
+
+from utils.error_log import error_log
+from utils.slack_notification import SlackNotification
+from utils.types import TestGroup
 
 try:
     import click
@@ -40,22 +46,11 @@ try:
 except ImportError:
     print("Please run ./clickfile.py requirements to install all requirements")
 
-
-CMD_ERROR_LOG = "click_cmd_err.log"
-
-ERR_MSG_TPL = {
-    "blocks": [
-        {
-            "type": "section",
-            "text": {"type": "mrkdwn", "text": ""},
-        },
-        {"type": "divider"},
-    ]
-}
+ALLURE_REPORT_URL = "allure_report.url"
 
 ERR_MESSAGES = {
-    "run": "Unsuccessful tests executing.",
-    "requirements": "Unsuccessful requirements installation.",
+    "run": "Unsuccessful tests executing",
+    "requirements": "Unsuccessful requirements installation",
 }
 
 SRC_ALLURE_CATEGORIES = Path("./allure/categories.json")
@@ -69,7 +64,6 @@ BASE_EXTENSIONS_TPL_DATA = "ui/extensions/data"
 EXTENSIONS_PATH = "ui/extensions/chrome/plugins"
 EXTENSIONS_USER_DATA_PATH = "ui/extensions/chrome"
 
-
 HOME_DIR = Path(__file__).absolute().parent
 
 OZ_BALANCES = "./compatibility/results/oz_balance.json"
@@ -80,7 +74,22 @@ FAUCET_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-faucet"
 EXTERNAL_CONTRACT_PATH = Path.cwd() / "contracts" / "external"
 VERSION_BRANCH_TEMPLATE = r"[vt]{1}\d{1,2}\.\d{1,2}\.x.*"
 
+TEST_GROUPS: tp.Tuple[TestGroup, ...] = tp.get_args(TestGroup)
+
 network_manager = NetworkManager()
+
+
+class EnvName(str, enum.Enum):
+    NIGHT_STAND = "night-stand"
+    RELEASE_STAND = "release-stand"
+    MAINNET = "mainnet"
+    DEVNET = "devnet"
+    TESTNET = "testnet"
+    LOCAL = "local"
+    TERRAFORM = "terraform"
+    GETH = "geth"
+    TRACER_CI = "tracer_ci"
+    CUSTOM = "custom"
 
 
 def green(s):
@@ -97,32 +106,26 @@ def red(s):
 
 def catch_traceback(func: tp.Callable) -> tp.Callable:
     """Catch traceback to file"""
-
-    def create_report(func_name, exc=None):
-        data = ""
-        exc = f"\n*Error:* {exc}" if exc else ""
-        path = Path(CMD_ERROR_LOG)
-        if path.exists() and path.stat().st_size != 0:
-            with path.open("r") as fd:
-                data = f"{fd.read()}\n"
-            path.unlink()
-        err_msg = f"*{ERR_MESSAGES.get(func_name)}*{exc}\n{data}"
-        with open(CMD_ERROR_LOG, "w") as fd:
-            fd.write(err_msg)
+    def add_error_log_comment(func_name, exc: BaseException):
+        err_msg = f"{exc.__class__.__name__}({exc})"
+        if func_name in ERR_MESSAGES:
+            err_msg = f"{ERR_MESSAGES.get(func_name)}: {err_msg}"
+        error_log.add_comment(text=f"{func_name}: {err_msg}")
 
     @functools.wraps(func)
     def wrap(*args, **kwargs) -> tp.Any:
         try:
             result = func(*args, **kwargs)
         except Exception as e:
-            create_report(func.__name__, e)
+            add_error_log_comment(func.__name__, e)
             raise
+        else:
+            return result
         finally:
             e = sys.exc_info()
             if e[0] and e[0].__name__ == "SystemExit" and e[1] != 0:
-                create_report(func.__name__)
-
-        return result
+                if not error_log.has_logs():
+                    add_error_log_comment(func.__name__, e[1])
 
     return wrap
 
@@ -231,6 +234,7 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
         print(stdout)
         print(stderr)
         print(time_info)
+
         keys_env.append(keys)
         log_dirs = cwd.parent / "results" / file_name.replace(".", "_").replace("/", "_")
         log_dirs.mkdir(parents=True, exist_ok=True)
@@ -343,19 +347,21 @@ def print_oz_balances():
     print(green("\nOZ tests suite profitability:"))
     print(yellow(report))
 
+
 def wait_for_tracer_service(network: str):
     settings = network_manager.get_network_object(network)
     web3_client = web3client.NeonChainWeb3Client(proxy_url=settings["proxy_url"])
     tracer_api = JsonRPCSession(settings["tracer_url"])
 
     block = web3_client.get_block_number()
-    
+
     wait_condition(
-    lambda: (tracer_api.send_rpc(method="get_neon_revision", params=block)["result"]["neon_revision"]) is not None,
-    timeout_sec=180,
+        lambda: (tracer_api.send_rpc(method="get_neon_revision", params=block)["result"]["neon_revision"]) is not None,
+        timeout_sec=180,
     )
 
     return True
+
 
 def generate_allure_environment(network_name: str):
     network = network_manager.get_network_object(network_name)
@@ -510,7 +516,8 @@ def update_contracts(branch):
 
 
 @cli.command(help="Run any type of tests")
-@click.option("-n", "--network", default="night-stand", type=str, help="In which stand run tests")
+@click.option("-n", "--network", default=EnvName.NIGHT_STAND.value, type=click.Choice(EnvName),
+              help="In which stand run tests")
 @click.option("-j", "--jobs", default=8, help="Number of parallel jobs (for openzeppelin)")
 @click.option("-p", "--numprocesses", help="Number of parallel jobs for basic tests")
 @click.option("-a", "--amount", default=20000, help="Requested amount from faucet")
@@ -522,13 +529,19 @@ def update_contracts(branch):
     type=click.Choice(["faucet", "neonpass", "all"]),
     help="Which UI test run",
 )
+@click.option(
+    "--keep-error-log",
+    is_flag=True,
+    default=False,
+    help=f"Don't clear {error_log.file_path.name} before run"
+)
 @click.argument(
     "name",
     required=True,
-    type=click.Choice(["economy", "basic", "tracer", "services", "oz", "ui", "evm", "compiler_compatibility"]),
+    type=click.Choice(TEST_GROUPS),
 )
 @catch_traceback
-def run(name, jobs, numprocesses, ui_item, amount, users, network, case):
+def run(name: TestGroup, jobs, numprocesses, ui_item, amount, users, network: EnvName, case, keep_error_log: bool):
     if not network and name == "ui":
         network = "devnet"
     if DST_ALLURE_CATEGORIES.parent.exists():
@@ -558,6 +571,8 @@ def run(name, jobs, numprocesses, ui_item, amount, users, network, case):
         if numprocesses:
             command = f"{command} --numprocesses {numprocesses}"
     elif name == "oz":
+        if not keep_error_log:
+            error_log.clear()
         run_openzeppelin_tests(network, jobs=int(jobs), amount=int(amount), users=int(users))
         return
     elif name == "ui":
@@ -576,8 +591,10 @@ def run(name, jobs, numprocesses, ui_item, amount, users, network, case):
 
     if case != '':
         command += " -vk {}".format(case)
-        
-    command += f" -s --network={network} --make-report"
+
+    command += f" -s --network={network} --make-report --test-group {name}"
+    if keep_error_log:
+        command += " --keep-error-log"
     cmd = subprocess.run(command, shell=True)
     if name != "ui":
         shutil.copyfile(SRC_ALLURE_CATEGORIES, DST_ALLURE_CATEGORIES)
@@ -588,8 +605,8 @@ def run(name, jobs, numprocesses, ui_item, amount, users, network, case):
 
 @cli.command(
     help="OZ actions:\n"
-    "report - summarize openzeppelin tests results\n"
-    "analyze - analyze openzeppelin tests results"
+         "report - summarize openzeppelin tests results\n"
+         "analyze - analyze openzeppelin tests results"
 )
 @click.argument(
     "name",
@@ -610,6 +627,9 @@ def oz(name):
 @catch_traceback
 def analyze_openzeppelin_results():
     test_report, skipped_files = parse_openzeppelin_results()
+    failed_tests_count = test_report["failing"]
+    dummy_failed_test_names = ["" for _ in range(failed_tests_count)]
+
     with open("./compatibility/openzeppelin-contracts/package.json") as f:
         version = json.load(f)["version"]
         print(f"OpenZeppelin version: {version}")
@@ -621,6 +641,7 @@ def analyze_openzeppelin_results():
             threshold = 2293
         print(f"Threshold: {threshold}")
         if test_report["passing"] < threshold:
+            error_log.add_failures(test_group="oz", test_names=dummy_failed_test_names)
             raise click.ClickException(
                 f"OpenZeppelin {version} tests failed. \n" f"Passed: {test_report['passing']}, expected: {threshold}"
             )
@@ -628,6 +649,7 @@ def analyze_openzeppelin_results():
             print("OpenZeppelin tests passed")
     else:
         if test_report["failing"] > 0 or test_report["passing"] == 0:
+            error_log.add_failures(test_group="oz", test_names=dummy_failed_test_names)
             raise click.ClickException(
                 f"OpenZeppelin {version} tests failed. \n"
                 f"Failed: {test_report['failing']}, passed: {test_report['passing']}"
@@ -677,7 +699,7 @@ locust_run_time = click.option(
     "--run-time",
     type=int,
     help="Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.). "
-    "Only used together without Locust Web UI. [default: always run]",
+         "Only used together without Locust Web UI. [default: always run]",
 )
 
 locust_tags = click.option(
@@ -819,26 +841,31 @@ def get_allure_history(name: str, network: str, destination: str = "./allure-res
 
 
 @allure_cli.command("upload-report", help="Upload allure history")
-@click.argument("name", type=click.STRING)
-@click.option("-n", "--network", default="night-stand", type=str, help="In which stand run tests")
+@click.argument("name", type=click.Choice(TEST_GROUPS))
+@click.option("-n", "--network", default=EnvName.NIGHT_STAND.value, type=EnvName, help="In which stand run tests")
 @click.option(
     "-s",
     "--source",
     default="./allure-report",
     type=click.Path(file_okay=False, dir_okay=True),
 )
-def upload_allure_report(name: str, network: str, source: str = "./allure-report"):
+def upload_allure_report(name: TestGroup, network: str, source: str = "./allure-report"):
     branch = os.environ.get("GITHUB_REF_NAME")
     build_id = os.environ.get("GITHUB_RUN_NUMBER")
     path = Path(name) / network / branch
     cloud.upload(source, path / build_id)
     report_url = f"http://neon-test-allure.s3-website.eu-central-1.amazonaws.com/{path / build_id}"
+
+    with open(ALLURE_REPORT_URL, "w") as f:
+        f.write(report_url)
+
     with open("/tmp/index.html", "w") as f:
         f.write(
             f"""<!DOCTYPE html><meta charset="utf-8"><meta http-equiv="refresh" content="0; URL={report_url}">
         <meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
         """
         )
+
     cloud.upload("/tmp/index.html", path)
     print(f"Allure report link: {report_url}")
 
@@ -856,27 +883,61 @@ def generate_allure_report():
 @cli.command(help="Send notification to slack")
 @click.option("-u", "--url", help="slack app endpoint url.")
 @click.option("-b", "--build_url", help="github action test build url.")
-@click.option("-t", "--traceback", default="", help="custom traceback message.")
-@click.option("-n", "--network", default="night-stand", type=str, help="In which stand run tests")
-def send_notification(url, build_url, traceback, network):
-    p = Path(f"./{CMD_ERROR_LOG}")
-    trace_back = traceback or (p.read_text() if p.exists() else "")
-    # Slack has 3001 symbols limit
-    if len(trace_back) > 2500:
-        trace_back = trace_back[0:2500]
-    tpl = ERR_MSG_TPL.copy()
+@click.option("-n", "--network", type=click.Choice(EnvName), default=EnvName.NIGHT_STAND.value,
+              help="In which stand run tests")
+@click.option("--test-group", help="Name of the failed test group")
+def send_notification(url, build_url, network, test_group: str):
+    slack_notification = SlackNotification()
 
+    # add build url
     parsed_build_url = urlparse(build_url).path.split("/")
     build_id = parsed_build_url[-1]
-    repo_name = f"{parsed_build_url[1]}/{parsed_build_url[2]}"
-    tpl["blocks"][0]["text"]["text"] = (
-        f"*Build <{build_url}|`{build_id}`> of repository `{repo_name}` is failed on `{network}`!* \n{trace_back}"
-        f"\n<{build_url}|View build details>"
-    )
-    response = requests.post(url=url, data=json.dumps(tpl))
+    slack_notification.add_build_info(id_=build_id, url=build_url)
+
+    # add network
+    slack_notification.add_network(network=network)
+
+    # add failed tests group or count if available
+    failed_count_by_group: defaultdict[TestGroup: int] = error_log.get_count_by_group()
+    if failed_count_by_group:
+        slack_notification.add_failed_tests(tests=failed_count_by_group)
+    else:
+        slack_notification.add_failed_test_group(test_group=test_group)
+
+    # add Allure report url
+    try:
+        with Path(ALLURE_REPORT_URL).open() as f:
+            allure_report_url = f.read()
+    except FileNotFoundError:
+        allure_report_url = ""
+
+    if allure_report_url:
+        slack_notification.add_allure_report_url(url=allure_report_url)
+
+    # add failed test names
+    log = error_log.read()
+    all_failed_test_names = []
+
+    for group_name in log.failures:
+        test_names_in_group = log.failures[group_name]
+        all_failed_test_names.extend(test_names_in_group)
+
+    slack_notification.add_failed_test_names(names=all_failed_test_names)
+
+    # add comments
+    for comment in log.comments:
+        slack_notification.add_comment(text=comment)
+
+    # add the divider
+    slack_notification.add_divider()
+
+    # send the notification
+    payload = slack_notification.model_dump()
+    response = requests.post(url=url, json=payload)
     if response.status_code != 200:
         click.echo(f"Response status code: {response.status_code}")
-        click.echo(f"TPL: {json.dumps(tpl)}")
+        click.echo(f"Response status code: {response.text}")
+        click.echo(f"Payload: {slack_notification.model_dump_json(indent=4)}")
         raise RuntimeError(f"Notification is not sent. Error: {response.text}")
 
 
@@ -931,7 +992,6 @@ def deploy(current_branch, head_branch, base_branch, use_real_price):
         faucet_tag = (
             version_branch if is_branch_exist(FAUCET_GITHUB_URL, version_branch) and not faucet_tag else faucet_tag
         )
-
 
     proxy_tag = "latest" if not proxy_tag else proxy_tag
     evm_tag = "latest" if not evm_tag else evm_tag
