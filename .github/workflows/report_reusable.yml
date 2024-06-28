@@ -13,10 +13,6 @@ on:
           type: string
           required: true
           description: "Tag of the tests"
-        solana_url:
-          type: string
-          required: true
-          description: "solana_url (fill only for custom stand)"
         faucet_url:
           type: string
           required: true
@@ -62,7 +58,6 @@ jobs:
     runs-on: ubuntu-20.04
     if: always()
     env:
-      SOLANA_URL: ${{ inputs.solana_url }}
       NETWORK: ${{ inputs.network }}
       SOLANA_IP: ${{ inputs.solana_ip }}
       PROXY_IP: ${{ inputs.proxy_ip }}
