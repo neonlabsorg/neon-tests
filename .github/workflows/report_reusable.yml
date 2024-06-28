@@ -38,7 +38,7 @@ on:
           description: 'To distinguish calls from other repositories and the current one'
           type: boolean
           required: false
-          default: true
+          default: false
 
 env:
   NETWORK: ${{ inputs.network }}
@@ -72,7 +72,7 @@ jobs:
         uses: ./.github/actions/python-requirements
       - name: Run requests report
         run: |
-          python3 ./clickfile.py get_nginx_logs > nginx.log
+          python3 ./clickfile.py stats get_nginx_logs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
