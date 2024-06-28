@@ -59,7 +59,7 @@ def pytest_addoption(parser: Parser):
         help="Store tests result to file",
     )
     known_args = parser.parse_known_args(args=sys.argv[1:])
-    test_group_required = True if known_args.make_report else False
+    test_group_required = known_args.make_report
     parser.addoption(
         "--test-group",
         choices=TEST_GROUPS,
