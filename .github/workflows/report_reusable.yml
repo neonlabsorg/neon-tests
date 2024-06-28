@@ -39,6 +39,16 @@ on:
           type: boolean
           required: false
           default: false
+        repo:
+          description: 'To distinguish calls from other repositories and the current one'
+          type: string
+          required: true
+          default: ""
+        pr_number:
+          description: 'To distinguish calls from other repositories and the current one'
+          type: number
+          required: true
+          default: 0
 
 env:
   NETWORK: ${{ inputs.network }}
@@ -70,11 +80,51 @@ jobs:
       - name: Install python requirements
         id: requirements
         uses: ./.github/actions/python-requirements
-      - uses: actions/download-artifact@v4
-        continue-on-error: true
+      - name: Download artifact
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v6
         with:
+          # Optional, GitHub token, a Personal Access Token with `public_repo` scope if needed
+          # Required, if the artifact is from a different repo
+          # Required, if the repo is private a Personal Access Token with `repo` scope is needed or GitHub token in a job where the permissions `action` scope set to `read`
+          github_token: ${{secrets.GITHUB_TOKEN}}
+          # If no workflow is set and workflow_search set to true, then the most recent workflow matching
+          # all other criteria will be looked up instead of using the current workflow
+          workflow_search: false
+          # Optional, will get head commit SHA
+          pr: ${{ inputs.pr_number }}
+          # Optional, uploaded artifact name,
+          # will download all artifacts if not specified
+          # and extract them into respective subdirectories
+          # https://github.com/actions/download-artifact#download-all-artifacts
+          # is treated as a regular expression if input name_is_regexp is true
+          # will download only those artifacts with a name that matches this regular expression
+          # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions
           name: nginx-logs
-          path: nginx.log
+          # Optional, name is treated as a regular expression if set true
+          name_is_regexp: false
+          # Optional, a directory where to extract artifact(s), defaults to the current directory
+          path: extract_here
+          # Optional, defaults to current repo
+          repo: ${{ inputs.repo }}
+          # Optional, check the workflow run to whether it has an artifact
+          # then will get the last available artifact from the previous workflow
+          # default false, just try to download from the last one
+          check_artifacts: false
+          # Optional, search for the last workflow run whose stored an artifact named as in `name` input
+          # default false
+          search_artifacts: false
+          # Optional, choose to skip unpacking the downloaded artifact(s)
+          # default false
+          skip_unpack: false
+          # Optional, choose how to exit the action if no artifact is found
+          # can be one of:
+          #  "fail", "warn", "ignore"
+          # default fail
+          if_no_artifact_found: fail
+          # Optional, include forks when searching for artifacts
+          # default false
+          allow_forks: true
       - name: "Request report"
         run: |
           python3 ./clickfile.py stats parse_logs
