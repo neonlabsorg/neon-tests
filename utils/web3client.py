@@ -479,7 +479,7 @@ class Web3Client:
             gas: tp.Union[int, tp.Literal["auto"], None] = "auto",
             max_priority_fee_per_gas: tp.Union[int, tp.Literal["auto"], None] = "auto",
             max_fee_per_gas: tp.Union[int, tp.Literal["auto"], None] = "auto",
-            max_fee_per_gas_multiplier: int = 2,
+            base_fee_multiplier: float = 1.1,
             access_list: tp.Optional[tp.List[web3.types.AccessListEntry]] = None,
             timeout: int = 120,
     ) -> web3.types.TxReceipt:
@@ -495,7 +495,7 @@ class Web3Client:
             max_fee_per_gas=max_fee_per_gas,
             data=None,
             access_list=access_list,
-            base_fee_multiplier=max_fee_per_gas_multiplier,
+            base_fee_multiplier=base_fee_multiplier,
         )
 
         receipt = self.send_transaction(account=from_, transaction=tx_params, timeout=timeout)

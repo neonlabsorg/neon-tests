@@ -97,3 +97,19 @@ class TestOpCodes:
         self.web3_client.send_transaction(sender_account, instr)
         result = contract.functions.read().call()
         assert result.hex() == ZERO_HASH
+
+    def test_base_fee(
+            self,
+            web3_client: NeonChainWeb3Client,
+            accounts: EthAccounts,
+    ):
+        account = accounts[0]
+        contract, _ = web3_client.deploy_and_get_contract(
+            contract="EIPs/EIP1559BaseFee.sol",
+            contract_name="BaseFeeOpcode",
+            version="0.8.10",
+            account=account,
+        )
+        base_fee_rpc = web3_client.base_fee_per_gas()
+        base_fee_contract = contract.functions.baseFee().call()
+        assert base_fee_contract == base_fee_rpc

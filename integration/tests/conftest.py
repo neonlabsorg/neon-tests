@@ -621,7 +621,7 @@ def eip1559_setup(
     # Check if the latest blocks already have enough type-2 transactions. If that's the case - return
     fee_history = web3_client_session._web3.eth.fee_history(block_count, 'latest', None)  # noqa
     base_fee_per_gas_history = fee_history["baseFeePerGas"]
-    if len(base_fee_per_gas_history) >= block_count:
+    if len(base_fee_per_gas_history) >= block_count + 1:
         return
 
     # Send the transactions

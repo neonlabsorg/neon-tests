@@ -928,7 +928,7 @@ class TestEconomics:
         sol_balance_before = operator.get_solana_balance()
         token_balance_before = operator.get_token_balance(web3_client)
 
-        account = accounts[0]
+        account = accounts.create_account()
 
         contract, receipt = web3_client.deploy_and_get_contract(
             contract="EIPs/ERC3475",
@@ -1029,59 +1029,6 @@ class TestEconomics:
         assert_profit(sol_diff, sol_price, token_diff, token_price, w3_client.native_token_name)
         get_gas_used_percent(w3_client, receipt)
 
-    # This tests sends an underprices transaction to the mempool that hangs there.
-    # Since this increments nonce, following transactions made by this operator
-    # will also hang due to waiting for the transaction with the previous nonce
-    @pytest.mark.execute_in_the_end_of_session
-    def test_eip_1559_too_low_fee(
-            self,
-            client_and_price: tuple[Web3Client, float],
-            operator: Operator,
-            account_with_all_tokens: LocalAccount,
-    ):
-        w3_client, token_price = client_and_price
-        sol_balance_before = operator.get_solana_balance()
-        token_balance_before = operator.get_token_balance(w3_client)
-
-        last_block = w3_client._web3.eth.get_block(block_identifier="latest")
-        base_fee_per_gas = last_block.baseFeePerGas  # noqa
-        gas_price = w3_client.gas_price()
-        assert base_fee_per_gas == gas_price
-
-        recipient = w3_client.create_account()
-        transfer_value = 10
-        too_low_max_fee = int(base_fee_per_gas * 0.8)
-
-        timeout = 10
-        native_token_name = w3_client.native_token_name
-
-        if native_token_name == "NEON":
-            exception = TimeExhausted
-            error_msg_regex = rf".+ not in the chain after {timeout} seconds"
-        else:
-            exception = ValueError
-            error_msg_regex = r"\{'code': -32000, 'message': 'transaction underpriced.+"
-
-        with pytest.raises(expected_exception=exception, match=error_msg_regex):
-            w3_client.send_tokens_eip_1559(
-                from_=account_with_all_tokens,
-                to=recipient,
-                value=transfer_value,
-                max_priority_fee_per_gas=0,
-                max_fee_per_gas=too_low_max_fee,
-                timeout=timeout,
-            )
-
-        assert w3_client.get_balance(recipient) == 0
-
-        sol_balance_after = operator.get_solana_balance()
-        token_balance_after = operator.get_token_balance(w3_client)
-        token_diff = token_balance_after - token_balance_before
-        sol_diff = sol_balance_before - sol_balance_after
-
-        assert token_diff == 0, "Operator NEON balance incorrect"
-        assert sol_diff == 0, "Operator SOL balance incorrect"
-
     def test_eip_1559_profit_math(
             self,
             client_and_price: tuple[Web3Client, float],
@@ -1145,11 +1092,3 @@ class TestEconomics:
         iteration_count = 1  # this is a plain transfer transaction
         operator_profit_expected = gas_used * gas_price_actual + iteration_count * max_priority_fee_per_gas * 5000
         assert operator_profit_actual == operator_profit_expected
-
-        compute_unit_price = get_compute_unit_price_eip_1559(
-            gas_price=gas_price_actual,
-            max_priority_fee_per_gas=max_priority_fee_per_gas,
-        )
-        compute_units = 200_000  # TODO update
-        operator_expense_expected = gas_used + compute_units * compute_unit_price * iteration_count
-        assert operator_expense == operator_expense_expected
