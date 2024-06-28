@@ -79,13 +79,13 @@ jobs:
           network_id: ${{ github.event.inputs.network_id }}
 
     outputs:
-      network: ${{ env.NETWORK }}
-      solana_url: ${{ steps.prepare_stand.outputs.solana_url }}
-      proxy_url: ${{ steps.vars.outputs.proxy_url }}
-      faucet_url:  ${{ steps.vars.outputs.faucet_url }}
-      network_id: ${{ steps.vars.outputs.network_id }}
-      proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}
-      solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
+      network: custom
+      solana_url: http://159.69.19.127:8899/
+      proxy_url: http://159.69.19.127:9090/solana
+      faucet_url: http://159.69.19.127:3333/
+      network_id: 111
+      proxy_ip: 159.69.19.127
+      solana_ip: 159.69.19.127
       dapps: ${{ steps.dapps.outputs.list }}
 
   tests:
