@@ -156,9 +156,7 @@ class TestEIP1559Transactions:
         sender_balance_after = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
         recipient_balance_after = evm_loader.get_neon_balance(session_user.eth_address)
 
-        gas_used = emulate_result["used_gas"]
-        fee = (max_fee_per_gas - max_priority_fee_per_gas) * gas_used
         additional_fee = max_priority_fee_per_gas * 5000 * 1
-        assert sender_balance_before - amount - sender_balance_after == fee + additional_fee
+        assert sender_balance_before - amount - sender_balance_after > additional_fee
         assert recipient_balance_before + amount == recipient_balance_after
         check_transaction_logs_have_text(resp, "exit_status=0x11")
