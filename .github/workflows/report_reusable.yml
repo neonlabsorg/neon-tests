@@ -124,6 +124,7 @@ jobs:
           # Optional, include forks when searching for artifacts
           # default false
           allow_forks: true
+          run_id: ${{ inputs.workflow_run_id }}
       - name: "Request report"
         run: |
           python3 ./clickfile.py stats parse_logs
