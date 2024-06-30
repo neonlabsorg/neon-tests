@@ -77,7 +77,13 @@ jobs:
         id: requirements
         uses: ./.github/actions/python-requirements
       - name: "Request report"
+        id: request_report
         run: |
-          python3 ./clickfile.py stats parse_logs --nginx_ip=$NGINX_IP \
-          --pr_url_for_report=${{ inputs.pr_url_for_report }} \
-          --token=${{secrets.GHTOKEN}}
+          result=$(python3 ./clickfile.py stats parse_logs --nginx_ip=$NGINX_IP)
+          echo "result=$result" >> $GITHUB_OUTPUT
+      - name: "Post a comment with the report"
+        if: ${{ inputs.pr_url_for_report }}
+        uses: mshick/add-pr-comment@v2
+        with:
+          message: |
+            ${{ steps.request_report.outputs.result }}
