@@ -1027,13 +1027,16 @@ def get_nginx_logs():
 @stats.command("parse_logs", help="Get logs from nginx")
 @click.option("-f", "--filename", default="nginx.log", help="File with logs")
 @click.option("--nginx_ip", default="localhost", help="Nginx IP")
-def parse_logs_for_nginx(filename, nginx_ip):
+@click.option("--token", default="", help="github token")
+@click.option("--pr_url_for_report", default="", help="Url to send the report as comment for PR")
+def parse_logs_for_nginx(filename, nginx_ip, token, pr_url_for_report):
     content = requests.get(f"http://{nginx_ip}:8080/logs/access.log").text
     with open(filename, "wt") as f:
         f.write(content)
     stats = parse_log_file(filename)
-    return calculate_stats(stats)
-
-
-if __name__ == "__main__":
-    cli()
+    calculated = calculate_stats(stats)
+    if pr_url_for_report:
+        gh_client = GithubClient(token)
+        gh_client.delete_last_comment(pr_url_for_report)
+        format_data = dapps_cli.format_report_for_github_comment(calculated)
+        gh_client.add_comment_to_pr(pr_url_for_report, format_data)
