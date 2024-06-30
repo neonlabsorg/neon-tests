@@ -45,11 +45,6 @@ on:
           type: number
           required: true
           default: 0
-        run_id:
-          description: 'To distinguish calls from other repositories and the current one'
-          type: number
-          required: true
-          default: 0
 
 env:
   NETWORK: ${{ inputs.network }}
@@ -123,7 +118,6 @@ jobs:
           # Optional, include forks when searching for artifacts
           # default false
           allow_forks: true
-          run_id: ${{ inputs.run_id }}
       - name: "Request report"
         run: |
-          python3 ./clickfile.py stats parse_logs
+          python3 ./clickfile.py stats parse_logs --nginx_ip=$NGINX_IP
