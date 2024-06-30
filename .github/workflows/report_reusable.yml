@@ -82,7 +82,6 @@ jobs:
           result=$(python3 ./clickfile.py stats parse_logs --nginx_ip=$NGINX_IP)
           echo "result=$result" >> $GITHUB_OUTPUT
       - name: "Post a comment with the report"
-        if: ${{ inputs.pr_url_for_report }}
         uses: mshick/add-pr-comment@v2
         with:
           message: |
