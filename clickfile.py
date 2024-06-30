@@ -1026,7 +1026,11 @@ def get_nginx_logs():
 
 @stats.command("parse_logs", help="Get logs from nginx")
 @click.option("-f", "--filename", default="nginx.log", help="File with logs")
-def parse_logs_for_nginx(filename):
+@click.option("--nginx_ip", default="localhost", help="Nginx IP")
+def parse_logs_for_nginx(filename, ngix_ip):
+    content = requests.get(f"http://{nginx_ip}:8080/logs/access.log").text
+    with open(filename, "wt") as f:
+        f.write(content)
     stats = parse_log_file(filename)
     return calculate_stats(stats)
 
