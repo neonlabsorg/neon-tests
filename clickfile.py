@@ -1034,9 +1034,4 @@ def parse_logs_for_nginx(filename, nginx_ip, token, pr_url_for_report):
     with open(filename, "wt") as f:
         f.write(content)
     stats = parse_log_file(filename)
-    calculated = calculate_stats(stats)
-    if pr_url_for_report:
-        gh_client = GithubClient(token)
-        gh_client.delete_last_comment(pr_url_for_report)
-        format_data = dapps_cli.format_report_for_github_comment(calculated)
-        gh_client.add_comment_to_pr(pr_url_for_report, format_data)
+    return calculate_stats(stats)
