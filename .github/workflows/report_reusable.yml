@@ -45,6 +45,11 @@ on:
           type: number
           required: true
           default: 0
+        run_id:
+          description: 'To distinguish calls from other repositories and the current one'
+          type: number
+          required: true
+          default: 0
 
 env:
   NETWORK: ${{ inputs.network }}
@@ -83,7 +88,6 @@ jobs:
           # Required, if the artifact is from a different repo
           # Required, if the repo is private a Personal Access Token with `repo` scope is needed or GitHub token in a job where the permissions `action` scope set to `read`
           github_token: ${{secrets.GITHUB_TOKEN}}
-          workflow: pipeline.yml
           # If no workflow is set and workflow_search set to true, then the most recent workflow matching
           # all other criteria will be looked up instead of using the current workflow
           workflow_search: true
@@ -119,6 +123,7 @@ jobs:
           # Optional, include forks when searching for artifacts
           # default false
           allow_forks: true
+          run_id: ${{ inputs.run_id }}
       - name: "Request report"
         run: |
           python3 ./clickfile.py stats parse_logs
