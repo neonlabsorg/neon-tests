@@ -124,10 +124,7 @@ def pytest_configure(config: Config):
         os.environ["CHAIN_ID"]: env["network_ids"]["neon"]
 
     if network_name == "terraform":
-        if os.environ.get("NGINX_IP", "") == "":
-            env["solana_url"] = env["solana_url"].replace("<solana_ip>", os.environ.get("SOLANA_IP")).replace("<solana_port>", "8899")
-        else:
-            env["solana_url"] = env["solana_url"].replace("<solana_ip>", os.environ.get("PROXY_IP")).replace("<solana_port>", "8080")
+        env["solana_url"] = env["solana_url"].replace("<solana_ip>", os.environ.get("SOLANA_IP"))
         env["proxy_url"] = env["proxy_url"].replace("<proxy_ip>", os.environ.get("PROXY_IP"))
         env["faucet_url"] = env["faucet_url"].replace("<proxy_ip>", os.environ.get("PROXY_IP"))
     config.environment = EnvironmentConfig(**env)
