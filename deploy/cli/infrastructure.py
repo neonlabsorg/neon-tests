@@ -5,7 +5,6 @@ import sys
 import typing as tp
 import pathlib
 import logging
-import urllib.request
 
 from paramiko.client import SSHClient
 from scp import SCPClient
@@ -167,10 +166,3 @@ def get_solana_accounts_in_tx(eth_transaction):
         return len(alt[0].writable_indexes) + len(alt[0].readonly_indexes), len(trx["result"])
     else:
         return len(tr.value.transaction.transaction.message.account_keys), len(trx["result"])
-
-
-def get_nginx_logs_for_solana():
-    network = os.environ.get("NETWORK")
-    network_manager = NetworkManager(network)
-    solana_ip = network_manager.get_network_param(network, "solana_ip")
-    return urllib.request.urlopen(f"http://{solana_ip}:8080/logs/access.log").read()

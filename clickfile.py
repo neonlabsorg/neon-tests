@@ -13,8 +13,6 @@ import sys
 import typing as tp
 from pathlib import Path
 from urllib.parse import urlparse
-from paramiko import SSHClient
-from scp import SCPClient
 
 try:
     import click
@@ -39,7 +37,6 @@ try:
     from utils.prices import get_sol_price
     from utils.helpers import wait_condition
     from utils.apiclient import JsonRPCSession
-    from utils.request_stat import parse_log_file, calculate_stats
 except ImportError:
     print("Please run ./clickfile.py requirements to install all requirements")
 
@@ -999,26 +996,5 @@ def make_dapps_report(directory, pr_url_for_report, token):
         gh_client.add_comment_to_pr(pr_url_for_report, format_data)
 
 
-@cli.group("stats", help="Manage stats")
-def stats():
-    pass
-
-@stats.command(name="get_nginx_logs")
-def get_nginx_logs():
-    home_path = os.environ.get("HOME")
-    # artifact_logs = "./nginx_logs"
-    ssh_key = f"{home_path}/.ssh/ci-stands"
-    # os.mkdir(artifact_logs)
-    nginx_ip = os.environ.get("PROXY_IP")
-
-    subprocess.run(
-        f'ssh-keygen -R {nginx_ip} -f {home_path}/.ssh/known_hosts', shell=True)
-    subprocess.run(
-        f'ssh-keyscan -H {nginx_ip} >> {home_path}/.ssh/known_hosts', shell=True)
-    ssh_client = SSHClient()
-    ssh_client.load_system_host_keys()
-    ssh_client.connect(hostname=nginx_ip, username='root',
-                       key_filename=ssh_key, timeout=120)
-    
-    scp_client = SCPClient(transport=ssh_client.get_transport())
-    scp_client.get('/var/log/nginx/access.log', "nginx.log")
+if __name__ == "__main__":
+    cli()
