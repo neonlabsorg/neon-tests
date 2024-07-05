@@ -92,8 +92,8 @@ class TestRpcGetBlock:
     @pytest.mark.parametrize(
         "number, full_trx",
         [
-            (32, True),
-            (32, False),
+            (8, True),
+            (8, False),
         ],
     )
     @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
