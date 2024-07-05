@@ -114,7 +114,8 @@ class TestNeonRPCBaseCalls:
     def test_neon_get_native_token_list(self, pytestconfig, json_rpc_client):
         response = json_rpc_client.send_rpc(method="neon_getNativeTokenList")
         assert "error" not in response
-        assert len(response["result"]) > 1, f"Expected non-empty list, got {response['result']}"
+        assert len(response["result"]) == len(pytestconfig.environment.network_ids), \
+            f"Wrong list length. Initial -> {pytestconfig.environment.network_ids}. Actual -> {response['result']}"
         # Check that all fields are present
         for item in response["result"]:
             assert "tokenChainId" in item
