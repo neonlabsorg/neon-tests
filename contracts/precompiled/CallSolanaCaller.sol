@@ -11,6 +11,12 @@ contract CallSolanaCaller {
         uint64 lamports;
         bytes instruction;
     }
+    struct ExecuteWithSeedArgs {
+        uint64 lamports;
+        bytes32 salt;
+        bytes instruction;
+    }
+
 
     event LogBytes(bytes32 value);
     event LogStr(string value);
@@ -73,5 +79,11 @@ contract CallSolanaCaller {
 
     function getReturnData() public returns (bytes32, bytes memory){
         return _callSolana.getReturnData();
+    }
+
+    function batchExecuteWithSeed(ExecuteWithSeedArgs[] memory _args) public {
+        for(uint i = 0; i < _args.length; i++) {
+            _callSolana.executeWithSeed(_args[i].lamports, _args[i].salt, _args[i].instruction);
+        }
     }
 }

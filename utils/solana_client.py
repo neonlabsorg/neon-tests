@@ -125,6 +125,12 @@ class SolanaClient(solana.rpc.api.Client):
         opts = TxOpts(skip_preflight=True, skip_confirmation=False)
         self.send_transaction(trx, solana_account, opts=opts)
 
+    def create_associate_token_acc(self, payer, owner, token_mint):
+        trx = Transaction()
+        trx.add(create_associated_token_account(payer.public_key, owner, token_mint))
+        opts = TxOpts(skip_preflight=True, skip_confirmation=False)
+        self.send_transaction(trx, payer, opts=opts)
+
 
     def wait_transaction(self, tx):
         try:
