@@ -119,6 +119,24 @@ jobs:
       solana_ip: ${{ needs.prepare.outputs.solana_ip }}
       external_call: false
 
+  notify:
+    runs-on: ubuntu-20.04
+    needs: [ prepare, dapps-tests ]
+    if: failure() && github.ref_name == 'develop'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install python requirements
+        id: requirements
+        uses: ./.github/actions/python-requirements
+      - name: Notify on failure
+        id: notification
+        run: |
+          python3 ./clickfile.py send-notification \
+          --network ${{ env.NETWORK }} \
+          -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
+          -b ${{ env.BUILD_URL }} \
+          --test-group dapps
+
   destroy:
     runs-on: ubuntu-20.04
     needs: [ prepare, dapps-tests ]
@@ -140,18 +158,3 @@ jobs:
         with:
           ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
           devnet_solana_url: ${{ secrets.SOLANA_URL }}
-
-
-  notify:
-    runs-on: ubuntu-20.04
-    needs: [prepare, dapps-tests]
-    if: failure() && github.ref_name == 'develop'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install python requirements
-        id: requirements
-        uses: ./.github/actions/python-requirements
-      - name: Notify on failure
-        id: notification
-        run: |
-          python3 ./clickfile.py send-notification --network ${{ env.NETWORK }} -u ${{ secrets.SLACK_QA_CHANNEL_URL }} -b ${{ env.BUILD_URL }} -t "DApps testing failed, please check!"

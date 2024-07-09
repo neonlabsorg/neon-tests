@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from hexbytes import HexBytes
 from web3 import types
 
-from conftest import EnvName
+from clickfile import EnvName
 from integration.tests.basic.helpers.assert_message import AssertMessage
 
 NoneType = type(None)

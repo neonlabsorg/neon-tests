@@ -1,7 +1,7 @@
 import allure
 import pytest
 
-from conftest import EnvName
+from clickfile import EnvName
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.basic import Tag
 from integration.tests.basic.helpers.errors import Error32602

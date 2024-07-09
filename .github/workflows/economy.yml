@@ -88,12 +88,6 @@ jobs:
       - name: Run economy tests
         run: |
           docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py run economy -n ${{ env.NETWORK }}
-      - name: Notify on failure
-        if: failure()
-        run: |
-          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py send-notification \
-            -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
-            -b ${{ env.BUILD_URL }}
       - name: "Generate allure report"
         uses: ./.github/actions/generate-allure-report
         if: always()
@@ -103,6 +97,13 @@ jobs:
           aws_access_key_id:  ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key:  ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           tests_name: economy
+      - name: Notify on failure
+        if: failure() && github.ref_name == 'develop'
+        run: |
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py send-notification \
+            -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
+            -b ${{ env.BUILD_URL }} \
+            --test-group economy
       - name: Remove docker container
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}

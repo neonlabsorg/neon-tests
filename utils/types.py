@@ -1,3 +1,4 @@
+import typing as tp
 from dataclasses import dataclass
 from solana.publickey import PublicKey
 from solana.keypair import Keypair
@@ -30,3 +31,15 @@ class TreasuryPool:
     index: int
     account: PublicKey
     buffer: bytes
+
+
+TestGroup = tp.Literal[
+    "economy",
+    "basic",
+    "tracer",
+    "services",
+    "oz",
+    "ui",
+    "evm",
+    "compiler_compatibility",
+]

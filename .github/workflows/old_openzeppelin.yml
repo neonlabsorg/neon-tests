@@ -109,11 +109,11 @@ jobs:
         run: |
           docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py oz analyze
       - name: "Notify on failure."
-        if: failure()
+        if: failure() && github.ref_name == 'develop'
         run: |
           docker exec -i ${{ env.CONTAINER }} \
             python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
-          -b ${{ env.BUILD_URL }} -n ${{ needs.prepare-env.outputs.network }}
+          -b ${{ env.BUILD_URL }} -n ${{ needs.prepare-env.outputs.network }} --test-group "oz neon-release-v3.4-solc0.7"
       - name: Remove docker container
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}
@@ -158,11 +158,11 @@ jobs:
         run: |
           docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py oz analyze
       - name: "Notify on failure."
-        if: failure()
+        if: failure() && github.ref_name == 'develop'
         run: |
           docker exec -i ${{ env.CONTAINER }} \
             python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
-          -b ${{ env.BUILD_URL }} -n ${{ needs.prepare-env.outputs.network }}
+          -b ${{ env.BUILD_URL }} -n ${{ needs.prepare-env.outputs.network }} --test-group "oz neon-release-v2.5-solc0.5"
       - name: Remove docker container
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}

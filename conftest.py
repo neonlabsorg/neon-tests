@@ -1,16 +1,20 @@
-import enum
 import os
 import json
 import shutil
 import pathlib
-import typing as tp
+import sys
 from dataclasses import dataclass
 
 import pytest
 from _pytest.config import Config
+from _pytest.config.argparsing import Parser
+from _pytest.nodes import Item
 from _pytest.runner import runtestprotocol
 from solana.keypair import Keypair
 
+from clickfile import TEST_GROUPS, EnvName
+from utils.types import TestGroup
+from utils.error_log import error_log
 from utils import create_allure_environment_opts, setup_logging
 from utils.faucet import Faucet
 from utils.accounts import EthAccounts
@@ -19,19 +23,6 @@ from utils.solana_client import SolanaClient
 
 
 pytest_plugins = ["ui.plugins.browser"]
-
-
-class EnvName(str, enum.Enum):
-    NIGHT_STAND = "night-stand"
-    RELEASE_STAND = "release-stand"
-    MAINNET = "mainnet"
-    DEVNET = "devnet"
-    TESTNET = "testnet"
-    LOCAL = "local"
-    TERRAFORM = "terraform"
-    GETH = "geth"
-    TRACER_CI = "tracer_ci"
-    CUSTOM = "custom"
 
 
 @dataclass
@@ -52,7 +43,7 @@ class EnvironmentConfig:
     account_seed_version: str = "\3"
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: Parser):
     parser.addoption(
         "--network",
         action="store",
@@ -66,27 +57,41 @@ def pytest_addoption(parser):
         default=False,
         help="Store tests result to file",
     )
+    known_args = parser.parse_known_args(args=sys.argv[1:])
+    test_group_required = True if known_args.make_report else False
+    parser.addoption(
+        "--test-group",
+        choices=TEST_GROUPS,
+        required=test_group_required,
+        help="Test group",
+    )
+
     parser.addoption("--envs", action="store", default="envs.json", help="Filename with environments")
+    parser.addoption(
+        "--keep-error-log",
+        action="store_true",
+        default=False,
+        help=f"Don't clear file {error_log.file_path.name}",
+    )
 
 
-def pytest_sessionstart(session):
+def pytest_sessionstart(session: pytest.Session):
     """Hook for clearing the error log used by the Slack notifications utility"""
-    path = pathlib.Path(f"click_cmd_err.log")
-    if path.exists():
-        path.unlink()
+    keep_error_log = session.config.getoption(name="--keep-error-log", default=False)
+    if not keep_error_log:
+        error_log.clear()
 
 
-def pytest_runtest_protocol(item, nextitem):
+def pytest_runtest_protocol(item: Item, nextitem):
     ihook = item.ihook
     ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
     reports = runtestprotocol(item, nextitem=nextitem)
     ihook.pytest_runtest_logfinish(nodeid=item.nodeid, location=item.location)
     if item.config.getoption("--make-report"):
-        path = pathlib.Path(f"click_cmd_err.log")
-        with path.open("a") as fd:
-            for report in reports:
-                if report.when == "call" and report.outcome == "failed":
-                    fd.write(f"`{report.outcome.upper()}` {item.nodeid}\n")
+        test_group: TestGroup = item.config.getoption("--test-group")
+        for report in reports:
+            if report.when == "call" and report.outcome == "failed":
+                error_log.add_failure(test_group=test_group, test_name=item.nodeid)
     return True
 
 
