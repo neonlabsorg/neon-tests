@@ -13,12 +13,13 @@ from integration.tests.basic.helpers.rpc_checks import (
     assert_fields_are_specified_type,
     assert_equal_fields,
 )
+from utils.apiclient import JsonRPCSession
 from utils.helpers import cryptohex
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 
 
-class Method(Enum):
+class Method(str, Enum):
     ETH_GET_LOGS = "eth_getLogs"
     NEON_GET_LOGS = "neon_getLogs"
 
@@ -373,3 +374,43 @@ class TestRpcGetLogs:
 
         assert is_event_topic_in_list, f"Filter by {topics} works incorrect. Response: {response}"
         assert is_arg_topic_in_list, f"Filter by {topics} works incorrect. Response: {response}"
+
+    @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
+    def test_filter_by_topics_with_null(
+            self,
+            json_rpc_client: JsonRPCSession,
+            method: Method,
+    ):
+        sender_account = self.accounts[0]
+        event_caller, _ = self.web3_client.deploy_and_get_contract(
+            contract="common/EventCaller",
+            version="0.8.12",
+            account=sender_account,
+        )
+        from_block = self.web3_client.get_block_number()
+
+        param_1 = "text 1"
+        param_2 = "text 2"
+
+        tx = self.web3_client.make_raw_tx(from_=sender_account)
+        instruction_tx = event_caller.functions.callEvent2(param_1, param_2).build_transaction(tx)
+        receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
+        assert len(receipt.logs[0].topics) == 3
+
+        to_block = self.web3_client.get_block_number()
+        event_signature = cryptohex("Event2(string,string)")
+
+        params = {
+            "fromBlock": hex(from_block),
+            "toBlock": hex(to_block),
+            "address": event_caller.address,
+            "topics": [
+                event_signature,
+                None,
+                None,
+            ],
+        }
+        response = json_rpc_client.send_rpc(method=method, params=params)
+        expected_topics = [event_signature, cryptohex(param_1), cryptohex(param_2)]
+        actual_topics = response["result"][0]["topics"]
+        assert actual_topics == expected_topics
