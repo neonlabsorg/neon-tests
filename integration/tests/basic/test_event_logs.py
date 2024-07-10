@@ -3,7 +3,6 @@ import string
 
 import pytest
 import allure
-import web3
 from web3.logs import DISCARD
 
 from integration.tests.basic.helpers.rpc_checks import (

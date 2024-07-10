@@ -1,4 +1,5 @@
 import typing as tp
+from collections import Counter
 from types import SimpleNamespace
 
 from hexbytes import HexBytes
@@ -6,6 +7,8 @@ from web3 import types
 
 from clickfile import EnvName
 from integration.tests.basic.helpers.assert_message import AssertMessage
+from integration.tests.basic.helpers.basic import NeonEventType
+from utils.models.result import NeonGetTransactionResult
 
 NoneType = type(None)
 
@@ -31,7 +34,9 @@ def hex_str_consists_not_only_of_zeros(hex_data: str) -> bool:
     return False
 
 
-def assert_block_fields(env_name: EnvName, response: dict, full_trx: bool, tx_receipt: tp.Optional[types.TxReceipt], pending: bool = False):
+def assert_block_fields(
+    env_name: EnvName, response: dict, full_trx: bool, tx_receipt: tp.Optional[types.TxReceipt], pending: bool = False
+):
     assert "error" not in response
     assert "result" in response, AssertMessage.DOES_NOT_CONTAIN_RESULT
     result = response["result"]
@@ -201,4 +206,172 @@ def assert_equal_fields(result, comparable_object, comparable_fields, keys_mappi
             l = l.lower()
             r = r.lower()
 
-        assert l.lower() == r.lower(), f"The field '{field}' {l} from response  is not equal to {field} from receipt {r}"
+        assert (
+            l.lower() == r.lower()
+        ), f"The field '{field}' {l} from response  is not equal to {field} from receipt {r}"
+
+
+def count_events(
+    neon_trx_receipt: NeonGetTransactionResult,
+    ignored_events=[NeonEventType.InvalidRevision, NeonEventType.StepReset],
+    is_removed=False,
+):
+    events = neon_trx_receipt.get_all_events(ignore_events=ignored_events, is_removed=is_removed)
+    return Counter([event.neonEventType for event in events])
+
+
+def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type):
+    events = neon_trx_receipt.get_all_events(filter_by_type=event_type)
+
+    for event in events:
+        match event_type:
+            case NeonEventType.EnterCreate:
+                assert (
+                    event.address is not None
+                ), f"Expecting non-empty address for {NeonEventType.EnterCreate}, got {event}"
+
+                assert isinstance(
+                    event.topics, list
+                ), f"Expecting list of topics for {NeonEventType.EnterCreate}, got {event}"
+                assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.EnterCreate}, got {event}"
+            case NeonEventType.ExitStop:
+                assert (
+                    event.address is not None
+                ), f"Expecting non-empty address for {NeonEventType.ExitStop}, got {event}"
+
+                assert isinstance(
+                    event.topics, list
+                ), f"Expecting list of topics for {NeonEventType.Return}, got {event}"
+                assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.Return}, got {event}"
+
+                assert event.data == "0x", f"Expecting empty data for {NeonEventType.ExitStop}, got {event}"
+            case NeonEventType.Return:
+                assert event.address is None, f"Expecting empty address for {NeonEventType.Return}, got {event}"
+
+                assert isinstance(
+                    event.topics, list
+                ), f"Expecting list of topics for {NeonEventType.Return}, got {event}"
+                assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.Return}, got {event}"
+
+                assert event.data != "0x", f"Expecting non-empty data for {NeonEventType.Return}, got {event}"
+
+                assert event.neonEventLevel == 0, f"Expecting level 0 for {NeonEventType.Return}, got {event}"
+            case NeonEventType.EnterCall:
+                assert event.address is not None, f"Expecting empty address for {NeonEventType.EnterCall}, got {event}"
+
+                assert isinstance(
+                    event.topics, list
+                ), f"Expecting list of topics for {NeonEventType.Return}, got {event}"
+                assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.Return}, got {event}"
+
+                assert event.data == "0x", f"Expecting empty data for {NeonEventType.EnterCall}, got {event}"
+            case NeonEventType.Log:
+                assert event.topics is not None, f"Expecting non-empty topics for {NeonEventType.Log}, got {event}"
+                assert isinstance(event.topics, list), f"Expecting list of topics for {NeonEventType.Log}, got {event}"
+                assert len(event.topics) > 0, f"Expecting non-empty topics for {NeonEventType.Log}, got {event}"
+            case NeonEventType.Cancel:
+                assert event.address is None, f"Expecting empty address for {NeonEventType.Cancel}, got {event}"
+
+                assert isinstance(
+                    event.topics, list
+                ), f"Expecting list of topics for {NeonEventType.Cancel}, got {event}"
+                assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.Cancel}, got {event}"
+
+                assert event.data == "0x00", f"Expecting empty data for {NeonEventType.Cancel}, got {event}"
+            case NeonEventType.EnterCallCode:
+                assert event.data == "0x", f"Expecting empty data for {NeonEventType.EnterCallCode}, got {event}"
+
+                assert isinstance(
+                    event.topics, list
+                ), f"Expecting list of topics for {NeonEventType.EnterCallCode}, got {event}"
+                assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.EnterCallCode}, got {event}"
+
+                assert event.neonEventLevel == 2, f"Expecting level 2 for {NeonEventType.EnterCallCode}, got {event}"
+            case NeonEventType.ExitReturn:
+                assert event.address is not None, f"Expecting empty address for {NeonEventType.ExitReturn}, got {event}"
+
+                assert event.data == "0x", f"Expecting empty data for {NeonEventType.ExitReturn}, got {event}"
+
+                assert isinstance(
+                    event.topics, list
+                ), f"Expecting list of topics for {NeonEventType.ExitReturn}, got {event}"
+                assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.ExitReturn}, got {event}"
+            case NeonEventType.EnterStaticCall:
+                assert (
+                    event.address is not None
+                ), f"Expecting empty address for {NeonEventType.EnterStaticCall}, got {event}"
+
+                assert event.data == "0x", f"Expecting empty data for {NeonEventType.EnterStaticCall}, got {event}"
+
+                assert isinstance(
+                    event.topics, list
+                ), f"Expecting list of topics for {NeonEventType.EnterStaticCall}, got {event}"
+                assert (
+                    len(event.topics) == 0
+                ), f"Expecting empty topics for {NeonEventType.EnterStaticCall}, got {event}"
+
+                assert event.neonEventLevel == 2, f"Expecting level 2 for {NeonEventType.EnterStaticCall}, got {event}"
+            case NeonEventType.EnterDelegateCall:
+                assert (
+                    event.address is not None
+                ), f"Expecting empty address for {NeonEventType.EnterDelegateCall}, got {event}"
+
+                assert event.data == "0x", f"Expecting empty data for {NeonEventType.EnterDelegateCall}, got {event}"
+
+                assert isinstance(
+                    event.topics, list
+                ), f"Expecting list of topics for {NeonEventType.EnterDelegateCall}, got {event}"
+                assert (
+                    len(event.topics) == 0
+                ), f"Expecting empty topics for {NeonEventType.EnterDelegateCall}, got {event}"
+            case NeonEventType.ExitSendAll:
+                assert (
+                    event.address is not None
+                ), f"Expecting empty address for {NeonEventType.ExitSendAll}, got {event}"
+
+                assert event.data == "0x", f"Expecting empty data for {NeonEventType.ExitSendAll}, got {event}"
+
+                assert isinstance(
+                    event.topics, list
+                ), f"Expecting list of topics for {NeonEventType.ExitSendAll}, got {event}"
+                assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.ExitSendAll}, got {event}"
+            case NeonEventType.ExitRevert:
+                assert event.address is not None, f"Expecting empty address for {NeonEventType.ExitRevert}, got {event}"
+
+                assert isinstance(
+                    event.topics, list
+                ), f"Expecting list of topics for {NeonEventType.ExitRevert}, got {event}"
+                assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.ExitRevert}, got {event}"
+            case _:
+                assert event_type in NeonEventType, "Unknown event type {event_type}"
+
+
+def assert_events_order(neon_trx_receipt: NeonGetTransactionResult):
+    events = neon_trx_receipt.get_all_events(ignore_events=[NeonEventType.InvalidRevision, NeonEventType.StepReset])
+    actual_order_idxs = [event.neonEventOrder for event in events]
+    assert len(actual_order_idxs) == len(set(actual_order_idxs)), f"Non-unique indexes for events: {events}"
+
+
+def assert_event_field(
+    neon_trx_receipt: NeonGetTransactionResult, event_type, field_name, expected_value, comparator="=="
+):
+    events = neon_trx_receipt.get_all_events(filter_by_type=event_type)
+    assert events, f"No events of type {event_type} found in {neon_trx_receipt}."
+    for event in events:
+        match comparator:
+            case "==":
+                assert (
+                    getattr(event, field_name) == expected_value
+                ), f"Expecting {field_name} to be {expected_value}, got {getattr(event, field_name)}. Event: {event}."
+            case "!=":
+                assert (
+                    getattr(event, field_name) != expected_value
+                ), f"Expecting {field_name} to be different from {expected_value}, got {getattr(event, field_name)}. Event: {event}."
+            case "is":
+                assert (
+                    getattr(event, field_name) is expected_value
+                ), f"Expecting {field_name} to be {expected_value}, got {getattr(event, field_name)}. Event: {event}."
+            case "is not":
+                assert (
+                    getattr(event, field_name) is not expected_value
+                ), f"Expecting {field_name} to be different from {expected_value}, got {getattr(event, field_name)}. Event: {event}."

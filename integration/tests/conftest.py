@@ -1,13 +1,12 @@
-import os
-import random
-import string
-import pathlib
 import inspect
 import json
+import os
+import pathlib
+import random
+import string
 import time
 import typing as tp
 
-import allure
 import base58
 import pytest
 from _pytest.config import Config
@@ -18,7 +17,9 @@ from solana.rpc import commitment
 from solana.rpc.types import TxOpts
 from web3.exceptions import InvalidAddress
 
+import allure
 from clickfile import network_manager
+from integration.tests.basic.helpers.chains import make_nonce_the_biggest_for_chain
 from utils import web3client
 from utils.apiclient import JsonRPCSession
 from utils.consts import LAMPORT_PER_SOL, MULTITOKEN_MINTS
@@ -26,8 +27,8 @@ from utils.erc20 import ERC20
 from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
 from utils.operator import Operator
-from utils.web3client import NeonChainWeb3Client, Web3Client
 from utils.prices import get_sol_price
+from utils.web3client import NeonChainWeb3Client, Web3Client
 
 NEON_AIRDROP_AMOUNT = 1_000
 
@@ -277,14 +278,7 @@ def erc20_spl_mintable(
 
 @pytest.fixture(scope="class")
 def class_account_sol_chain(
-    evm_loader,
-    solana_account,
-    web3_client,
-    web3_client_sol,
-    faucet,
-    eth_bank_account,
-    bank_account,
-    pytestconfig
+    evm_loader, solana_account, web3_client, web3_client_sol, faucet, eth_bank_account, bank_account, pytestconfig
 ):
     account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account)
     if pytestconfig.environment.use_bank:
@@ -319,8 +313,7 @@ def account_with_all_tokens(
     neon_mint,
     operator_keypair,
     evm_loader_keypair,
-    bank_account
-
+    bank_account,
 ):
     neon_account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account, amount=500)
     if web3_client_sol:
@@ -387,12 +380,6 @@ def meta_proxy_contract(web3_client, accounts):
 def event_caller_contract(web3_client, accounts) -> tp.Any:
     event_caller, _ = web3_client.deploy_and_get_contract("common/EventCaller", "0.8.12", accounts[0])
     yield event_caller
-
-
-@pytest.fixture(scope="class")
-def tracer_caller_contract(web3_client, accounts) -> tp.Any:
-    contract, _ = web3_client.deploy_and_get_contract("common/tracer/ContractCaller", "0.8.15", account=accounts[0])
-    yield contract
 
 
 @pytest.fixture(scope="class")
@@ -508,3 +495,17 @@ def neon_price(web3_client_session) -> float:
     price = web3_client_session.get_token_usd_gas_price()
     with allure.step(f"NEON price {price}$"):
         return price
+
+
+@pytest.fixture(scope="class")
+def tracer_caller_contract(web3_client, accounts) -> tp.Any:
+    contract, _ = web3_client.deploy_and_get_contract("common/tracer/ContractCaller", "0.8.15", account=accounts[0])
+    yield contract
+
+
+@pytest.fixture(scope="class")
+def counter_contract(account_with_all_tokens, client_and_price, web3_client_sol, web3_client):
+    w3_client, _ = client_and_price
+    make_nonce_the_biggest_for_chain(account_with_all_tokens, w3_client, [web3_client, web3_client_sol])
+    contract, _ = w3_client.deploy_and_get_contract("common/Counter", "0.8.10", account=account_with_all_tokens)
+    return contract
