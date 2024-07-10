@@ -1,18 +1,35 @@
 import time
 import typing as tp
 
-import allure
 import pytest
 import web3
 from eth_utils import keccak
 
+import allure
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.assert_message import AssertMessage
 from integration.tests.basic.helpers.basic import Tag
 from integration.tests.basic.helpers.errors import Error32602
-from integration.tests.basic.helpers.rpc_checks import is_hex, hex_str_consists_not_only_of_zeros
+from integration.tests.basic.helpers.rpc_checks import (
+    hex_str_consists_not_only_of_zeros,
+    is_hex,
+)
 from utils.accounts import EthAccounts
-from utils.helpers import gen_hash_of_block, cryptohex
+from utils.helpers import cryptohex, gen_hash_of_block
+from utils.models.error import EthError, EthError32602, NotSupportedMethodError
+from utils.models.result import (
+    EthGasPriceResult,
+    EthGetBalanceResult,
+    EthGetCodeResult,
+    EthGetStorageAt,
+    EthGetZeroCodeResult,
+    EthMiningResult,
+    EthResult,
+    EthSyncingResult,
+    NeonGetEvmParamsResult,
+    NetVersionResult,
+    Web3ClientVersionResult,
+)
 from utils.web3client import NeonChainWeb3Client
 
 GET_LOGS_TEST_DATA = [
@@ -78,10 +95,12 @@ class TestRpcBaseCalls:
     accounts: EthAccounts
     web3_client: NeonChainWeb3Client
 
+    @pytest.mark.bug # Geth response differs from Neon NDEV-3168
     def test_eth_call_without_params(self, json_rpc_client):
         """Verify implemented rpc calls work eth_call without params"""
         response = json_rpc_client.send_rpc("eth_call")
         assert "error" in response, "Error not in response"
+        EthError(**response)
 
     @pytest.mark.mainnet
     @pytest.mark.parametrize("tag", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST])
@@ -96,6 +115,7 @@ class TestRpcBaseCalls:
         response = json_rpc_client.send_rpc("eth_call", params=params)
         assert "error" not in response
         assert "result" in response and response["result"] == "0x", f"Invalid response result, `{response['result']}`"
+        EthResult(**response)
 
     def test_eth_gas_price(self, json_rpc_client):
         """Verify implemented rpc calls work eth_gasPrice"""
@@ -103,6 +123,7 @@ class TestRpcBaseCalls:
         assert "error" not in response
         assert "result" in response
         result = response["result"]
+        EthGasPriceResult(**response)
         assert rpc_checks.is_hex(result), f"Invalid current gas price `{result}` in wei"
         assert int(result, 16) > 100000000, f"gas price should be greater 100000000, got {int(result, 16)}"
 
@@ -120,6 +141,7 @@ class TestRpcBaseCalls:
             return
         assert "error" not in response
         assert rpc_checks.is_hex(response["result"]), AssertMessage.WRONG_AMOUNT.value
+        EthGetBalanceResult(**response)
 
     @pytest.mark.mainnet
     @pytest.mark.parametrize("param", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST, None])
@@ -134,14 +156,16 @@ class TestRpcBaseCalls:
         )
         if not param:
             assert "error" in response, "Error not in response"
-            return
-        assert "error" not in response
-        assert "result" in response
-        result = response["result"]
-        assert is_hex(result), f"Invalid compiled byte code in response {result} at a given contract address"
-        assert result.startswith("0x")
-        assert len(result) == 6678
-        assert hex_str_consists_not_only_of_zeros(result), "Response result hex str should not consist only of zeros"
+            EthError(**response)
+        else:
+            EthGetCodeResult(**response)
+            assert "error" not in response
+            assert "result" in response
+            result = response["result"]
+            assert is_hex(result), f"Invalid compiled byte code in response {result} at a given contract address"
+            assert result.startswith("0x")
+            assert len(result) == 6678
+            assert hex_str_consists_not_only_of_zeros(result), "Response result hex str should not consist only of zeros"
 
     @pytest.mark.mainnet
     def test_eth_get_code_sender_address(self, json_rpc_client):
@@ -153,6 +177,7 @@ class TestRpcBaseCalls:
         assert "error" not in response
         assert "result" in response
         assert response["result"] == "0x", f"Invalid response {response['result']} at a given contract address"
+        EthGetZeroCodeResult(**response)
 
     @pytest.mark.bug
     # geth error message is 'invalid argument 0: hex string has length 64, want 40 for common.Address'
@@ -162,6 +187,7 @@ class TestRpcBaseCalls:
             "eth_getCode",
             params=[cryptohex("12345"), Tag.LATEST.value],
         )
+        EthError(**response)
         assert "error" in response
         assert "message" in response["error"]
         assert Error32602.INVALID_ADDRESS in response["error"]["message"]
@@ -171,6 +197,7 @@ class TestRpcBaseCalls:
     def test_web3_client_version(self, json_rpc_client):
         """Verify implemented rpc calls work web3_clientVersion"""
         response = json_rpc_client.send_rpc("web3_clientVersion")
+        Web3ClientVersionResult(**response)
         assert "error" not in response
         assert "Neon" in response["result"], "Invalid response result"
 
@@ -179,6 +206,7 @@ class TestRpcBaseCalls:
         response = json_rpc_client.send_rpc("net_version")
         assert "error" not in response
         assert int(response["result"]) == self.web3_client.eth.chain_id, f"Invalid response result {response['result']}"
+        NetVersionResult(**response)
 
     @pytest.mark.mainnet
     def test_eth_send_raw_transaction(self, json_rpc_client):
@@ -193,6 +221,7 @@ class TestRpcBaseCalls:
         response = json_rpc_client.send_rpc("eth_sendRawTransaction", params=signed_tx.rawTransaction.hex())
         assert "error" not in response
         assert rpc_checks.is_hex(response["result"]), f"Invalid response result {response['result']}"
+        EthResult(**response)
 
     def test_eth_sendRawTransaction_max_size(self, json_rpc_client):
         """Validate max size for transaction, 127 KB"""
@@ -211,6 +240,7 @@ class TestRpcBaseCalls:
         response = json_rpc_client.send_rpc("eth_sendRawTransaction", params=signed_tx.rawTransaction.hex())
         assert "error" not in response
         assert rpc_checks.is_hex(response["result"]), f"Invalid response result {response['result']}"
+        EthResult(**response)
 
     def test_eth_sendRawTransaction_max_contract_size(self, json_rpc_client):
         new_account = self.accounts.create_account()
@@ -227,6 +257,7 @@ class TestRpcBaseCalls:
         response = json_rpc_client.send_rpc(method="eth_blockNumber")
         assert "error" not in response
         assert rpc_checks.is_hex(response["result"]), f"Invalid response result {response['result']}"
+        EthResult(**response)
 
     @pytest.mark.mainnet
     def test_eth_block_number_next_block_different(self, json_rpc_client):
@@ -234,28 +265,32 @@ class TestRpcBaseCalls:
         time.sleep(1)
         response2 = json_rpc_client.send_rpc(method="eth_blockNumber")
 
-        assert "error" not in response and response2
-        assert "result" in response and response2
+        assert "error" not in response and "error" not in response2
+        assert "result" in response and "result" in response2
         assert rpc_checks.is_hex(response["result"]), f"Invalid response result {response['result']}"
         assert rpc_checks.is_hex(response2["result"]), f"Invalid response result {response2['result']}"
         assert response["result"] != response2["result"]
+        EthResult(**response)
+        EthResult(**response2)
 
+    # Geth returns different error message for None NDEV-3169
     @pytest.mark.mainnet
     @pytest.mark.parametrize("param", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST, Tag.SAFE, Tag.FINALIZED, None])
     @pytest.mark.neon_only
     def test_eth_get_storage_at(self, event_caller_contract, param: tp.Union[Tag, None], json_rpc_client):
-        """Verify implemented rpc calls work eht_getStorageAt"""
+        """Verify implemented rpc calls work eth_getStorageAt"""
         response = json_rpc_client.send_rpc(
             method="eth_getStorageAt",
             params=[event_caller_contract.address, hex(1), param.value] if param else param,
         )
         if not param:
             assert "error" in response, "Error not in response"
-            return
-        assert "error" not in response
-        result = response["result"]
-        assert rpc_checks.is_hex(result), f"Invalid response: {result}"
-        assert int(result, 16) == 52193458690378020725790142635571483517433973554952025871423338986830750023688
+            EthError(**response)
+        else:
+            EthGetStorageAt(**response)
+            result = response["result"]
+            assert rpc_checks.is_hex(result), f"Invalid response: {result}"
+            assert int(result, 16) == 52193458690378020725790142635571483517433973554952025871423338986830750023688
 
     def test_eth_get_storage_at_eq_val(self, json_rpc_client):
         new_account = self.accounts.create_account()
@@ -270,9 +305,10 @@ class TestRpcBaseCalls:
             json_rpc_client.send_rpc("eth_getStorageAt", [contract.address, hex(2), Tag.LATEST.value]),
         ]
 
-        for i in range(len(responses)):
-            assert "error" not in responses[i]
-            assert "result" in responses[i]
+        for response in responses:
+            assert "error" not in response
+            assert "result" in response
+            EthGetStorageAt(**response)
 
         assert "test" in web3.Web3.to_text(responses[0]["result"]), "wrong variable value"
         assert int(responses[1]["result"], 16) == 0, "wrong storage value"
@@ -288,13 +324,15 @@ class TestRpcBaseCalls:
         assert "error" not in response
         assert "result" in response
         assert new_data in web3.Web3.to_text(response["result"]), "wrong variable value"
+        EthGetStorageAt(**response)
 
-    @pytest.mark.mainnet
+    @pytest.mark.mainnet # for geth v1.14.7 the method eth_mining does not exist/is not available
     def test_eth_mining(self, json_rpc_client):
         """Verify implemented rpc calls work eth_mining"""
         response = json_rpc_client.send_rpc(method="eth_mining")
         assert "error" not in response
         assert isinstance(response["result"], bool), f"Invalid response: {response['result']}"
+        EthMiningResult(**response)
 
     @pytest.mark.mainnet
     def test_eth_syncing(self, json_rpc_client):
@@ -306,6 +344,7 @@ class TestRpcBaseCalls:
                 assert all(isinstance(block, int) for block in response["result"].values()), err_msg
             else:
                 assert not response.result, err_msg
+        EthSyncingResult(**response)
 
     @pytest.mark.mainnet
     def test_net_peer_count(self, json_rpc_client):
@@ -313,6 +352,7 @@ class TestRpcBaseCalls:
         response = json_rpc_client.send_rpc(method="net_peerCount")
         assert "error" not in response
         assert rpc_checks.is_hex(response["result"]), f"Invalid response: {response['result']}"
+        EthResult(**response)
 
     @pytest.mark.parametrize("param", ["0x6865", "param", None, True])
     @pytest.mark.bug  # Geth returns different error messages
@@ -323,6 +363,7 @@ class TestRpcBaseCalls:
             assert "error" not in response
             assert "result" in response
             assert response["result"][2:].startswith("e5105")
+            EthResult(**response)
         else:
             assert "error" in response, "Error not in response"
             assert "code" in response["error"], "no error code in response"
@@ -331,6 +372,7 @@ class TestRpcBaseCalls:
             message = response["error"]["message"]
             assert Error32602.CODE == code, "wrong code"
             assert Error32602.INVALID_DATA == message, "wrong error message"
+            EthError32602(**response)
 
     @pytest.mark.parametrize("method", UNSUPPORTED_METHODS)
     @pytest.mark.neon_only
@@ -341,6 +383,7 @@ class TestRpcBaseCalls:
         assert "error" in response
         assert "message" in response["error"]
         assert response["error"]["message"] == f"the method {method} does not exist/is not available", response
+        NotSupportedMethodError(**response)
 
     @pytest.mark.neon_only
     def test_get_evm_params(self, json_rpc_client):
@@ -359,3 +402,4 @@ class TestRpcBaseCalls:
         ]
         for field in expected_fields:
             assert field in response["result"], f"Field {field} is not in response: {response}"
+        NeonGetEvmParamsResult(**response)

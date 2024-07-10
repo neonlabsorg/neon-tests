@@ -2,20 +2,22 @@ import random
 import string
 from enum import Enum
 
-import allure
 import pytest
 from web3.types import TxParams
 
+import allure
 from integration.tests.basic.helpers.basic import Tag
 from integration.tests.basic.helpers.errors import Error32602
 from integration.tests.basic.helpers.rpc_checks import (
+    assert_equal_fields,
     assert_fields_are_hex,
     assert_fields_are_specified_type,
-    assert_equal_fields,
 )
+from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
 from utils.helpers import cryptohex
-from utils.accounts import EthAccounts
+from utils.models.error import EthError32602
+from utils.models.result import EthGetLogs, NeonGetLogs
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -89,9 +91,12 @@ class TestRpcGetLogs:
 
         assert_fields_are_hex(result, self.ETH_HEX_FIELDS)
         assert_fields_are_specified_type(bool, result, self.ETH_BOOL_FIELDS)
-        if method is Method.NEON_GET_LOGS:
+        if method == Method.NEON_GET_LOGS:
             assert_fields_are_specified_type(int, result, self.NEON_INT_FIELDS)
             assert_fields_are_specified_type(str, result, self.NEON_HASH_FIELDS)
+            NeonGetLogs(**response)
+        else:
+            EthGetLogs(**response)
 
     @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
     def test_get_logs_blockhash_empty_params(self, method, event_caller_contract, json_rpc_client):
@@ -106,9 +111,12 @@ class TestRpcGetLogs:
         assert_fields_are_hex(result, self.ETH_HEX_FIELDS)
         assert_fields_are_specified_type(bool, result, self.ETH_BOOL_FIELDS)
         assert_equal_fields(result, receipt["logs"][0], ["blockHash"])
-        if method is Method.NEON_GET_LOGS:
+        if method == Method.NEON_GET_LOGS:
             assert_fields_are_specified_type(int, result, self.NEON_INT_FIELDS)
             assert_fields_are_specified_type(str, result, self.NEON_HASH_FIELDS)
+            NeonGetLogs(**response)
+        else:
+            EthGetLogs(**response)
 
     @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
     @pytest.mark.parametrize(
@@ -135,6 +143,7 @@ class TestRpcGetLogs:
         assert "message" in response["error"]
         assert Error32602.CODE == response["error"]["code"]
         assert Error32602.INVALID_FILTER in response["error"]["message"]
+        EthError32602(**response)
 
     @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
     @pytest.mark.parametrize(
@@ -163,12 +172,14 @@ class TestRpcGetLogs:
             assert "error" not in response
             assert "result" in response
             assert len(response["result"]) == 0, "should not find any logs since the wrong address was provided"
+            EthGetLogs(**response)
         else:
             assert "error" in response
             assert "code" in response["error"]
             assert "message" in response["error"]
             assert p_code == response["error"]["code"]
             assert p_error == response["error"]["message"]
+            EthError32602(**response)
 
     @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
     @pytest.mark.parametrize(
@@ -233,9 +244,14 @@ class TestRpcGetLogs:
 
             assert_fields_are_hex(result, self.ETH_HEX_FIELDS)
             assert_fields_are_specified_type(bool, result, self.ETH_BOOL_FIELDS)
-            if method is Method.NEON_GET_LOGS:
+            if method == Method.NEON_GET_LOGS:
                 assert_fields_are_specified_type(int, result, self.NEON_INT_FIELDS)
                 assert_fields_are_specified_type(str, result, self.NEON_HASH_FIELDS)
+                NeonGetLogs(**response)
+        if method == Method.NEON_GET_LOGS:
+            NeonGetLogs(**response)
+        else:
+            EthGetLogs(**response)
 
     @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
     def test_get_logs_eq_val(self, method, event_caller_contract, json_rpc_client):
@@ -257,11 +273,13 @@ class TestRpcGetLogs:
         assert topic in result["topics"]
         assert_fields_are_hex(result, self.ETH_HEX_FIELDS)
         assert_fields_are_specified_type(bool, result, self.ETH_BOOL_FIELDS)
-        if method is Method.NEON_GET_LOGS:
+        if method == Method.NEON_GET_LOGS:
             assert_fields_are_specified_type(int, result, self.NEON_INT_FIELDS)
             assert_fields_are_specified_type(str, result, self.NEON_HASH_FIELDS)
-
-        assert_equal_fields(result, receipt["logs"][0], self.ETH_HEX_FIELDS)
+            NeonGetLogs(**response)
+        else:
+            assert_equal_fields(result, receipt["logs"][0], self.ETH_HEX_FIELDS)
+            EthGetLogs(**response)
 
     @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
     def test_get_logs_list_of_addresses(self, method, event_caller_contract, json_rpc_client):
@@ -297,9 +315,12 @@ class TestRpcGetLogs:
             assert topic in event["topics"]
             assert_fields_are_hex(event, self.ETH_HEX_FIELDS)
             assert_fields_are_specified_type(bool, event, self.ETH_BOOL_FIELDS)
-            if method is Method.NEON_GET_LOGS:
+            if method == Method.NEON_GET_LOGS:
                 assert_fields_are_specified_type(int, event, self.NEON_INT_FIELDS)
                 assert_fields_are_specified_type(str, event, self.NEON_HASH_FIELDS)
+                NeonGetLogs(**response)
+            else:
+                EthGetLogs(**response)
 
     @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
     @pytest.mark.parametrize(
@@ -414,3 +435,7 @@ class TestRpcGetLogs:
         expected_topics = [event_signature, cryptohex(param_1), cryptohex(param_2)]
         actual_topics = response["result"][0]["topics"]
         assert actual_topics == expected_topics
+        if method == Method.NEON_GET_LOGS:
+            NeonGetLogs(**response)
+        else:
+            EthGetLogs(**response)

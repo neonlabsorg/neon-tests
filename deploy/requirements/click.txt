@@ -16,4 +16,5 @@ uv==0.1.13
 packaging==24.0
 deepdiff==7.0.1
 pydantic==2.7.3
+polling2==0.5.0
 slack-sdk==3.30.0

@@ -1,13 +1,17 @@
-import allure
+from pprint import pprint
+
 import pytest
 
+import allure
 from clickfile import EnvName
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.basic import Tag
 from integration.tests.basic.helpers.errors import Error32602
+from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
 from utils.helpers import gen_hash_of_block
-from utils.accounts import EthAccounts
+from utils.models.error import EthError32602
+from utils.models.result import EthGetBlockByHashResult
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -18,6 +22,7 @@ class TestRpcGetBlock:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
 
+    @pytest.mark.xfail(reason="NDEV-3170")
     @pytest.mark.mainnet
     @pytest.mark.parametrize("full_trx", [False, True])
     def test_eth_get_block_by_hash(
@@ -38,6 +43,7 @@ class TestRpcGetBlock:
             full_trx=full_trx,
             tx_receipt=tx_receipt,
         )
+        EthGetBlockByHashResult(**response)
 
     @pytest.mark.parametrize(
         "hash_len, full_trx",
@@ -48,6 +54,7 @@ class TestRpcGetBlock:
         """Verify implemented rpc calls work eth_getBlockByHash with incorrect hash"""
         block_hash = gen_hash_of_block(hash_len) if isinstance(hash_len, int) else hash_len
         response = json_rpc_client.send_rpc(method="eth_getBlockByHash", params=[block_hash, full_trx])
+        EthError32602(**response)
         assert "error" in response, "Error not in response"
         assert response["error"]["code"] == Error32602.CODE
         assert response["error"]["message"] == Error32602.INVALID_BLOCKHASH
@@ -57,7 +64,9 @@ class TestRpcGetBlock:
         """Verify implemented rpc calls work eth_getBlockByHash with incorrect hash"""
         response = json_rpc_client.send_rpc(method="eth_getBlockByHash", params=[gen_hash_of_block(32), full_trx])
         assert "result" in response and response["result"] is None, "Result should be None"
+        EthGetBlockByHashResult(**response)
 
+    @pytest.mark.xfail(reason="NDEV-3170")
     @pytest.mark.mainnet
     @pytest.mark.parametrize("full_trx", [False, True])
     def test_eth_get_block_by_number_via_numbers(
@@ -80,11 +89,13 @@ class TestRpcGetBlock:
             full_trx=full_trx,
             tx_receipt=tx_receipt,
         )
+        EthGetBlockByHashResult(**response)
 
     @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
     def test_eth_get_block_by_number_with_incorrect_data(self, json_rpc_client):
         """Verify implemented rpc calls work eth_getBlockByNumber"""
         response = json_rpc_client.send_rpc(method="eth_getBlockByNumber", params=["bad_tag", True])
+        EthError32602(**response)
         assert "error" in response, "Error not in response"
         assert response["error"]["code"] == Error32602.CODE
         assert response["error"]["message"] == Error32602.INVALID_PARAMETERS
@@ -99,9 +110,20 @@ class TestRpcGetBlock:
     @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
     def test_eth_get_block_by_number_with_not_exist_data(self, number, full_trx, json_rpc_client):
         """Verify implemented rpc calls work eth_getBlockByNumber"""
-        response = json_rpc_client.send_rpc(method="eth_getBlockByNumber", params=[gen_hash_of_block(number), full_trx])
+        response = json_rpc_client.send_rpc(method="eth_getBlockByNumber", params=[gen_hash_of_block(number), full_trx]) 
+        EthGetBlockByHashResult(**response)
         assert "result" in response and response["result"] is None, "Result should be None"
+    
+    @pytest.mark.xfail(reason="NDEV-3072")  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
+    @pytest.mark.parametrize("full_trx", [False, True])
+    def test_eth_get_block_by_number_with_big_int(self, full_trx, json_rpc_client):
+        """Verify implemented rpc calls work eth_getBlockByNumber"""
+        response = json_rpc_client.send_rpc(method="eth_getBlockByNumber", params=["0x55192d7d9e36433b64f2b9d9309a5c5d36b1561c888dcfa8f31078f000fa7cdd", full_trx])
+        EthError32602(**response)
 
+    # geth returns miner as null, totalDifficulty as null, for
+    # Tag.LATEST-True, Tag.PENDING-True, Tag.PENDING-False
+    @pytest.mark.xfail(reason="NDEV-3170") # verify after DOPS-723 is done
     @pytest.mark.parametrize(
         "quantity_tag, full_trx",
         [
@@ -133,3 +155,4 @@ class TestRpcGetBlock:
             tx_receipt=None,
             pending=quantity_tag == Tag.PENDING,
         )
+        EthGetBlockByHashResult(**response)
