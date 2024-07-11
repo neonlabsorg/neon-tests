@@ -25,7 +25,7 @@ LOG = logging.getLogger(__name__)
 
 UNISWAP_REPO_URL = "https://github.com/gigimon/Uniswap-V2-NEON.git"
 UNISWAP_TMP_DIR = "/tmp/uniswap-neon"
-MAX_UINT_256 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+MAX_UINT_64 = 0xFFFFFFFFFFFFFFFF
 
 
 @events.test_start.add_listener
@@ -139,6 +139,7 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
 
         LOG.info("Deploy ERC20 tokens for Uniswap")
         for token in ("USDC", "USDT", "tokenA", "tokenB"):
+            LOG.info(f"Deploy token: {token}")
             erc_contract, _ = neon_client.deploy_and_get_contract(
                 "EIPs/ERC20/ERC20.sol",
                 account=eth_account,
@@ -172,14 +173,18 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
 
     if "factory" in data and data["factory"]:
         uniswap2_factory = neon_client.get_deployed_contract(
-            data["factory"], str(uniswap_path / "contracts/v2-core/UniswapV2Factory.sol"), solc_version="0.5.16"
+            data["factory"], str(uniswap_path / "contracts/v2-core/UniswapV2Factory.sol"), solc_version="0.5.16",
+            contract_name="UniswapV2Factory"
         )
     else:
+
+
         uniswap2_factory, _ = neon_client.deploy_and_get_contract(
             str(uniswap_path / "contracts/v2-core/UniswapV2Factory.sol"),
             account=eth_account,
             version="0.5.16",
             constructor_args=[eth_account.address],
+            contract_name='UniswapV2Factory'
         )
     LOG.info(f"Factory address: {uniswap2_factory.address}")
 
@@ -190,6 +195,7 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
             data["router"],
             str(uniswap_path / "contracts/v2-periphery/UniswapV2Router02.sol"),
             solc_version="0.6.6",
+            contract_name="UniswapV2Router02",
             import_remapping={"@uniswap": str(uniswap_path / "node_modules/@uniswap")},
         )
     else:
@@ -197,6 +203,7 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
             str(uniswap_path / "contracts/v2-periphery/UniswapV2Router02.sol"),
             account=eth_account,
             version="0.6.6",
+            contract_name="UniswapV2Router02",
             import_remapping={"@uniswap": str(uniswap_path / "node_modules/@uniswap")},
             constructor_args=[uniswap2_factory.address, token_contracts["wNEON"].address],
         )
@@ -205,7 +212,7 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
     LOG.info("Deploy Uniswap pairs")
 
     pair_contract_interface = helpers.get_contract_interface(
-        str(uniswap_path / "contracts/v2-core/UniswapV2Pair.sol"), version="0.5.16"
+        str(uniswap_path / "contracts/v2-core/UniswapV2Pair.sol"), version="0.5.16", contract_name="UniswapV2Pair"
     )
 
     if "pair_contracts" in data and data["pair_contracts"]:
@@ -257,7 +264,7 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
             if "SPL" in token:
                 c = token_contracts[token].contract
 
-            tr = c.functions.approve(uniswap2_router.address, MAX_UINT_256).build_transaction(
+            tr = c.functions.approve(uniswap2_router.address, MAX_UINT_64).build_transaction(
                 {
                     "from": eth_account.address,
                     "nonce": neon_client.eth.get_transaction_count(eth_account.address),
@@ -392,7 +399,7 @@ class SwapUser(User):
                 c = self.environment.uniswap["token_contracts"][token].contract
                 amount = web3.Web3.to_wei(10, "gwei")
             LOG.info(f"Approve token {token} for user {self.user.address}")
-            tr = c.functions.approve(self.environment.uniswap["router"].address, MAX_UINT_256).build_transaction(
+            tr = c.functions.approve(self.environment.uniswap["router"].address, MAX_UINT_64).build_transaction(
                 {
                     "from": self.user.address,
                     "nonce": self.neon_client.eth.get_transaction_count(self.user.address),
@@ -612,7 +619,7 @@ class SwapUser(User):
             0,
             [token1.address, token2.address, token3.address, token4.address, token5.address],
             self.user.address,
-            MAX_UINT_256,
+            MAX_UINT_64,
         ).build_transaction(
             {
                 "from": self.user.address,

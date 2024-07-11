@@ -11,9 +11,16 @@ contract CallSolanaCaller {
         uint64 lamports;
         bytes instruction;
     }
+    struct ExecuteWithSeedArgs {
+        uint64 lamports;
+        bytes32 salt;
+        bytes instruction;
+    }
+
 
     event LogBytes(bytes32 value);
     event LogStr(string value);
+    event LogData(bytes32 program, bytes value);
 
     function getNeonAddress(address addr) public returns (bytes32){
         bytes32 solanaAddr = _callSolana.getNeonAddress(addr);
@@ -21,13 +28,23 @@ contract CallSolanaCaller {
     }
 
     function execute(uint64 lamports, bytes calldata instruction) public {
+        bytes32 returnData = bytes32(_callSolana.execute(lamports, instruction));
+        emit LogBytes(returnData);
+
+    }
+
+    function execute_with_get_return_data(uint64 lamports, bytes calldata instruction) public {
         _callSolana.execute(lamports, instruction);
+        (bytes32 program, bytes memory returnData) = _callSolana.getReturnData();
+        emit LogData(program, returnData);
     }
 
     function batchExecute(ExecuteArgs[] memory _args) public {
         for(uint i = 0; i < _args.length; i++) {
             _callSolana.execute(_args[i].lamports, _args[i].instruction);
         }
+        (bytes32 program, bytes memory returnData) = _callSolana.getReturnData();
+        emit LogData(program, returnData);
     }
 
     function getPayer() public returns (bytes32){
@@ -56,6 +73,17 @@ contract CallSolanaCaller {
     }
 
     function executeWithSeed(uint64 lamports, bytes32 salt, bytes calldata instruction) public {
-        _callSolana.executeWithSeed(lamports, salt, instruction);
+        bytes32 returnData = bytes32(_callSolana.executeWithSeed(lamports, salt, instruction));
+        emit LogBytes(returnData);
+    }
+
+    function getReturnData() public returns (bytes32, bytes memory){
+        return _callSolana.getReturnData();
+    }
+
+    function batchExecuteWithSeed(ExecuteWithSeedArgs[] memory _args) public {
+        for(uint i = 0; i < _args.length; i++) {
+            _callSolana.executeWithSeed(_args[i].lamports, _args[i].salt, _args[i].instruction);
+        }
     }
 }

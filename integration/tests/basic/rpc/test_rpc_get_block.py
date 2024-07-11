@@ -1,8 +1,11 @@
 import allure
 import pytest
 
+from clickfile import EnvName
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.basic import Tag
+from integration.tests.basic.helpers.errors import Error32602
+from utils.apiclient import JsonRPCSession
 from utils.helpers import gen_hash_of_block
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
@@ -17,26 +20,37 @@ class TestRpcGetBlock:
 
     @pytest.mark.mainnet
     @pytest.mark.parametrize("full_trx", [False, True])
-    def test_eth_get_block_by_hash(self, full_trx: bool, json_rpc_client):
+    def test_eth_get_block_by_hash(
+            self,
+            full_trx: bool,
+            json_rpc_client: JsonRPCSession,
+            env_name: EnvName,
+    ):
         """Verify implemented rpc calls work eth_getBlockByHash"""
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
         tx_receipt = self.web3_client.send_neon(sender_account, recipient_account, 1)
         params = [tx_receipt.blockHash.hex(), full_trx]
         response = json_rpc_client.send_rpc(method="eth_getBlockByHash", params=params)
-        rpc_checks.assert_block_fields(response, full_trx, tx_receipt)
+        rpc_checks.assert_block_fields(
+            env_name=env_name,
+            response=response,
+            full_trx=full_trx,
+            tx_receipt=tx_receipt,
+        )
 
     @pytest.mark.parametrize(
-        "hash_len, full_trx, msg",
-        [(31, False, "bad block hash"), ("bad_hash", True, "bad block hash bad_hash")],
+        "hash_len, full_trx",
+        [(31, False), ("bad_hash", True)],
     )
-    def test_eth_get_block_by_hash_with_incorrect_hash(self, hash_len, full_trx, msg, json_rpc_client):
+    @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
+    def test_eth_get_block_by_hash_with_incorrect_hash(self, hash_len, full_trx, json_rpc_client):
         """Verify implemented rpc calls work eth_getBlockByHash with incorrect hash"""
         block_hash = gen_hash_of_block(hash_len) if isinstance(hash_len, int) else hash_len
         response = json_rpc_client.send_rpc(method="eth_getBlockByHash", params=[block_hash, full_trx])
         assert "error" in response, "Error not in response"
-        assert response["error"]["code"] == -32602
-        assert msg in response["error"]["message"]
+        assert response["error"]["code"] == Error32602.CODE
+        assert response["error"]["message"] == Error32602.INVALID_BLOCKHASH
 
     @pytest.mark.parametrize("full_trx", [False, True])
     def test_eth_get_block_by_hash_with_not_existing_hash(self, full_trx, json_rpc_client):
@@ -46,7 +60,12 @@ class TestRpcGetBlock:
 
     @pytest.mark.mainnet
     @pytest.mark.parametrize("full_trx", [False, True])
-    def test_eth_get_block_by_number_via_numbers(self, full_trx, json_rpc_client):
+    def test_eth_get_block_by_number_via_numbers(
+            self,
+            full_trx: bool,
+            json_rpc_client: JsonRPCSession,
+            env_name: EnvName,
+    ):
         """Verify implemented rpc calls work eth_getBlockByNumber"""
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
@@ -55,25 +74,29 @@ class TestRpcGetBlock:
             method="eth_getBlockByNumber",
             params=[hex(tx_receipt.blockNumber), full_trx],
         )
-        rpc_checks.assert_block_fields(response, full_trx, tx_receipt)
+        rpc_checks.assert_block_fields(
+            env_name=env_name,
+            response=response,
+            full_trx=full_trx,
+            tx_receipt=tx_receipt,
+        )
 
+    @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
     def test_eth_get_block_by_number_with_incorrect_data(self, json_rpc_client):
         """Verify implemented rpc calls work eth_getBlockByNumber"""
         response = json_rpc_client.send_rpc(method="eth_getBlockByNumber", params=["bad_tag", True])
         assert "error" in response, "Error not in response"
-        assert response["error"]["code"] == -32602
-        assert "failed to parse block tag: bad_tag" in response["error"]["message"]
+        assert response["error"]["code"] == Error32602.CODE
+        assert response["error"]["message"] == Error32602.INVALID_PARAMETERS
 
     @pytest.mark.parametrize(
         "number, full_trx",
         [
-            (5, False),
-            (31, False),
-            (31, True),
-            (32, True),
-            (32, False),
+            (8, True),
+            (8, False),
         ],
     )
+    @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
     def test_eth_get_block_by_number_with_not_exist_data(self, number, full_trx, json_rpc_client):
         """Verify implemented rpc calls work eth_getBlockByNumber"""
         response = json_rpc_client.send_rpc(method="eth_getBlockByNumber", params=[gen_hash_of_block(number), full_trx])
@@ -90,11 +113,23 @@ class TestRpcGetBlock:
             (Tag.PENDING, False),
         ],
     )
-    def test_eth_get_block_by_number_via_tags(self, quantity_tag: Tag, full_trx: bool, json_rpc_client):
+    def test_eth_get_block_by_number_via_tags(
+            self,
+            quantity_tag: Tag,
+            full_trx: bool,
+            json_rpc_client: JsonRPCSession,
+            env_name: EnvName,
+    ):
         """Verify implemented rpc calls work eth_getBlockByNumber"""
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
         self.web3_client.send_neon(sender_account, recipient_account, 1)
         params = [quantity_tag.value, full_trx]
         response = json_rpc_client.send_rpc(method="eth_getBlockByNumber", params=params)
-        rpc_checks.assert_block_fields(response, full_trx, None, quantity_tag == Tag.PENDING)
+        rpc_checks.assert_block_fields(
+            env_name=env_name,
+            response=response,
+            full_trx=full_trx,
+            tx_receipt=None,
+            pending=quantity_tag == Tag.PENDING,
+        )

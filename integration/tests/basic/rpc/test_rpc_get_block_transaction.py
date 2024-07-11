@@ -2,12 +2,13 @@ import typing as tp
 
 import allure
 import pytest
+from web3 import Web3
 
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.basic import Tag
-from integration.tests.basic.helpers.errors import Error32000, Error32602
-from utils.helpers import gen_hash_of_block
+from integration.tests.basic.helpers.errors import Error32602
 from utils.accounts import EthAccounts
+from utils.helpers import gen_hash_of_block
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -19,6 +20,7 @@ class TestRpcGetBlockTransaction:
     accounts: EthAccounts
 
     @pytest.mark.parametrize("param", [32, 16, None])
+    @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of the test
     def test_eth_get_block_transaction_count_by_hash_negative(self, param: tp.Union[int, None], json_rpc_client):
         response = json_rpc_client.send_rpc(
             method="eth_getBlockTransactionCountByHash",
@@ -35,13 +37,9 @@ class TestRpcGetBlockTransaction:
         assert "message" in response["error"], "message field not in response"
         code = response["error"]["code"]
         message = response["error"]["message"]
-        if param is None:
-            assert code == Error32000.CODE, "wrong code"
-            assert Error32000.MISSING_ARGUMENT in message, "wrong message"
-            return
 
         assert code == Error32602.CODE, "wrong code"
-        assert Error32602.BAD_BLOCK_HASH in message, "wrong message"
+        assert Error32602.INVALID_BLOCKHASH in message, "wrong message"
 
     @pytest.mark.mainnet
     def test_eth_get_block_transaction_count_by_hash(self, json_rpc_client):
@@ -84,7 +82,7 @@ class TestRpcGetBlockTransaction:
         recipient_account = self.accounts[1]
         receipt = self.web3_client.send_neon(sender_account, recipient_account, amount=0.001)
         response = json_rpc_client.send_rpc(
-            method="eth_getBlockTransactionCountByNumber", params=receipt["blockNumber"]
+            method="eth_getBlockTransactionCountByNumber", params=Web3.to_hex(receipt["blockNumber"])
         )
         assert "error" not in response
         result = response["result"]

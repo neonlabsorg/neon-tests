@@ -38,6 +38,7 @@ NOT_ENOUGH_GAS_PARAMS = (
 @allure.feature("ERC Verifications")
 @allure.story("ERC721: Verify integration with Metaplex")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+@pytest.mark.neon_only
 class TestERC721:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
@@ -474,6 +475,7 @@ class TestERC721:
 @allure.feature("ERC Verifications")
 @allure.story("ERC721: Tests for multiple actions in one transaction")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+@pytest.mark.neon_only
 class TestMultipleActionsForERC721:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
@@ -579,6 +581,7 @@ class TestMultipleActionsForERC721:
 @allure.feature("ERC Verifications")
 @allure.story("ERC721: Verify extensions")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+@pytest.mark.neon_only
 class TestERC721Extensions:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts

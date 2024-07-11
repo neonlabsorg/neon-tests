@@ -21,7 +21,7 @@ class SolanaCaller:
         self.neon_api_client = NeonApiClient(url=NEON_CORE_API_URL)
 
         self.contract = deploy_contract(
-            operator_keypair, owner, "precompiled/CallSolanaCaller", evm_loader, treasury_pool
+            operator_keypair, owner, "precompiled/CallSolanaCaller", evm_loader, treasury_pool, version="0.8.10"
         )
 
     def get_neon_address(self, eth_address):

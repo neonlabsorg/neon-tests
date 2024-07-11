@@ -221,3 +221,56 @@ class TestNonce:
             client.send_tokens(sender, recipient_account, 1000)
         assert self.web3_client.get_nonce(sender.address) == neon_chain_nonce + 2
         assert web3_client_sol.get_nonce(sender.address) == sol_chain_nonce + 4
+
+    def test_contract_nonce_on_contract_deploy_from_constructor(self):
+        """
+        Deploy a contract that deploys another contract in its constructor
+        and validate that nonce == 2
+        """
+        account = self.accounts[0]
+        contract_a, _ = self.web3_client.deploy_and_get_contract(
+            contract="EIPs/EIP161/contract_a_constructor.sol",
+            version="0.8.12",
+            account=account,
+            contract_name="ContractA",
+        )
+
+        contract_a_nonce = self.web3_client.get_nonce(contract_a.address)
+        msg = f"Contract has nonce {contract_a_nonce} right after deploying another contract"
+        assert contract_a_nonce == 2, msg
+
+    def test_contract_nonce_on_contract_deploy_from_function(self):
+        """
+        Deploy a contract
+        validate that its nonce == 1
+        call a function on the contract that deploys another contract
+        validate that the nonce == 2
+        """
+        account = self.accounts[0]
+        contract_a, _ = self.web3_client.deploy_and_get_contract(
+            contract="EIPs/EIP161/contract_a_function.sol",
+            version="0.8.12",
+            account=account,
+            contract_name="ContractA",
+        )
+
+        contract_a_nonce_initial = self.web3_client.get_nonce(contract_a.address)
+        msg = f"ContractA has nonce {contract_a_nonce_initial} right after deployment"
+        assert contract_a_nonce_initial == 1, msg
+
+        tx = self.web3_client.make_raw_tx(account)
+        tx_data = contract_a.functions.deploy_contract().build_transaction(tx)
+
+        tx_receipt = self.web3_client.send_transaction(
+            account=account,
+            transaction=tx_data,
+        )
+
+        contract_a_nonce_after_deploy = self.web3_client.get_nonce(contract_a.address)
+        msg = f"ContractA has nonce {contract_a_nonce_initial} right after deploying another contract"
+        assert contract_a_nonce_after_deploy == 2, msg
+
+        contract_b_address = tx_receipt.logs[0].address
+        contract_b_nonce = self.web3_client.get_nonce(contract_b_address)
+        msg = f"ContractB has nonce {contract_b_nonce} right after deployment"
+        assert contract_b_nonce == 1, msg

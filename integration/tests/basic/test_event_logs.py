@@ -74,7 +74,7 @@ class TestLogs:
 
         response = json_rpc_client.send_rpc(method="neon_getTransactionReceipt", params=[resp["transactionHash"].hex()])
         assert_log_field_in_neon_trx_receipt(response, 1)
-    
+
     def test_non_indexed_args_event(self, event_caller_contract, json_rpc_client):
         amount = random.randint(1, 100)
         sender_account = self.accounts[0]

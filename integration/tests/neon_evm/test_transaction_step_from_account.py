@@ -15,7 +15,7 @@ from utils.instructions import TransactionWithComputeBudget, make_ExecuteTrxFrom
 from utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
 from utils.types import TreasuryPool
 from .utils.assert_messages import InstructionAsserts
-from .utils.constants import TAG_FINALIZED_STATE
+from .utils.constants import TAG_FINALIZED_STATE, TAG_ACTIVE_STATE
 from .utils.contract import make_deployment_transaction, make_contract_call_trx, deploy_contract
 from .utils.ethereum import make_eth_transaction, create_contract_address
 from .utils.storage import create_holder
@@ -679,7 +679,10 @@ class TestTransactionStepFromAccountParallelRuns:
         send_transaction_steps(holder_acc2, string_setter_contract)
 
         check_holder_account_tag(new_holder_acc, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
+        check_holder_account_tag(holder_acc2, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_ACTIVE_STATE)
+        send_transaction_steps(holder_acc2, string_setter_contract)
         check_holder_account_tag(holder_acc2, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
+
 
     def test_2_users_call_the_same_contract(
         self, rw_lock_contract, user_account, session_user, evm_loader, operator_keypair, treasury_pool, new_holder_acc
@@ -693,6 +696,7 @@ class TestTransactionStepFromAccountParallelRuns:
         )
         holder_acc2 = create_holder(operator_keypair, evm_loader)
         evm_loader.write_transaction_to_holder_account(signed_tx2, holder_acc2, operator_keypair)
+
 
         def send_transaction_steps(user, holder_acc):
             operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)

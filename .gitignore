@@ -246,3 +246,4 @@ contracts/external/
 .DS_Store
 reports
 uniswap_contracts.json
+*.url

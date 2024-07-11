@@ -1,3 +1,5 @@
+import time
+
 import requests
 import typing as tp
 import urllib.parse
@@ -22,6 +24,11 @@ class Faucet:
         url = urllib.parse.urljoin(self._url, "request_neon")
         balance_before = self.web3_client.get_balance(address)
         response = self._session.post(url, json={"amount": amount, "wallet": address})
+        counter = 0
+        while "Blockhash not found" in response.text and counter < 3:
+            time.sleep(3)
+            response = self._session.post(url, json={"amount": amount, "wallet": address})
+            counter += 1
         assert (
             response.ok
         ), "Faucet returned error: {}, status code: {}, url: {}".format(

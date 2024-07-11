@@ -55,4 +55,5 @@ def test_emulate_with_small_amount_of_steps(neon_api_client, evm_loader, user_ac
     contract_code = get_contract_bin("hello_world")
     result = neon_api_client.emulate(user_account.eth_address.hex(),
                                      contract=None, data=contract_code, max_steps_to_execute=10)
-    assert result['error'] == 'Too many steps'
+    
+    assert result['exit_status'] == 'revert', f"The 'exit_status' field is not revert. Result: {result}"

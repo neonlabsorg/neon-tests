@@ -24,7 +24,7 @@ TF_STATE_KEY = os.environ.get("TFSTATE_KEY")
 TF_BACKEND_CONFIG = {"bucket": TFSTATE_BUCKET, "key": TF_STATE_KEY, "region": TFSTATE_REGION}
 
 
-os.environ["TF_VAR_run_number"] = os.environ.get("GITHUB_RUN_ID", "0")
+os.environ["TF_VAR_run_number"] = os.environ.get("GITHUB_RUN_NUMBER", "0")
 os.environ["TF_VAR_branch"] = os.environ.get("GITHUB_REF_NAME", "develop").replace("/", "-").replace("_", "-")
 os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("DOCKERHUB_ORG_NAME", "neonlabsorg")
 
@@ -33,7 +33,6 @@ terraform = Terraform(working_dir=pathlib.Path(__file__).parent.parent / "hetzne
 
 WEB3_CLIENT = NeonChainWeb3Client(os.environ.get("PROXY_URL"))
 REPORT_HEADERS = ["Action", "Fee", "Cost in $", "Accounts", "TRx", "Estimated Gas", "Used Gas", "Used % of EG"]
-NETWORK_MANAGER = NetworkManager()
 
 
 def set_github_env(envs: tp.Dict, upper=True) -> None:
@@ -145,7 +144,8 @@ def upload_service_logs(ssh_client, service, artifact_logs):
 
 
 def prepare_accounts(network_name, count, amount) -> tp.List:
-    network = NETWORK_MANAGER.get_network_object(network_name)
+    network_manager = NetworkManager(network_name)
+    network = network_manager.get_network_object(network_name)
     accounts = faucet_cli.prepare_wallets_with_balance(network, count, amount)
     if os.environ.get("CI"):
         set_github_env(dict(accounts=",".join(accounts)))
@@ -154,8 +154,9 @@ def prepare_accounts(network_name, count, amount) -> tp.List:
 
 def get_solana_accounts_in_tx(eth_transaction):
     network = os.environ.get("NETWORK")
-    solana_url = NETWORK_MANAGER.get_network_param(network, "solana_url")
-    proxy_url = NETWORK_MANAGER.get_network_param(network, "proxy_url")
+    network_manager = NetworkManager(network)
+    solana_url = network_manager.get_network_param(network, "solana_url")
+    proxy_url = network_manager.get_network_param(network, "proxy_url")
     sol_client = SolanaClient(solana_url)
     web3_client = NeonChainWeb3Client(proxy_url)
     trx = web3_client.get_solana_trx_by_neon(eth_transaction)

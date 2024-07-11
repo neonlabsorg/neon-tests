@@ -11,10 +11,11 @@ import allure
 from playwright._impl._errors import TimeoutError
 from playwright.sync_api import expect
 
-from ui import components, libs
+from ui import components
 from ui.pages import phantom, metamask
+from utils.consts import Time
 from . import BasePage
-from ..libs import Platform, Token, Tokens
+from ..libs import Platform, Token, PriorityFee, TransactionFee
 
 
 class NeonPassPage(BasePage):
@@ -22,13 +23,11 @@ class NeonPassPage(BasePage):
         super(NeonPassPage, self).__init__(*args, **kwargs)
 
     def page_loaded(self) -> None:
-        self.page.wait_for_selector("button.wallet-button")
+        self.page.wait_for_selector("//h1[text()='NEONPASS']")
 
     @staticmethod
     def _handle_phantom_unlock(page) -> None:
-        page.wait_for_load_state()
         phantom_page = phantom.PhantomUnlockPage(page)
-        phantom_page.page_loaded()
         phantom_page.unlock(os.environ.get("CHROME_EXT_PASSWORD"))
 
     @staticmethod
@@ -98,14 +97,19 @@ class NeonPassPage(BasePage):
                 components.Button(
                     self.page, selector="//app-wallet-button[@label='From']//*[text()='Connect Wallet']"
                 ).click()
-                components.Button(self.page, selector="//app-wallets-dialog//*[text()='Phantom']/parent::*").click()
-            self._handle_phantom_unlock(phantom_page_info.value)
-            self.page.wait_for_selector(
-                selector="//app-wallet-button[@label='From']//*[contains(text(),'B4t7')]", timeout=timeout
-            )
+                app_wallets_dialog = "//app-wallets-dialog"
+                self.page.wait_for_selector(
+                    selector=app_wallets_dialog + "//*[text()='Select Wallet']", timeout=timeout
+                )
+                components.Button(self.page, selector=app_wallets_dialog + "//*[text()='Phantom']/parent::*").click()
         except TimeoutError as e:
             if 'waiting for event "page"' not in e.message:
                 raise e
+
+        self._handle_phantom_unlock(phantom_page_info.value)
+        self.page.wait_for_selector(
+            selector="//app-wallet-button[@label='From']//*[contains(text(),'B4t7')]", timeout=30000
+        )
 
     @allure.step("Connect Metamask Wallet")
     def connect_metamask(self, timeout: float = 30000) -> None:
@@ -121,12 +125,13 @@ class NeonPassPage(BasePage):
                 self.page.locator("w3m-modal").locator("button", has_text="MetaMask").click()
                 # components.Button(self.page, selector="w3m-wallet-button[name='MetaMask']").click()
             self._handle_metamask_connect(mm_page_connect.value)
-            self.page.wait_for_selector(
-                selector="//app-wallet-button[@label='To']//*[contains(text(),'0x4701')]", timeout=timeout
-            )
         except TimeoutError as e:
             if 'waiting for event "page"' not in e.message:
                 raise e
+
+        self.page.wait_for_selector(
+            selector="//app-wallet-button[@label='To']//*[contains(text(),'0x4701')]", timeout=timeout
+        )
 
     @allure.step("Set source token to {token} and amount to {amount}")
     def set_source_token(self, token: str, amount: float) -> None:
@@ -139,24 +144,46 @@ class NeonPassPage(BasePage):
         self.page.wait_for_selector(selector="//label[contains(text(), 'balance')]")
         components.Input(self.page, selector="//input[contains(@class, 'token-amount-input')]").fill(str(amount))
 
-    @allure.step("Set transaction fee type {fee_type}")
-    def set_transaction_fee(self, fee_type: Optional[str]) -> None:
+    @allure.step("Set transaction fee {transaction_fee}")
+    def set_transaction_fee(self, transaction_fee: Optional[TransactionFee]) -> None:
         """Set transaction fee type"""
-        if fee_type is None:
+        if transaction_fee is None:
             return
 
-        fee_selector = "//app-header//app-token-select/button"
-        fee_selector_options = (
-            f"//app-header//app-token-select/div[contains(@class, 'token-dropdown')]/*[text()='{fee_type}']"
-        )
+        fee_parent = "//app-neon-transaction-fee"
+        fee_header = fee_parent + "//*[@class='header']"
 
-        if self.page.query_selector(fee_selector).text_content() == fee_type:
+        if transaction_fee.token_name in self.page.query_selector(fee_header).text_content():
             return
 
-        components.Button(self.page, selector=fee_selector).click()
-        components.Button(self.page, selector=fee_selector_options).click()
+        components.Button(self.page, selector=fee_parent).click()
+        components.Button(
+            self.page, selector=fee_parent + f"//button/*[text()='{transaction_fee.network_name}']"
+        ).click()
 
-        assert self.page.query_selector(fee_selector).text_content() == fee_type
+        assert transaction_fee.token_name in self.page.query_selector(fee_header).text_content()
+
+    @allure.step("Set priority fee to {priority_fee}")
+    def set_priority_fee(self, priority_fee: Optional[str]) -> None:
+        """Set priority fee"""
+        if priority_fee is None:
+            return
+        priority_fee_parent = "//app-solana-priority-fee"
+        priority_fee_header = priority_fee_parent + "//*[@class='header']"
+
+        if priority_fee in self.page.query_selector(priority_fee_header).text_content():
+            return
+
+        components.Button(self.page, selector=priority_fee_parent).click()
+        components.Button(self.page, selector=priority_fee_parent + f"//button/*[text()='{priority_fee}']").click()
+
+        if priority_fee == PriorityFee.custom:
+            priority_fee_popup = "//app-priority-fee-dialog"
+            # Set custom fee
+            components.Input(self.page, selector=priority_fee_popup + "//input").fill("0.001")
+            components.Button(self.page, selector=priority_fee_popup + "//button[@class='save']").click()
+
+        assert priority_fee in self.page.wait_for_selector(priority_fee_header).text_content()
 
     def next_tab(self) -> None:
         """Got to next tab"""

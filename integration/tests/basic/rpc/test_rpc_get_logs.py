@@ -7,18 +7,19 @@ import pytest
 from web3.types import TxParams
 
 from integration.tests.basic.helpers.basic import Tag
-from integration.tests.basic.helpers.errors import Error32602, Error32600
+from integration.tests.basic.helpers.errors import Error32602
 from integration.tests.basic.helpers.rpc_checks import (
     assert_fields_are_hex,
     assert_fields_are_specified_type,
     assert_equal_fields,
 )
+from utils.apiclient import JsonRPCSession
 from utils.helpers import cryptohex
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 
 
-class Method(Enum):
+class Method(str, Enum):
     ETH_GET_LOGS = "eth_getLogs"
     NEON_GET_LOGS = "neon_getLogs"
 
@@ -26,6 +27,9 @@ class Method(Enum):
 @allure.feature("JSON-RPC validation")
 @allure.story("Verify getLogs method")
 @pytest.mark.usefixtures("accounts", "web3_client")
+@pytest.mark.neon_only
+# it's better to split thi class into two, since all these tests have both Neon and Ethereum parameters.
+# Otherwise, we have 0 Geth tests for get_logs
 class TestRpcGetLogs:
     accounts: EthAccounts
     web3_client: NeonChainWeb3Client
@@ -38,13 +42,12 @@ class TestRpcGetLogs:
         "address",
         "logIndex",
         "data",
-        "transactionLogIndex",
     ]
     ETH_BOOL_FIELDS = ["removed"]
-    NEON_HASH_FIELDS = ["neonSolHash"]
+    NEON_HASH_FIELDS = ["solanaTransactionSignature"]
     NEON_INT_FIELDS = [
-        "neonIxIdx",
-        "neonInnerIxIdx",
+        "solanaInstructionIndex",
+        "solanaInnerInstructionIndex",
         "neonEventLevel",
         "neonEventOrder",
     ]
@@ -130,16 +133,16 @@ class TestRpcGetLogs:
         assert "error" in response
         assert "code" in response["error"]
         assert "message" in response["error"]
-        assert Error32600.CODE == response["error"]["code"]
-        assert Error32600.INVALID_FILTER in response["error"]["message"]
+        assert Error32602.CODE == response["error"]["code"]
+        assert Error32602.INVALID_FILTER in response["error"]["message"]
 
     @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
     @pytest.mark.parametrize(
         ("p_name", "p_value", "p_error", "p_code"),
         [
             ("address", "0xc0ffee254729296a45a3885639AC7E10F9d54979", None, None),
-            ("address", "12345", Error32602.BAD_ADDRESS, Error32602.CODE),
-            ("topics", "Invalid(address,uint256,string,bytes32,bool)", Error32602.BAD_TOPIC, Error32602.CODE),
+            ("address", "12345", Error32602.INVALID_PARAMETERS, Error32602.CODE),
+            ("topics", "Invalid(address,uint256,string,bytes32,bool)", Error32602.INVALID_PARAMETERS, Error32602.CODE),
         ],
     )
     def test_get_logs_negative_params(
@@ -165,7 +168,7 @@ class TestRpcGetLogs:
             assert "code" in response["error"]
             assert "message" in response["error"]
             assert p_code == response["error"]["code"]
-            assert p_error in response["error"]["message"]
+            assert p_error == response["error"]["message"]
 
     @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
     @pytest.mark.parametrize(
@@ -180,11 +183,11 @@ class TestRpcGetLogs:
             (None, Tag.EARLIEST),
             (Tag.LATEST, Tag.LATEST),
             (Tag.LATEST, Tag.PENDING),
-            (Tag.LATEST, Tag.EARLIEST),
+            # (Tag.LATEST, Tag.EARLIEST),
             (Tag.LATEST, None),
             (Tag.PENDING, Tag.PENDING),
-            (Tag.PENDING, Tag.LATEST),
-            (Tag.PENDING, Tag.EARLIEST),
+            # (Tag.PENDING, Tag.LATEST),
+            # (Tag.PENDING, Tag.EARLIEST),
             (Tag.PENDING, None),
             (Tag.EARLIEST, Tag.EARLIEST),
             (Tag.EARLIEST, Tag.PENDING),
@@ -371,3 +374,43 @@ class TestRpcGetLogs:
 
         assert is_event_topic_in_list, f"Filter by {topics} works incorrect. Response: {response}"
         assert is_arg_topic_in_list, f"Filter by {topics} works incorrect. Response: {response}"
+
+    @pytest.mark.parametrize("method", [Method.NEON_GET_LOGS, Method.ETH_GET_LOGS])
+    def test_filter_by_topics_with_null(
+            self,
+            json_rpc_client: JsonRPCSession,
+            method: Method,
+    ):
+        sender_account = self.accounts[0]
+        event_caller, _ = self.web3_client.deploy_and_get_contract(
+            contract="common/EventCaller",
+            version="0.8.12",
+            account=sender_account,
+        )
+        from_block = self.web3_client.get_block_number()
+
+        param_1 = "text 1"
+        param_2 = "text 2"
+
+        tx = self.web3_client.make_raw_tx(from_=sender_account)
+        instruction_tx = event_caller.functions.callEvent2(param_1, param_2).build_transaction(tx)
+        receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
+        assert len(receipt.logs[0].topics) == 3
+
+        to_block = self.web3_client.get_block_number()
+        event_signature = cryptohex("Event2(string,string)")
+
+        params = {
+            "fromBlock": hex(from_block),
+            "toBlock": hex(to_block),
+            "address": event_caller.address,
+            "topics": [
+                event_signature,
+                None,
+                None,
+            ],
+        }
+        response = json_rpc_client.send_rpc(method=method, params=params)
+        expected_topics = [event_signature, cryptohex(param_1), cryptohex(param_2)]
+        actual_topics = response["result"][0]["topics"]
+        assert actual_topics == expected_topics

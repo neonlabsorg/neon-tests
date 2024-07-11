@@ -1,5 +1,6 @@
 import pytest
 import allure
+import web3
 
 from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts

@@ -3,7 +3,7 @@ import re
 import allure
 import pytest
 
-from integration.tests.basic.helpers.errors import Error32000, Error32602
+from integration.tests.basic.helpers.errors import Error32602
 from integration.tests.basic.helpers.rpc_checks import assert_fields_are_hex, assert_fields_are_specified_type
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
@@ -12,6 +12,7 @@ from utils.web3client import NeonChainWeb3Client
 @allure.feature("JSON-RPC validation")
 @allure.story("Verify JSON-RPC proxy calls work")
 @pytest.mark.usefixtures("accounts", "web3_client")
+@pytest.mark.neon_only
 class TestNeonRPCBaseCalls:
     accounts: EthAccounts
     web3_client: NeonChainWeb3Client
@@ -19,7 +20,6 @@ class TestNeonRPCBaseCalls:
     @pytest.mark.parametrize(
         "params, error_code, error_message",
         [
-            ([], Error32000.CODE, Error32000.MISSING_ARGUMENT),
             ([{"from": "0x0"}], Error32602.CODE, Error32602.BAD_FROM_ADDRESS),
         ],
     )
@@ -46,13 +46,12 @@ class TestNeonRPCBaseCalls:
                 "minAcceptableGasPrice",
                 "minExecutableGasPrice",
                 "minWoChainIDAcceptableGasPrice",
-                "solPriceUsd",
-                "neonPriceUsd",
+                "chainTokenPriceUsd",
+                "tokenPriceUsd",
                 "operatorFee",
-                "gasPriceSlippage",
             ],
         )
-        assert_fields_are_specified_type(bool, result, ["isConstGasPrice", "allowUnderpricedTxWoChainID"])
+        assert_fields_are_specified_type(bool, result, ["isConstGasPrice"])
         gas_price = result["gasPrice"]
         assert int(gas_price, 16) > 100000000, f"gas price should be greater 100000000, got {int(gas_price, 16)}"
 
@@ -73,7 +72,7 @@ class TestNeonRPCBaseCalls:
         sol_tx = response["result"][0]
         assert sol_client.wait_transaction(sol_tx) is not None
 
-    @pytest.mark.mainnet
+    @pytest.mark.proxy_version("v1.12.0")
     def test_neon_get_solana_transaction_by_neon_transaction_list_of_tx(self, json_rpc_client, sol_client):
         sender_account = self.accounts[0]
         _, tx_receipt = self.web3_client.deploy_and_get_contract("common/EventCaller", "0.8.12", sender_account)
@@ -81,28 +80,28 @@ class TestNeonRPCBaseCalls:
         response = json_rpc_client.send_rpc(method="neon_getSolanaTransactionByNeonTransaction", params=params)
         assert "result" in response
         result = response["result"]
-        assert len(result) == 6
+        assert len(result) == 5
         for tx in result:
             assert sol_client.wait_transaction(tx) is not None
 
     @pytest.mark.parametrize(
-        "params, error_code, error_message",
+        "params",
         [
-            ([0x0], Error32602.CODE, Error32602.BAD_TRANSACTION_ID_FORMAT),
-            ([None], Error32602.CODE, Error32602.BAD_TRANSACTION_ID_FORMAT),
-            (["0x0"], Error32602.CODE, Error32602.NOT_HEX),
-            ([], Error32000.CODE, Error32000.MISSING_ARGUMENT),
+            ([0x0],),
+            ([None],),
+            (["0x0"],),
+            ([],),
         ],
     )
     def test_neon_get_solana_transaction_by_neon_transaction_negative(
-        self, params, error_code, error_message, json_rpc_client
+        self, params, json_rpc_client
     ):
         response = json_rpc_client.send_rpc(method="neon_getSolanaTransactionByNeonTransaction", params=params)
         assert "error" in response, "error field not in response"
         assert "code" in response["error"]
         assert "message" in response["error"], "message field not in response"
-        assert error_code == response["error"]["code"]
-        assert error_message in response["error"]["message"]
+        assert Error32602.CODE == response["error"]["code"]
+        assert Error32602.INVALID_TRANSACTIONID == response["error"]["message"]
 
     def test_neon_get_solana_transaction_by_neon_transaction_non_existent_tx(self, json_rpc_client):
         response = json_rpc_client.send_rpc(
@@ -111,3 +110,25 @@ class TestNeonRPCBaseCalls:
         )
         assert "error" not in response
         assert len(response["result"]) == 0, "expected empty result for non existent transaction request"
+
+    def test_neon_get_native_token_list(self, pytestconfig, json_rpc_client):
+        response = json_rpc_client.send_rpc(method="neon_getNativeTokenList")
+        assert "error" not in response
+        assert len(response["result"]) == len(pytestconfig.environment.network_ids), \
+            f"Wrong list length. Initial -> {pytestconfig.environment.network_ids}. Actual -> {response['result']}"
+        # Check that all fields are present
+        for item in response["result"]:
+            assert "tokenChainId" in item
+            assert item["tokenChainId"] is not None
+            assert "tokenMint" in item
+            assert item["tokenMint"] is not None
+            assert "tokenName" in item
+            assert item["tokenName"] is not None
+        
+        # Check that NEON token is present in the list
+        tokens = [item["tokenName"] for item in response["result"]]
+        assert "NEON" in tokens, f"NEON token is not in the list: {tokens}"
+        for item in response["result"]:
+            if item["tokenName"] == "NEON":
+                assert item["tokenMint"] == pytestconfig.environment.spl_neon_mint
+                assert item["tokenChainId"] == hex(pytestconfig.environment.network_ids["neon"])

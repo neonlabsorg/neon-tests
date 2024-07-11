@@ -9,10 +9,10 @@ from eth_utils import keccak
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.assert_message import AssertMessage
 from integration.tests.basic.helpers.basic import Tag
-from integration.tests.basic.helpers.errors import Error32000, Error32602
+from integration.tests.basic.helpers.errors import Error32602
 from integration.tests.basic.helpers.rpc_checks import is_hex, hex_str_consists_not_only_of_zeros
-from utils.helpers import gen_hash_of_block, cryptohex
 from utils.accounts import EthAccounts
+from utils.helpers import gen_hash_of_block, cryptohex
 from utils.web3client import NeonChainWeb3Client
 
 GET_LOGS_TEST_DATA = [
@@ -123,6 +123,9 @@ class TestRpcBaseCalls:
 
     @pytest.mark.mainnet
     @pytest.mark.parametrize("param", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST, None])
+    @pytest.mark.neon_only
+    # since there's no tracer neither on night-stand nor on devnet, "earliest" == "latest" over there
+    # while on geth, earliest returns 0 because "earliest" == "earliest" over there
     def test_eth_get_code(self, event_caller_contract, param: tp.Union[Tag, None], json_rpc_client):
         """Verify implemented rpc calls work eth_getCode"""
         response = json_rpc_client.send_rpc(
@@ -151,6 +154,8 @@ class TestRpcBaseCalls:
         assert "result" in response
         assert response["result"] == "0x", f"Invalid response {response['result']} at a given contract address"
 
+    @pytest.mark.bug
+    # geth error message is 'invalid argument 0: hex string has length 64, want 40 for common.Address'
     def test_eth_get_code_wrong_address(self, json_rpc_client):
         """Verify implemented rpc calls work eth_getCode"""
         response = json_rpc_client.send_rpc(
@@ -159,8 +164,10 @@ class TestRpcBaseCalls:
         )
         assert "error" in response
         assert "message" in response["error"]
-        assert "bad address" in response["error"]["message"]
+        assert Error32602.INVALID_ADDRESS in response["error"]["message"]
 
+    @pytest.mark.neon_only
+    # geth response does not contain "Neon"
     def test_web3_client_version(self, json_rpc_client):
         """Verify implemented rpc calls work web3_clientVersion"""
         response = json_rpc_client.send_rpc("web3_clientVersion")
@@ -193,10 +200,13 @@ class TestRpcBaseCalls:
         sender_account = self.accounts.create_account()
         recipient_account = self.accounts[1]
         transaction = self.web3_client.make_raw_tx(
-            from_=sender_account, to=recipient_account, amount=1, estimate_gas=True
+            from_=sender_account,
+            to=recipient_account,
+            amount=1,
+            data=gen_hash_of_block(size),
+            estimate_gas=True
         )
 
-        transaction["data"] = gen_hash_of_block(size)
         signed_tx = self.web3_client.eth.account.sign_transaction(transaction, sender_account.key)
         response = json_rpc_client.send_rpc("eth_sendRawTransaction", params=signed_tx.rawTransaction.hex())
         assert "error" not in response
@@ -232,6 +242,7 @@ class TestRpcBaseCalls:
 
     @pytest.mark.mainnet
     @pytest.mark.parametrize("param", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST, Tag.SAFE, Tag.FINALIZED, None])
+    @pytest.mark.neon_only
     def test_eth_get_storage_at(self, event_caller_contract, param: tp.Union[Tag, None], json_rpc_client):
         """Verify implemented rpc calls work eht_getStorageAt"""
         response = json_rpc_client.send_rpc(
@@ -304,6 +315,7 @@ class TestRpcBaseCalls:
         assert rpc_checks.is_hex(response["result"]), f"Invalid response: {response['result']}"
 
     @pytest.mark.parametrize("param", ["0x6865", "param", None, True])
+    @pytest.mark.bug  # Geth returns different error messages
     def test_web3_sha3(self, param: tp.Union[str, None], json_rpc_client):
         """Verify implemented rpc calls work web3_sha3"""
         response = json_rpc_client.send_rpc(method="web3_sha3", params=param)
@@ -317,14 +329,12 @@ class TestRpcBaseCalls:
             assert "message" in response["error"]
             code = response["error"]["code"]
             message = response["error"]["message"]
-            if param is None:
-                assert code == Error32000.CODE, "wrong code"
-                assert Error32000.MISSING_ARGUMENT in message, "wrong error message"
-            else:
-                assert code == Error32602.CODE, "wrong code"
-                assert Error32602.NOT_HEX in message, "wrong error message"
+            assert Error32602.CODE == code, "wrong code"
+            assert Error32602.INVALID_DATA == message, "wrong error message"
 
     @pytest.mark.parametrize("method", UNSUPPORTED_METHODS)
+    @pytest.mark.neon_only
+    # on geth some methods from UNSUPPORTED_METHODS are actually supported
     def test_check_unsupported_methods(self, method: str, json_rpc_client):
         """Check that endpoint was not implemented"""
         response = json_rpc_client.send_rpc(method)
@@ -332,19 +342,20 @@ class TestRpcBaseCalls:
         assert "message" in response["error"]
         assert response["error"]["message"] == f"the method {method} does not exist/is not available", response
 
+    @pytest.mark.neon_only
     def test_get_evm_params(self, json_rpc_client):
         response = json_rpc_client.send_rpc(method="neon_getEvmParams", params=[])
         expected_fields = [
-            "NEON_ACCOUNT_SEED_VERSION",
-            "NEON_EVM_STEPS_LAST_ITERATION_MAX",
-            "NEON_EVM_STEPS_MIN",
-            "NEON_GAS_LIMIT_MULTIPLIER_NO_CHAINID",
-            "NEON_HOLDER_MSG_SIZE",
-            "NEON_PAYMENT_TO_TREASURE",
-            "NEON_STORAGE_ENTRIES_IN_CONTRACT_ACCOUNT",
-            "NEON_TREASURY_POOL_COUNT",
-            "NEON_TREASURY_POOL_SEED",
-            "NEON_EVM_ID",
+            "neonAccountSeedVersion",
+            "neonMaxEvmStepsInLastIteration",
+            "neonMinEvmStepsInIteration",
+            "neonGasLimitMultiplierWithoutChainId",
+            "neonHolderMessageSize",
+            "neonPaymentToTreasury",
+            "neonStorageEntriesInContractAccount",
+            "neonTreasuryPoolCount",
+            "neonTreasuryPoolSeed",
+            "neonEvmProgramId",
         ]
         for field in expected_fields:
             assert field in response["result"], f"Field {field} is not in response: {response}"

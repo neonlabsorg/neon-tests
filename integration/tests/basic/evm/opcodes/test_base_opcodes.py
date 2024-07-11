@@ -14,13 +14,6 @@ class TestOpCodes:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
 
-    @pytest.fixture(scope="class")
-    def opcodes_checker(self, web3_client, faucet, accounts):
-        contract, _ = web3_client.deploy_and_get_contract(
-            "opcodes/BaseOpCodes", "0.5.16", accounts[0], contract_name="BaseOpCodes"
-        )
-        return contract
-
     def test_base_opcodes(self, opcodes_checker):
         sender_account = self.accounts[0]
         tx = self.web3_client.make_raw_tx(sender_account)
@@ -57,17 +50,24 @@ class TestOpCodes:
         )
         return contract
 
-    @pytest.mark.parametrize("dst, src, length, expected_result", [(1, 0, 8, '000010203405060708090a0b0c0d0e0f'),
-                                                                   (0, 1, 8, '001020300405060708090a0b0c0d0e0f'),
-                                                                   (0, 0, 12, '000102030405060708090a0b0c0d0e0f')])
+    @pytest.mark.proxy_version("v1.12.0")
+    @pytest.mark.parametrize(
+        "dst, src, length, expected_result",
+        [
+            (1, 0, 8, "000010203405060708090a0b0c0d0e0f"),
+            (0, 1, 8, "001020300405060708090a0b0c0d0e0f"),
+            (0, 0, 12, "000102030405060708090a0b0c0d0e0f"),
+        ],
+    )
     def test_mcopy(self, mcopy_checker, dst, src, length, expected_result):
         sender_account = self.accounts[0]
-        initial_data = self.web3_client.text_to_bytes32('000102030405060708090a0b0c0d0e0f')
+        initial_data = self.web3_client.text_to_bytes32("000102030405060708090a0b0c0d0e0f")
 
         tx = self.web3_client.make_raw_tx(sender_account)
         result = mcopy_checker.functions.copy(initial_data, dst, src, length).call(tx)
         assert result == self.web3_client.text_to_bytes32(expected_result)
 
+    @pytest.mark.proxy_version("v1.12.0")
     def test_tstore(self, accounts):
         sender_account = self.accounts[0]
 
@@ -85,7 +85,7 @@ class TestOpCodes:
             contract_name="TransientStorageCaller",
         )
 
-        initial_data = self.web3_client.text_to_bytes32('000102030405060708090a0b0c0d0e0f')
+        initial_data = self.web3_client.text_to_bytes32("000102030405060708090a0b0c0d0e0f")
 
         # save and read in one transaction
         result = contract_caller.functions.saveAndRead(initial_data).call()

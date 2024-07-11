@@ -339,3 +339,16 @@ def make_wSOL(amount, solana_wallet, ata_address):
     tx.add(make_SyncNative(ata_address))
 
     return tx
+
+def make_OperatorBalanceAccount(operator_keypair, operator_balance_pubkey, ether_bytes, chain_id, evm_loader_id):
+    trx = Transaction()
+    trx.add(TransactionInstruction(
+        keys=[
+            AccountMeta(pubkey=operator_keypair.public_key, is_signer=True, is_writable=True),
+            AccountMeta(pubkey=sp.SYS_PROGRAM_ID, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=operator_balance_pubkey, is_signer=False, is_writable=True)
+        ],
+        program_id=evm_loader_id,
+        data=bytes.fromhex("3A") + ether_bytes + chain_id.to_bytes(8, 'little')
+    ))
+    return trx

@@ -28,6 +28,7 @@ NO_ENOUGH_GAS_PARAMS = [
 @allure.feature("ERC Verifications")
 @allure.story("ERC20SPL: Tests for ERC20ForSPL contract")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+@pytest.mark.neon_only
 class TestERC20SPL:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
@@ -436,6 +437,7 @@ class TestERC20SPL:
 @allure.feature("ERC Verifications")
 @allure.story("ERC20SPL: Tests for ERC20ForSPLMintable contract")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+@pytest.mark.neon_only
 class TestERC20SPLMintable(TestERC20SPL):
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
@@ -507,7 +509,6 @@ class TestERC20SPLMintable(TestERC20SPL):
             assert "0x118cdaa7" in str(e)
         else:
             assert False, "No exception raised"
-
 
     @pytest.mark.parametrize(
         "address_to, expected_exception, msg",
@@ -681,6 +682,7 @@ class TestERC20SPLMintable(TestERC20SPL):
 @allure.feature("ERC Verifications")
 @allure.story("ERC20SPL: Tests for multiple actions in one transaction")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+@pytest.mark.neon_only
 class TestMultipleActionsForERC20:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
@@ -993,6 +995,7 @@ def new_token_contract(web3_client, erc20_spl_mintable):
 @allure.feature("ERC Verifications")
 @allure.story("ERC20SPL: Tests for factory update")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+@pytest.mark.neon_only
 class TestERC20FactoryUpdate:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
@@ -1052,6 +1055,7 @@ class TestERC20FactoryUpdate:
         receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, tx_body)
         assert receipt.status == 0, "Transaction should fail"
 
+    @pytest.mark.skip("https://neonlabs.atlassian.net/browse/NDEV-3052")
     def test_update_factory_invalid_owner(self, erc20_spl_mintable, accounts, new_factory_contract):
         factory_contract = self.get_factory_contract(erc20_spl_mintable.contract)
         tx_opt = self.web3_client.make_raw_tx(accounts[0], gas=10000000)

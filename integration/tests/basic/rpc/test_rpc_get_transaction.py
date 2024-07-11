@@ -7,11 +7,11 @@ import web3
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.assert_message import AssertMessage
 from integration.tests.basic.helpers.basic import Tag
-from integration.tests.basic.helpers.errors import Error32000, Error32602
+from integration.tests.basic.helpers.errors import Error32602
 from integration.tests.basic.helpers.rpc_checks import assert_fields_are_hex, assert_equal_fields
+from utils.accounts import EthAccounts
 from utils.consts import Unit
 from utils.helpers import gen_hash_of_block
-from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -125,13 +125,14 @@ class TestRpcGetTransaction:
                     assert rpc_checks.is_hex(result[field]), f"Field {field} must be hex but '{result[field]}'"
 
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
+    @pytest.mark.neon_only
     def test_get_transaction_receipt_with_incorrect_hash(self, method, json_rpc_client):
         """Verify implemented rpc calls work with neon_getTransactionReceipt and eth_getTransactionReceipt
         when transaction hash is not correct"""
 
         response = json_rpc_client.send_rpc(method=method, params=gen_hash_of_block(31))
         assert "error" in response
-        assert response["error"]["message"] == "transaction-id is not hex"
+        assert response["error"]["message"] == Error32602.INVALID_TRANSACTIONID
 
     @pytest.mark.parametrize("param", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST, None])
     @pytest.mark.mainnet
@@ -150,6 +151,7 @@ class TestRpcGetTransaction:
         assert rpc_checks.is_hex(response["result"]), AssertMessage.DOES_NOT_START_WITH_0X.value
 
     @pytest.mark.parametrize("param", [32, 16, None])
+    @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
     def test_eth_get_transaction_by_hash_negative(self, param: tp.Union[int, None], json_rpc_client):
         response = json_rpc_client.send_rpc(
             method="eth_getTransactionByHash",
@@ -166,13 +168,9 @@ class TestRpcGetTransaction:
         assert "message" in response["error"], "message field not in response"
         code = response["error"]["code"]
         message = response["error"]["message"]
-        if param is None:
-            assert code == Error32000.CODE, "wrong code"
-            assert Error32000.MISSING_ARGUMENT in message, "wrong message"
-            return
 
         assert code == Error32602.CODE, "wrong code"
-        assert Error32602.NOT_HEX in message, "wrong message"
+        assert message == Error32602.INVALID_TRANSACTIONID, "wrong message"
 
     @pytest.mark.mainnet
     def test_eth_get_transaction_by_hash(self, json_rpc_client):
@@ -198,6 +196,7 @@ class TestRpcGetTransaction:
 
     @pytest.mark.mainnet
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
+    @pytest.mark.neon_only
     def test_get_transaction_receipt(self, method, json_rpc_client):
         """Verify implemented rpc calls work with neon_getTransactionReceipt and eth_getTransactionReceipt"""
         sender_account = self.accounts[0]
@@ -234,6 +233,7 @@ class TestRpcGetTransaction:
         assert result["logs"] == []
 
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
+    @pytest.mark.neon_only
     def test_eth_get_transaction_receipt_when_hash_doesnt_exist(self, method, json_rpc_client):
         """Verify implemented rpc calls work eth_getTransactionReceipt when transaction hash doesn't exist"""
         response = json_rpc_client.send_rpc(method=method, params=gen_hash_of_block(32))
@@ -242,21 +242,23 @@ class TestRpcGetTransaction:
     @pytest.mark.parametrize(
         "params, error_code, error_message",
         [
-            ([], Error32000.CODE, Error32000.MISSING_2_ARGUMENTS),
-            (["0x874E87B5ccb467f07Ca42cF82e11aD44c7be159F"], Error32000.CODE, Error32000.MISSING_ARGUMENT),
-            ([None, 10], Error32602.CODE, Error32602.BAD_ADDRESS),
-            (["123345", 10], Error32602.CODE, Error32602.BAD_ADDRESS),
+            ([], Error32602.CODE, Error32602.INVALID_PARAMETERS),
+            (["0x874E87B5ccb467f07Ca42cF82e11aD44c7be159F"], Error32602.CODE, Error32602.INVALID_NONCE),
+            ([None, 10], Error32602.CODE, Error32602.INVALID_SENDER),
+            (["123345", 10], Error32602.CODE, Error32602.INVALID_SENDER),
             (["0x874E87B5ccb467f07Ca42cF82e11aD44c7be159F", None], Error32602.CODE, Error32602.INVALID_NONCE),
         ],
     )
+    @pytest.mark.bug  # Geth returns code 32601
     def test_neon_get_transaction_by_sender_nonce_negative(self, params, error_code, error_message, json_rpc_client):
         response = json_rpc_client.send_rpc(method="neon_getTransactionBySenderNonce", params=params)
         assert "error" in response, "error field not in response"
         assert "code" in response["error"]
         assert "message" in response["error"], "message field not in response"
         assert error_code == response["error"]["code"]
-        assert error_message in response["error"]["message"]
+        assert error_message == response["error"]["message"]
 
+    @pytest.mark.neon_only
     def test_neon_get_transaction_by_sender_nonce_plus_one(self, json_rpc_client):
         """Request nonce+1, which is not exist"""
         sender_account = self.accounts[0]
@@ -271,6 +273,7 @@ class TestRpcGetTransaction:
         assert response["result"] is None
 
     @pytest.mark.mainnet
+    @pytest.mark.neon_only
     def test_neon_get_transaction_by_sender_nonce(self, json_rpc_client):
         sender_account = self.accounts[0]
         recipient_account = self.accounts[1]
