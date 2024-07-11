@@ -119,13 +119,14 @@ jobs:
             -e SOLANA_IP -e PROXY_IP \
             --name=${{ env.CONTAINER }} ${{ env.IMAGE }}:${{ steps.image_tag.outputs.tag }} /bin/bash
       - name: Run evm tests
+        if: needs.prepare-env.outputs.network == 'terraform'
         timeout-minutes: 10
         run: |
           docker exec -i ${{ env.CONTAINER }} \
             /bin/bash -c "export SOLANA_URL=http://${{ env.SOLANA_IP }}:8899 \
             && export NEON_CORE_API_URL=http://${{ env.SOLANA_IP }}:8085/api \
             && export NEON_CORE_API_RPC_URL=http://${{ env.SOLANA_IP }}:3100 \
-            && python3 ./clickfile.py run evm --numprocesses 8 -n ${{ env.NETWORK }} --keep-error-log"
+            && python3 ./clickfile.py run evm --numprocesses 8 --network ${{ env.NETWORK }} --keep-error-log"
       - name: Set failed test group to evm
         if: failure()
         run: echo "FAILED_TEST_GROUP=evm" >> $GITHUB_ENV
@@ -135,7 +136,7 @@ jobs:
         run: |
           docker exec -i ${{ env.CONTAINER }} \
             /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && \
-            python3 ./clickfile.py run basic -n ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
+            python3 ./clickfile.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
       - name: Set failed test group to basic
         if: failure()
         run: echo "FAILED_TEST_GROUP=basic" >> $GITHUB_ENV
