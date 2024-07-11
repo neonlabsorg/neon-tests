@@ -136,7 +136,7 @@ jobs:
         run: |
           docker exec -i ${{ env.CONTAINER }} \
             /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && \
-            python3 ./clickfile.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
+            python3 ./clickfile.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }} --marker multipletokens"
       - name: Set failed test group to basic
         if: failure()
         run: echo "FAILED_TEST_GROUP=basic" >> $GITHUB_ENV
