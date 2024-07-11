@@ -16,6 +16,8 @@ import typing as tp
 from pathlib import Path
 from urllib.parse import urlparse
 
+import pytest
+
 from utils.error_log import error_log
 from utils.slack_notification import SlackNotification
 from utils.types import TestGroup
@@ -523,6 +525,7 @@ def update_contracts(branch):
 @click.option("-a", "--amount", default=20000, help="Requested amount from faucet")
 @click.option("-u", "--users", default=8, help="Accounts numbers used in OZ tests")
 @click.option("-c", "--case", default='', type=str, help="Specific test case name pattern to run")
+@click.option("--marker", help="Run tests by mark")
 @click.option(
     "--ui-item",
     default="all",
@@ -541,7 +544,18 @@ def update_contracts(branch):
     type=click.Choice(TEST_GROUPS),
 )
 @catch_traceback
-def run(name: TestGroup, jobs, numprocesses, ui_item, amount, users, network: EnvName, case, keep_error_log: bool):
+def run(
+        name: TestGroup,
+        jobs,
+        numprocesses,
+        ui_item,
+        amount,
+        users,
+        network: EnvName,
+        case,
+        keep_error_log: bool,
+        marker: str,
+):
     if not network and name == "ui":
         network = "devnet"
     if DST_ALLURE_CATEGORIES.parent.exists():
@@ -591,16 +605,18 @@ def run(name: TestGroup, jobs, numprocesses, ui_item, amount, users, network: En
 
     if case != '':
         command += " -vk {}".format(case)
+    if marker:
+        command += f' -m {marker}'
 
     command += f" -s --network={network} --make-report --test-group {name}"
     if keep_error_log:
         command += " --keep-error-log"
-    cmd = subprocess.run(command, shell=True)
+    args = command.split()[1:]
+    exit_code = int(pytest.main(args=args))
     if name != "ui":
         shutil.copyfile(SRC_ALLURE_CATEGORIES, DST_ALLURE_CATEGORIES)
 
-    if cmd.returncode != 0:
-        sys.exit(cmd.returncode)
+    sys.exit(exit_code)
 
 
 @cli.command(
