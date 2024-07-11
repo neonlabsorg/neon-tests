@@ -126,7 +126,11 @@ def pytest_configure(config: Config):
     if "NEON_TOKEN_MINT" not in os.environ or not os.environ["NEON_TOKEN_MINT"]:
         os.environ["NEON_TOKEN_MINT"] = env["spl_neon_mint"]
     if "CHAIN_ID" not in os.environ or not os.environ["CHAIN_ID"]:
-        os.environ["CHAIN_ID"]: env["network_ids"]["neon"]
+        os.environ["CHAIN_ID"] = str(env["network_ids"]["neon"])
+
+    if network_name == "devnet":
+        env["faucet_url"] = os.getenv("DEVNET_FAUCET_URL") or env["faucet_url"]
+        env["solana_url"] = os.getenv("DEVNET_SOLANA_URL") or env["solana_url"]
 
     if network_name == "terraform":
         env["solana_url"] = env["solana_url"].replace("<solana_ip>", os.environ.get("SOLANA_IP"))
