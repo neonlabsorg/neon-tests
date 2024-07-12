@@ -858,17 +858,17 @@ def get_allure_history(name: str, network: str, destination: str = "./allure-res
 
 @allure_cli.command("upload-report", help="Upload allure history")
 @click.argument("name", type=click.Choice(TEST_GROUPS))
-@click.option("-n", "--network", default=EnvName.NIGHT_STAND.value, type=EnvName, help="In which stand run tests")
+@click.option("-n", "--network", default=EnvName.NIGHT_STAND, type=EnvName, help="In which stand run tests")
 @click.option(
     "-s",
     "--source",
     default="./allure-report",
     type=click.Path(file_okay=False, dir_okay=True),
 )
-def upload_allure_report(name: TestGroup, network: str, source: str = "./allure-report"):
+def upload_allure_report(name: TestGroup, network: EnvName, source: str = "./allure-report"):
     branch = os.environ.get("GITHUB_REF_NAME")
     build_id = os.environ.get("GITHUB_RUN_NUMBER")
-    path = Path(name) / network / branch
+    path = Path(name) / network.value / branch
     cloud.upload(source, path / build_id)
     report_url = f"http://neon-test-allure.s3-website.eu-central-1.amazonaws.com/{path / build_id}"
 
