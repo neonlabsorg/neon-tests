@@ -3,8 +3,10 @@ import json
 import shutil
 import pathlib
 import sys
+import typing as tp
 from dataclasses import dataclass
 
+import base58
 import pytest
 from _pytest.config import Config
 from _pytest.config.argparsing import Parser
@@ -207,10 +209,11 @@ def web3_client_session(pytestconfig: Config) -> NeonChainWeb3Client:
 
 
 @pytest.fixture(scope="session")
-def sol_client_session(pytestconfig: Config):
+def sol_client_session(pytestconfig: Config, bank_account: tp.Optional[Keypair]):
     client = SolanaClient(
         pytestconfig.environment.solana_url,
         pytestconfig.environment.account_seed_version,
+        bank_account=bank_account,
     )
     return client
 
@@ -224,3 +227,16 @@ def faucet(pytestconfig: Config, web3_client_session) -> Faucet:
 def accounts_session(pytestconfig: Config, web3_client_session, faucet, eth_bank_account):
     accounts = EthAccounts(web3_client_session, faucet, eth_bank_account)
     return accounts
+
+
+@pytest.fixture(scope="session")
+def bank_account(pytestconfig: Config) -> tp.Optional[Keypair]:
+    account = None
+    if pytestconfig.environment.use_bank:
+        if pytestconfig.getoption("--network") == "devnet":
+            private_key = os.environ.get("BANK_PRIVATE_KEY")
+        elif pytestconfig.getoption("--network") == "mainnet":
+            private_key = os.environ.get("BANK_PRIVATE_KEY_MAINNET")
+        key = base58.b58decode(private_key)
+        account = Keypair.from_secret_key(key)
+    yield account

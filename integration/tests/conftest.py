@@ -8,7 +8,6 @@ import time
 import typing as tp
 
 import allure
-import base58
 import pytest
 from _pytest.config import Config
 from packaging import version
@@ -16,9 +15,9 @@ from solana.keypair import Keypair
 from solana.publickey import PublicKey
 from solana.rpc import commitment
 from solana.rpc.types import TxOpts
-from web3.exceptions import InvalidAddress
 
 from clickfile import network_manager
+from conftest import bank_account
 from utils import web3client
 from utils.apiclient import JsonRPCSession
 from utils.consts import LAMPORT_PER_SOL, MULTITOKEN_MINTS
@@ -26,6 +25,7 @@ from utils.erc20 import ERC20
 from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
 from utils.operator import Operator
+from utils.solana_client import SolanaClient
 from utils.web3client import NeonChainWeb3Client, Web3Client
 from utils.prices import get_sol_price, get_neon_price
 
@@ -151,19 +151,6 @@ def operator(pytestconfig: Config, web3_client_session: NeonChainWeb3Client) -> 
 
 
 @pytest.fixture(scope="session")
-def bank_account(pytestconfig: Config) -> tp.Optional[Keypair]:
-    account = None
-    if pytestconfig.environment.use_bank:
-        if pytestconfig.getoption("--network") == "devnet":
-            private_key = os.environ.get("BANK_PRIVATE_KEY")
-        elif pytestconfig.getoption("--network") == "mainnet":
-            private_key = os.environ.get("BANK_PRIVATE_KEY_MAINNET")
-        key = base58.b58decode(private_key)
-        account = Keypair.from_secret_key(key)
-    yield account
-
-
-@pytest.fixture(scope="session")
 def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Optional[Keypair]:
     account = None
     if pytestconfig.environment.eth_bank_account != "":
@@ -174,14 +161,13 @@ def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Optional[K
 
 
 @pytest.fixture(scope="session")
-def solana_account(bank_account, pytestconfig: Config, sol_client_session):
+def solana_account(bank_account, pytestconfig: Config, sol_client_session: SolanaClient):
     account = Keypair.generate()
+    amount = int(0.5 * LAMPORT_PER_SOL) if pytestconfig.environment.use_bank else 1 * LAMPORT_PER_SOL
+    sol_client_session.fund_account(pubkey=account.public_key, amount=amount)
 
-    if pytestconfig.environment.use_bank:
-        sol_client_session.send_sol(bank_account, account.public_key, int(0.5 * LAMPORT_PER_SOL))
-    else:
-        sol_client_session.request_airdrop(account.public_key, 1 * LAMPORT_PER_SOL)
     yield account
+
     if pytestconfig.environment.use_bank:
         balance = sol_client_session.get_balance(account.public_key, commitment=commitment.Confirmed).value
         try:
@@ -301,7 +287,7 @@ def class_account_sol_chain(
 
 
 @pytest.fixture(scope="class")
-def evm_loader(pytestconfig):
+def evm_loader(pytestconfig) -> EvmLoader:
     return EvmLoader(pytestconfig.environment.evm_loader, pytestconfig.environment.solana_url)
 
 
