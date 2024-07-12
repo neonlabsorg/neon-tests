@@ -889,55 +889,44 @@ def generate_allure_report():
 def send_notification(url, build_url, network, test_group: str):
     slack_notification = SlackNotification()
 
-    # add build url
+    # build info
     parsed_build_url = urlparse(build_url).path.split("/")
     build_id = parsed_build_url[-1]
-    slack_notification.add_build_info(id_=build_id, url=build_url)
+    build_info = {"id": build_id, "url": build_url}
 
-    # add network
-    slack_notification.add_network(network=network)
-
-    # add failed tests group or count if available
-    failed_count_by_group: defaultdict[TestGroup: int] = error_log.get_count_by_group()
+    # failed tests group or count if available
+    failed_count_by_group: defaultdict[TestGroup, int] = error_log.get_count_by_group()
     if failed_count_by_group:
-        slack_notification.add_failed_tests(tests=failed_count_by_group)
+        failed_tests = "\n".join(f"{group}: {count}" for group, count in failed_count_by_group.items())
     else:
-        slack_notification.add_failed_test_group(test_group=test_group)
+        failed_tests = test_group
 
-    # add Allure report url
+    # Allure report url
     try:
         with Path(ALLURE_REPORT_URL).open() as f:
             allure_report_url = f.read()
     except FileNotFoundError:
         allure_report_url = ""
 
-    if allure_report_url:
-        slack_notification.add_allure_report_url(url=allure_report_url)
-
-    # add failed test names
-    log = error_log.read()
-    all_failed_test_names = []
-
-    for group_name in log.failures:
-        test_names_in_group = log.failures[group_name]
-        all_failed_test_names.extend(test_names_in_group)
-
-    slack_notification.add_failed_test_names(names=all_failed_test_names)
-
-    # add comments
-    for comment in log.comments:
-        slack_notification.add_comment(text=comment)
+    # add combined block
+    slack_notification.add_combined_block(
+        build_info=build_info,
+        network=network,
+        failed_tests=failed_tests,
+        report_url=allure_report_url,
+        comments=error_log.read().comments,
+    )
 
     # add the divider
     slack_notification.add_divider()
 
     # send the notification
-    payload = slack_notification.model_dump()
-    response = requests.post(url=url, json=payload)
+    payload = slack_notification.model_dump_json()
+    response = requests.post(url=url, data=payload)
     if response.status_code != 200:
         click.echo(f"Response status code: {response.status_code}")
         click.echo(f"Response status code: {response.text}")
-        click.echo(f"Payload: {slack_notification.model_dump_json(indent=4)}")
+        click.echo(f"Payload: {payload}")
         raise RuntimeError(f"Notification is not sent. Error: {response.text}")
 
 
