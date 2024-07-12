@@ -61,14 +61,7 @@ class SolanaClient(solana.rpc.api.Client):
         tx = Transaction().add(
             transfer(TransferParams(from_pubkey=from_.public_key, to_pubkey=to, lamports=amount_lamports))
         )
-        balance_before = self.get_balance(to).value
-        self.send_transaction(tx, from_)
-        for _ in range(20):
-            if int(self.get_balance(to).value) > int(balance_before):
-                break
-            time.sleep(6)
-        else:
-            raise AssertionError(f"Balance not changed in account {to}")
+        self.send_tx_and_check_status_ok(tx, from_)
 
     def fund_account(
             self,
