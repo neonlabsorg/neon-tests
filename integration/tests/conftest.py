@@ -131,6 +131,14 @@ def web3_client_usdt(pytestconfig: Config) -> tp.Union[Web3Client, None]:
         return None
 
 
+@pytest.fixture(scope="session")
+def web3_client_usdc(pytestconfig: Config) -> tp.Union[Web3Client, None]:
+    if "usdc" in pytestconfig.environment.network_ids:
+        return Web3Client(f"{pytestconfig.environment.proxy_url}/usdc")
+    else:
+        return None
+
+
 @pytest.fixture(scope="session", autouse=True)
 def web3_client_eth(pytestconfig: Config) -> tp.Union[Web3Client, None]:
     if "eth" in pytestconfig.environment.network_ids:
