@@ -197,6 +197,10 @@ def test_temporary_holder_acc_is_free(treasury_pool, sender_with_tokens, evm_loa
     # This case is used by neonpass
     user_as_operator = sender_with_tokens.solana_account
     amount = 10
+
+    operator_ether = eth_keys.PrivateKey(user_as_operator.secret_key[:32]).public_key.to_canonical_address()
+    evm_loader.create_operator_balance_account(user_as_operator, operator_ether)
+
     operator_balance_before = evm_loader.get_solana_balance(user_as_operator.public_key)
 
     trx = TransactionWithComputeBudget(user_as_operator)
@@ -217,11 +221,10 @@ def test_temporary_holder_acc_is_free(treasury_pool, sender_with_tokens, evm_loa
     trx.add(create_acc_with_seed_instr)
     trx.add(create_holder_instruction)
     signed_tx = make_eth_transaction(evm_loader, sender_with_tokens.eth_address, None, sender_with_tokens, amount)
+
     operator_balance_account = evm_loader.get_operator_balance_pubkey(user_as_operator)
 
 
-    operator_ether = eth_keys.PrivateKey(user_as_operator.secret_key[:32]).public_key.to_canonical_address()
-    evm_loader.create_operator_balance_account(user_as_operator, operator_ether)
     trx.add(
         make_ExecuteTrxFromInstruction(
             user_as_operator,
