@@ -21,11 +21,6 @@ class TestRpcEstimateGas:
     accounts: EthAccounts
     web3_client: NeonChainWeb3Client
 
-    # geth for tag.EARLIEST returns 
-    # {'error': {'code': -32000, 'message': 'insufficient funds for transfer'}, 'id': 21, 'jsonrpc': '2.0'}
-    # geth for Tag.FINALIZED and 1 returns 
-    # {'error': {'code': -32602, 'message': 'invalid argument 1: hex string without 0x prefix'}, 'id': 70, 'jsonrpc': '2.0'}
-    # for other cases retuns different estimate 21_000
     @pytest.mark.parametrize("block_param", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST, Tag.FINALIZED, 1, None])
     @pytest.mark.neon_only
     def test_eth_estimate_gas_different_block_param(self, block_param: tp.Union[int, Tag, None], json_rpc_client):
@@ -71,7 +66,7 @@ class TestRpcEstimateGas:
 
     @pytest.mark.parametrize("contract_name", ["BigGasFactory1", "BigGasFactory2"])
     @pytest.mark.parametrize("process_gas, reserve_gas", [(850_000, 15_000), (8_500_000, 150_000)])
-    # geth for 8500000-150000 returns {'code': -32000, 'message': 'exceeds block gas limit'}
+    @pytest.mark.neon_only
     def test_eth_estimate_gas_with_big_int(self, contract_name, process_gas, reserve_gas, json_rpc_client):
         sender_account = self.accounts.create_account()
 
@@ -89,7 +84,7 @@ class TestRpcEstimateGas:
         trx_big_gas["value"] = Web3.to_hex(0)
         trx_big_gas["nonce"] = Web3.to_hex(trx_big_gas["nonce"])
         trx_big_gas["chainId"] = Web3.to_hex(trx_big_gas["chainId"])
-        trx_big_gas['gasPrice'] = Web3.to_hex(trx_big_gas['gasPrice'])
+        trx_big_gas["gasPrice"] = Web3.to_hex(trx_big_gas["gasPrice"])
 
         # gas needed just to estimate gas -_-
         trx_big_gas["gas"] = Web3.to_hex((process_gas + reserve_gas) + self.web3_client.gas_price() // 1000)
@@ -128,7 +123,6 @@ class TestRpcEstimateGas:
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
         assert estimated_gas == 1_192_320
-
 
     @pytest.mark.neon_only  # Geth returns a different estimate
     def test_rpc_estimate_gas_spl(self, erc20_spl):

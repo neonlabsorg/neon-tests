@@ -95,7 +95,7 @@ class TestRpcBaseCalls:
     accounts: EthAccounts
     web3_client: NeonChainWeb3Client
 
-    @pytest.mark.bug # Geth response differs from Neon NDEV-3168
+    @pytest.mark.bug  # Geth response differs from Neon NDEV-3168
     def test_eth_call_without_params(self, json_rpc_client):
         """Verify implemented rpc calls work eth_call without params"""
         response = json_rpc_client.send_rpc("eth_call")
@@ -165,7 +165,9 @@ class TestRpcBaseCalls:
             assert is_hex(result), f"Invalid compiled byte code in response {result} at a given contract address"
             assert result.startswith("0x")
             assert len(result) == 6678
-            assert hex_str_consists_not_only_of_zeros(result), "Response result hex str should not consist only of zeros"
+            assert hex_str_consists_not_only_of_zeros(
+                result
+            ), "Response result hex str should not consist only of zeros"
 
     @pytest.mark.mainnet
     def test_eth_get_code_sender_address(self, json_rpc_client):
@@ -229,11 +231,7 @@ class TestRpcBaseCalls:
         sender_account = self.accounts.create_account()
         recipient_account = self.accounts[1]
         transaction = self.web3_client.make_raw_tx(
-            from_=sender_account,
-            to=recipient_account,
-            amount=1,
-            data=gen_hash_of_block(size),
-            estimate_gas=True
+            from_=sender_account, to=recipient_account, amount=1, data=gen_hash_of_block(size), estimate_gas=True
         )
 
         signed_tx = self.web3_client.eth.account.sign_transaction(transaction, sender_account.key)
@@ -326,7 +324,7 @@ class TestRpcBaseCalls:
         assert new_data in web3.Web3.to_text(response["result"]), "wrong variable value"
         EthGetStorageAt(**response)
 
-    @pytest.mark.mainnet # for geth v1.14.7 the method eth_mining does not exist/is not available
+    @pytest.mark.neon_only
     def test_eth_mining(self, json_rpc_client):
         """Verify implemented rpc calls work eth_mining"""
         response = json_rpc_client.send_rpc(method="eth_mining")

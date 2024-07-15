@@ -80,7 +80,7 @@ class TestRpcGetTransaction:
             self.validate_response(result, tx_receipt)
             assert result["value"] == hex(self.web3_client.to_wei(amount, Unit.ETHER))
             EthGetBlockByNumberAndIndexResult(**response)
-            
+
     @pytest.mark.parametrize("valid_index", [True, False])
     @pytest.mark.mainnet
     def test_eth_get_transaction_by_block_hash_and_index(self, valid_index: bool, json_rpc_client):
@@ -219,7 +219,6 @@ class TestRpcGetTransaction:
         )
         EthGetTransactionByHashResult(**response)
 
-    # Geth does not have effectiveGasPrice in response
     @pytest.mark.mainnet
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
     @pytest.mark.neon_only
@@ -257,11 +256,8 @@ class TestRpcGetTransaction:
         assert result["to"].upper() == tx_receipt["to"].upper()
         assert result["contractAddress"] is None
         assert result["logs"] == []
-        if method == "eth_getTransactionReceipt":
-            EthGetTransactionReceiptResult(**response)
-        
+        EthGetTransactionReceiptResult(**response)
 
-    # Geth returns code 32601
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
     @pytest.mark.neon_only
     def test_eth_get_transaction_receipt_when_hash_doesnt_exist(self, method, json_rpc_client):

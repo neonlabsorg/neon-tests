@@ -22,14 +22,13 @@ class TestRpcGetBlock:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
 
-    @pytest.mark.xfail(reason="NDEV-3170")
     @pytest.mark.mainnet
     @pytest.mark.parametrize("full_trx", [False, True])
     def test_eth_get_block_by_hash(
-            self,
-            full_trx: bool,
-            json_rpc_client: JsonRPCSession,
-            env_name: EnvName,
+        self,
+        full_trx: bool,
+        json_rpc_client: JsonRPCSession,
+        env_name: EnvName,
     ):
         """Verify implemented rpc calls work eth_getBlockByHash"""
         sender_account = self.accounts[0]
@@ -66,14 +65,13 @@ class TestRpcGetBlock:
         assert "result" in response and response["result"] is None, "Result should be None"
         EthGetBlockByHashResult(**response)
 
-    @pytest.mark.xfail(reason="NDEV-3170")
     @pytest.mark.mainnet
     @pytest.mark.parametrize("full_trx", [False, True])
     def test_eth_get_block_by_number_via_numbers(
-            self,
-            full_trx: bool,
-            json_rpc_client: JsonRPCSession,
-            env_name: EnvName,
+        self,
+        full_trx: bool,
+        json_rpc_client: JsonRPCSession,
+        env_name: EnvName,
     ):
         """Verify implemented rpc calls work eth_getBlockByNumber"""
         sender_account = self.accounts[0]
@@ -110,20 +108,22 @@ class TestRpcGetBlock:
     @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
     def test_eth_get_block_by_number_with_not_exist_data(self, number, full_trx, json_rpc_client):
         """Verify implemented rpc calls work eth_getBlockByNumber"""
-        response = json_rpc_client.send_rpc(method="eth_getBlockByNumber", params=[gen_hash_of_block(number), full_trx]) 
+        response = json_rpc_client.send_rpc(method="eth_getBlockByNumber", params=[gen_hash_of_block(number), full_trx])
         EthGetBlockByHashResult(**response)
         assert "result" in response and response["result"] is None, "Result should be None"
-    
-    @pytest.mark.xfail(reason="NDEV-3072")  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
+
+    @pytest.mark.xfail(
+        reason="NDEV-3072"
+    )  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
     @pytest.mark.parametrize("full_trx", [False, True])
     def test_eth_get_block_by_number_with_big_int(self, full_trx, json_rpc_client):
         """Verify implemented rpc calls work eth_getBlockByNumber"""
-        response = json_rpc_client.send_rpc(method="eth_getBlockByNumber", params=["0x55192d7d9e36433b64f2b9d9309a5c5d36b1561c888dcfa8f31078f000fa7cdd", full_trx])
+        response = json_rpc_client.send_rpc(
+            method="eth_getBlockByNumber",
+            params=["0x55192d7d9e36433b64f2b9d9309a5c5d36b1561c888dcfa8f31078f000fa7cdd", full_trx],
+        )
         EthError32602(**response)
 
-    # geth returns miner as null, totalDifficulty as null, for
-    # Tag.LATEST-True, Tag.PENDING-True, Tag.PENDING-False
-    @pytest.mark.xfail(reason="NDEV-3170") # verify after DOPS-723 is done
     @pytest.mark.parametrize(
         "quantity_tag, full_trx",
         [
@@ -136,11 +136,11 @@ class TestRpcGetBlock:
         ],
     )
     def test_eth_get_block_by_number_via_tags(
-            self,
-            quantity_tag: Tag,
-            full_trx: bool,
-            json_rpc_client: JsonRPCSession,
-            env_name: EnvName,
+        self,
+        quantity_tag: Tag,
+        full_trx: bool,
+        json_rpc_client: JsonRPCSession,
+        env_name: EnvName,
     ):
         """Verify implemented rpc calls work eth_getBlockByNumber"""
         sender_account = self.accounts[0]

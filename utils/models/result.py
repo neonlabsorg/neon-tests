@@ -1,7 +1,7 @@
 import typing as tp
 from typing import List, Union
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from utils.models.model_types import (
     BalanceString,
@@ -11,37 +11,24 @@ from utils.models.model_types import (
     HexString,
     IdField,
     JsonRPCString,
-    NeonVersionString,
     NetVersionString,
     NonZeroBytesString,
     StorageString,
     ZeroBytesString,
 )
 
-NEON_FIELDS = [
-    "neonAccountSeedVersion",
-    "neonMaxEvmStepsInLastIteration",
-    "neonMinEvmStepsInIteration",
-    "neonGasLimitMultiplierWithoutChainId",
-    "neonHolderMessageSize",
-    "neonPaymentToTreasury",
-    "neonStorageEntriesInContractAccount",
-    "neonTreasuryPoolCount",
-    "neonTreasuryPoolSeed",
-    "neonEvmProgramId",
-]
+
+class ForbidExtra(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
 
-class EthResult(BaseModel):
+class EthResult(ForbidExtra):
     jsonrpc: JsonRPCString
     id: IdField
     result: HexString
 
-    class Config:
-        extra = "forbid"
 
-
-class NeonGetEvmParamsDetails(BaseModel):
+class NeonGetEvmParamsDetails(ForbidExtra):
     neonAccountSeedVersion: int
     neonMaxEvmStepsInLastIteration: int
     neonMinEvmStepsInIteration: int
@@ -53,9 +40,6 @@ class NeonGetEvmParamsDetails(BaseModel):
     neonTreasuryPoolSeed: str
     neonEvmProgramId: str
 
-    class Config:
-        extra = "forbid"
-
 
 class NeonGetEvmParamsResult(EthResult):
     result: NeonGetEvmParamsDetails
@@ -64,66 +48,39 @@ class NeonGetEvmParamsResult(EthResult):
 class EthGasPriceResult(EthResult):
     result: GasPriceString
 
-    class Config:
-        extra = "forbid"
-
 
 class EthGetBalanceResult(EthResult):
     result: BalanceString
-
-    class Config:
-        extra = "forbid"
 
 
 class EthGetCodeResult(EthResult):
     result: NonZeroBytesString
 
-    class Config:
-        extra = "forbid"
-
 
 class EthGetZeroCodeResult(EthResult):
     result: ZeroBytesString
-
-    class Config:
-        extra = "forbid"
 
 
 class Web3ClientVersionResult(EthResult):
     result: str
 
-    class Config:
-        extra = "forbid"
-
 
 class NetVersionResult(EthResult):
     result: NetVersionString
-
-    class Config:
-        extra = "forbid"
 
 
 class EthGetStorageAt(EthResult):
     result: StorageString
 
-    class Config:
-        extra = "forbid"
-
 
 class EthMiningResult(EthResult):
     result: bool
 
-    class Config:
-        extra = "forbid"
 
-
-class SyncingFields(BaseModel):
+class SyncingFields(ForbidExtra):
     startingBlock: HexString
     currentBlock: HexString
     highestBlock: HexString
-
-    class Config:
-        extra = "allow"
 
 
 class EthSyncingResult(EthResult):
@@ -152,11 +109,8 @@ class Transaction(BaseModel):
     s: HexString
     type: HexString
 
-    class Config:
-        extra = "forbid"
 
-
-class EthGetBlockByHashDetails(BaseModel):
+class EthGetBlockByHashDetails(ForbidExtra):
     number: Union[HexString, None]
     hash: Union[HexString, None]
     parentHash: HexString
@@ -167,8 +121,11 @@ class EthGetBlockByHashDetails(BaseModel):
     stateRoot: HexString
     receiptsRoot: HexString
     miner: tp.Optional[HexString]  # check with newer geth
+    baseFeePerGas: tp.Optional[HexString] = None  # check with newer geth
+    withdrawals: tp.Optional[List[HexString]] = None  # check with newer geth
+    withdrawalsRoot: tp.Optional[HexString] = None  # check with newer geth
     difficulty: HexString
-    totalDifficulty: HexString
+    totalDifficulty: Union[HexString, None]
     extraData: HexString
     size: HexString
     gasLimit: HexString
@@ -178,18 +135,12 @@ class EthGetBlockByHashDetails(BaseModel):
     uncles: List[HexString]
     mixHash: HexString
 
-    class Config:
-        extra = "forbid"
-
 
 class EthGetBlockByHashResult(EthResult):
     result: Union[EthGetBlockByHashDetails, None]
 
-    class Config:
-        extra = "forbid"
 
-
-class EthGetLogsDetails(BaseModel):
+class EthGetLogsDetails(ForbidExtra):
     removed: bool
     logIndex: Union[HexString, None]
     blockNumber: Union[HexString, None]
@@ -200,18 +151,12 @@ class EthGetLogsDetails(BaseModel):
     data: Union[HexString, ZeroBytesString]
     topics: List[HexString]
 
-    class Config:
-        extra = "forbid"
-
 
 class EthGetLogs(EthResult):
     result: List[EthGetLogsDetails]
 
-    class Config:
-        extra = "forbid"
 
-
-class NeonGetLogsDetails(BaseModel):
+class NeonGetLogsDetails(ForbidExtra):
     removed: bool
     logIndex: Union[HexString, None]
     blockNumber: Union[HexString, None]
@@ -230,15 +175,9 @@ class NeonGetLogsDetails(BaseModel):
     neonIsHidden: bool
     neonIsReverted: bool
 
-    class Config:
-        extra = "forbid"
-
 
 class NeonGetLogs(EthResult):
     result: List[NeonGetLogsDetails]
-
-    class Config:
-        extra = "forbid"
 
 
 class EthGetBlockByNumberAndIndexResult(EthResult):
@@ -249,7 +188,7 @@ class EthGetBlockByNumberAndIndexNoneResult(EthResult):
     result: None
 
 
-class ReceiptDetails(BaseModel):
+class ReceiptDetails(ForbidExtra):
     transactionHash: HexString
     transactionIndex: HexString
     blockHash: HexString
@@ -274,9 +213,6 @@ class ReceiptDetails(BaseModel):
         if values.get("status") is not None and values.get("root") is not None:
             raise ValueError("Either status or root must be present")
         return values
-
-    class Config:
-        extra = "forbid"
 
 
 class EthGetTransactionReceiptResult(EthResult):
