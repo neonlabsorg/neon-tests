@@ -3,6 +3,7 @@ from random import randrange
 
 import pytest
 import solana
+from eth_keys import keys as eth_keys
 from solana.publickey import PublicKey
 from solana.rpc.commitment import Confirmed
 from solana.transaction import Transaction
@@ -217,7 +218,7 @@ def test_temporary_holder_acc_is_free(treasury_pool, sender_with_tokens, evm_loa
     trx.add(create_holder_instruction)
     signed_tx = make_eth_transaction(evm_loader, sender_with_tokens.eth_address, None, sender_with_tokens, amount)
     operator_balance_account = evm_loader.get_operator_balance_pubkey(user_as_operator)
-    from eth_keys import keys as eth_keys
+
 
     operator_ether = eth_keys.PrivateKey(user_as_operator.secret_key[:32]).public_key.to_canonical_address()
     evm_loader.create_operator_balance_account(user_as_operator, operator_ether)
