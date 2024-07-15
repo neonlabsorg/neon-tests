@@ -324,6 +324,7 @@ class TestRpcBaseCalls:
         assert new_data in web3.Web3.to_text(response["result"]), "wrong variable value"
         EthGetStorageAt(**response)
 
+    @pytest.mark.mainnet
     @pytest.mark.neon_only
     def test_eth_mining(self, json_rpc_client):
         """Verify implemented rpc calls work eth_mining"""

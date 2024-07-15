@@ -284,7 +284,6 @@ class TestRpcGetTransaction:
         assert error_code == response["error"]["code"]
         assert error_message == response["error"]["message"]
 
-    # Geth returns code 32601
     @pytest.mark.neon_only
     def test_neon_get_transaction_by_sender_nonce_plus_one(self, json_rpc_client):
         """Request nonce+1, which is not exist"""
@@ -299,7 +298,6 @@ class TestRpcGetTransaction:
         assert "error" not in response
         assert response["result"] is None
 
-    # Geth returns code 32601
     @pytest.mark.mainnet
     @pytest.mark.neon_only
     def test_neon_get_transaction_by_sender_nonce(self, json_rpc_client):

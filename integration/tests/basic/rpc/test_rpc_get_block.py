@@ -1,5 +1,3 @@
-from pprint import pprint
-
 import pytest
 
 import allure
@@ -11,7 +9,7 @@ from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
 from utils.helpers import gen_hash_of_block
 from utils.models.error import EthError32602
-from utils.models.result import EthGetBlockByHashResult
+from utils.models.result import EthGetBlockByHashResult, EthGetBlockByHashFullResult
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -42,7 +40,10 @@ class TestRpcGetBlock:
             full_trx=full_trx,
             tx_receipt=tx_receipt,
         )
-        EthGetBlockByHashResult(**response)
+        if full_trx:
+            EthGetBlockByHashFullResult(**response)
+        else:
+            EthGetBlockByHashResult(**response)
 
     @pytest.mark.parametrize(
         "hash_len, full_trx",
@@ -87,7 +88,10 @@ class TestRpcGetBlock:
             full_trx=full_trx,
             tx_receipt=tx_receipt,
         )
-        EthGetBlockByHashResult(**response)
+        if full_trx:
+            EthGetBlockByHashFullResult(**response)
+        else:
+            EthGetBlockByHashResult(**response)
 
     @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
     def test_eth_get_block_by_number_with_incorrect_data(self, json_rpc_client):
@@ -155,4 +159,7 @@ class TestRpcGetBlock:
             tx_receipt=None,
             pending=quantity_tag == Tag.PENDING,
         )
-        EthGetBlockByHashResult(**response)
+        if full_trx:
+            EthGetBlockByHashFullResult(**response)
+        else:
+            EthGetBlockByHashResult(**response)
