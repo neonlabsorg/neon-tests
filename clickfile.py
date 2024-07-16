@@ -109,25 +109,29 @@ def red(s):
 def catch_traceback(func: tp.Callable) -> tp.Callable:
     """Catch traceback to file"""
     def add_error_log_comment(func_name, exc: BaseException):
-        err_msg = f"{exc.__class__.__name__}({exc})"
-        if func_name in ERR_MESSAGES:
-            err_msg = f"{ERR_MESSAGES.get(func_name)}: {err_msg}"
+        err_msg = ERR_MESSAGES.get(func_name) or f"{exc.__class__.__name__}({exc})"
         error_log.add_comment(text=f"{func_name}: {err_msg}")
 
     @functools.wraps(func)
     def wrap(*args, **kwargs) -> tp.Any:
+        error: tp.Optional[BaseException] = None
+
         try:
             result = func(*args, **kwargs)
-        except Exception as e:
-            add_error_log_comment(func.__name__, e)
-            raise
+        except SystemExit as e:
+            exit_code = e.args[0]
+            if exit_code != 0:
+                error = e
+        except BaseException as e:
+            error = e
         else:
             return result
+
         finally:
-            e = sys.exc_info()
-            if e[0] and e[0].__name__ == "SystemExit" and e[1] != 0:
+            if error:
                 if not error_log.has_logs():
-                    add_error_log_comment(func.__name__, e[1])
+                    add_error_log_comment(func.__name__, error)
+                raise error
 
     return wrap
 
