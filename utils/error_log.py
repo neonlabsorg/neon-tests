@@ -15,6 +15,7 @@ CMD_ERROR_LOG = "click_cmd_err.log"
 
 class ErrorLogModel(pydantic.BaseModel):
     failures: defaultdict[TestGroup, list[str]] = defaultdict(list)
+    errors: defaultdict[TestGroup, list[str]] = defaultdict(list)
     comments: list[str] = []
 
 
@@ -45,19 +46,21 @@ class ErrorLog:
     def read(self) -> ErrorLogModel:
         with self.file_path.open() as f:
             data = json.load(f)
-            failures = data["failures"]
-            failures: defaultdict[TestGroup, list[str]] = defaultdict(list, failures)
-            comments = data["comments"]
-            log = self.model(failures=failures, comments=comments)
+            log = self.model(**data)
         return log
 
     def has_logs(self) -> bool:
         log = self.read()
-        return bool(log.failures)
+        return bool(log.failures or log.errors)
 
     def add_failure(self, test_group: TestGroup, test_name: str) -> ErrorLogModel:
         with self._update() as log:
             log.failures[test_group].append(test_name)
+        return log
+
+    def add_error(self, test_group: TestGroup, test_name: str) -> ErrorLogModel:
+        with self._update() as log:
+            log.errors[test_group].append(test_name)
         return log
 
     def add_failures(self, test_group: TestGroup, test_names: list[str]) -> ErrorLogModel:
@@ -80,10 +83,16 @@ class ErrorLog:
             log.comments.append(text)
         return log
 
-    def get_count_by_group(self) -> defaultdict[TestGroup, int]:
+    def get_count_by_group(self) -> dict[TestGroup, int]:
+        """Get count of both failed and errored tests by group"""
         log = self.read()
-        count_by_group = {group: len(log.failures[group]) for group in log.failures if len(log.failures[group]) > 0}
-        return defaultdict(int, count_by_group)
+        failed_by_group = {group: len(log.failures[group]) for group in log.failures if len(log.failures[group]) > 0}
+        errored_by_group = {group: len(log.errors[group]) for group in log.errors if len(log.errors[group]) > 0}
+        count_by_group = {
+            key: failed_by_group.get(key, 0) + errored_by_group.get(key, 0)
+            for key in failed_by_group.keys() | errored_by_group.keys()
+        }
+        return count_by_group
 
 
 error_log = ErrorLog()
