@@ -785,23 +785,23 @@ class TestTransactionStepFromAccountParallelRuns:
             session_user.eth_address.hex(), rw_lock_contract.eth_address.hex(), "update_storage_map(uint256)", [3]
         )
         acc_from_emulation = [PublicKey(item["pubkey"]) for item in emulate_result["solana_accounts"]]
-        signed_tx = make_contract_call_trx(session_user, rw_lock_contract, "update_storage_map(uint256)", [3])
-        write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
-
-        send_transaction_step_from_account(
-            operator_keypair, evm_loader, treasury_pool, holder_acc, acc_from_emulation, EVM_STEPS, operator_keypair
+        signed_tx = make_contract_call_trx(evm_loader, session_user, rw_lock_contract, "update_storage_map(uint256)", [3])
+        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
+        operator_balance_account = evm_loader.get_operator_balance_pubkey(operator_keypair)
+        evm_loader.send_transaction_step_from_account(
+            operator_keypair, operator_balance_account, treasury_pool, holder_acc, acc_from_emulation, EVM_STEPS, operator_keypair
         )
 
         random.shuffle(acc_from_emulation)
-        send_transaction_step_from_account(
-            operator_keypair, evm_loader, treasury_pool, holder_acc, acc_from_emulation, EVM_STEPS, operator_keypair
+        evm_loader.send_transaction_step_from_account(
+            operator_keypair, operator_balance_account, treasury_pool, holder_acc, acc_from_emulation, EVM_STEPS, operator_keypair
         )
 
         random.shuffle(acc_from_emulation)
-        resp = send_transaction_step_from_account(
-            operator_keypair, evm_loader, treasury_pool, holder_acc, acc_from_emulation, EVM_STEPS, operator_keypair
+        resp = evm_loader.send_transaction_step_from_account(
+            operator_keypair, operator_balance_account, treasury_pool, holder_acc, acc_from_emulation, EVM_STEPS, operator_keypair
         )
-        check_transaction_logs_have_text(resp.value.transaction.transaction.signatures[0], "exit_status=0x11")
+        check_transaction_logs_have_text(resp, "exit_status=0x11")
         check_holder_account_tag(holder_acc, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
 
 class TestStepFromAccountChangingOperatorsDuringTrxRun:

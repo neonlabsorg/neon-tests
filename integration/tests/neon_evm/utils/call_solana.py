@@ -56,14 +56,16 @@ class SolanaCaller:
         )
         return bytes32_to_solana_pubkey(addr)
 
-    def execute(self, program_id, instruction, lamports=0, sender=None, additional_accounts=None):
+    def execute(self, program_id, instruction, lamports=0, holder_acc=None, sender=None, additional_accounts=None):
         sender = self.owner if sender is None else sender
+        holder_acc = self.holder_acc if holder_acc is None else holder_acc
         serialized_instructions = serialize_instruction(program_id, instruction)
         signed_tx = make_contract_call_trx(self.evm_loader,
             sender, self.contract, "execute(uint64,bytes)", [lamports, serialized_instructions]
         )
         resp = self.evm_loader.execute_trx_from_instruction_with_solana_call(
             self.operator_keypair,
+            holder_acc,
             self.treasury_pool.account,
             self.treasury_pool.buffer,
             signed_tx,
@@ -80,14 +82,16 @@ class SolanaCaller:
         )
         return resp
 
-    def execute_with_seed(self, program_id, instruction, seed, lamports=0, sender=None, additional_accounts=None):
+    def execute_with_seed(self, program_id, instruction, seed, lamports=0, holder_acc=None, sender=None, additional_accounts=None):
         sender = self.owner if sender is None else sender
+        holder_acc = self.holder_acc if holder_acc is None else holder_acc
         serialized_instructions = serialize_instruction(program_id, instruction)
         signed_tx = make_contract_call_trx(self.evm_loader,
             sender, self.contract, "executeWithSeed(uint64,bytes32,bytes)", [lamports, seed, serialized_instructions]
         )
         resp = self.evm_loader.execute_trx_from_instruction_with_solana_call(
             self.operator_keypair,
+            holder_acc,
             self.treasury_pool.account,
             self.treasury_pool.buffer,
             signed_tx,

@@ -3,6 +3,7 @@ from random import randrange
 
 import pytest
 import solana
+from eth_keys import keys as eth_keys
 from solana.publickey import PublicKey
 from solana.rpc.commitment import Confirmed
 from solana.transaction import Transaction
@@ -196,6 +197,10 @@ def test_temporary_holder_acc_is_free(treasury_pool, sender_with_tokens, evm_loa
     # This case is used by neonpass
     user_as_operator = sender_with_tokens.solana_account
     amount = 10
+
+    operator_ether = eth_keys.PrivateKey(user_as_operator.secret_key[:32]).public_key.to_canonical_address()
+    evm_loader.create_operator_balance_account(user_as_operator, operator_ether)
+
     operator_balance_before = evm_loader.get_solana_balance(user_as_operator.public_key)
 
     trx = TransactionWithComputeBudget(user_as_operator)
@@ -217,9 +222,13 @@ def test_temporary_holder_acc_is_free(treasury_pool, sender_with_tokens, evm_loa
     trx.add(create_holder_instruction)
     signed_tx = make_eth_transaction(evm_loader, sender_with_tokens.eth_address, None, sender_with_tokens, amount)
 
+    operator_balance_account = evm_loader.get_operator_balance_pubkey(user_as_operator)
+
+
     trx.add(
         make_ExecuteTrxFromInstruction(
             user_as_operator,
+            operator_balance_account,
             holder_pubkey,
             evm_loader.loader_id,
             treasury_pool.account,
@@ -232,7 +241,7 @@ def test_temporary_holder_acc_is_free(treasury_pool, sender_with_tokens, evm_loa
         )
     )
     resp = evm_loader.send_tx(trx, user_as_operator)
-    check_transaction_logs_have_text(resp.value, "exit_status=0x11")
+    check_transaction_logs_have_text(resp, "exit_status=0x11")
     operator_balance_after = evm_loader.get_solana_balance(user_as_operator.public_key)
     operator_gas_paid_with_holder = operator_balance_before - operator_balance_after
 
@@ -252,7 +261,7 @@ def test_temporary_holder_acc_is_free(treasury_pool, sender_with_tokens, evm_loa
             sender_with_tokens.solana_account_address,
         ],
     )
-    check_transaction_logs_have_text(resp.value, "exit_status=0x11")
+    check_transaction_logs_have_text(resp, "exit_status=0x11")
     operator_balance_after = evm_loader.get_solana_balance(user_as_operator.public_key)
     operator_gas_paid_without_holder = operator_balance_before - operator_balance_after
 

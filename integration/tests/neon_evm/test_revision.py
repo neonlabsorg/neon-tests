@@ -348,7 +348,7 @@ class TestAccountRevision:
         )
 
         for _ in range(2):
-            holder_acc_for_trx_from_instr = create_holder(operator_keypair)
+            holder_acc_for_trx_from_instr = create_holder(operator_keypair, evm_loader)
             signed_tx2 = make_contract_call_trx(evm_loader, session_user, rw_lock_contract, "update_storage_map(uint256)", [3])
             resp = evm_loader.execute_trx_from_instruction(
                 operator_keypair,
