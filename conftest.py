@@ -18,7 +18,7 @@ from clickfile import TEST_GROUPS, EnvName
 from utils.types import TestGroup
 from utils.error_log import error_log
 from utils import create_allure_environment_opts, setup_logging
-from utils.faucet import Faucet
+from utils.faucet import NeonFaucet
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 from utils.solana_client import SolanaClient
@@ -43,6 +43,10 @@ class EnvironmentConfig:
     neonpass_url: str = ""
     ws_subscriber_url: str = ""
     account_seed_version: str = "\3"
+
+    @property
+    def is_stand(self) -> bool:
+        return self.name not in (EnvName.MAINNET, EnvName.DEVNET, EnvName.TESTNET)
 
 
 def pytest_addoption(parser: Parser):
@@ -223,8 +227,8 @@ def sol_client_session(pytestconfig: Config, bank_account: tp.Optional[Keypair])
 
 
 @pytest.fixture(scope="session", autouse=True)
-def faucet(pytestconfig: Config, web3_client_session) -> Faucet:
-    return Faucet(pytestconfig.environment.faucet_url, web3_client_session)
+def faucet(pytestconfig: Config, web3_client_session: NeonChainWeb3Client) -> NeonFaucet:
+    return NeonFaucet(pytestconfig.environment.faucet_url, web3_client_session)
 
 
 @pytest.fixture(scope="session")

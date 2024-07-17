@@ -14,13 +14,13 @@ parent, root = file.parent, file.parents[1]
 sys.path.append(str(root))
 
 from utils.web3client import NeonChainWeb3Client
-from utils.faucet import Faucet
+from utils.faucet import NeonFaucet
 
 FAUCET_URL = os.environ.get("FAUCET_URL")
 PROXY_URL = os.environ.get("PROXY_URL")
 NETWORK_ID = os.environ.get("NETWORK_ID")
 web3_client = NeonChainWeb3Client(PROXY_URL)
-faucet_client = Faucet(FAUCET_URL, web3_client)
+faucet_client = NeonFaucet(FAUCET_URL, web3_client)
 CURVE_DATA_URL = "https://raw.githubusercontent.com/curvefi/curve-factory/simple-dev/data.json"
 
 report = {"name": "Curve-factory", "actions": []}

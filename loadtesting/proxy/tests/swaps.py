@@ -14,7 +14,7 @@ from solana.keypair import Keypair
 
 from utils.web3client import NeonChainWeb3Client
 from utils.solana_client import SolanaClient
-from utils.faucet import Faucet
+from utils.faucet import NeonFaucet
 
 from utils import helpers
 from utils.erc20wrapper import ERC20Wrapper
@@ -69,7 +69,7 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
 
     sol_client = SolanaClient(environment.credentials["solana_url"])
     neon_client = NeonChainWeb3Client(environment.credentials["proxy_url"])
-    faucet = Faucet(environment.credentials["faucet_url"], neon_client)
+    faucet = NeonFaucet(environment.credentials["faucet_url"], neon_client)
 
     if "signer" in data and data["signer"]:
         LOG.info("Re-use signer from save data")
@@ -373,7 +373,7 @@ class SwapUser(User):
         """
         LOG.info("Initiate user")
         self.neon_client = NeonChainWeb3Client(self.environment.credentials["proxy_url"])
-        faucet = Faucet(self.environment.credentials["faucet_url"], self.neon_client)
+        faucet = NeonFaucet(self.environment.credentials["faucet_url"], self.neon_client)
 
         user_count = self.environment.runner.user_count
         LOG.info(f"Create new user with index: {user_count}")
