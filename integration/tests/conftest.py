@@ -8,7 +8,6 @@ import time
 import typing as tp
 
 import allure
-import base58
 import pytest
 from _pytest.config import Config
 from packaging import version
@@ -16,16 +15,18 @@ from solana.keypair import Keypair
 from solana.publickey import PublicKey
 from solana.rpc import commitment
 from solana.rpc.types import TxOpts
-from web3.exceptions import InvalidAddress
 
 from clickfile import network_manager
+from conftest import bank_account, EnvironmentConfig
 from utils import web3client
 from utils.apiclient import JsonRPCSession
 from utils.consts import LAMPORT_PER_SOL, MULTITOKEN_MINTS
 from utils.erc20 import ERC20
 from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
+from utils.faucet import NeonFaucet, USDCFaucet
 from utils.operator import Operator
+from utils.solana_client import SolanaClient
 from utils.web3client import NeonChainWeb3Client, Web3Client
 from utils.prices import get_sol_price, get_neon_price
 
@@ -124,17 +125,9 @@ def web3_client_sol(pytestconfig: Config) -> tp.Union[Web3Client, None]:
 
 
 @pytest.fixture(scope="session")
-def web3_client_usdt(pytestconfig: Config) -> tp.Union[Web3Client, None]:
-    if "usdt" in pytestconfig.environment.network_ids:
-        return Web3Client(f"{pytestconfig.environment.proxy_url}/usdt")
-    else:
-        return None
-
-
-@pytest.fixture(scope="session", autouse=True)
-def web3_client_eth(pytestconfig: Config) -> tp.Union[Web3Client, None]:
-    if "eth" in pytestconfig.environment.network_ids:
-        return Web3Client(f"{pytestconfig.environment.proxy_url}/eth")
+def web3_client_usdc(pytestconfig: Config) -> tp.Union[Web3Client, None]:
+    if "usdc" in pytestconfig.environment.network_ids:
+        return Web3Client(f"{pytestconfig.environment.proxy_url}/usdc")
     else:
         return None
 
@@ -151,19 +144,6 @@ def operator(pytestconfig: Config, web3_client_session: NeonChainWeb3Client) -> 
 
 
 @pytest.fixture(scope="session")
-def bank_account(pytestconfig: Config) -> tp.Optional[Keypair]:
-    account = None
-    if pytestconfig.environment.use_bank:
-        if pytestconfig.getoption("--network") == "devnet":
-            private_key = os.environ.get("BANK_PRIVATE_KEY")
-        elif pytestconfig.getoption("--network") == "mainnet":
-            private_key = os.environ.get("BANK_PRIVATE_KEY_MAINNET")
-        key = base58.b58decode(private_key)
-        account = Keypair.from_secret_key(key)
-    yield account
-
-
-@pytest.fixture(scope="session")
 def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Optional[Keypair]:
     account = None
     if pytestconfig.environment.eth_bank_account != "":
@@ -174,14 +154,13 @@ def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Optional[K
 
 
 @pytest.fixture(scope="session")
-def solana_account(bank_account, pytestconfig: Config, sol_client_session):
+def solana_account(bank_account, pytestconfig: Config, sol_client_session: SolanaClient):
     account = Keypair.generate()
+    amount = int(0.5 * LAMPORT_PER_SOL) if pytestconfig.environment.use_bank else 1 * LAMPORT_PER_SOL
+    sol_client_session.fund_account(pubkey=account.public_key, amount=amount)
 
-    if pytestconfig.environment.use_bank:
-        sol_client_session.send_sol(bank_account, account.public_key, int(0.5 * LAMPORT_PER_SOL))
-    else:
-        sol_client_session.request_airdrop(account.public_key, 1 * LAMPORT_PER_SOL)
     yield account
+
     if pytestconfig.environment.use_bank:
         balance = sol_client_session.get_balance(account.public_key, commitment=commitment.Confirmed).value
         try:
@@ -301,8 +280,14 @@ def class_account_sol_chain(
 
 
 @pytest.fixture(scope="class")
-def evm_loader(pytestconfig):
+def evm_loader(pytestconfig) -> EvmLoader:
     return EvmLoader(pytestconfig.environment.evm_loader, pytestconfig.environment.solana_url)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def faucet_usdc(pytestconfig: Config, web3_client_usdc: tp.Union[Web3Client, None]) -> tp.Optional[USDCFaucet]:
+    if web3_client_usdc:
+        return USDCFaucet(pytestconfig.environment.faucet_url, web3_client_usdc)
 
 
 @pytest.fixture(scope="class")
@@ -310,21 +295,25 @@ def account_with_all_tokens(
     evm_loader,
     solana_account,
     web3_client,
-    web3_client_usdt,
-    web3_client_eth,
+    web3_client_usdc,
     web3_client_sol,
     pytestconfig,
-    faucet,
+    faucet: NeonFaucet,
+    faucet_usdc: tp.Optional[USDCFaucet],
     eth_bank_account,
     neon_mint,
     operator_keypair,
     evm_loader_keypair,
-    bank_account
-
+    bank_account,
 ):
+    env_config: EnvironmentConfig =  pytestconfig.environment  # noqa
+
+    # fund NEON
     neon_account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account, amount=500)
+
+    # fund SOL
     if web3_client_sol:
-        if pytestconfig.environment.use_bank:
+        if env_config.use_bank:
             evm_loader.send_sol(bank_account, solana_account.public_key, int(1 * LAMPORT_PER_SOL))
         else:
             evm_loader.request_airdrop(solana_account.public_key, 1 * LAMPORT_PER_SOL)
@@ -334,12 +323,11 @@ def account_with_all_tokens(
             web3_client_sol.eth.chain_id,
             int(1 * LAMPORT_PER_SOL),
         )
-    for client in [web3_client_usdt, web3_client_eth]:
-        if client:
-            if client == web3_client_usdt:
-                mint = MULTITOKEN_MINTS["USDT"]
-            else:
-                mint = MULTITOKEN_MINTS["ETH"]
+
+    # fund USDC
+    if web3_client_usdc:
+        if env_config.is_stand:
+            mint = MULTITOKEN_MINTS["USDC"]
             token_mint = PublicKey(mint)
 
             evm_loader.mint_spl_to(token_mint, solana_account, 1000000000000000)
@@ -349,8 +337,11 @@ def account_with_all_tokens(
                 token_mint,
                 neon_account,
                 100000000,
-                client.eth.chain_id,
+                web3_client_usdc.eth.chain_id,
             )
+        else:
+            faucet_usdc.request_erc20(address=neon_account.address)
+
     return neon_account
 
 

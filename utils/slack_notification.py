@@ -7,8 +7,6 @@ from slack_sdk.models.blocks import (
     ButtonElement,
 )
 
-from utils.types import TestGroup
-
 
 class SlackNotification(pydantic.BaseModel):
     blocks: list[dict] = []
@@ -39,7 +37,7 @@ class SlackNotification(pydantic.BaseModel):
 
         for index, comment in enumerate(comments):
             if comment:
-                number = f" {index + 1}" if len(comments) > 0 else ""
+                number = f" {index + 1}" if len(comments) > 1 else ""
                 fields.extend([
                     {"text": f"*Comment{number}*", "type": "mrkdwn"},
                     {"text": comment, "type": "mrkdwn"}

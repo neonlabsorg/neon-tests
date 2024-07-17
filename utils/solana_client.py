@@ -25,12 +25,18 @@ from spl.token.constants import TOKEN_PROGRAM_ID
 
 
 class SolanaClient(solana.rpc.api.Client):
-    def __init__(self, endpoint, account_seed_version="\3"):
+    def __init__(
+            self,
+            endpoint: str,
+            account_seed_version: str = "\3",
+            bank_account: tp.Optional[Keypair] = None,
+    ):
         super().__init__(endpoint=endpoint, timeout=120)
         self.endpoint = endpoint
         self.account_seed_version = (
             bytes(account_seed_version, encoding="utf-8").decode("unicode-escape").encode("utf-8")
         )
+        self.bank_account: tp.Optional[Keypair] = bank_account
 
     def request_airdrop(
         self,
@@ -55,15 +61,17 @@ class SolanaClient(solana.rpc.api.Client):
         tx = Transaction().add(
             transfer(TransferParams(from_pubkey=from_.public_key, to_pubkey=to, lamports=amount_lamports))
         )
-        balance_before = self.get_balance(to).value
-        self.send_transaction(tx, from_)
-        for _ in range(20):
-            if int(self.get_balance(to).value) > int(balance_before):
-                break
-            time.sleep(6)
-        else:
-            raise AssertionError(f"Balance not changed in account {to}")
+        self.send_tx_and_check_status_ok(tx, from_)
 
+    def fund_account(
+            self,
+            pubkey: PublicKey,
+            amount: int,
+    ):
+        if self.bank_account:
+            self.send_sol(from_=self.bank_account, to=pubkey, amount_lamports=amount)
+        else:
+            self.request_airdrop(pubkey=pubkey, lamports=amount)
 
     @staticmethod
     def ether2bytes(ether: tp.Union[str, bytes]):

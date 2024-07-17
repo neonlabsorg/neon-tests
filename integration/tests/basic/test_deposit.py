@@ -58,21 +58,22 @@ class TestDeposit:
         neon_balance_after = self.web3_client.get_balance(new_account.address)
         assert neon_balance_after == neon_balance_before + web3.Web3.to_wei(amount, "ether")
 
+    @pytest.mark.only_stands
     @pytest.mark.multipletokens
     def test_create_and_transfer_new_token_from_solana_to_neon(
-        self, solana_account, pytestconfig: Config, neon_mint, web3_client_usdt, operator_keypair, evm_loader
+        self, solana_account, pytestconfig: Config, neon_mint, web3_client_usdc, operator_keypair, evm_loader
     ):
         amount = 5000
         new_sol_account = Keypair.generate()
-        token_mint = PublicKey(MULTITOKEN_MINTS["USDT"])
+        token_mint = PublicKey(MULTITOKEN_MINTS["USDC"])
         evm_loader.request_airdrop(new_sol_account.public_key, 1 * LAMPORT_PER_SOL)
         new_account = self.accounts.create_account()
 
         evm_loader.deposit_neon_like_tokens_from_solana_to_neon(
-            token_mint, new_sol_account, new_account, web3_client_usdt.chain_id, operator_keypair, amount
+            token_mint, new_sol_account, new_account, web3_client_usdc.chain_id, operator_keypair, amount
         )
 
-        usdt_balance_after = web3_client_usdt.get_balance(new_account)
+        usdt_balance_after = web3_client_usdc.get_balance(new_account)
         assert usdt_balance_after == amount * 1000000000000
 
     @pytest.mark.multipletokens

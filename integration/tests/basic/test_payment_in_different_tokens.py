@@ -241,17 +241,13 @@ class TestMultiplyChains:
     def test_call_different_chains_contracts_in_one_transaction(
         self,
         alice,
-        common_contract,
         web3_client_sol,
-        web3_client_usdt,
-        web3_client_eth,
-        class_account_sol_chain,
+        web3_client_usdc,
     ):
         chains = {
             "neon": {"client": self.web3_client},
             "sol": {"client": web3_client_sol},
-            "usdt": {"client": web3_client_usdt},
-            "eth": {"client": web3_client_eth},
+            "usdc": {"client": web3_client_usdc},
         }
 
         make_nonce_the_biggest_for_chain(alice, self.web3_client, [item["client"] for item in chains.values()])

@@ -7,7 +7,7 @@ import requests
 from locust import tag, task, User, events
 
 from utils.web3client import NeonChainWeb3Client
-from utils.faucet import Faucet
+from utils.faucet import NeonFaucet
 
 from loadtesting.proxy.common.base import NeonProxyTasksSet
 
@@ -28,7 +28,7 @@ def prepare_moraswap_contracts(environment: "locust.env.Environment", **kwargs):
         return
 
     neon_client = NeonChainWeb3Client(environment.credentials["proxy_url"])
-    faucet = Faucet(environment.credentials["faucet_url"], neon_client)
+    faucet = NeonFaucet(environment.credentials["faucet_url"], neon_client)
 
     eth_account = neon_client.create_account()
     faucet.request_neon(eth_account.address, 10000)

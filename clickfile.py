@@ -16,6 +16,8 @@ import typing as tp
 from pathlib import Path
 from urllib.parse import urlparse
 
+import pytest
+
 from utils.error_log import error_log
 from utils.slack_notification import SlackNotification
 from utils.types import TestGroup
@@ -107,25 +109,29 @@ def red(s):
 def catch_traceback(func: tp.Callable) -> tp.Callable:
     """Catch traceback to file"""
     def add_error_log_comment(func_name, exc: BaseException):
-        err_msg = f"{exc.__class__.__name__}({exc})"
-        if func_name in ERR_MESSAGES:
-            err_msg = f"{ERR_MESSAGES.get(func_name)}: {err_msg}"
+        err_msg = ERR_MESSAGES.get(func_name) or f"{exc.__class__.__name__}({exc})"
         error_log.add_comment(text=f"{func_name}: {err_msg}")
 
     @functools.wraps(func)
     def wrap(*args, **kwargs) -> tp.Any:
+        error: tp.Optional[BaseException] = None
+
         try:
             result = func(*args, **kwargs)
-        except Exception as e:
-            add_error_log_comment(func.__name__, e)
-            raise
+        except SystemExit as e:
+            exit_code = e.args[0]
+            if exit_code != 0:
+                error = e
+        except BaseException as e:
+            error = e
         else:
             return result
+
         finally:
-            e = sys.exc_info()
-            if e[0] and e[0].__name__ == "SystemExit" and e[1] != 0:
+            if error:
                 if not error_log.has_logs():
-                    add_error_log_comment(func.__name__, e[1])
+                    add_error_log_comment(func.__name__, error)
+                raise error
 
     return wrap
 
@@ -523,6 +529,7 @@ def update_contracts(branch):
 @click.option("-a", "--amount", default=20000, help="Requested amount from faucet")
 @click.option("-u", "--users", default=8, help="Accounts numbers used in OZ tests")
 @click.option("-c", "--case", default='', type=str, help="Specific test case name pattern to run")
+@click.option("--marker", help="Run tests by mark")
 @click.option(
     "--ui-item",
     default="all",
@@ -541,7 +548,18 @@ def update_contracts(branch):
     type=click.Choice(TEST_GROUPS),
 )
 @catch_traceback
-def run(name: TestGroup, jobs, numprocesses, ui_item, amount, users, network: EnvName, case, keep_error_log: bool):
+def run(
+        name: TestGroup,
+        jobs,
+        numprocesses,
+        ui_item,
+        amount,
+        users,
+        network: EnvName,
+        case,
+        keep_error_log: bool,
+        marker: str,
+):
     if not network and name == "ui":
         network = "devnet"
     if DST_ALLURE_CATEGORIES.parent.exists():
@@ -591,16 +609,18 @@ def run(name: TestGroup, jobs, numprocesses, ui_item, amount, users, network: En
 
     if case != '':
         command += " -vk {}".format(case)
+    if marker:
+        command += f' -m {marker}'
 
     command += f" -s --network={network} --make-report --test-group {name}"
     if keep_error_log:
         command += " --keep-error-log"
-    cmd = subprocess.run(command, shell=True)
+    args = command.split()[1:]
+    exit_code = int(pytest.main(args=args))
     if name != "ui":
         shutil.copyfile(SRC_ALLURE_CATEGORIES, DST_ALLURE_CATEGORIES)
 
-    if cmd.returncode != 0:
-        sys.exit(cmd.returncode)
+    sys.exit(exit_code)
 
 
 @cli.command(
@@ -842,17 +862,17 @@ def get_allure_history(name: str, network: str, destination: str = "./allure-res
 
 @allure_cli.command("upload-report", help="Upload allure history")
 @click.argument("name", type=click.Choice(TEST_GROUPS))
-@click.option("-n", "--network", default=EnvName.NIGHT_STAND.value, type=EnvName, help="In which stand run tests")
+@click.option("-n", "--network", default=EnvName.NIGHT_STAND, type=EnvName, help="In which stand run tests")
 @click.option(
     "-s",
     "--source",
     default="./allure-report",
     type=click.Path(file_okay=False, dir_okay=True),
 )
-def upload_allure_report(name: TestGroup, network: str, source: str = "./allure-report"):
+def upload_allure_report(name: TestGroup, network: EnvName, source: str = "./allure-report"):
     branch = os.environ.get("GITHUB_REF_NAME")
     build_id = os.environ.get("GITHUB_RUN_NUMBER")
-    path = Path(name) / network / branch
+    path = Path(name) / network.value / branch
     cloud.upload(source, path / build_id)
     report_url = f"http://neon-test-allure.s3-website.eu-central-1.amazonaws.com/{path / build_id}"
 

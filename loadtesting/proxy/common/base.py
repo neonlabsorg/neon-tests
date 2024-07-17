@@ -13,7 +13,7 @@ from gevent.pool import Pool
 from locust import TaskSet, events
 
 from utils import helpers
-from utils.faucet import Faucet
+from utils.faucet import NeonFaucet
 from utils.web3client import NeonChainWeb3Client
 
 from .events import statistics_collector, save_transaction
@@ -80,7 +80,7 @@ class NeonWeb3ClientExt(NeonChainWeb3Client):
 class NeonProxyTasksSet(TaskSet):
     """Implements base initialization, creates data requirements and helpers"""
 
-    faucet: tp.Optional[Faucet] = None
+    faucet: tp.Optional[NeonFaucet] = None
     account: tp.Optional["eth_account.signers.local.LocalAccount"] = None
     web3_client: tp.Optional[NeonWeb3ClientExt] = None
 
@@ -110,7 +110,7 @@ class NeonProxyTasksSet(TaskSet):
         self.web3_client = NeonWeb3ClientExt(
             self.credentials["proxy_url"]
         )
-        self.faucet = Faucet(
+        self.faucet = NeonFaucet(
             self.credentials["faucet_url"], self.web3_client, session=session)
 
     def task_block_number(self) -> None:

@@ -3,8 +3,10 @@ import json
 import shutil
 import pathlib
 import sys
+import typing as tp
 from dataclasses import dataclass
 
+import base58
 import pytest
 from _pytest.config import Config
 from _pytest.config.argparsing import Parser
@@ -16,7 +18,7 @@ from clickfile import TEST_GROUPS, EnvName
 from utils.types import TestGroup
 from utils.error_log import error_log
 from utils import create_allure_environment_opts, setup_logging
-from utils.faucet import Faucet
+from utils.faucet import NeonFaucet
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 from utils.solana_client import SolanaClient
@@ -41,6 +43,10 @@ class EnvironmentConfig:
     neonpass_url: str = ""
     ws_subscriber_url: str = ""
     account_seed_version: str = "\3"
+
+    @property
+    def is_stand(self) -> bool:
+        return self.name not in (EnvName.MAINNET, EnvName.DEVNET, EnvName.TESTNET)
 
 
 def pytest_addoption(parser: Parser):
@@ -90,8 +96,12 @@ def pytest_runtest_protocol(item: Item, nextitem):
     if item.config.getoption("--make-report"):
         test_group: TestGroup = item.config.getoption("--test-group")
         for report in reports:
-            if report.when == "call" and report.outcome == "failed":
-                error_log.add_failure(test_group=test_group, test_name=item.nodeid)
+            if report.outcome == "failed":
+                if report.when == "call":
+                    error_log.add_failure(test_group=test_group, test_name=item.nodeid)
+                else:
+                    error_log.add_error(test_group=test_group, test_name=item.nodeid)
+
     return True
 
 
@@ -126,7 +136,11 @@ def pytest_configure(config: Config):
     if "NEON_TOKEN_MINT" not in os.environ or not os.environ["NEON_TOKEN_MINT"]:
         os.environ["NEON_TOKEN_MINT"] = env["spl_neon_mint"]
     if "CHAIN_ID" not in os.environ or not os.environ["CHAIN_ID"]:
-        os.environ["CHAIN_ID"]: env["network_ids"]["neon"]
+        os.environ["CHAIN_ID"] = str(env["network_ids"]["neon"])
+
+    if network_name == "devnet":
+        env["faucet_url"] = os.getenv("DEVNET_FAUCET_URL") or env["faucet_url"]
+        env["solana_url"] = os.getenv("DEVNET_SOLANA_URL") or env["solana_url"]
 
     if network_name == "terraform":
         env["solana_url"] = env["solana_url"].replace("<solana_ip>", os.environ.get("SOLANA_IP"))
@@ -203,20 +217,34 @@ def web3_client_session(pytestconfig: Config) -> NeonChainWeb3Client:
 
 
 @pytest.fixture(scope="session")
-def sol_client_session(pytestconfig: Config):
+def sol_client_session(pytestconfig: Config, bank_account: tp.Optional[Keypair]):
     client = SolanaClient(
         pytestconfig.environment.solana_url,
         pytestconfig.environment.account_seed_version,
+        bank_account=bank_account,
     )
     return client
 
 
 @pytest.fixture(scope="session", autouse=True)
-def faucet(pytestconfig: Config, web3_client_session) -> Faucet:
-    return Faucet(pytestconfig.environment.faucet_url, web3_client_session)
+def faucet(pytestconfig: Config, web3_client_session: NeonChainWeb3Client) -> NeonFaucet:
+    return NeonFaucet(pytestconfig.environment.faucet_url, web3_client_session)
 
 
 @pytest.fixture(scope="session")
 def accounts_session(pytestconfig: Config, web3_client_session, faucet, eth_bank_account):
     accounts = EthAccounts(web3_client_session, faucet, eth_bank_account)
     return accounts
+
+
+@pytest.fixture(scope="session")
+def bank_account(pytestconfig: Config) -> tp.Optional[Keypair]:
+    account = None
+    if pytestconfig.environment.use_bank:
+        if pytestconfig.getoption("--network") == "devnet":
+            private_key = os.environ.get("BANK_PRIVATE_KEY")
+        elif pytestconfig.getoption("--network") == "mainnet":
+            private_key = os.environ.get("BANK_PRIVATE_KEY_MAINNET")
+        key = base58.b58decode(private_key)
+        account = Keypair.from_secret_key(key)
+    yield account

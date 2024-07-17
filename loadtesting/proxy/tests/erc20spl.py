@@ -7,7 +7,7 @@ from solana.keypair import Keypair
 
 from loadtesting.proxy.common.base import NeonProxyTasksSet
 from utils.erc20wrapper import ERC20Wrapper
-from utils.faucet import Faucet
+from utils.faucet import NeonFaucet
 from utils.web3client import NeonChainWeb3Client
 
 LOG = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ LOG = logging.getLogger(__name__)
 @events.test_start.add_listener
 def prepare_one_contract_for_erc20(environment: "locust.env.Environment", **kwargs):
     neon_client = NeonChainWeb3Client(environment.credentials["proxy_url"])
-    faucet = Faucet(environment.credentials["faucet_url"], neon_client)
+    faucet = NeonFaucet(environment.credentials["faucet_url"], neon_client)
 
     eth_account = neon_client.create_account()
     faucet.request_neon(eth_account.address, 10000)
