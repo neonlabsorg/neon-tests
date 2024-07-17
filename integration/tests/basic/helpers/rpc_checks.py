@@ -1,3 +1,4 @@
+import logging
 import typing as tp
 from types import SimpleNamespace
 
@@ -6,6 +7,8 @@ from web3 import types
 
 from clickfile import EnvName
 from integration.tests.basic.helpers.assert_message import AssertMessage
+
+LOGGER = logging.getLogger(__name__)
 
 NoneType = type(None)
 
@@ -116,6 +119,8 @@ def assert_block_fields(env_name: EnvName, response: dict, full_trx: bool, tx_re
 
 
 def assert_log_field_in_neon_trx_receipt(response, events_count):
+    LOGGER.info(f"response: {response}")
+
     expected_event_types = ["EnterCall"]
     for i in range(events_count):
         expected_event_types.append("Log")
