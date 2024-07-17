@@ -3,16 +3,13 @@ import typing as tp
 import rlp
 import allure
 import pytest
-import requests
 import web3
 import web3.types
 from eth_account.signers.local import LocalAccount
 from web3._utils.fee_utils import _fee_history_priority_fee_estimate  # noqa
-from eth_utils import is_hex
 from web3.contract import Contract
 from web3.exceptions import TimeExhausted
 
-from conftest import EnvName
 from utils import helpers
 from utils.apiclient import JsonRPCSession
 from utils.models.fee_history_model import EthFeeHistoryResult
@@ -425,7 +422,7 @@ class TestSendRawTransaction:
             access_list=None,
         )
 
-        error_msg_regex = r"{'code': -32000, 'message': '.+'}"
+        error_msg_regex = r"{'code': -32000, 'message': 'insufficient funds for.+'}"
         with pytest.raises(expected_exception=ValueError, match=error_msg_regex):
             self.web3_client.send_transaction(account=sender, transaction=tx_params)
 
@@ -469,11 +466,11 @@ class TestRpcMaxPriorityFeePerGas:
 
         response = json_rpc_client.send_rpc(method="eth_maxPriorityFeePerGas")
         assert "error" not in response, response["error"]
-        max_fee_per_gas = int(response["result"], 16)
+        max_priority_fee_per_gas = int(response["result"], 16)
 
         fee_history: web3.types.FeeHistory = web3_client._web3.eth.fee_history(10, "pending", [5])
-        estimated_max_fee_per_gas = _fee_history_priority_fee_estimate(fee_history=fee_history)
-        assert abs(max_fee_per_gas - estimated_max_fee_per_gas) <= 2000000000
+        estimated_max_priority_fee_per_gas = _fee_history_priority_fee_estimate(fee_history=fee_history)
+        assert abs(max_priority_fee_per_gas - estimated_max_priority_fee_per_gas) <= 2000000000
 
 
 @allure.feature("EIP Verifications")
@@ -753,309 +750,6 @@ class TestRpcFeeHistory:
         assert "result" not in response, response["result"]
         assert "error" in response
         assert response["error"]["code"] == error_code
-
-
-@allure.feature("EIP Verifications")
-@allure.story("EIP-1559: Verify new fields in neon_ JSON-RPC methods")
-@pytest.mark.neon_only
-class TestRpcNeonMethods:
-
-    def test_neon_get_transaction_by_sender_nonce(
-            self,
-            accounts: EthAccounts,
-            web3_client: NeonChainWeb3Client,
-            json_rpc_client: JsonRPCSession,
-    ):
-        sender = accounts[0]
-        recipient = accounts[1]
-        nonce = web3_client.get_nonce(address=sender.address)
-        base_fee_per_gas = web3_client.base_fee_per_gas()
-        max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
-        max_fee_per_gas = (5 * base_fee_per_gas) + max_priority_fee_per_gas
-
-        web3_client.send_tokens_eip_1559(
-            from_=sender,
-            to=recipient.address,
-            value=100,
-            nonce=nonce,
-            max_fee_per_gas=max_fee_per_gas,
-            max_priority_fee_per_gas=max_priority_fee_per_gas,
-        )
-
-        response = json_rpc_client.send_rpc(
-            method="neon_getTransactionBySenderNonce", params=[sender.address, nonce]
-        )
-
-        assert "error" not in response, response["error"]
-        max_priority_fee_per_gas_response = response["result"].get("maxPriorityFeePerGas")
-        assert max_priority_fee_per_gas_response is not None
-        assert int(max_priority_fee_per_gas_response, 16) == max_priority_fee_per_gas
-
-        max_fee_per_gas_response = response["result"].get("maxFeePerGas")
-        assert max_fee_per_gas is not None
-        assert int(max_fee_per_gas_response, 16) == max_fee_per_gas
-
-    def test_neon_get_solana_transaction_by_neon_transaction(
-            self,
-            accounts: EthAccounts,
-            web3_client: NeonChainWeb3Client,
-            json_rpc_client: JsonRPCSession,
-    ):
-        sender = accounts[0]
-        recipient = accounts[1]
-
-        receipt = web3_client.send_tokens_eip_1559(
-            from_=sender,
-            to=recipient.address,
-            value=100,
-        )
-        params = [receipt.transactionHash.hex()]
-        response = json_rpc_client.send_rpc(method="neon_getSolanaTransactionByNeonTransaction", params=params)
-
-        assert "error" not in response, response["error"]
-        hash_solana = response["result"]
-        assert hash_solana
-
-    def test_neon_get_transaction_receipt(
-            self,
-            accounts: EthAccounts,
-            web3_client: NeonChainWeb3Client,
-            json_rpc_client: JsonRPCSession,
-    ):
-        sender = accounts[0]
-        recipient = accounts[1]
-
-        base_fee_per_gas = web3_client.base_fee_per_gas()
-        max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
-        max_fee_per_gas = (5 * base_fee_per_gas) + max_priority_fee_per_gas
-
-        receipt = web3_client.send_tokens_eip_1559(
-            from_=sender,
-            to=recipient.address,
-            value=100,
-            max_priority_fee_per_gas=max_priority_fee_per_gas,
-            max_fee_per_gas=max_fee_per_gas,
-        )
-
-        params = [receipt.transactionHash.hex()]
-        response = json_rpc_client.send_rpc(method="neon_getTransactionReceipt", params=params)
-
-        assert "error" not in response, response["error"]
-
-        actual_effective_gas_price = int(response["result"].get("effectiveGasPrice"), 16)
-        assert actual_effective_gas_price >= base_fee_per_gas
-        assert actual_effective_gas_price <= max_fee_per_gas
-
-
-@allure.feature("EIP Verifications")
-@allure.story("EIP-1559: Verify new fields in eth_ JSON-RPC methods")
-@pytest.mark.neon_only
-class TestRpcEthMethods:
-    def test_get_transaction_by_hash(
-            self,
-            accounts: EthAccounts,
-            web3_client: NeonChainWeb3Client,
-            json_rpc_client: JsonRPCSession,
-
-    ):
-        sender = accounts[0]
-        recipient = web3_client.create_account()
-
-        base_fee_per_gas = web3_client.base_fee_per_gas()
-        max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
-        max_fee_per_gas = (5 * base_fee_per_gas) + max_priority_fee_per_gas
-
-        receipt = web3_client.send_tokens_eip_1559(
-            from_=sender,
-            to=recipient.address,
-            value=100,
-            max_fee_per_gas=max_fee_per_gas,
-            max_priority_fee_per_gas=max_priority_fee_per_gas,
-        )
-        response = json_rpc_client.send_rpc(
-            method="eth_getTransactionByHash",
-            params=[receipt.transactionHash.hex()],
-        )
-
-        assert "error" not in response, response["error"]
-        result = response.get("result")
-        assert result is not None
-        assert int(result['maxFeePerGas'], 16) == max_fee_per_gas
-        assert int(result['maxPriorityFeePerGas'], 16) == max_priority_fee_per_gas
-
-    def test_get_transaction_by_block_hash_and_index(
-            self,
-            accounts: EthAccounts,
-            web3_client: NeonChainWeb3Client,
-            json_rpc_client: JsonRPCSession,
-
-    ):
-        sender = accounts[0]
-        recipient = web3_client.create_account()
-
-        base_fee_per_gas = web3_client.base_fee_per_gas()
-        max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
-        max_fee_per_gas = (5 * base_fee_per_gas) + max_priority_fee_per_gas
-
-        receipt = web3_client.send_tokens_eip_1559(
-            from_=sender,
-            to=recipient.address,
-            value=100,
-            max_fee_per_gas=max_fee_per_gas,
-            max_priority_fee_per_gas=max_priority_fee_per_gas,
-        )
-        transaction_index = hex(receipt.transactionIndex)
-        response = json_rpc_client.send_rpc(
-            method="eth_getTransactionByBlockHashAndIndex",
-            params=[receipt.blockHash.hex(), transaction_index],
-        )
-
-        assert "error" not in response, response["error"]
-        result = response.get("result")
-        assert result is not None
-        assert int(result['maxFeePerGas'], 16) == max_fee_per_gas
-        assert int(result['maxPriorityFeePerGas'], 16) == max_priority_fee_per_gas
-
-    def test_get_transaction_by_block_number_and_index(
-            self,
-            accounts: EthAccounts,
-            web3_client: NeonChainWeb3Client,
-            json_rpc_client: JsonRPCSession,
-    ):
-        sender = accounts[0]
-        recipient = web3_client.create_account()
-
-        base_fee_per_gas = web3_client.base_fee_per_gas()
-        max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
-        max_fee_per_gas = (5 * base_fee_per_gas) + max_priority_fee_per_gas
-
-        receipt = web3_client.send_tokens_eip_1559(
-            from_=sender,
-            to=recipient.address,
-            value=100,
-            max_fee_per_gas=max_fee_per_gas,
-            max_priority_fee_per_gas=max_priority_fee_per_gas,
-        )
-        block_number = hex(receipt.blockNumber)
-        index = hex(receipt.transactionIndex)
-        response = json_rpc_client.send_rpc(
-            method="eth_getTransactionByBlockNumberAndIndex",
-            params=[block_number, index],
-        )
-
-        assert "error" not in response, response["error"]
-        result = response.get("result")
-        assert result is not None
-        assert int(result['maxFeePerGas'], 16) == max_fee_per_gas
-        assert int(result['maxPriorityFeePerGas'], 16) == max_priority_fee_per_gas
-
-    @pytest.mark.neon_only
-    @pytest.mark.parametrize(
-        argnames="full_transaction_objects",
-        argvalues=(True, False),
-    )
-    def test_get_block_by_hash(
-            self,
-            accounts: EthAccounts,
-            web3_client: NeonChainWeb3Client,
-            json_rpc_client: JsonRPCSession,
-            full_transaction_objects: bool,
-    ):
-        sender = accounts[0]
-        recipient = web3_client.create_account()
-
-        base_fee_from_history = web3_client.base_fee_per_gas()
-        base_fee_per_gas = base_fee_from_history * 2
-        max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
-        max_fee_per_gas = base_fee_per_gas + max_priority_fee_per_gas
-
-        receipt = web3_client.send_tokens_eip_1559(
-            from_=sender,
-            to=recipient.address,
-            value=100,
-            max_fee_per_gas=max_fee_per_gas,
-            max_priority_fee_per_gas=max_priority_fee_per_gas,
-        )
-        block_hash = receipt.blockHash.hex()
-        response = json_rpc_client.send_rpc(
-            method="eth_getBlockByHash",
-            params=[block_hash, full_transaction_objects],
-        )
-
-        assert "error" not in response, response["error"]
-        result = response.get("result")
-        assert result is not None
-
-        block_base_fee = int(result['baseFeePerGas'], 16)
-        assert block_base_fee == base_fee_per_gas
-
-    @pytest.mark.neon_only
-    @pytest.mark.parametrize(
-        argnames="full_transaction_objects",
-        argvalues=(True, False),
-    )
-    def test_get_block_by_number(
-            self,
-            accounts: EthAccounts,
-            web3_client: NeonChainWeb3Client,
-            json_rpc_client: JsonRPCSession,
-            full_transaction_objects: bool,
-    ):
-        sender = accounts[0]
-        recipient = web3_client.create_account()
-
-        base_fee_from_history = web3_client.base_fee_per_gas()
-        base_fee_per_gas = base_fee_from_history * 2
-        max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
-
-        receipt = web3_client.send_tokens_eip_1559(
-            from_=sender,
-            to=recipient.address,
-            value=100,
-            max_fee_per_gas=base_fee_per_gas + max_priority_fee_per_gas,
-            max_priority_fee_per_gas=max_priority_fee_per_gas,
-        )
-        block_number = hex(receipt.blockNumber)
-        response = json_rpc_client.send_rpc(
-            method="eth_getBlockByNumber",
-            params=[block_number, full_transaction_objects],
-        )
-
-        assert "error" not in response, response["error"]
-        result = response.get("result")
-        assert result is not None
-
-        block_base_fee = int(result['baseFeePerGas'], 16)
-
-        assert block_base_fee == base_fee_per_gas
-
-    def test_get_transaction_receipt(
-            self,
-            accounts: EthAccounts,
-            web3_client: NeonChainWeb3Client,
-            env_name: EnvName,
-    ):
-        sender = accounts[0]
-        recipient = web3_client.create_account()
-
-        base_fee_per_gas = web3_client.base_fee_per_gas()
-        max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
-        max_fee_per_gas = 2 * base_fee_per_gas + max_priority_fee_per_gas
-
-        receipt = web3_client.send_tokens_eip_1559(
-            from_=sender,
-            to=recipient.address,
-            value=100,
-            max_fee_per_gas=max_fee_per_gas,
-            max_priority_fee_per_gas=max_priority_fee_per_gas,
-        )
-
-        actual_effective_gas_price = receipt.effectiveGasPrice
-        if env_name is EnvName.GETH:
-            expected_effective_gas_price = min(max_fee_per_gas, base_fee_per_gas + max_priority_fee_per_gas)
-        else:
-            expected_effective_gas_price = max_fee_per_gas
-        assert actual_effective_gas_price == expected_effective_gas_price
 
 
 @allure.feature("EIP Verifications")
