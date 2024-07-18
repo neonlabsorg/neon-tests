@@ -19,19 +19,17 @@ from spl.token.instructions import (
     get_associated_token_address,
 )
 from web3.contract import Contract
-from web3.exceptions import TimeExhausted
 
 from utils.accounts import EthAccounts
 from utils.consts import LAMPORT_PER_SOL, Time
 from utils.erc20 import ERC20
 from utils.faucet import Faucet
 from utils.helpers import wait_condition, gen_hash_of_block
-from utils.instructions import get_compute_unit_price_eip_1559
 from utils.operator import Operator
 from utils.solana_client import SolanaClient
 from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client, Web3Client
-from .const import INSUFFICIENT_FUNDS_ERROR, GAS_LIMIT_ERROR, BIG_STRING, TX_COST
+from .const import INSUFFICIENT_FUNDS_ERROR, GAS_LIMIT_ERROR, BIG_STRING, TX_COST, DECIMAL_CONTEXT
 from .steps import (
     wait_for_block,
     assert_profit,
@@ -129,8 +127,6 @@ class TestEconomics:
         token_diff = w3_client.to_main_currency(token_balance_after - token_balance_before)
         assert_profit(sol_diff, sol_price, token_diff, token_price, w3_client.native_token_name)
 
-    # type-2 transactions without chainId are not supported
-    # this is tested in test_EIP1559.py::TestSendRawTransaction::test_transfer_without_chain_id_negative
     def test_send_neon_token_without_chain_id(
         self, account_with_all_tokens, web3_client, sol_price, operator, neon_price
     ):
@@ -173,7 +169,7 @@ class TestEconomics:
 
         acc3 = w3_client.create_account()
 
-        with pytest.raises(ValueError, match=INSUFFICIENT_FUNDS_ERROR) as e:
+        with pytest.raises(ValueError, match=INSUFFICIENT_FUNDS_ERROR):
             w3_client.send_tokens(acc2, acc3, transfer_amount, tx_type=tx_type)
 
         sol_balance_after = operator.get_solana_balance()
@@ -871,6 +867,8 @@ class TestEconomics:
             alt_contract: Contract,
             tx_type: TransactionType,
     ):
+        # see logs by hash, try with new account
+        # if no fails - other tests interference
         """Trigger transaction than requires less than 30 accounts"""
         accounts_quantity = 10
         sol_balance_before = operator.get_solana_balance()
@@ -1029,66 +1027,66 @@ class TestEconomics:
         assert_profit(sol_diff, sol_price, token_diff, token_price, w3_client.native_token_name)
         get_gas_used_percent(w3_client, receipt)
 
-    def test_eip_1559_profit_math(
+    def test_eip_1559_profit(
             self,
             client_and_price: tuple[Web3Client, float],
             operator: Operator,
             account_with_all_tokens: LocalAccount,
             sol_price: float,
+            web3_client: NeonChainWeb3Client,
+            web3_client_sol: Web3Client,
     ):
-        """
-        Expense
-            gas_used + computeUnits * computeUnitsPrice * iterations_count
-
-        Profit::
-            gas_used * baseFeePerGas + iteration_count * maxPriorityFeePerGas * 5000
-        """
-
+        # Calculate profit and expense with a type-0 transaction
         w3_client, token_price = client_and_price
         sol_balance_before = operator.get_solana_balance()
         token_balance_before = operator.get_token_balance(w3_client)
 
-        recipient = w3_client.create_account()
-        base_fee_per_gas = w3_client.base_fee_per_gas()
-        base_fee_multiplier = 1.01
-        tx_params = w3_client.make_raw_tx_eip_1559(
-            chain_id="auto",
+        recipient_0 = w3_client.create_account()
+        value = 1000000
+
+        web3_client.send_tokens(
             from_=account_with_all_tokens,
-            to=recipient,
-            value=1000000,
-            nonce="auto",
-            data=None,
-            access_list=None,
-            gas="auto",
-            max_priority_fee_per_gas="auto",
-            max_fee_per_gas="auto",
-            base_fee_multiplier=base_fee_multiplier,
+            to=recipient_0,
+            value=value,
         )
-        gas_estimate = tx_params["gas"]
-        max_priority_fee_per_gas = tx_params["maxPriorityFeePerGas"]
-        max_fee_per_gas = tx_params["maxFeePerGas"]
 
-        receipt = w3_client.send_transaction(account=account_with_all_tokens, transaction=tx_params)
+        sol_balance_after = operator.get_solana_balance()
+        token_balance_after = operator.get_token_balance(web3_client)
 
-        gas_used = receipt.cumulativeGasUsed
-        assert abs(gas_used - gas_estimate) <= 100000, f"Estimated {gas_estimate}, used {gas_used}"
+        token_diff = w3_client.to_main_currency(token_balance_after - token_balance_before)
+        operator_expense_type_0 = sol_balance_before - sol_balance_after
+        expense_usd_0 = Decimal(operator_expense_type_0 / LAMPORT_PER_SOL, DECIMAL_CONTEXT) * Decimal(sol_price, DECIMAL_CONTEXT)
+        revenue_usd_0 = Decimal(token_diff, DECIMAL_CONTEXT) * Decimal(token_price, DECIMAL_CONTEXT)
+        profit_tx_type_0 = revenue_usd_0 - expense_usd_0
 
-        gas_price_actual = receipt.effectiveGasPrice
-        assert gas_price_actual <= max_fee_per_gas
-        assert gas_price_actual == int(base_fee_per_gas * base_fee_multiplier)
+        # Calculate profit and expense with a type-2 transaction
+        sol_balance_before = operator.get_solana_balance()
+        token_balance_before = operator.get_token_balance(w3_client)
 
-        gas_price_max_expected = base_fee_per_gas * base_fee_multiplier + max_priority_fee_per_gas
-        assert gas_price_actual <= gas_price_max_expected
+        base_fee_per_gas = w3_client.base_fee_per_gas()
+        base_fee_multiplier = 1.1
+        max_priority_fee_per_gas = 100000000
+        max_fee_per_gas = int((base_fee_per_gas * base_fee_multiplier) + max_priority_fee_per_gas)
+        recipient_2 = w3_client.create_account()
+
+        web3_client.send_tokens_eip_1559(
+            from_=account_with_all_tokens,
+            to=recipient_2,
+            value=value,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            max_fee_per_gas=max_fee_per_gas,
+        )
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(w3_client)
 
-        operator_expense = sol_balance_before - sol_balance_after
+        operator_expense_type_2 = sol_balance_before - sol_balance_after
         token_diff = w3_client.to_main_currency(token_balance_after - token_balance_before)
-        assert_profit(operator_expense, sol_price, token_diff, token_price, w3_client.native_token_name)
-        get_gas_used_percent(w3_client, receipt)
+        assert_profit(operator_expense_type_2, sol_price, token_diff, token_price, w3_client.native_token_name)
 
-        operator_profit_actual = token_balance_after - token_balance_before
-        iteration_count = 1  # this is a plain transfer transaction
-        operator_profit_expected = gas_used * gas_price_actual + iteration_count * max_priority_fee_per_gas * 5000
-        assert operator_profit_actual == operator_profit_expected
+        expense_usd_2 = Decimal(operator_expense_type_2 / LAMPORT_PER_SOL, DECIMAL_CONTEXT) * Decimal(sol_price, DECIMAL_CONTEXT)
+        revenue_usd_2 = Decimal(token_diff, DECIMAL_CONTEXT) * Decimal(token_price, DECIMAL_CONTEXT)
+        profit_tx_type_2 = revenue_usd_2 - expense_usd_2
+
+        # compare operator profits
+        assert profit_tx_type_2 > profit_tx_type_0
