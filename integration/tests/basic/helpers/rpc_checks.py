@@ -148,7 +148,7 @@ def assert_log_field_in_neon_trx_receipt(response, events_count):
             assert instruction["solanaProgram"] == "NeonEVM"
             assert instruction["solanaInnerInstructionIndex"] is None
             neon_logs = instruction["neonLogs"]
-            if instruction["neonInstructionName"] == "HolderWrite":
+            if instruction["neonInstructionName"] != "HolderWrite":
                 assert neon_logs != [], f"Logs shouldn't be empty in {instruction}"
                 for log in neon_logs:
                     all_logs.append(log)
