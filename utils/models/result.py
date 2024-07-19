@@ -100,7 +100,7 @@ class Transaction(BaseModel):
     hash: HexString
     input: HexString
     nonce: HexString
-    to: HexString
+    to: Union[HexString, None]
     transactionIndex: HexString
     value: HexString
     chainId: HexString
