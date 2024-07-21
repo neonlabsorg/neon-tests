@@ -199,6 +199,7 @@ class NeonGetLogsDetails(ForbidExtra):
     solanaTransactionSignature: str
     solanaInstructionIndex: int
     solanaInnerInstructionIndex: Union[int, None]
+    solanaAddress: Union[str, None]
     neonEventType: str
     neonEventLevel: int
     neonEventOrder: int
