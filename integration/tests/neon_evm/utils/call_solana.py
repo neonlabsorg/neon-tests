@@ -176,5 +176,5 @@ class SolanaCaller:
     def _get_all_pubkeys_from_instructions(instructions):
         all_keys = []
         for item in instructions:
-            all_keys += item.keys
+            all_keys += item.accounts
         return [acc.pubkey for acc in all_keys]

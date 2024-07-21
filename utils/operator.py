@@ -4,8 +4,8 @@ import pathlib
 import typing as tp
 
 import solana.rpc.api
-from solana.keypair import Keypair
-from solana.publickey import PublicKey
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
 from solana.rpc.commitment import Confirmed, Commitment
 from eth_keys import keys as eth_keys
 
@@ -40,27 +40,27 @@ class Operator:
             key_file = pathlib.Path(f"{directory}/{key}")
             with open(key_file, "r") as key:
                 secret_key = json.load(key)[:32]
-                account = Keypair.from_secret_key(secret_key)
+                account = Keypair.from_seed(secret_key)
                 operator_keys.append(account)
         return operator_keys
 
     def get_operator_balance_account(self, operator, w3_client):
-        operator_ether = eth_keys.PrivateKey(operator.secret_key[:32]).public_key.to_canonical_address()
+        operator_ether = eth_keys.PrivateKey(operator.secret()[:32]).public_key.to_canonical_address()
         seed_version = bytes("\3", encoding="utf-8").decode("unicode-escape").encode("utf-8")
-        operator_pubkey_bytes = bytes(operator.public_key)
+        operator_pubkey_bytes = bytes(operator.pubkey())
 
         seed_list = (
             seed_version,
             operator_pubkey_bytes,
             operator_ether,
-            w3_client.chain_id.to_bytes(32, byteorder="big"),        )
-        balance_account, _ = PublicKey.find_program_address(seed_list, PublicKey(self.evm_loader))
+            w3_client.chain_id.to_bytes(32, byteorder="big"),)
+        balance_account, _ = Pubkey.find_program_address(seed_list, Pubkey(self.evm_loader))
         return balance_account
 
     def get_solana_balance(self):
         balances = []
         for keypair in self.operator_keypairs:
-            balance = self.sol.get_balance(keypair.public_key, commitment=Confirmed)
+            balance = self.sol.get_balance(keypair.pubkey(), commitment=Confirmed)
             if isinstance(balance, dict):
                 balance = balance["result"]["value"]
             else:
@@ -72,13 +72,10 @@ class Operator:
         if w3_client is None:
             w3_client = self.web3
         balances = []
-        for operator in  self.operator_keypairs:
+        for operator in self.operator_keypairs:
             token_addr = self.get_operator_balance_account(operator, w3_client)
             info: bytes = self.sol.get_account_info(token_addr, commitment=Commitment("confirmed")).value.data
             layout = OPERATOR_BALANCE_ACCOUNT_LAYOUT.parse(info)
-            amount =  int.from_bytes(layout.balance, byteorder="little")
+            amount = int.from_bytes(layout.balance, byteorder="little")
             balances.append(amount)
         return sum(balances)
-
-
-

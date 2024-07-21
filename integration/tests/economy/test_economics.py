@@ -8,8 +8,8 @@ import pytest
 import rlp
 import web3
 from _pytest.config import Config
-from solana.keypair import Keypair as SolanaAccount
-from solana.publickey import PublicKey
+from solders.keypair import Keypair as SolanaAccount
+from solders.pubkey import Pubkey
 from solana.rpc.types import Commitment, TxOpts
 from solana.transaction import Transaction
 from spl.token.instructions import (
@@ -189,7 +189,7 @@ class TestEconomics:
     ):
         sender_account = accounts[0]
         sol_user = SolanaAccount()
-        sol_client.request_airdrop(sol_user.public_key, 5 * LAMPORT_PER_SOL)
+        sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
 
         sol_balance_before = operator.get_solana_balance()
         neon_balance_before = operator.get_token_balance(web3_client)
@@ -201,14 +201,14 @@ class TestEconomics:
 
         tx = self.web3_client.make_raw_tx(sender_account, amount=move_amount)
 
-        instruction_tx = contract.functions.withdraw(bytes(sol_user.public_key)).build_transaction(tx)
+        instruction_tx = contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
 
         receipt = web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
         assert (user_neon_balance_before - web3_client.get_balance(sender_account)) > 5
 
-        balance = sol_client.get_account_info_json_parsed(sol_user.public_key, commitment=Commitment("confirmed"))
+        balance = sol_client.get_account_info_json_parsed(sol_user.pubkey(), commitment=Commitment("confirmed"))
         assert int(balance.value.lamports) == int(move_amount / 1_000_000_000)
 
         sol_balance_after = operator.get_solana_balance()
@@ -242,17 +242,17 @@ class TestEconomics:
     ):
         sender_account = accounts[0]
         sol_user = SolanaAccount()
-        sol_client.request_airdrop(sol_user.public_key, 5 * LAMPORT_PER_SOL)
+        sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
 
-        wait_condition(lambda: sol_client.get_balance(sol_user.public_key) != 0)
+        wait_condition(lambda: sol_client.get_balance(sol_user.pubkey()) != 0)
 
         trx = Transaction()
-        trx.add(create_associated_token_account(sol_user.public_key, sol_user.public_key, neon_mint))
+        trx.add(create_associated_token_account(sol_user.pubkey(), sol_user.pubkey(), neon_mint))
 
         opts = TxOpts(skip_preflight=True, skip_confirmation=False)
         sol_client.send_transaction(trx, sol_user, opts=opts)
 
-        dest_token_acc = get_associated_token_address(sol_user.public_key, neon_mint)
+        dest_token_acc = get_associated_token_address(sol_user.pubkey(), neon_mint)
 
         sol_balance_before = operator.get_solana_balance()
         neon_balance_before = operator.get_token_balance(web3_client)
@@ -261,7 +261,7 @@ class TestEconomics:
         move_amount = web3_client._web3.to_wei(5, "ether")
 
         tx = web3_client.make_raw_tx(sender_account, amount=move_amount)
-        instruction_tx = withdraw_contract.functions.withdraw(bytes(sol_user.public_key)).build_transaction(tx)
+        instruction_tx = withdraw_contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
 
         receipt = web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
@@ -652,10 +652,10 @@ class TestEconomics:
 
         sol_trx_with_alt = get_sol_trx_with_alt(web3_client, sol_client, receipt)
         assert sol_trx_with_alt is not None, "There are no lookup table for alt transaction"
-        operator_key = PublicKey(sol_trx_with_alt.value.transaction.transaction.message.account_keys[0])
+        operator_key = Pubkey(sol_trx_with_alt.value.transaction.transaction.message.account_keys[0])
 
         alt_address = sol_trx_with_alt.value.transaction.transaction.message.address_table_lookups[0].account_key
-        alt_balance = sol_client.get_balance(PublicKey(alt_address)).value
+        alt_balance = sol_client.get_balance(Pubkey(alt_address)).value
         operator_balance = sol_client.get_balance(operator_key).value
 
         wait_condition(

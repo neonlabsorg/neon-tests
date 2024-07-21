@@ -1,6 +1,6 @@
 import pytest
 import solana
-from solana.publickey import PublicKey
+from solders.pubkey import Pubkey
 
 from utils.evm_loader import EVM_STEPS
 from utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
@@ -39,7 +39,7 @@ class TestAccountRevision:
             "update_storage_map(uint256)",
             [data_storage_acc_count],
         )
-        acc_from_emulation = [PublicKey(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+        acc_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
         for i in range(trx_count):
             signed_tx = make_contract_call_trx(
@@ -101,7 +101,7 @@ class TestAccountRevision:
             "update_storage_map(uint256)",
             [data_storage_acc_count],
         )
-        acc_from_emulation1 = [PublicKey(item["pubkey"]) for item in emulate_result1["solana_accounts"]]
+        acc_from_emulation1 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result1["solana_accounts"]]
         data_accounts1 = list(
             set(acc_from_emulation1) - {user1.balance_account_address, rw_lock_contract.solana_address}
         )
@@ -115,7 +115,7 @@ class TestAccountRevision:
             "update_storage_map(uint256)",
             [data_storage_acc_count],
         )
-        acc_from_emulation2 = [PublicKey(item["pubkey"]) for item in emulate_result2["solana_accounts"]]
+        acc_from_emulation2 = [Pubkey(item["pubkey"]) for item in emulate_result2["solana_accounts"]]
         data_accounts2 = list(
             set(acc_from_emulation2) - {user2.balance_account_address, rw_lock_contract.solana_address}
         )
@@ -177,7 +177,7 @@ class TestAccountRevision:
             user1.eth_address.hex(), rw_lock_contract.eth_address.hex(), "update_storage_str(string)", [text1]
         )
 
-        acc_from_emulation1 = [PublicKey(item["pubkey"]) for item in emulate_result1["solana_accounts"]]
+        acc_from_emulation1 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result1["solana_accounts"]]
         signed_tx1 = make_contract_call_trx(evm_loader, user1, rw_lock_contract, "update_storage_str(string)", [text1])
 
         evm_loader.write_transaction_to_holder_account(signed_tx1, holder1, operator_keypair)
@@ -185,7 +185,7 @@ class TestAccountRevision:
         emulate_result2 = neon_api_client.emulate_contract_call(
             user2.eth_address.hex(), rw_lock_contract.eth_address.hex(), "update_storage_str(string)", [text2]
         )
-        acc_from_emulation2 = [PublicKey(item["pubkey"]) for item in emulate_result2["solana_accounts"]]
+        acc_from_emulation2 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result2["solana_accounts"]]
         signed_tx2 = make_contract_call_trx(evm_loader, user2, rw_lock_contract, "update_storage_str(string)", [text2])
         evm_loader.write_transaction_to_holder_account(signed_tx2, holder2, operator_keypair)
 
@@ -318,7 +318,7 @@ class TestAccountRevision:
         emulate_result = neon_api_client.emulate_contract_call(
             session_user.eth_address.hex(), rw_lock_contract.eth_address.hex(), "update_storage_map(uint256)", [3]
         )
-        acc_from_emulation = [PublicKey(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+        acc_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
         data_accounts = set(acc_from_emulation) - set(additional_accounts)
         signed_tx1 = make_contract_call_trx(
             evm_loader, session_user, rw_lock_contract, "update_storage_map(uint256)", [3]

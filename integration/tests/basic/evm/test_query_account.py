@@ -2,9 +2,9 @@ import random
 
 import base58
 import pytest
-from solana.publickey import PublicKey
+from solders.pubkey import Pubkey
 from web3.contract import Contract
-from solana.keypair import Keypair
+from solders.keypair import Keypair
 
 from utils.accounts import EthAccounts
 from utils.helpers import wait_condition
@@ -23,16 +23,16 @@ class TestQueryAccountLib:
         new_solana_account = sol_client_session.create_account(
             payer=solana_account,
             size=0,
-            owner=solana_account.public_key,
+            owner=solana_account.pubkey(),
         )
 
-        solana_account_address_uint256 = int.from_bytes(new_solana_account.public_key, byteorder="big")
+        solana_account_address_uint256 = int.from_bytes(new_solana_account.pubkey(), byteorder="big")
 
         success, actual_owner_address = query_account_caller_contract.functions.queryOwner(
             solana_account_address_uint256
         ).call()
 
-        expected_owner_address = int.from_bytes(solana_account.public_key, byteorder="big")
+        expected_owner_address = int.from_bytes(solana_account.pubkey(), byteorder="big")
         assert success is True
         assert actual_owner_address == expected_owner_address
 
@@ -48,10 +48,10 @@ class TestQueryAccountLib:
         new_solana_account = sol_client_session.create_account(
             payer=solana_account,
             size=0,
-            owner=solana_account.public_key,
+            owner=solana_account.pubkey(),
         )
 
-        solana_account_address_uint256 = int.from_bytes(new_solana_account.public_key, byteorder="big")
+        solana_account_address_uint256 = int.from_bytes(new_solana_account.pubkey(), byteorder="big")
         tx = web3_client.make_raw_tx(account)
 
         instruction_tx = query_account_caller_contract.functions.queryOwner(
@@ -63,7 +63,7 @@ class TestQueryAccountLib:
         log_processed = query_account_caller_contract.events.QueryResultUint256().process_log(log_raw)
         success = log_processed.args.success
         actual_owner_address = log_processed.args.result
-        expected_owner_address = int.from_bytes(solana_account.public_key, byteorder="big")
+        expected_owner_address = int.from_bytes(solana_account.pubkey(), byteorder="big")
 
         assert success is True
         assert actual_owner_address == expected_owner_address
@@ -91,10 +91,10 @@ class TestQueryAccountLib:
         new_solana_account = sol_client_session.create_account(
             payer=solana_account,
             size=expected_length,
-            owner=solana_account.public_key,
+            owner=solana_account.pubkey(),
         )
 
-        solana_account_address_uint256 = int.from_bytes(new_solana_account.public_key, byteorder="big")
+        solana_account_address_uint256 = int.from_bytes(new_solana_account.pubkey(), byteorder="big")
 
         success, actual_length = query_account_caller_contract.functions.queryLength(
             solana_account_address_uint256
@@ -128,11 +128,11 @@ class TestQueryAccountLib:
         new_solana_account = sol_client_session.create_account(
             payer=solana_account,
             size=size,
-            owner=solana_account.public_key,
+            owner=solana_account.pubkey(),
             lamports=expected_lamports_before,
         )
 
-        solana_account_address_uint256 = int.from_bytes(new_solana_account.public_key, byteorder="big")
+        solana_account_address_uint256 = int.from_bytes(new_solana_account.pubkey(), byteorder="big")
 
         success, actual_lamports_before = query_account_caller_contract.functions.queryLamports(
             solana_account_address_uint256
@@ -142,7 +142,7 @@ class TestQueryAccountLib:
         assert actual_lamports_before == expected_lamports_before
 
         additional_lamports = random.randint(0, 1000)
-        sol_client_session.request_airdrop(pubkey=new_solana_account.public_key, lamports=additional_lamports)
+        sol_client_session.request_airdrop(pubkey=new_solana_account.pubkey(), lamports=additional_lamports)
         expected_lamports_after = expected_lamports_before + additional_lamports
 
         success, actual_lamports_after = query_account_caller_contract.functions.queryLamports(
@@ -188,7 +188,7 @@ class TestQueryAccountLib:
         solana_account: Keypair,
         sol_client_session: SolanaClient,
     ):
-        solana_account_address_uint256 = int.from_bytes(solana_account.public_key, byteorder="big")
+        solana_account_address_uint256 = int.from_bytes(solana_account.pubkey(), byteorder="big")
 
         success, is_executable = query_account_caller_contract.functions.queryExecutable(
             solana_account_address_uint256
@@ -216,7 +216,7 @@ class TestQueryAccountLib:
         query_account_caller_contract: Contract,
         sol_client_session: SolanaClient,
     ):
-        solana_account_address_uint256 = int.from_bytes(solana_account.public_key, byteorder="big")
+        solana_account_address_uint256 = int.from_bytes(solana_account.pubkey(), byteorder="big")
 
         success, rent_epoch_actual = query_account_caller_contract.functions.queryRentEpoch(
             solana_account_address_uint256
@@ -225,9 +225,9 @@ class TestQueryAccountLib:
         assert success is True
 
         wait_condition(
-            func_cond=lambda: sol_client_session.get_account_info(solana_account.public_key).value is not None,
+            func_cond=lambda: sol_client_session.get_account_info(solana_account.pubkey()).value is not None,
         )
-        account_info = sol_client_session.get_account_info(solana_account.public_key)
+        account_info = sol_client_session.get_account_info(solana_account.pubkey())
         rent_epoch_expected = account_info.value.rent_epoch
         assert rent_epoch_actual == rent_epoch_expected
 
@@ -254,7 +254,7 @@ class TestQueryAccountLib:
         evm_loader_address = base58.b58decode(evm_loader_address_base58)
         solana_account_address_uint256 = int.from_bytes(evm_loader_address, byteorder="big")
 
-        evm_loader_public_key = PublicKey(evm_loader_address_base58)
+        evm_loader_public_key = Pubkey.from_string(evm_loader_address_base58)
         length = len(sol_client_session.get_account_info(evm_loader_public_key).value.data)
 
         success, actual_data = query_account_caller_contract.functions.queryData(
@@ -282,7 +282,7 @@ class TestQueryAccountLib:
         evm_loader_address = base58.b58decode(evm_loader_address_base58)
         solana_account_address_uint256 = int.from_bytes(evm_loader_address, byteorder="big")
 
-        evm_loader_public_key = PublicKey(evm_loader_address_base58)
+        evm_loader_public_key = Pubkey.from_string(evm_loader_address_base58)
         length = len(sol_client_session.get_account_info(evm_loader_public_key).value.data)
 
         account = accounts[0]
@@ -330,7 +330,7 @@ class TestQueryAccountLib:
         evm_loader_address = base58.b58decode(evm_loader_address_base58)
         solana_account_address_uint256 = int.from_bytes(evm_loader_address, byteorder="big")
 
-        length = len(sol_client_session.get_account_info(PublicKey(evm_loader_address_base58)).value.data)
+        length = len(sol_client_session.get_account_info(Pubkey.from_string(evm_loader_address_base58)).value.data)
 
         success, data = query_account_caller_contract.functions.queryData(
             solana_account_address_uint256,
@@ -373,7 +373,7 @@ class TestQueryAccountLib:
         evm_loader_address = base58.b58decode(evm_loader_address_base58)
         solana_account_address_uint256 = int.from_bytes(evm_loader_address, byteorder="big")
 
-        length = len(sol_client_session.get_account_info(PublicKey(evm_loader_address_base58)).value.data)
+        length = len(sol_client_session.get_account_info(Pubkey.from_string(evm_loader_address_base58)).value.data)
 
         success, data = query_account_caller_contract.functions.queryData(
             solana_account_address_uint256,

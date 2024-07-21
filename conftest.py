@@ -10,7 +10,7 @@ from _pytest.config import Config
 from _pytest.config.argparsing import Parser
 from _pytest.nodes import Item
 from _pytest.runner import runtestprotocol
-from solana.keypair import Keypair
+from solders.keypair import Keypair
 
 from clickfile import TEST_GROUPS, EnvName
 from utils.types import TestGroup
@@ -149,14 +149,14 @@ def env_name(pytestconfig: Config) -> EnvName:
 def operator_keypair():
     with open("operator-keypair.json", "r") as key:
         secret_key = json.load(key)[:32]
-        return Keypair.from_secret_key(secret_key)
+        return Keypair.from_seed(secret_key)
 
 
 @pytest.fixture(scope="session")
 def evm_loader_keypair():
     with open("evm_loader-keypair.json", "r") as key:
         secret_key = json.load(key)[:32]
-        return Keypair.from_secret_key(secret_key)
+        return Keypair.from_seed(secret_key)
 
 
 @pytest.fixture(scope="session", autouse=True)

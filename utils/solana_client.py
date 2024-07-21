@@ -5,16 +5,15 @@ import uuid
 import requests
 import pathlib
 
-
 import solana.rpc.api
 import spl.token.client
-from solana.keypair import Keypair
-from solana.publickey import PublicKey
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
 from solana.rpc.commitment import Commitment, Finalized, Confirmed
 from solana.rpc.types import TxOpts
 from solders.rpc.responses import GetTransactionResp
 from solders.signature import Signature
-from solana.system_program import TransferParams, transfer, create_account, CreateAccountParams
+from solders.system_program import TransferParams, transfer, create_account, CreateAccountParams
 from solana.transaction import Transaction
 from solders.rpc.errors import InternalErrorMessage
 from solders.rpc.responses import RequestAirdropResp
@@ -33,10 +32,10 @@ class SolanaClient(solana.rpc.api.Client):
         )
 
     def request_airdrop(
-        self,
-        pubkey: PublicKey,
-        lamports: int,
-        commitment: tp.Optional[Commitment] = None,
+            self,
+            pubkey: Pubkey,
+            lamports: int,
+            commitment: tp.Optional[Commitment] = None,
     ) -> RequestAirdropResp:
         airdrop_resp = None
         for _ in range(5):
@@ -51,9 +50,9 @@ class SolanaClient(solana.rpc.api.Client):
         wait_condition(lambda: self.get_balance(pubkey).value >= lamports, timeout_sec=30)
         return airdrop_resp
 
-    def send_sol(self, from_: Keypair, to: PublicKey, amount_lamports: int):
+    def send_sol(self, from_: Keypair, to: Pubkey, amount_lamports: int):
         tx = Transaction().add(
-            transfer(TransferParams(from_pubkey=from_.public_key, to_pubkey=to, lamports=amount_lamports))
+            transfer(TransferParams(from_pubkey=from_.pubkey(), to_pubkey=to, lamports=amount_lamports))
         )
         balance_before = self.get_balance(to).value
         self.send_transaction(tx, from_)
@@ -64,7 +63,6 @@ class SolanaClient(solana.rpc.api.Client):
         else:
             raise AssertionError(f"Balance not changed in account {to}")
 
-
     @staticmethod
     def ether2bytes(ether: tp.Union[str, bytes]):
         if isinstance(ether, str):
@@ -73,31 +71,30 @@ class SolanaClient(solana.rpc.api.Client):
             return bytes.fromhex(ether)
         return ether
 
-
     def get_erc_auth_address(self, neon_account_address: str, token_address: str, evm_loader_id: str):
         neon_account_addressbytes = bytes(12) + bytes.fromhex(neon_account_address[2:])
         if token_address.startswith("0x"):
             token_address = token_address[2:]
         neon_contract_addressbytes = bytes.fromhex(token_address)
-        return PublicKey.find_program_address(
+        return Pubkey.find_program_address(
             [
                 self.account_seed_version,
                 b"AUTH",
                 neon_contract_addressbytes,
                 neon_account_addressbytes,
             ],
-            PublicKey(evm_loader_id),
+            Pubkey.from_string(evm_loader_id),
         )[0]
 
     def create_spl(self, owner: Keypair, decimals: int = 9):
         token_mint = spl.token.client.Token.create_mint(
             conn=self,
             payer=owner,
-            mint_authority=owner.public_key,
+            mint_authority=owner.pubkey(),
             decimals=decimals,
             program_id=TOKEN_PROGRAM_ID,
         )
-        assoc_addr = token_mint.create_associated_token_account(owner.public_key)
+        assoc_addr = token_mint.create_associated_token_account(owner.pubkey())
         token_mint.mint_to(
             dest=assoc_addr,
             mint_authority=owner,
@@ -115,22 +112,21 @@ class SolanaClient(solana.rpc.api.Client):
 
     def send_tx(self, trx: Transaction, *signers: Keypair, wait_status=Confirmed):
         result = self.send_transaction(trx, *signers,
-                                         opts=TxOpts(skip_confirmation=True, preflight_commitment=wait_status))
+                                       opts=TxOpts(skip_confirmation=True, preflight_commitment=wait_status))
         self.confirm_transaction(result.value, commitment=Confirmed)
         return self.get_transaction(result.value, commitment=Confirmed)
 
     def create_ata(self, solana_account, token_mint):
         trx = Transaction()
-        trx.add(create_associated_token_account(solana_account.public_key, solana_account.public_key, token_mint))
+        trx.add(create_associated_token_account(solana_account.pubkey(), solana_account.pubkey(), token_mint))
         opts = TxOpts(skip_preflight=True, skip_confirmation=False)
         self.send_transaction(trx, solana_account, opts=opts)
 
     def create_associate_token_acc(self, payer, owner, token_mint):
         trx = Transaction()
-        trx.add(create_associated_token_account(payer.public_key, owner, token_mint))
+        trx.add(create_associated_token_account(payer.pubkey(), owner, token_mint))
         opts = TxOpts(skip_preflight=True, skip_confirmation=False)
         self.send_transaction(trx, payer, opts=opts)
-
 
     def wait_transaction(self, tx):
         try:
@@ -144,7 +140,7 @@ class SolanaClient(solana.rpc.api.Client):
 
     def account_exists(self, account_address) -> bool:
         try:
-            account_info = self.get_account_info(PublicKey(account_address))
+            account_info = self.get_account_info(Pubkey(account_address))
             if account_info.value is not None:
                 return True
             else:
@@ -153,8 +149,8 @@ class SolanaClient(solana.rpc.api.Client):
             print(f"An error occurred: {e}")
 
     def get_account_whole_info(
-        self,
-        pubkey: PublicKey,
+            self,
+            pubkey: Pubkey,
     ):
         # get_account_info method returns cut data
 
@@ -167,8 +163,8 @@ class SolanaClient(solana.rpc.api.Client):
         response = requests.post(self.endpoint, json=body, headers={"Content-Type": "application/json"})
         return response.json()
 
-    def mint_spl_to(self, mint: PublicKey, dest: Keypair, amount: int, authority: tp.Optional[Keypair] = None):
-        token_account = get_associated_token_address(dest.public_key, mint)
+    def mint_spl_to(self, mint: Pubkey, dest: Keypair, amount: int, authority: tp.Optional[Keypair] = None):
+        token_account = get_associated_token_address(dest.pubkey(), mint)
 
         if not self.account_exists(token_account):
             self.create_ata(dest, mint)
@@ -186,18 +182,16 @@ class SolanaClient(solana.rpc.api.Client):
         return self.get_balance(account, commitment=Confirmed).value
 
     def create_account(self, payer, size, owner, account=None, lamports=None):
-        account = account or Keypair.generate()
+        account = account or Keypair()
         lamports = lamports or self.get_minimum_balance_for_rent_exemption(size).value
         trx = Transaction()
-        trx.fee_payer=payer.public_key
+        trx.fee_payer = payer.pubkey()
         instr = create_account(
             CreateAccountParams(
-                payer.public_key,
-                account.public_key,
-                lamports,
-                size,
-                owner))
+                from_pubkey=payer.pubkey(),
+                to_pubkey=account.pubkey(),
+                lamports=lamports,
+                space=size,
+                owner=owner))
         self.send_tx(trx.add(instr), payer, account)
         return account
-
-

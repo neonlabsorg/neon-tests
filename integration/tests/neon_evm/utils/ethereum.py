@@ -1,7 +1,7 @@
 from typing import Union
 
 from Crypto.Hash import keccak
-from solana.publickey import PublicKey
+from solders.pubkey import Pubkey
 from web3.auto import w3
 
 from utils.evm_loader import CHAIN_ID, EvmLoader
@@ -22,7 +22,7 @@ def create_contract_address(user: Caller, evm_loader: EvmLoader) -> Contract:
           f"  eth {contract_eth_address.hex()}, "
           f"  solana {contract_solana_address}")
 
-    return Contract(contract_eth_address, PublicKey(contract_solana_address), contract_neon_address)
+    return Contract(contract_eth_address, Pubkey.from_string(contract_solana_address), contract_neon_address)
 
 
 def make_eth_transaction(evm_loader: EvmLoader, to_addr: bytes, data: Union[bytes, None], caller: Caller,
@@ -41,4 +41,4 @@ def make_eth_transaction(evm_loader: EvmLoader, to_addr: bytes, data: Union[byte
         tx['accessList'] = access_list
     if type is not None:
         tx['type'] = type
-    return w3.eth.account.sign_transaction(tx, caller.solana_account.secret_key[:32])
+    return w3.eth.account.sign_transaction(tx, caller.solana_account.secret()[:32])

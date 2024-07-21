@@ -1,5 +1,5 @@
 import pytest
-from solana.publickey import PublicKey
+from solders.pubkey import Pubkey
 from web3.contract import Contract
 
 from utils import helpers
@@ -83,7 +83,7 @@ def max_non_existent_solana_address(
 
     while address_exists:
         address_uint_256 -= 1
-        pubkey = PublicKey(address_uint_256.to_bytes(32, byteorder='big'))
+        pubkey = Pubkey(address_uint_256.to_bytes(32, byteorder='big'))
         address_exists = sol_client_session.get_account_info(pubkey=pubkey).value is not None
 
     return address_uint_256

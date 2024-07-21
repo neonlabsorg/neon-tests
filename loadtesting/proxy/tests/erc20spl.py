@@ -3,7 +3,7 @@ import random
 import string
 
 from locust import User, events, tag, task
-from solana.keypair import Keypair
+from solders.keypair import Keypair
 
 from loadtesting.proxy.common.base import NeonProxyTasksSet
 from utils.erc20wrapper import ERC20Wrapper
@@ -31,7 +31,7 @@ def prepare_one_contract_for_erc20(environment: "locust.env.Environment", **kwar
         name,
         symbol,
         None,
-        solana_account=Keypair.generate(),
+        solana_account=Keypair(),
         account=eth_account,
         mintable=True,
     )

@@ -1,25 +1,20 @@
+import json
+import logging
 import os
-import copy
 import pathlib
 import shutil
 import subprocess
-import logging
 import time
-import json
-import random
 
 import web3
-from locust import tag, task, User, events
-from solana.keypair import Keypair
-
-from utils.web3client import NeonChainWeb3Client
-from utils.solana_client import SolanaClient
-from utils.faucet import Faucet
+from locust import task, User, events
+from solders.keypair import Keypair
 
 from utils import helpers
 from utils.erc20wrapper import ERC20Wrapper
-from loadtesting.proxy.common import env
-
+from utils.faucet import Faucet
+from utils.solana_client import SolanaClient
+from utils.web3client import NeonChainWeb3Client
 
 LOG = logging.getLogger(__name__)
 
@@ -92,7 +87,7 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
 
     if "token_contracts" in data and data["token_contracts"]:
         LOG.info("Load token contracts from saved data")
-        solana_account = Keypair.from_secret_key(bytes.fromhex(data["solana_account"]))
+        solana_account = Keypair.from_bytes(bytes.fromhex(data["solana_account"]))
         token_contracts["wNEON"] = neon_client.get_deployed_contract(
             data["token_contracts"]["wNEON"], "common/WNeon.sol", "WNEON", "0.4.26"
         )
@@ -150,7 +145,7 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
             token_contracts[token] = erc_contract
 
         LOG.info("Deploy SPL tokens")
-        solana_account = Keypair.generate()
+        solana_account = Keypair()
         for token in ("USDC_SPL", "USDT_SPL"):
             name = f"Test {token}"
 
@@ -177,7 +172,6 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
             contract_name="UniswapV2Factory"
         )
     else:
-
 
         uniswap2_factory, _ = neon_client.deploy_and_get_contract(
             str(uniswap_path / "contracts/v2-core/UniswapV2Factory.sol"),
@@ -332,7 +326,7 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
     with open("uniswap_contracts.json", "w") as f:
         saved_data = {
             "signer": eth_account.key.hex(),
-            "solana_account": solana_account.secret_key.hex(),
+            "solana_account": solana_account.secret().hex(),
             "router": uniswap2_router.address,
             "factory": uniswap2_factory.address,
             "token_contracts": {k: v.address for k, v in token_contracts.items()},
@@ -340,7 +334,7 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
         }
         json.dump(saved_data, f, indent=4)
     LOG.info(f"Signer user: {eth_account.address}")
-    LOG.info(f"Solana account: {solana_account.public_key}")
+    LOG.info(f"Solana account: {solana_account.pubkey()}")
     environment.uniswap = data
 
     users = {i: neon_client.eth.account.from_key(key) for i, key in data.get("users", {}).items()}

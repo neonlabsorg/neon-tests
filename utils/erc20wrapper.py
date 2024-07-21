@@ -1,6 +1,3 @@
-import pathlib
-
-import solcx
 from eth_account.signers.local import LocalAccount
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
@@ -142,10 +139,10 @@ class ERC20Wrapper:
         txn.add(
             create_metadata_instruction(
                 metadata,
-                self.solana_acc.public_key,
+                self.solana_acc.pubkey(),
                 self.token_mint.pubkey,
-                self.solana_acc.public_key,
-                self.solana_acc.public_key,
+                self.solana_acc.pubkey(),
+                self.solana_acc.pubkey(),
             )
         )
         self.sol_client.send_transaction(

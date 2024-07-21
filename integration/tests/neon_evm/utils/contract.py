@@ -5,7 +5,7 @@ import eth_abi
 import solcx
 from eth_account.datastructures import SignedTransaction
 from eth_utils import abi
-from solana.keypair import Keypair
+from solders.keypair import Keypair
 
 from utils.evm_loader import EvmLoader
 from utils.types import Caller, TreasuryPool, Contract
@@ -82,7 +82,7 @@ def make_deployment_transaction(
     if value:
         tx["value"] = value
 
-    return w3.eth.account.sign_transaction(tx, user.solana_account.secret_key[:32])
+    return w3.eth.account.sign_transaction(tx, user.solana_account.secret()[:32])
 
 
 def make_contract_call_trx(

@@ -7,7 +7,7 @@ import base58
 import pytest
 import web3
 import web3.exceptions
-from solana.publickey import PublicKey
+from solders.pubkey import Pubkey
 from solana.rpc.types import TokenAccountOpts, TxOpts
 from solana.transaction import Transaction
 from spl.token.instructions import (
@@ -448,25 +448,25 @@ class TestERC721:
     @pytest.mark.xfail(reason="NDEV-1333")
     def test_transferSolanaFrom(self, erc721, token_id, sol_client, solana_account):
         acc = solana_account
-        token_mint = PublicKey(base58.b58encode(token_id.to_bytes(32, "big")).decode("utf-8"))
+        token_mint = Pubkey.from_string(base58.b58encode(token_id.to_bytes(32, "big")).decode("utf-8"))
         trx = Transaction()
-        trx.add(create_associated_token_account(acc.public_key, acc.public_key, token_mint))
+        trx.add(create_associated_token_account(acc.pubkey(), acc.pubkey(), token_mint))
         opts = TxOpts(skip_preflight=False, skip_confirmation=False)
         sol_client.send_transaction(trx, acc, opts=opts)
-        solana_address = bytes(get_associated_token_address(acc.public_key, token_mint))
+        solana_address = bytes(get_associated_token_address(acc.pubkey(), token_mint))
 
         erc721.transfer_solana_from(erc721.account.address, solana_address, token_id, erc721.account)
         opts = TokenAccountOpts(token_mint)
 
         wait_condition(
             lambda: int(
-                sol_client.get_token_accounts_by_owner_json_parsed(acc.public_key, opts)
+                sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts)
                 .value[0]
                 .account.data.parsed["info"]["tokenAmount"]["amount"]
             )
             > 0
         )
-        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.public_key, opts).value[0]
+        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts).value[0]
         token_amount = token_data.account.data.parsed["info"]["tokenAmount"]
         assert int(token_amount["amount"]) == 1
         assert int(token_amount["decimals"]) == 0

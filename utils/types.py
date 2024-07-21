@@ -1,35 +1,36 @@
 import typing as tp
 from dataclasses import dataclass
-from solana.publickey import PublicKey
-from solana.keypair import Keypair
+from solders.pubkey import Pubkey
+from solders.keypair import Keypair
 
 
 @dataclass
 class TreasuryPool:
     index: int
-    account: PublicKey
+    account: Pubkey
     buffer: bytes
 
 
 @dataclass
 class Caller:
     solana_account: Keypair
-    solana_account_address: PublicKey
-    balance_account_address: PublicKey
+    solana_account_address: Pubkey
+    balance_account_address: Pubkey
     eth_address: bytes
-    token_address: PublicKey
+    token_address: Pubkey
 
 
 @dataclass
 class Contract:
     eth_address: bytes
-    solana_address: PublicKey
-    balance_account_address: PublicKey
+    solana_address: Pubkey
+    balance_account_address: Pubkey
+
 
 @dataclass
 class TreasuryPool:
     index: int
-    account: PublicKey
+    account: Pubkey
     buffer: bytes
 
 

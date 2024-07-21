@@ -6,16 +6,15 @@ import time
 import typing
 import typing as tp
 
-
 import allure
 import base58
 import solcx
 import web3
 from eth_abi import abi
 from eth_utils import keccak
-from solana.publickey import PublicKey
+from solders.instruction import Instruction
+from solders.pubkey import Pubkey
 from solcx import link_code
-
 
 
 @allure.step("Get contract abi")
@@ -27,11 +26,11 @@ def get_contract_abi(name, compiled):
 
 @allure.step("Get contract interface")
 def get_contract_interface(
-    contract: str,
-    version: str,
-    contract_name: tp.Optional[str] = None,
-    import_remapping: tp.Optional[dict] = None,
-    libraries: tp.Optional[dict] = None,
+        contract: str,
+        version: str,
+        contract_name: tp.Optional[str] = None,
+        import_remapping: tp.Optional[dict] = None,
+        libraries: tp.Optional[dict] = None,
 ):
     if not contract.endswith(".sol"):
         contract += ".sol"
@@ -143,7 +142,6 @@ def create_invalid_address(length=20) -> str:
     return address
 
 
-
 def cryptohex(text: str):
     return "0x" + keccak(text=text).hex()
 
@@ -163,24 +161,26 @@ def hasattr_recursive(obj: typing.Any, attribute: str) -> bool:
 
     return True
 
+
 def bytes32_to_solana_pubkey(bytes32_data):
     byte_data = bytes.fromhex(bytes32_data)
     base58_data = base58.b58encode(byte_data)
-    return PublicKey(base58_data.decode('utf-8'))
+    return Pubkey.from_string(base58_data.decode('utf-8'))
 
 
 def solana_pubkey_to_bytes32(solana_pubkey):
     byte_data = base58.b58decode(str(solana_pubkey))
     return byte_data
 
-def serialize_instruction(program_id, instruction) -> bytes:
-    program_id_bytes = solana_pubkey_to_bytes32(PublicKey(program_id))
-    serialized = program_id_bytes + len(instruction.keys).to_bytes(8, "little")
 
-    for key in instruction.keys:
-        serialized += bytes(key.pubkey)
-        serialized += key.is_signer.to_bytes(1, "little")
-        serialized += key.is_writable.to_bytes(1, "little")
+def serialize_instruction(program_id, instruction: Instruction) -> bytes:
+    program_id_bytes = solana_pubkey_to_bytes32(program_id)
+    serialized = program_id_bytes + len(instruction.accounts).to_bytes(8, "little")
+
+    for account in instruction.accounts:
+        serialized += bytes(account.pubkey)
+        serialized += account.is_signer.to_bytes(1, "little")
+        serialized += account.is_writable.to_bytes(1, "little")
 
     serialized += len(instruction.data).to_bytes(8, "little") + instruction.data
     return serialized
