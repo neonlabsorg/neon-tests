@@ -11,6 +11,7 @@ from utils.web3client import NeonChainWeb3Client
 
 LOG = logging.getLogger(__name__)
 USERS_PER_INSTANCE = int(os.environ.get("USERS_PER_INSTANCE", "100"))
+BASE_PRIVATE_KEY = int(os.environ.get("BASE_PRIVATE_KEY"), 16)
 PROXY_URL = os.environ.get("PROXY_URL", "https://devnet.neonevm.org")
 GET_GAS_PRICE = "GET_GAS_PRICE" in os.environ
 ONE_RECIPIENT = "USE_ONE_RECIPIENT" in os.environ
@@ -22,7 +23,7 @@ class NeonTasksSet(HttpUser):
 
     def on_start(self):
         self._private_key = (
-            int(os.environ.get("BASE_PRIVATE_KEY"), 16)
+            BASE_PRIVATE_KEY
             + USERS_PER_INSTANCE * self.environment.runner.worker_index
             + self.environment.runner.user_count
         )
