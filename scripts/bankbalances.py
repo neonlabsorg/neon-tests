@@ -126,7 +126,7 @@ if __name__ == "__main__":
     main_bank = w.eth.account.from_key(os.environ.get("BANK_PRIVATE_KEY"))
     if instruction == "send":
         if acc_type == "users":
-            distribute(main_bank, accounts, amount=2)
+            distribute(main_bank, accounts, amount=4)
         else:
             distribute(main_bank, accounts)
     elif instruction == "collect":
