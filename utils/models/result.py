@@ -100,7 +100,7 @@ class Transaction(BaseModel):
     hash: HexString
     input: HexString
     nonce: HexString
-    to: HexString
+    to: Union[HexString, None]
     transactionIndex: HexString
     value: HexString
     chainId: HexString
@@ -199,6 +199,7 @@ class NeonGetLogsDetails(ForbidExtra):
     solanaTransactionSignature: str
     solanaInstructionIndex: int
     solanaInnerInstructionIndex: Union[int, None]
+    solanaAddress: Union[str, None]
     neonEventType: str
     neonEventLevel: int
     neonEventOrder: int
