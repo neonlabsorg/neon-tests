@@ -27,7 +27,7 @@ from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
 from utils.operator import Operator
 from utils.web3client import NeonChainWeb3Client, Web3Client
-from utils.prices import get_sol_price, get_neon_price
+from utils.prices import get_sol_price
 
 NEON_AIRDROP_AMOUNT = 1_000
 
@@ -503,8 +503,8 @@ def sol_price() -> float:
 
 
 @pytest.fixture(scope="session")
-def neon_price() -> float:
-    """Get SOL price from Solana mainnet"""
-    price = get_neon_price()
+def neon_price(web3_client_session) -> float:
+    """Get NEON price in usd"""
+    price = web3_client_session.get_token_usd_gas_price()
     with allure.step(f"NEON price {price}$"):
         return price

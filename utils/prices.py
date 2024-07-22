@@ -77,24 +77,6 @@ def get_sol_price() -> float:
     return result
 
 
-def get_neon_price() -> float:
-    for network in NEON_FEED_ADDRESSES:
-        try:
-            result = asyncio.run(
-                get_price(
-                    NEON_FEED_ADDRESSES[network]["solana_address"],
-                    NEON_FEED_ADDRESSES[network]["feed_address"],
-                )
-            ).aggregate_price
-            break
-        except Exception as e:
-            LOG.warning(f"Get error when try to get NEON price from: {network}: {e}")
-            time.sleep(5)
-    else:
-        raise AssertionError("Can't get NEON price for all networks")
-    return result
-
-
 def get_btc_price_detailed() -> PythPriceAccount:
     for network in BTC_FEED_ADDRESSES:
         try:
