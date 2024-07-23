@@ -104,7 +104,7 @@ jobs:
           docker exec -i ${{ env.CONTAINER }} \
             /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && export SOLANA_URL=${{ env.SOLANA_URL }} && \
             export SOLANA_IP=${{ env.SOLANA_IP }} && export PROXY_IP=${{ env.PROXY_IP }} && \
-            python3 ./clickfile.py run compiler_compatibility -n ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
+            python3 ./clickfile.py run compiler_compatibility --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
       - name: "Generate allure report"
         if: always()
         id: requirements
