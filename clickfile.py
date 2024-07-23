@@ -988,6 +988,11 @@ def deploy(current_branch, head_branch, base_branch, use_real_price):
         evm_tag = head_branch if is_branch_exist(NEON_EVM_GITHUB_URL, head_branch) else ""
         faucet_tag = head_branch if is_branch_exist(FAUCET_GITHUB_URL, head_branch) else ""
 
+    if current_branch:
+        proxy_tag = head_branch if is_branch_exist(PROXY_GITHUB_URL, current_branch) else ""
+        evm_tag = head_branch if is_branch_exist(NEON_EVM_GITHUB_URL, current_branch) else ""
+        faucet_tag = head_branch if is_branch_exist(FAUCET_GITHUB_URL, current_branch) else ""
+
     if re.match(VERSION_BRANCH_TEMPLATE, base_branch):
         version_branch = re.match(VERSION_BRANCH_TEMPLATE, base_branch)[0]
     elif re.match(VERSION_BRANCH_TEMPLATE, current_branch):
