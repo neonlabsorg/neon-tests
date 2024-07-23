@@ -984,15 +984,14 @@ def deploy(current_branch, head_branch, base_branch, use_real_price):
     proxy_tag, evm_tag, faucet_tag = "", "", ""
 
     if '/merge' not in current_branch:
-        proxy_tag = head_branch if is_branch_exist(PROXY_GITHUB_URL, current_branch) else ""
-        evm_tag = head_branch if is_branch_exist(NEON_EVM_GITHUB_URL, current_branch) else ""
-        faucet_tag = head_branch if is_branch_exist(FAUCET_GITHUB_URL, current_branch) else ""
+        proxy_tag = current_branch if is_branch_exist(PROXY_GITHUB_URL, current_branch) else ""
+        evm_tag = current_branch if is_branch_exist(NEON_EVM_GITHUB_URL, current_branch) else ""
+        faucet_tag = current_branch if is_branch_exist(FAUCET_GITHUB_URL, current_branch) else ""
 
     elif head_branch:
         proxy_tag = head_branch if is_branch_exist(PROXY_GITHUB_URL, head_branch) else ""
         evm_tag = head_branch if is_branch_exist(NEON_EVM_GITHUB_URL, head_branch) else ""
         faucet_tag = head_branch if is_branch_exist(FAUCET_GITHUB_URL, head_branch) else ""
-
 
     if re.match(VERSION_BRANCH_TEMPLATE, base_branch):
         version_branch = re.match(VERSION_BRANCH_TEMPLATE, base_branch)[0]
