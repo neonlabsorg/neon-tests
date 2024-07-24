@@ -90,8 +90,12 @@ def pytest_runtest_protocol(item: Item, nextitem):
     if item.config.getoption("--make-report"):
         test_group: TestGroup = item.config.getoption("--test-group")
         for report in reports:
-            if report.when == "call" and report.outcome == "failed":
-                error_log.add_failure(test_group=test_group, test_name=item.nodeid)
+            if report.outcome == "failed":
+                if report.when == "call":
+                    error_log.add_failure(test_group=test_group, test_name=item.nodeid)
+                else:
+                    error_log.add_error(test_group=test_group, test_name=item.nodeid)
+
     return True
 
 

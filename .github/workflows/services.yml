@@ -77,7 +77,7 @@ jobs:
         run: |
           docker exec -i ${{ env.CONTAINER }} \
             /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && export SOLANA_URL=${{ env.SOLANA_URL }} && \
-            python3 ./clickfile.py run services -n ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
+            python3 ./clickfile.py run services --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
       - name: "Generate allure report"
         if: always()
         id: requirements

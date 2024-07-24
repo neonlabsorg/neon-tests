@@ -1,5 +1,6 @@
 import random
 
+import allure
 import pytest
 import requests
 from web3 import Web3
@@ -9,6 +10,8 @@ from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 
 
+@allure.feature("JSON-RPC validation")
+@allure.story("Verify JSON-RPC batch operations")
 @pytest.mark.usefixtures("accounts", "web3_client")
 class TestBatchOperations:
     accounts: EthAccounts
@@ -224,8 +227,8 @@ class TestBatchOperations:
         assert len(results) == len(batch), msg
 
         for result in results:
-            match result["id"]:
-                case 3:
-                    assert "error" in result
-                case _:
-                    assert "error" not in result
+            result_id = result["id"]
+            if result_id == 3:
+                assert "error" in result
+            else:
+                assert "error" not in result

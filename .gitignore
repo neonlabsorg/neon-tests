@@ -247,3 +247,4 @@ contracts/external/
 reports
 uniswap_contracts.json
 *.url
+*.lock

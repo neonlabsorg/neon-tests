@@ -17,3 +17,4 @@ packaging==24.0
 deepdiff==7.0.1
 pydantic==2.7.3
 slack-sdk==3.30.0
+filelock==3.15.4

@@ -1,14 +1,16 @@
 import typing as tp
 
-import allure
 import pytest
 from web3 import Web3
 
+import allure
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.basic import Tag
 from integration.tests.basic.helpers.errors import Error32602
 from utils.accounts import EthAccounts
 from utils.helpers import gen_hash_of_block
+from utils.models.error import EthError32602
+from utils.models.result import EthResult
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -31,7 +33,7 @@ class TestRpcGetBlockTransaction:
             assert "error" not in response
             assert "result" in response and response["result"] == "0x0", f"Invalid response: {response['result']}"
             return
-
+        EthError32602(**response)
         assert "error" in response, "error field not in response"
         assert "code" in response["error"]
         assert "message" in response["error"], "message field not in response"
@@ -55,6 +57,7 @@ class TestRpcGetBlockTransaction:
         result = response["result"]
         assert rpc_checks.is_hex(result), f"Invalid response: {result}"
         assert int(response["result"], 16) != 0, "transaction count shouldn't be 0"
+        EthResult(**response)
 
     @pytest.mark.parametrize("param", [32, "param", None])
     def test_eth_get_block_transaction_count_by_number_negative(self, param: tp.Union[int, str, None], json_rpc_client):
@@ -67,6 +70,7 @@ class TestRpcGetBlockTransaction:
             return
         assert "error" not in response
         assert rpc_checks.is_hex(response["result"]), f"Invalid response: {response['result']}"
+        EthResult(**response)
 
     @pytest.mark.mainnet
     @pytest.mark.parametrize("tag", [Tag.LATEST, Tag.EARLIEST, Tag.PENDING])
@@ -75,6 +79,7 @@ class TestRpcGetBlockTransaction:
         assert "error" not in response
         result = response["result"]
         assert rpc_checks.is_hex(result), f"Invalid response: {result}"
+        EthResult(**response)
 
     @pytest.mark.mainnet
     def test_eth_get_block_transaction_count_by_number(self, json_rpc_client):
@@ -88,3 +93,4 @@ class TestRpcGetBlockTransaction:
         result = response["result"]
         assert rpc_checks.is_hex(result), f"Invalid response: {result}"
         assert int(result, 16) != 0, "transaction count shouldn't be 0"
+        EthResult(**response)

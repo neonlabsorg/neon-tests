@@ -1,14 +1,16 @@
 import typing as tp
 
-import allure
 import pytest
 from web3 import Web3
 
+import allure
 from clickfile import EnvName
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.basic import Tag
 from integration.tests.basic.helpers.errors import Error32602
 from utils.accounts import EthAccounts
+from utils.models.error import EthError32602
+from utils.models.result import EthEstimateGas, EthResult
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -38,6 +40,7 @@ class TestRpcEstimateGas:
         if isinstance(block_param, int):
             response = json_rpc_client.send_rpc(method="eth_blockNumber")
             assert "result" in response
+            EthResult(**response)
             params.append(int(response["result"], 16))
         if isinstance(block_param, Tag):
             params.append(block_param.value)
@@ -46,6 +49,7 @@ class TestRpcEstimateGas:
         assert rpc_checks.is_hex(
             response["result"]
         ), f"the result for estimated gas should be in hex, but got'{response['result']}'"
+        EthEstimateGas(**response)
         assert int(response["result"], 16) == 25_000
 
     @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
@@ -58,9 +62,11 @@ class TestRpcEstimateGas:
         message = response["error"]["message"]
         assert code == Error32602.CODE, "wrong code"
         assert message == Error32602.INVALID_CALL, "wrong message"
+        EthError32602(**response)
 
     @pytest.mark.parametrize("contract_name", ["BigGasFactory1", "BigGasFactory2"])
     @pytest.mark.parametrize("process_gas, reserve_gas", [(850_000, 15_000), (8_500_000, 150_000)])
+    @pytest.mark.neon_only
     def test_eth_estimate_gas_with_big_int(self, contract_name, process_gas, reserve_gas, json_rpc_client):
         sender_account = self.accounts.create_account()
 
@@ -78,7 +84,7 @@ class TestRpcEstimateGas:
         trx_big_gas["value"] = Web3.to_hex(0)
         trx_big_gas["nonce"] = Web3.to_hex(trx_big_gas["nonce"])
         trx_big_gas["chainId"] = Web3.to_hex(trx_big_gas["chainId"])
-        trx_big_gas['gasPrice'] = Web3.to_hex(trx_big_gas['gasPrice'])
+        trx_big_gas["gasPrice"] = Web3.to_hex(trx_big_gas["gasPrice"])
 
         # gas needed just to estimate gas -_-
         trx_big_gas["gas"] = Web3.to_hex((process_gas + reserve_gas) + self.web3_client.gas_price() // 1000)
@@ -95,6 +101,7 @@ class TestRpcEstimateGas:
         deploy_trx_big_gas = self.web3_client.eth.wait_for_transaction_receipt(raw_trx_big_gas)
         assert deploy_trx_big_gas.get("status"), f"Transaction is incomplete: {deploy_trx_big_gas}"
         assert gas_estimate >= int(deploy_trx_big_gas["gasUsed"]), "Estimated Gas < Used Gas"
+        EthEstimateGas(**response)
 
     @pytest.mark.neon_only  # Geth returns a different estimate
     def test_rpc_estimate_gas_send_neon(self):
@@ -116,7 +123,6 @@ class TestRpcEstimateGas:
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
         assert estimated_gas == 1_192_320
-
 
     @pytest.mark.neon_only  # Geth returns a different estimate
     def test_rpc_estimate_gas_spl(self, erc20_spl):

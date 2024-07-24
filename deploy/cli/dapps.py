@@ -1,18 +1,15 @@
 import os
 import glob
 import json
-import subprocess
 import typing as tp
 import pathlib
 
 import tabulate
-from paramiko.client import SSHClient
 
-from deploy.cli.infrastructure import upload_service_logs, get_solana_accounts_in_tx
+from deploy.cli.infrastructure import get_solana_accounts_in_tx
 from deploy.cli.network_manager import NetworkManager
 
 from utils.web3client import NeonChainWeb3Client
-from utils.prices import get_neon_price
 
 
 REPORT_HEADERS = ["Action", "Fee", "Cost in $", "Accounts", "TRx", "Estimated Gas", "Used Gas", "Used % of EG"]
@@ -26,7 +23,6 @@ def set_github_env(envs: tp.Dict, upper=True) -> None:
         with open(path, "a") as env_file:
             for key, value in envs.items():
                 env_file.write(f"\n{key.upper() if upper else key}={str(value)}")
-
 
 
 def prepare_report_data(directory):
@@ -56,7 +52,7 @@ def prepare_report_data(directory):
             fee = used_gas * int(action["gasPrice"]) / 1000000000000000000
             used_gas_percentage = round(used_gas * 100 / estimated_gas, 2) if estimated_gas else None
             row.append(fee)
-            row.append(fee * get_neon_price())
+            row.append(fee * web3_client.get_token_usd_gas_price())
             row.append(accounts)
             row.append(trx)
             row.append(estimated_gas)

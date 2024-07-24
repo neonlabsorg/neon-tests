@@ -382,6 +382,18 @@ class Web3Client:
         gas_used_in_tx = tx_receipt.gasUsed * tx["gasPrice"]
         return gas_used_in_tx
 
+    def get_token_usd_gas_price(self):
+        resp = requests.post(
+            self._proxy_url,
+            json={
+                "jsonrpc": "2.0",
+                "method": "neon_gasPrice",
+                "params": [],
+                "id": 0,
+            },
+        ).json()
+        return int(resp["result"]["tokenPriceUsd"], 16) / 100000
+
 
 class NeonChainWeb3Client(Web3Client):
     def __init__(

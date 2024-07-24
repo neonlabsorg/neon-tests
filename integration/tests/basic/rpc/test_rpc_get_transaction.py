@@ -1,17 +1,28 @@
 import typing as tp
 
-import allure
 import pytest
 import web3
 
+import allure
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.assert_message import AssertMessage
 from integration.tests.basic.helpers.basic import Tag
 from integration.tests.basic.helpers.errors import Error32602
-from integration.tests.basic.helpers.rpc_checks import assert_fields_are_hex, assert_equal_fields
+from integration.tests.basic.helpers.rpc_checks import (
+    assert_equal_fields,
+    assert_fields_are_hex,
+)
 from utils.accounts import EthAccounts
 from utils.consts import Unit
 from utils.helpers import gen_hash_of_block
+from utils.models.error import EthError, EthError32602
+from utils.models.result import (
+    EthGetBlockByNumberAndIndexNoneResult,
+    EthGetBlockByNumberAndIndexResult,
+    EthGetTransactionByHashResult,
+    EthGetTransactionReceiptResult,
+    EthResult,
+)
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -62,11 +73,13 @@ class TestRpcGetTransaction:
         assert "result" in response
         if not valid_index:
             assert response["result"] is None, "Result should be None"
+            EthGetBlockByNumberAndIndexNoneResult(**response)
         else:
             assert "error" not in response
             result = response["result"]
             self.validate_response(result, tx_receipt)
             assert result["value"] == hex(self.web3_client.to_wei(amount, Unit.ETHER))
+            EthGetBlockByNumberAndIndexResult(**response)
 
     @pytest.mark.parametrize("valid_index", [True, False])
     @pytest.mark.mainnet
@@ -83,10 +96,12 @@ class TestRpcGetTransaction:
         assert "result" in response
         if not valid_index:
             assert response["result"] is None, "Result should be None"
+            EthGetBlockByNumberAndIndexNoneResult(**response)
         else:
             assert "error" not in response
             result = response["result"]
             self.validate_response(result, tx_receipt)
+            EthGetBlockByNumberAndIndexResult(**response)
 
     @pytest.mark.parametrize("tag", [Tag.LATEST.value, Tag.EARLIEST.value, "param"])
     @pytest.mark.mainnet
@@ -102,6 +117,7 @@ class TestRpcGetTransaction:
         )
         if tag == "param":
             assert "error" in response, "Error not in response"
+            EthError(**response)
         else:
             assert "error" not in response
             result = response["result"]
@@ -123,7 +139,11 @@ class TestRpcGetTransaction:
                 ]
                 for field in expected_hex_fields:
                     assert rpc_checks.is_hex(result[field]), f"Field {field} must be hex but '{result[field]}'"
+                EthGetBlockByNumberAndIndexResult(**response)
+            else:
+                EthGetBlockByNumberAndIndexNoneResult(**response)
 
+    # Geth returns invalid argument 0: hex string has length 62, want 64 for common.Hash
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
     @pytest.mark.neon_only
     def test_get_transaction_receipt_with_incorrect_hash(self, method, json_rpc_client):
@@ -133,6 +153,7 @@ class TestRpcGetTransaction:
         response = json_rpc_client.send_rpc(method=method, params=gen_hash_of_block(31))
         assert "error" in response
         assert response["error"]["message"] == Error32602.INVALID_TRANSACTIONID
+        EthError32602(**response)
 
     @pytest.mark.parametrize("param", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST, None])
     @pytest.mark.mainnet
@@ -146,9 +167,11 @@ class TestRpcGetTransaction:
         response = json_rpc_client.send_rpc("eth_getTransactionCount", params=param)
         if not param:
             assert "error" in response, "Error not in response"
-            return
-        assert "error" not in response
-        assert rpc_checks.is_hex(response["result"]), AssertMessage.DOES_NOT_START_WITH_0X.value
+            EthError32602(**response)
+        else:
+            assert "error" not in response
+            assert rpc_checks.is_hex(response["result"]), AssertMessage.DOES_NOT_START_WITH_0X.value
+            EthResult(**response)
 
     @pytest.mark.parametrize("param", [32, 16, None])
     @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
@@ -171,6 +194,7 @@ class TestRpcGetTransaction:
 
         assert code == Error32602.CODE, "wrong code"
         assert message == Error32602.INVALID_TRANSACTIONID, "wrong message"
+        EthError32602(**response)
 
     @pytest.mark.mainnet
     def test_eth_get_transaction_by_hash(self, json_rpc_client):
@@ -193,6 +217,7 @@ class TestRpcGetTransaction:
             ["blockHash", "blockNumber", "hash", "transactionIndex", "type", "from", "to"],
             {"hash": "transactionHash"},
         )
+        EthGetTransactionByHashResult(**response)
 
     @pytest.mark.mainnet
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
@@ -231,6 +256,7 @@ class TestRpcGetTransaction:
         assert result["to"].upper() == tx_receipt["to"].upper()
         assert result["contractAddress"] is None
         assert result["logs"] == []
+        EthGetTransactionReceiptResult(**response)
 
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
     @pytest.mark.neon_only

@@ -16,6 +16,8 @@ import typing as tp
 from pathlib import Path
 from urllib.parse import urlparse
 
+import pytest
+
 from utils.error_log import error_log
 from utils.slack_notification import SlackNotification
 from utils.types import TestGroup
@@ -107,25 +109,29 @@ def red(s):
 def catch_traceback(func: tp.Callable) -> tp.Callable:
     """Catch traceback to file"""
     def add_error_log_comment(func_name, exc: BaseException):
-        err_msg = f"{exc.__class__.__name__}({exc})"
-        if func_name in ERR_MESSAGES:
-            err_msg = f"{ERR_MESSAGES.get(func_name)}: {err_msg}"
+        err_msg = ERR_MESSAGES.get(func_name) or f"{exc.__class__.__name__}({exc})"
         error_log.add_comment(text=f"{func_name}: {err_msg}")
 
     @functools.wraps(func)
     def wrap(*args, **kwargs) -> tp.Any:
+        error: tp.Optional[BaseException] = None
+
         try:
             result = func(*args, **kwargs)
-        except Exception as e:
-            add_error_log_comment(func.__name__, e)
-            raise
+        except SystemExit as e:
+            exit_code = e.args[0]
+            if exit_code != 0:
+                error = e
+        except BaseException as e:
+            error = e
         else:
             return result
+
         finally:
-            e = sys.exc_info()
-            if e[0] and e[0].__name__ == "SystemExit" and e[1] != 0:
+            if error:
                 if not error_log.has_logs():
-                    add_error_log_comment(func.__name__, e[1])
+                    add_error_log_comment(func.__name__, error)
+                raise error
 
     return wrap
 
@@ -523,6 +529,7 @@ def update_contracts(branch):
 @click.option("-a", "--amount", default=20000, help="Requested amount from faucet")
 @click.option("-u", "--users", default=8, help="Accounts numbers used in OZ tests")
 @click.option("-c", "--case", default='', type=str, help="Specific test case name pattern to run")
+@click.option("--marker", help="Run tests by mark")
 @click.option(
     "--ui-item",
     default="all",
@@ -541,7 +548,18 @@ def update_contracts(branch):
     type=click.Choice(TEST_GROUPS),
 )
 @catch_traceback
-def run(name: TestGroup, jobs, numprocesses, ui_item, amount, users, network: EnvName, case, keep_error_log: bool):
+def run(
+        name: TestGroup,
+        jobs,
+        numprocesses,
+        ui_item,
+        amount,
+        users,
+        network: EnvName,
+        case,
+        keep_error_log: bool,
+        marker: str,
+):
     if not network and name == "ui":
         network = "devnet"
     if DST_ALLURE_CATEGORIES.parent.exists():
@@ -591,16 +609,18 @@ def run(name: TestGroup, jobs, numprocesses, ui_item, amount, users, network: En
 
     if case != '':
         command += " -vk {}".format(case)
+    if marker:
+        command += f' -m {marker}'
 
     command += f" -s --network={network} --make-report --test-group {name}"
     if keep_error_log:
         command += " --keep-error-log"
-    cmd = subprocess.run(command, shell=True)
+    args = command.split()[1:]
+    exit_code = int(pytest.main(args=args))
     if name != "ui":
         shutil.copyfile(SRC_ALLURE_CATEGORIES, DST_ALLURE_CATEGORIES)
 
-    if cmd.returncode != 0:
-        sys.exit(cmd.returncode)
+    sys.exit(exit_code)
 
 
 @cli.command(
@@ -842,17 +862,17 @@ def get_allure_history(name: str, network: str, destination: str = "./allure-res
 
 @allure_cli.command("upload-report", help="Upload allure history")
 @click.argument("name", type=click.Choice(TEST_GROUPS))
-@click.option("-n", "--network", default=EnvName.NIGHT_STAND.value, type=EnvName, help="In which stand run tests")
+@click.option("-n", "--network", default=EnvName.NIGHT_STAND, type=EnvName, help="In which stand run tests")
 @click.option(
     "-s",
     "--source",
     default="./allure-report",
     type=click.Path(file_okay=False, dir_okay=True),
 )
-def upload_allure_report(name: TestGroup, network: str, source: str = "./allure-report"):
+def upload_allure_report(name: TestGroup, network: EnvName, source: str = "./allure-report"):
     branch = os.environ.get("GITHUB_REF_NAME")
     build_id = os.environ.get("GITHUB_RUN_NUMBER")
-    path = Path(name) / network / branch
+    path = Path(name) / network.value / branch
     cloud.upload(source, path / build_id)
     report_url = f"http://neon-test-allure.s3-website.eu-central-1.amazonaws.com/{path / build_id}"
 
@@ -889,55 +909,44 @@ def generate_allure_report():
 def send_notification(url, build_url, network, test_group: str):
     slack_notification = SlackNotification()
 
-    # add build url
+    # build info
     parsed_build_url = urlparse(build_url).path.split("/")
     build_id = parsed_build_url[-1]
-    slack_notification.add_build_info(id_=build_id, url=build_url)
+    build_info = {"id": build_id, "url": build_url}
 
-    # add network
-    slack_notification.add_network(network=network)
-
-    # add failed tests group or count if available
-    failed_count_by_group: defaultdict[TestGroup: int] = error_log.get_count_by_group()
+    # failed tests group or count if available
+    failed_count_by_group: defaultdict[TestGroup, int] = error_log.get_count_by_group()
     if failed_count_by_group:
-        slack_notification.add_failed_tests(tests=failed_count_by_group)
+        failed_tests = "\n".join(f"{group}: {count}" for group, count in failed_count_by_group.items())
     else:
-        slack_notification.add_failed_test_group(test_group=test_group)
+        failed_tests = test_group
 
-    # add Allure report url
+    # Allure report url
     try:
         with Path(ALLURE_REPORT_URL).open() as f:
             allure_report_url = f.read()
     except FileNotFoundError:
         allure_report_url = ""
 
-    if allure_report_url:
-        slack_notification.add_allure_report_url(url=allure_report_url)
-
-    # add failed test names
-    log = error_log.read()
-    all_failed_test_names = []
-
-    for group_name in log.failures:
-        test_names_in_group = log.failures[group_name]
-        all_failed_test_names.extend(test_names_in_group)
-
-    slack_notification.add_failed_test_names(names=all_failed_test_names)
-
-    # add comments
-    for comment in log.comments:
-        slack_notification.add_comment(text=comment)
+    # add combined block
+    slack_notification.add_combined_block(
+        build_info=build_info,
+        network=network,
+        failed_tests=failed_tests,
+        report_url=allure_report_url,
+        comments=error_log.read().comments,
+    )
 
     # add the divider
     slack_notification.add_divider()
 
     # send the notification
-    payload = slack_notification.model_dump()
-    response = requests.post(url=url, json=payload)
+    payload = slack_notification.model_dump_json()
+    response = requests.post(url=url, data=payload)
     if response.status_code != 200:
         click.echo(f"Response status code: {response.status_code}")
         click.echo(f"Response status code: {response.text}")
-        click.echo(f"Payload: {slack_notification.model_dump_json(indent=4)}")
+        click.echo(f"Payload: {payload}")
         raise RuntimeError(f"Notification is not sent. Error: {response.text}")
 
 
@@ -974,7 +983,12 @@ def deploy(current_branch, head_branch, base_branch, use_real_price):
     # use feature branch or version tag as tag for proxy, evm and faucet images or use latest
     proxy_tag, evm_tag, faucet_tag = "", "", ""
 
-    if head_branch:
+    if '/merge' not in current_branch:
+        proxy_tag = current_branch if is_branch_exist(PROXY_GITHUB_URL, current_branch) else ""
+        evm_tag = current_branch if is_branch_exist(NEON_EVM_GITHUB_URL, current_branch) else ""
+        faucet_tag = current_branch if is_branch_exist(FAUCET_GITHUB_URL, current_branch) else ""
+
+    elif head_branch:
         proxy_tag = head_branch if is_branch_exist(PROXY_GITHUB_URL, head_branch) else ""
         evm_tag = head_branch if is_branch_exist(NEON_EVM_GITHUB_URL, head_branch) else ""
         faucet_tag = head_branch if is_branch_exist(FAUCET_GITHUB_URL, head_branch) else ""

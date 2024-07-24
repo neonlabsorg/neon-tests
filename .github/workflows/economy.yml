@@ -87,7 +87,7 @@ jobs:
             /bin/bash
       - name: Run economy tests
         run: |
-          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py run economy -n ${{ env.NETWORK }}
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py run economy --network ${{ env.NETWORK }}
       - name: "Generate allure report"
         uses: ./.github/actions/generate-allure-report
         if: always()
