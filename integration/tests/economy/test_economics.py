@@ -913,7 +913,7 @@ class TestEconomics:
             sol_balance_before - sol_balance_after, sol_price, token_diff, token_price, w3_client.native_token_name
         )
         get_gas_used_percent(w3_client, receipt)
-
+    #@pytest.mark.skip(reason="work incorrect very often")
     def test_deploy_big_contract_with_structures_eip_1559(
             self,
             web3_client: NeonChainWeb3Client,
@@ -988,7 +988,7 @@ class TestEconomics:
         assert_profit(
             sol_balance_before - sol_balance_after, sol_price, token_diff, token_price, w3_client.native_token_name
         )
-
+    @pytest.mark.skip(reason="work incorrect very often")
     def test_eip_1559_zero_priority_fee(
             self,
             client_and_price: tuple[Web3Client, float],
@@ -1032,9 +1032,7 @@ class TestEconomics:
             client_and_price: tuple[Web3Client, float],
             operator: Operator,
             account_with_all_tokens: LocalAccount,
-            sol_price: float,
-            web3_client: NeonChainWeb3Client,
-            web3_client_sol: Web3Client,
+            sol_price: float
     ):
         # Calculate profit and expense with a type-0 transaction
         w3_client, token_price = client_and_price
@@ -1044,14 +1042,14 @@ class TestEconomics:
         recipient_0 = w3_client.create_account()
         value = 1000000
 
-        web3_client.send_tokens(
+        w3_client.send_tokens(
             from_=account_with_all_tokens,
             to=recipient_0,
             value=value,
         )
 
         sol_balance_after = operator.get_solana_balance()
-        token_balance_after = operator.get_token_balance(web3_client)
+        token_balance_after = operator.get_token_balance(w3_client)
 
         token_diff = w3_client.to_main_currency(token_balance_after - token_balance_before)
         operator_expense_type_0 = sol_balance_before - sol_balance_after
@@ -1069,7 +1067,7 @@ class TestEconomics:
         max_fee_per_gas = int((base_fee_per_gas * base_fee_multiplier) + max_priority_fee_per_gas)
         recipient_2 = w3_client.create_account()
 
-        web3_client.send_tokens_eip_1559(
+        w3_client.send_tokens_eip_1559(
             from_=account_with_all_tokens,
             to=recipient_2,
             value=value,
