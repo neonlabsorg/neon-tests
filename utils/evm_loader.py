@@ -545,7 +545,7 @@ class EvmLoader(SolanaClient):
         mint_pubkey = wSOL["address_spl"]
         ata_address = get_associated_token_address(solana_account.public_key, mint_pubkey)
 
-        self.create_ata(solana_account, mint_pubkey)
+        self.create_associate_token_acc(solana_account, solana_account, mint_pubkey)
 
         # wrap SOL
         wrap_sol_tx = make_wSOL(full_amount, solana_account.public_key, ata_address)
