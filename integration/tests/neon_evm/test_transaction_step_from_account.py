@@ -362,7 +362,9 @@ class TestTransactionStepFromAccount:
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
 
         index = 2
-        treasury = TreasuryPool(index, evm_loader.create_treasury_pool_address(index), (index + 1).to_bytes(4, "little"))
+        treasury = TreasuryPool(
+            index, evm_loader.create_treasury_pool_address(index), (index + 1).to_bytes(4, "little")
+        )
 
         error = str.format(InstructionAsserts.INVALID_ACCOUNT, treasury.account)
         with pytest.raises(solana.rpc.core.RPCException, match=error):
@@ -683,7 +685,6 @@ class TestTransactionStepFromAccountParallelRuns:
         send_transaction_steps(holder_acc2, string_setter_contract)
         check_holder_account_tag(holder_acc2, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
 
-
     def test_2_users_call_the_same_contract(
         self, rw_lock_contract, user_account, session_user, evm_loader, operator_keypair, treasury_pool, new_holder_acc
     ):
@@ -696,7 +697,6 @@ class TestTransactionStepFromAccountParallelRuns:
         )
         holder_acc2 = create_holder(operator_keypair, evm_loader)
         evm_loader.write_transaction_to_holder_account(signed_tx2, holder_acc2, operator_keypair)
-
 
         def send_transaction_steps(user, holder_acc):
             operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
@@ -788,7 +788,7 @@ class TestStepFromAccountChangingOperatorsDuringTrxRun:
         operator_keypair,
         second_operator_keypair,
         treasury_pool,
-        new_holder_acc
+        new_holder_acc,
     ):
         signed_tx = make_contract_call_trx(
             evm_loader, user_account, rw_lock_contract, "update_storage_str(string)", ["text"]
@@ -842,3 +842,65 @@ class TestStepFromAccountChangingOperatorsDuringTrxRun:
             second_operator_keypair,
         )
         check_transaction_logs_have_text(resp, "exit_status=0x11")
+
+    def test_next_operator_can_continue_trx_with_created_spl(
+        self,
+        operator_keypair,
+        second_operator_keypair,
+        sender_with_tokens,
+        evm_loader,
+        treasury_pool,
+        holder_acc,
+        neon_api_client,
+        erc20_for_spl_proxy_contract,
+    ):
+        func_signature = "deploy(string,string,string,uint8)"
+        func_args = ["Test", "TTT", "http://uri.com", 9]
+        emulate_result = neon_api_client.emulate_contract_call(
+            sender_with_tokens.eth_address.hex(),
+            erc20_for_spl_proxy_contract.eth_address.hex(),
+            func_signature,
+            func_args,
+        )
+        additional_accounts = [PublicKey(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+        signed_tx = make_contract_call_trx(
+            evm_loader, sender_with_tokens, erc20_for_spl_proxy_contract, func_signature, func_args
+        )
+
+        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
+
+        operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
+        second_operator_balance = evm_loader.get_operator_balance_pubkey(second_operator_keypair)
+
+        # 1
+        evm_loader.send_transaction_step_from_account(
+            operator_keypair,
+            operator_balance_pubkey,
+            treasury_pool,
+            holder_acc,
+            additional_accounts,
+            EVM_STEPS,
+            operator_keypair,
+        )
+
+        evm_loader.send_transaction_step_from_account(
+            operator_keypair,
+            operator_balance_pubkey,
+            treasury_pool,
+            holder_acc,
+            additional_accounts,
+            5000,
+            operator_keypair,
+        )
+
+        resp = evm_loader.send_transaction_step_from_account(
+            second_operator_keypair,
+            second_operator_balance,
+            treasury_pool,
+            holder_acc,
+            additional_accounts,
+            EVM_STEPS,
+            second_operator_keypair,
+        )
+        check_holder_account_tag(holder_acc, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
+        check_transaction_logs_have_text(resp, "exit_status=0x12")

@@ -6,9 +6,12 @@ import solcx
 from eth_account.datastructures import SignedTransaction
 from eth_utils import abi
 from solana.keypair import Keypair
+from solana.publickey import PublicKey
 
 from utils.evm_loader import EvmLoader
 from utils.types import Caller, TreasuryPool, Contract
+from .constants import NEON_CORE_API_URL
+from .neon_api_client import NeonApiClient
 from .transaction_checks import check_transaction_logs_have_text
 
 from .storage import create_holder
@@ -19,9 +22,9 @@ from web3.auto import w3
 
 
 def get_contract_bin(
-        contract: str,
-        contract_name: tp.Optional[str] = None,
-        version: str = "0.7.6",
+    contract: str,
+    contract_name: tp.Optional[str] = None,
+    version: str = "0.7.6",
 ):
     if not contract.endswith(".sol"):
         contract += ".sol"
@@ -66,7 +69,6 @@ def make_deployment_transaction(
     chain_id=111,
     access_list=None,
     version: str = "0.7.6",
-
 ) -> SignedTransaction:
     data = get_contract_bin(contract_file_name, contract_name, version)
     if encoded_args is not None:
@@ -95,9 +97,13 @@ def make_contract_call_trx(
         types = function_signature.split("(")[1].split(")")[0].split(",")
         data += eth_abi.encode(types, params)
 
+    if isinstance(contract, Contract):
+        contract_addr = contract.eth_address
+    else:
+        contract_addr = contract
     signed_tx = make_eth_transaction(
         evm_loader,
-        contract.eth_address,
+        contract_addr,
         data,
         user,
         value=value,
@@ -120,16 +126,23 @@ def deploy_contract(
     contract_name: tp.Optional[str] = None,
     version: str = "0.7.6",
 ):
+    neon_api_client = NeonApiClient(url=NEON_CORE_API_URL)
+
+    contract_code = get_contract_bin(contract_file_name, contract_name=contract_name, version=version)
+    if encoded_args is None:
+        encoded_args = b""
+    emulate_result = neon_api_client.emulate(
+        user.eth_address.hex(), contract=None, data=contract_code + encoded_args.hex()
+    )
+    additional_accounts = [PublicKey(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+
     contract: Contract = create_contract_address(user, evm_loader)
     holder_acc = create_holder(operator, evm_loader)
-    signed_tx = make_deployment_transaction(evm_loader, user, contract_file_name, contract_name, encoded_args=encoded_args, value=value, version=version)
+    signed_tx = make_deployment_transaction(
+        evm_loader, user, contract_file_name, contract_name, encoded_args=encoded_args, value=value, version=version
+    )
     evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator)
 
-    resp = evm_loader.execute_transaction_steps_from_account(
-        operator,
-        treasury_pool,
-        holder_acc,
-        [contract.solana_address, contract.balance_account_address, user.balance_account_address],
-    )
+    resp = evm_loader.execute_transaction_steps_from_account(operator, treasury_pool, holder_acc, additional_accounts)
     check_transaction_logs_have_text(resp, "exit_status=0x12")
     return contract
