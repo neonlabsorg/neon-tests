@@ -319,7 +319,7 @@ class NeonGetTransactionResult(EthResult):
         self,
         filter_by_type: tp.Optional[NeonEventType] = None,
         ignore_events: tp.List[NeonEventType] = list(),
-        is_removed: bool = False,
+        is_removed: Union[bool, None] = None,
     ):
         events = []
         ignored_events = [event.value for event in ignore_events]
@@ -334,7 +334,7 @@ class NeonGetTransactionResult(EthResult):
                                 [
                                     event.neonEventType == filter_by_type.value,
                                     event.neonEventType not in ignored_events,
-                                    event.removed == is_removed,
+                                    event.removed == is_removed if is_removed is not None else True,
                                 ]
                             )
                         ]
@@ -343,7 +343,12 @@ class NeonGetTransactionResult(EthResult):
                     events.extend(
                         event
                         for event in instruction.neonLogs
-                        if all([event.neonEventType not in ignored_events, event.removed == is_removed])
+                        if all(
+                            [
+                                event.neonEventType not in ignored_events,
+                                event.removed == is_removed if is_removed is not None else True,
+                            ]
+                        )
                     )
 
         return events

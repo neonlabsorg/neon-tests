@@ -383,9 +383,9 @@ def event_caller_contract(web3_client, accounts) -> tp.Any:
 
 
 @pytest.fixture(scope="class")
-def tracer_callee_contract_address(web3_client, accounts) -> tp.Any:
+def event_checker_callee_address(web3_client, accounts) -> tp.Any:
     _, contract_deploy_tx = web3_client.deploy_and_get_contract(
-        "common/tracer/ContractCallee", "0.8.15", account=accounts[0]
+        "common/EventsCheckerCallee", "0.8.15", account=accounts[0]
     )
     return contract_deploy_tx["contractAddress"]
 
@@ -498,14 +498,56 @@ def neon_price(web3_client_session) -> float:
 
 
 @pytest.fixture(scope="class")
-def tracer_caller_contract(web3_client, accounts) -> tp.Any:
-    contract, _ = web3_client.deploy_and_get_contract("common/tracer/ContractCaller", "0.8.15", account=accounts[0])
+def events_checker_contract(web3_client, accounts) -> tp.Any:
+    contract, _ = web3_client.deploy_and_get_contract("common/EventsCheckerCaller", "0.8.15", account=accounts[0])
     yield contract
 
 
 @pytest.fixture(scope="class")
-def counter_contract(account_with_all_tokens, client_and_price, web3_client_sol, web3_client):
-    w3_client, _ = client_and_price
-    make_nonce_the_biggest_for_chain(account_with_all_tokens, w3_client, [web3_client, web3_client_sol])
-    contract, _ = w3_client.deploy_and_get_contract("common/Counter", "0.8.10", account=account_with_all_tokens)
+def counter_contract(web3_client, accounts):
+    contract, _ = web3_client.deploy_and_get_contract("common/Counter", "0.8.10", account=accounts[0])
     return contract
+
+
+@pytest.fixture(scope="class")
+def nested_call_contracts(accounts, web3_client):
+    contract_a, _ = web3_client.deploy_and_get_contract(
+        "common/NestedCallsChecker", "0.8.12", accounts[0], contract_name="A"
+    )
+    contract_b, _ = web3_client.deploy_and_get_contract(
+        "common/NestedCallsChecker", "0.8.12", accounts[0], contract_name="B"
+    )
+    contract_c, _ = web3_client.deploy_and_get_contract(
+        "common/NestedCallsChecker", "0.8.12", accounts[0], contract_name="C"
+    )
+    yield contract_a, contract_b, contract_c
+
+
+@pytest.fixture(scope="function")
+def recursion_factory(accounts, web3_client):
+    sender_account = accounts[0]
+    contract, _ = web3_client.deploy_and_get_contract(
+        "common/Recursion",
+        "0.8.10",
+        sender_account,
+        contract_name="DeployRecursionFactory",
+        constructor_args=[3],
+    )
+    yield contract
+
+
+@pytest.fixture(scope="function")
+def destroyable_contract(accounts, web3_client):
+    sender_account = accounts[0]
+    contract, _ = web3_client.deploy_and_get_contract(
+        "opcodes/SelfDestroyable", "0.8.10", sender_account, "SelfDestroyable"
+    )
+    yield contract
+
+
+@pytest.fixture(scope="class")
+def expected_error_checker(accounts, web3_client):
+    contract, _ = web3_client.deploy_and_get_contract(
+        "common/ExpectedErrorsChecker", "0.8.12", accounts[0], contract_name="A"
+    )
+    yield contract

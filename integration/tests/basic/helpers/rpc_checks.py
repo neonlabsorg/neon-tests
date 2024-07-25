@@ -220,12 +220,11 @@ def count_events(
     return Counter([event.neonEventType for event in events])
 
 
-def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type):
-    events = neon_trx_receipt.get_all_events(filter_by_type=event_type)
-
+def assert_events_by_type(neon_trx_receipt: NeonGetTransactionResult):
+    events = neon_trx_receipt.get_all_events(ignore_events=[NeonEventType.InvalidRevision, NeonEventType.StepReset])
     for event in events:
-        match event_type:
-            case NeonEventType.EnterCreate:
+        match event.neonEventType:
+            case NeonEventType.EnterCreate.value:
                 assert (
                     event.address is not None
                 ), f"Expecting non-empty address for {NeonEventType.EnterCreate}, got {event}"
@@ -234,10 +233,11 @@ def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type)
                     event.topics, list
                 ), f"Expecting list of topics for {NeonEventType.EnterCreate}, got {event}"
                 assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.EnterCreate}, got {event}"
-            case NeonEventType.ExitStop:
-                assert (
-                    event.address is not None
-                ), f"Expecting non-empty address for {NeonEventType.ExitStop}, got {event}"
+            case NeonEventType.ExitStop.value:
+                if not event.removed:
+                    assert (
+                        event.address is not None
+                    ), f"Expecting non-empty address for {NeonEventType.ExitStop}, got {event}"
 
                 assert isinstance(
                     event.topics, list
@@ -245,7 +245,7 @@ def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type)
                 assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.Return}, got {event}"
 
                 assert event.data == "0x", f"Expecting empty data for {NeonEventType.ExitStop}, got {event}"
-            case NeonEventType.Return:
+            case NeonEventType.Return.value:
                 assert event.address is None, f"Expecting empty address for {NeonEventType.Return}, got {event}"
 
                 assert isinstance(
@@ -256,7 +256,7 @@ def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type)
                 assert event.data != "0x", f"Expecting non-empty data for {NeonEventType.Return}, got {event}"
 
                 assert event.neonEventLevel == 0, f"Expecting level 0 for {NeonEventType.Return}, got {event}"
-            case NeonEventType.EnterCall:
+            case NeonEventType.EnterCall.value:
                 assert event.address is not None, f"Expecting empty address for {NeonEventType.EnterCall}, got {event}"
 
                 assert isinstance(
@@ -265,11 +265,11 @@ def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type)
                 assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.Return}, got {event}"
 
                 assert event.data == "0x", f"Expecting empty data for {NeonEventType.EnterCall}, got {event}"
-            case NeonEventType.Log:
+            case NeonEventType.Log.value:
                 assert event.topics is not None, f"Expecting non-empty topics for {NeonEventType.Log}, got {event}"
                 assert isinstance(event.topics, list), f"Expecting list of topics for {NeonEventType.Log}, got {event}"
                 assert len(event.topics) > 0, f"Expecting non-empty topics for {NeonEventType.Log}, got {event}"
-            case NeonEventType.Cancel:
+            case NeonEventType.Cancel.value:
                 assert event.address is None, f"Expecting empty address for {NeonEventType.Cancel}, got {event}"
 
                 assert isinstance(
@@ -278,7 +278,7 @@ def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type)
                 assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.Cancel}, got {event}"
 
                 assert event.data == "0x00", f"Expecting empty data for {NeonEventType.Cancel}, got {event}"
-            case NeonEventType.EnterCallCode:
+            case NeonEventType.EnterCallCode.value:
                 assert event.data == "0x", f"Expecting empty data for {NeonEventType.EnterCallCode}, got {event}"
 
                 assert isinstance(
@@ -287,7 +287,7 @@ def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type)
                 assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.EnterCallCode}, got {event}"
 
                 assert event.neonEventLevel == 2, f"Expecting level 2 for {NeonEventType.EnterCallCode}, got {event}"
-            case NeonEventType.ExitReturn:
+            case NeonEventType.ExitReturn.value:
                 assert event.address is not None, f"Expecting empty address for {NeonEventType.ExitReturn}, got {event}"
 
                 assert event.data == "0x", f"Expecting empty data for {NeonEventType.ExitReturn}, got {event}"
@@ -296,7 +296,7 @@ def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type)
                     event.topics, list
                 ), f"Expecting list of topics for {NeonEventType.ExitReturn}, got {event}"
                 assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.ExitReturn}, got {event}"
-            case NeonEventType.EnterStaticCall:
+            case NeonEventType.EnterStaticCall.value:
                 assert (
                     event.address is not None
                 ), f"Expecting empty address for {NeonEventType.EnterStaticCall}, got {event}"
@@ -311,7 +311,7 @@ def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type)
                 ), f"Expecting empty topics for {NeonEventType.EnterStaticCall}, got {event}"
 
                 assert event.neonEventLevel == 2, f"Expecting level 2 for {NeonEventType.EnterStaticCall}, got {event}"
-            case NeonEventType.EnterDelegateCall:
+            case NeonEventType.EnterDelegateCall.value:
                 assert (
                     event.address is not None
                 ), f"Expecting empty address for {NeonEventType.EnterDelegateCall}, got {event}"
@@ -324,7 +324,7 @@ def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type)
                 assert (
                     len(event.topics) == 0
                 ), f"Expecting empty topics for {NeonEventType.EnterDelegateCall}, got {event}"
-            case NeonEventType.ExitSendAll:
+            case NeonEventType.ExitSendAll.value:
                 assert (
                     event.address is not None
                 ), f"Expecting empty address for {NeonEventType.ExitSendAll}, got {event}"
@@ -335,7 +335,7 @@ def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type)
                     event.topics, list
                 ), f"Expecting list of topics for {NeonEventType.ExitSendAll}, got {event}"
                 assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.ExitSendAll}, got {event}"
-            case NeonEventType.ExitRevert:
+            case NeonEventType.ExitRevert.value:
                 assert event.address is not None, f"Expecting empty address for {NeonEventType.ExitRevert}, got {event}"
 
                 assert isinstance(
@@ -343,11 +343,13 @@ def assert_event_by_type(neon_trx_receipt: NeonGetTransactionResult, event_type)
                 ), f"Expecting list of topics for {NeonEventType.ExitRevert}, got {event}"
                 assert len(event.topics) == 0, f"Expecting empty topics for {NeonEventType.ExitRevert}, got {event}"
             case _:
-                assert event_type in NeonEventType, "Unknown event type {event_type}"
+                assert event.neonEventType in NeonEventType, "Unknown event type {event_type}"
 
 
-def assert_events_order(neon_trx_receipt: NeonGetTransactionResult):
-    events = neon_trx_receipt.get_all_events(ignore_events=[NeonEventType.InvalidRevision, NeonEventType.StepReset])
+def assert_events_order(neon_trx_receipt: NeonGetTransactionResult, is_removed=False):
+    events = neon_trx_receipt.get_all_events(
+        ignore_events=[NeonEventType.InvalidRevision, NeonEventType.StepReset], is_removed=is_removed
+    )
     actual_order_idxs = [event.neonEventOrder for event in events]
     assert len(actual_order_idxs) == len(set(actual_order_idxs)), f"Non-unique indexes for events: {events}"
 

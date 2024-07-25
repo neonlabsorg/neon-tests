@@ -43,6 +43,9 @@ class JsonRPCSession(Session):
         response = self.send_rpc("eth_getCode", [contract_address, "latest"])
         return response["result"]
 
+    def get_neon_trx_receipt(self, trx_hash: str) -> tp.Dict:
+        return self.send_rpc("neon_getTransactionReceipt", params=[trx_hash.hex()])
+
 def wait_finalized_block(rpc_client: JsonRPCSession, block_num: int):
     fin_block_num = block_num - 32
     while block_num > fin_block_num:

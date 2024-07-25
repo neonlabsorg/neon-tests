@@ -101,12 +101,9 @@ class TestExtCodeHashOpcode:
         event_logs = eip1052_checker.events.ReceivedHash().process_receipt(receipt, errors=DISCARD)
         assert event_logs[0]["args"]["hash"].hex() != ZERO_HASH
 
-    def test_extcodehash_for_reverted_destroyed_contract(self, eip1052_checker, json_rpc_client):
+    def test_extcodehash_for_reverted_destroyed_contract(self, eip1052_checker, json_rpc_client, destroyable_contract):
         # Check the EXTCODEHASH of an account that selfdestructed and later the selfdestruct has been reverted.
         sender_account = self.accounts[0]
-        selfDestroyableContract, _ = self.web3_client.deploy_and_get_contract(
-            "opcodes/SelfDestroyable", "0.8.10", sender_account
-        )
         destroyCaller, _ = self.web3_client.deploy_and_get_contract(
             "EIPs/EIP1052Extcodehash",
             "0.8.10",
@@ -116,7 +113,7 @@ class TestExtCodeHashOpcode:
 
         tx = self.web3_client.make_raw_tx(sender_account)
         instruction_tx = eip1052_checker.functions.getHashForDestroyedContractAfterRevert(
-            selfDestroyableContract.address, destroyCaller.address
+            destroyable_contract.address, destroyCaller.address
         ).build_transaction(tx)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         neon_logs = json_rpc_client.send_rpc(
