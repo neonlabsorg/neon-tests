@@ -136,7 +136,7 @@ jobs:
         timeout-minutes: 30
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: neonlabsorg/uniswap-v3:latest
+          IMAGE: neonlabsorg/uniswap-v3:c2018c128744dcb80f863bee3621f8c5a24d2ce0
         run: |
           test -t 1 && USE_TTY="-t"
           docker pull ${{ env.IMAGE }}
