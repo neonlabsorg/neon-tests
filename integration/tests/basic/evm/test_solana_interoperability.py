@@ -268,8 +268,8 @@ class TestSolanaInteroperability:
         spl_token = SplToken(sol_client, mint, TOKEN_PROGRAM_ID, solana_account)
         ata_address_from = get_associated_token_address(solana_account.public_key, mint)
         ata_address_to = get_associated_token_address(recipient.public_key, mint)
-        sol_client.create_associate_token_acc(solana_account, solana_account.public_key, mint)
-        sol_client.create_associate_token_acc(solana_account, recipient.public_key, mint)
+        sol_client.create_associate_token_acc(solana_account, solana_account, mint)
+        sol_client.create_associate_token_acc(solana_account, recipient, mint)
 
         def get_gas_used_for_emulate_send_wsol(amount):
             wrap_sol_tx = make_wSOL(amount, solana_account.public_key, ata_address_from)

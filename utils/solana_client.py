@@ -110,6 +110,7 @@ class SolanaClient(solana.rpc.api.Client):
     def send_tx_and_check_status_ok(self, tx, *signers):
         opts = TxOpts(skip_preflight=True, skip_confirmation=False)
         sig = self.send_transaction(tx, *signers, opts=opts).value
+        self.confirm_transaction(sig, commitment=Confirmed)
         sig_status = json.loads((self.confirm_transaction(sig)).to_json())
         assert sig_status["result"]["value"][0]["status"] == {"Ok": None}, f"error:{sig_status}"
 
@@ -119,18 +120,11 @@ class SolanaClient(solana.rpc.api.Client):
         self.confirm_transaction(result.value, commitment=Confirmed)
         return self.get_transaction(result.value, commitment=Confirmed)
 
-    def create_ata(self, solana_account, token_mint):
-        trx = Transaction()
-        trx.add(create_associated_token_account(solana_account.public_key, solana_account.public_key, token_mint))
-        opts = TxOpts(skip_preflight=True, skip_confirmation=False)
-        self.send_transaction(trx, solana_account, opts=opts)
-
     def create_associate_token_acc(self, payer, owner, token_mint):
-        trx = Transaction()
-        trx.add(create_associated_token_account(payer.public_key, owner, token_mint))
-        opts = TxOpts(skip_preflight=True, skip_confirmation=False)
-        self.send_transaction(trx, payer, opts=opts)
-
+        if not self.account_exists(get_associated_token_address(owner.public_key, token_mint)):
+            trx = Transaction()
+            trx.add(create_associated_token_account(payer.public_key, owner.public_key, token_mint))
+            self.send_tx_and_check_status_ok(trx, payer)
 
     def wait_transaction(self, tx):
         try:
@@ -170,8 +164,7 @@ class SolanaClient(solana.rpc.api.Client):
     def mint_spl_to(self, mint: PublicKey, dest: Keypair, amount: int, authority: tp.Optional[Keypair] = None):
         token_account = get_associated_token_address(dest.public_key, mint)
 
-        if not self.account_exists(token_account):
-            self.create_ata(dest, mint)
+        self.create_associate_token_acc(dest, dest, mint)
 
         if authority is None:
             operator_path = pathlib.Path(__file__).parent.parent / "operator-keypair.json"
