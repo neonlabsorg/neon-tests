@@ -983,7 +983,7 @@ def deploy(current_branch, head_branch, base_branch, use_real_price):
     # use feature branch or version tag as tag for proxy, evm and faucet images or use latest
     proxy_tag, evm_tag, faucet_tag = "", "", ""
 
-    if '/merge' not in current_branch:
+    if '/merge' not in current_branch and current_branch != "develop":
         proxy_tag = current_branch if is_branch_exist(PROXY_GITHUB_URL, current_branch) else ""
         evm_tag = current_branch if is_branch_exist(NEON_EVM_GITHUB_URL, current_branch) else ""
         faucet_tag = current_branch if is_branch_exist(FAUCET_GITHUB_URL, current_branch) else ""
