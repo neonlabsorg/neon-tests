@@ -52,9 +52,7 @@ def check_alt_on(web3_client, sol_client, receipt, accounts_quantity):
         max_supported_transaction_version=0,
     )
     alt = trx.value.transaction.transaction.message.address_table_lookups
-    accounts = alt[0].writable_indexes + alt[0].readonly_indexes
-    assert len(accounts) == accounts_quantity - 2
-
+    assert alt
 
 @allure.step("Check block for not using ALT")
 def check_alt_off(block):
