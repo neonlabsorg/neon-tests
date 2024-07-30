@@ -300,3 +300,24 @@ class TestSolanaInteroperability:
         gas_used_amount1 = get_gas_used_for_emulate_send_wsol(10000)
         gas_used_amount2 = get_gas_used_for_emulate_send_wsol(10000 * 2)
         assert gas_used_amount1 == gas_used_amount2, "Gas used for different transfer amounts should be the same"
+
+    def test_limit_of_simple_instr_in_one_trx(self, call_solana_caller, counter_resource_address):
+        sender = self.accounts[0]
+        call_params = []
+
+        for _ in range(24):
+            instruction = TransactionInstruction(
+                program_id=COUNTER_ID,
+                keys=[
+                    AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
+                ],
+                data=bytes([0x1]),
+            )
+            serialized = serialize_instruction(COUNTER_ID, instruction)
+            call_params.append((0, serialized))
+
+        tx = self.web3_client.make_raw_tx(sender.address)
+        instruction_tx = call_solana_caller.functions.batchExecute(call_params).build_transaction(tx)
+        resp = self.web3_client.send_transaction(sender, instruction_tx)
+        assert resp["status"] == 0
+
