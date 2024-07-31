@@ -51,3 +51,13 @@ TestGroup = tp.Literal[
 class TransactionType(enum.IntEnum):
     LEGACY = 0
     EIP_1559 = 2
+
+GithubEvent = tp.Literal[
+    "push_branch",
+    "push_tag",
+    "pull_request",
+    "workflow_dispatch",
+    "unknown",
+]
+
+RepoType = tp.Literal["proxy", "evm", "tests"]

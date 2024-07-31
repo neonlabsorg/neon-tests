@@ -18,9 +18,11 @@ from urllib.parse import urlparse
 
 import pytest
 
+from deploy.test_results_db.test_results_handler import TestResultsHandler
 from utils.error_log import error_log
 from utils.slack_notification import SlackNotification
-from utils.types import TestGroup
+from utils.types import TestGroup, RepoType
+from utils.version import tag_to_branch
 
 try:
     import click
@@ -529,7 +531,7 @@ def update_contracts(branch):
 @click.option("-p", "--numprocesses", help="Number of parallel jobs for basic tests")
 @click.option("-a", "--amount", default=20000, help="Requested amount from faucet")
 @click.option("-u", "--users", default=8, help="Accounts numbers used in OZ tests")
-@click.option("-c", "--case", default='', type=str, help="Specific test case name pattern to run")
+@click.option("-c", "--case", default="", type=str, help="Specific test case name pattern to run")
 @click.option("--marker", help="Run tests by mark")
 @click.option(
     "--ui-item",
@@ -609,10 +611,10 @@ def run(
         if network != "geth":
             assert wait_for_tracer_service(network)
 
-    if case != '':
+    if case != "":
         command += " -vk {}".format(case)
     if marker:
-        command += f' -m {marker}'
+        command += f" -m {marker}"
 
     command += f" -s --network={network} --make-report --test-group {name}"
     if keep_error_log:
@@ -1060,16 +1062,209 @@ def dapps():
 
 @dapps.command("report", help="Print dapps report (from .json files)")
 @click.option("-d", "--directory", default="reports", help="Directory with reports")
+@click.option("--repo", type=click.Choice(tp.get_args(RepoType)), required=True)
+@click.option("--event_name", required=True)
+@click.option("--ref", required=True)
+@click.option("--ref_name", required=True)
+@click.option("--head_ref", required=True)
+@click.option("--base_ref", required=True)
+@click.option("--neon_evm_tag", required=True)
+@click.option("--proxy_tag", required=True)
+@click.option("--history_depth_limit", default=10, type=int, help="How many runs to include into statistical analysis")
+def make_dapps_report(
+        directory: str,
+        repo: RepoType,
+        event_name: str,
+        ref: str,
+        ref_name: str,
+        head_ref: str,
+        base_ref: str,
+        neon_evm_tag: str,
+        proxy_tag: str,
+        history_depth_limit: int,
+):
+    gh_client = GithubClient(
+        token="",
+        repo=repo,
+        event_name=event_name,
+        ref=ref,
+        ref_name=ref_name,
+        head_ref=head_ref,
+        base_ref=base_ref,
+    )
+    click.echo(yellow(f"GithubClient: {gh_client.__dict__}"))
+
+    do_save = False
+    do_compare = False
+    do_delete = False
+
+    save_branch = None
+    current_branch = None
+    previous_branch = None
+    github_tag = None
+
+    if repo != "tests":
+        click.echo(f"GithubEvent: {gh_client.event}")
+
+        # merge to develop
+        if gh_client.event == "push_branch":
+            if gh_client.is_base_branch(ref_name):
+                do_save = True
+                save_branch = ref_name
+                click.echo("This is a merge to develop")
+
+        # creating a tag
+        elif gh_client.event == "push_tag":
+            do_save = do_compare = True
+            save_branch = current_branch = previous_branch = tag_to_branch(ref_name)
+            github_tag = ref_name
+            click.echo("This is a tag push")
+
+        # PR
+        elif gh_client.event == "pull_request":
+            is_base = gh_client.is_base_branch(base_ref)
+            is_version = gh_client.is_version_branch(base_ref)
+
+            # to develop
+            if is_base:
+                do_save = do_compare = do_delete = True
+                save_branch = head_ref
+                current_branch = head_ref
+                previous_branch = base_ref
+                click.echo("This is a pull request to develop")
+
+            # to version branch
+            elif is_version:
+                do_save = do_compare = True
+                save_branch = head_ref
+                current_branch = head_ref
+                previous_branch = base_ref
+                click.echo("This is a pull request to a version branch")
+
+    report_data = dapps_cli.prepare_report_data(directory)
+    test_results_handler = TestResultsHandler()
+
+    if do_delete:
+        test_results_handler.delete_report_and_data(repo=repo, branch=save_branch, tag=None)
+
+    if do_save:
+        proxy_url = network_manager.get_network_param(os.environ.get("NETWORK"), "proxy_url")
+        web3_client = NeonChainWeb3Client(proxy_url)
+        token_usd_gas_price = web3_client.get_token_usd_gas_price()
+        test_results_handler.save_to_db(
+            report_data=report_data,
+            repo=repo,
+            branch=save_branch,
+            github_tag=gh_client.tag_name,
+            neon_evm_tag=neon_evm_tag,
+            proxy_tag=proxy_tag,
+            token_usd_gas_price=token_usd_gas_price,
+        )
+
+    if do_compare:
+        compare_and_save_dapp_results(
+            repo=repo,
+            current_branch=current_branch,
+            previous_branch=previous_branch,
+            github_tag=github_tag,
+            neon_evm_tag=neon_evm_tag,
+            proxy_tag=proxy_tag,
+            history_depth_limit=history_depth_limit,
+        )
+    else:
+        proxy_url = network_manager.get_network_param(os.environ.get("NETWORK"), "proxy_url")
+        web3_client = NeonChainWeb3Client(proxy_url)
+        token_usd_gas_price = web3_client.get_token_usd_gas_price()
+
+        # Add 'fee_in_usd' column after 'fee_in_neon'
+        report_data.insert(
+            report_data.columns.get_loc("fee_in_neon") + 1, "fee_in_usd", report_data["fee_in_neon"] * token_usd_gas_price
+        )
+
+        # Add 'used_%_of_EG' column after 'gas_used'
+        report_data.insert(
+            report_data.columns.get_loc("gas_used") + 1,
+            "used_%_of_EG",
+            (report_data["gas_used"] / report_data["gas_estimated"]) * 100,
+        )
+        report_data["used_%_of_EG"] = report_data["used_%_of_EG"].round(2)
+
+        # Dump report_data DataFrame to markdown, grouped by the dApp
+        report_as_markdown_table = dapps_cli.report_data_to_markdown(df=report_data)
+        Path("cost_reports.md").write_text(report_as_markdown_table)
+
+
+@dapps.command("compare_results", help="Compare dApp results")
+@click.option("--repo", type=click.Choice(tp.get_args(RepoType)), required=True)
+@click.option("--current_branch", help="Head branch", required=True)
+@click.option("--previous_branch", help="The branch to compare against", required=True)
+@click.option("--github_tag", help="Github tag")
+@click.option("--neon_evm_tag", required=True)
+@click.option("--proxy_tag", required=True)
+@click.option("--history_depth_limit", type=int, help="How many runs to include into statistical analysis")
+def compare_and_save_results(
+        repo: RepoType,
+        current_branch: str,
+        previous_branch: str,
+        github_tag: tp.Optional[str],
+        neon_evm_tag: str,
+        proxy_tag: str,
+        history_depth_limit: int,
+):
+    compare_and_save_dapp_results(
+        repo=repo,
+        current_branch=current_branch,
+        previous_branch=previous_branch,
+        github_tag=github_tag,
+        neon_evm_tag=neon_evm_tag,
+        proxy_tag=proxy_tag,
+        history_depth_limit=history_depth_limit,
+    )
+
+
+def compare_and_save_dapp_results(
+        repo: RepoType,
+        current_branch: str,
+        previous_branch: str,
+        github_tag: tp.Optional[str],
+        neon_evm_tag: str,
+        proxy_tag: str,
+        history_depth_limit: int,
+):
+    click.echo(f"compare_and_save_dapp_results: {locals()}")
+    test_results_handler = TestResultsHandler()
+
+    # fetch statistical data
+    historical_data = test_results_handler.get_historical_data(
+        depth=history_depth_limit,
+        repo=repo,
+        last_branch=current_branch,
+        previous_branch=previous_branch,
+        github_tag=github_tag,
+    )
+
+    # generate plots and save to pdf
+    branch_ = f", branch {current_branch}" if current_branch else ""
+    gh_tag = f", GitHub tag {github_tag}" if github_tag else ""
+    test_results_handler.generate_and_save_plots_pdf(
+        historical_data=historical_data,
+        title_end=f"{repo}{branch_}{gh_tag}, Neon Evm {neon_evm_tag}, Proxy {proxy_tag}",
+        output_pdf="cost_reports.pdf",
+    )
+
+
+@dapps.command("add_pr_comment", help="Add PR comment with dApp cost reports")
 @click.option("--pr_url_for_report", default="", help="Url to send the report as comment for PR")
 @click.option("--token", default="", help="github token")
-def make_dapps_report(directory, pr_url_for_report, token):
-    report_data = dapps_cli.prepare_report_data(directory)
-    dapps_cli.print_report(report_data)
-    if pr_url_for_report:
-        gh_client = GithubClient(token)
-        gh_client.delete_last_comment(pr_url_for_report)
-        format_data = dapps_cli.format_report_for_github_comment(report_data)
-        gh_client.add_comment_to_pr(pr_url_for_report, format_data)
+@click.option("--md_file", help="File with markdown for the comment")
+def add_pr_comment(pr_url_for_report: str, token: str, md_file: str):
+    gh_client = GithubClient(token=token)
+    gh_client.delete_last_comment(pr_url_for_report)
+
+    with open(md_file) as f:
+        markdown = f.read()
+
+    gh_client.add_comment_to_pr(pr_url_for_report, markdown)
 
 
 @cli.group()
