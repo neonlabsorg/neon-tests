@@ -554,6 +554,9 @@ class TestAccountRevision:
         )
         check_transaction_logs_have_text(resp, "exit_status=0x11")
 
+        evm_loader.send_transaction_step_from_account(
+            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts, EVM_STEPS, operator_keypair
+        )
         resp = evm_loader.send_transaction_step_from_account(
             operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts, EVM_STEPS, operator_keypair
         )
