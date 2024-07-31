@@ -539,7 +539,6 @@ class TestAccountRevision:
         evm_loader.send_transaction_step_from_account(
             operator_keypair,
             operator_balance_pubkey,
-            evm_loader,
             treasury_pool,
             holder_acc,
             accounts,
@@ -554,12 +553,10 @@ class TestAccountRevision:
         )
         check_transaction_logs_have_text(resp, "exit_status=0x11")
 
-        evm_loader.send_transaction_step_from_account(
-            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts, EVM_STEPS, operator_keypair
-        )
         resp = evm_loader.send_transaction_step_from_account(
             operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts, EVM_STEPS, operator_keypair
         )
+
         check_transaction_logs_have_text(resp, "exit_status=0x11")
         check_holder_account_tag(holder_acc, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
 
