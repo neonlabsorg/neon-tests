@@ -913,7 +913,8 @@ class TestEconomics:
             sol_balance_before - sol_balance_after, sol_price, token_diff, token_price, w3_client.native_token_name
         )
         get_gas_used_percent(w3_client, receipt)
-    #@pytest.mark.skip(reason="work incorrect very often")
+
+    # @pytest.mark.skip(reason="work incorrect very often")
     def test_deploy_big_contract_with_structures_eip_1559(
             self,
             web3_client: NeonChainWeb3Client,
@@ -942,7 +943,6 @@ class TestEconomics:
             sol_balance_before - sol_balance_after, sol_price, token_diff, neon_price, web3_client.native_token_name
         )
         get_gas_used_percent(web3_client, receipt)
-
 
     @pytest.mark.timeout(30 * Time.MINUTE)
     @pytest.mark.slow
@@ -988,6 +988,7 @@ class TestEconomics:
         assert_profit(
             sol_balance_before - sol_balance_after, sol_price, token_diff, token_price, w3_client.native_token_name
         )
+
     @pytest.mark.skip(reason="work incorrect very often")
     def test_eip_1559_zero_priority_fee(
             self,

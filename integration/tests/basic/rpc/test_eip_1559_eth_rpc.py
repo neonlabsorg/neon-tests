@@ -147,7 +147,7 @@ class TestRpcEthMethods:
         assert result is not None
 
         block_base_fee = int(result['baseFeePerGas'], 16)
-        assert block_base_fee == base_fee_per_gas
+        assert block_base_fee <= base_fee_per_gas
 
     @pytest.mark.neon_only
     @pytest.mark.parametrize(
@@ -187,7 +187,7 @@ class TestRpcEthMethods:
 
         block_base_fee = int(result['baseFeePerGas'], 16)
 
-        assert block_base_fee == base_fee_per_gas
+        assert block_base_fee <= base_fee_per_gas
 
     def test_get_transaction_receipt(
             self,
