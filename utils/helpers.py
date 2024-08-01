@@ -19,6 +19,9 @@ from solcx import link_code
 import polling2
 
 
+T = tp.TypeVar('T')
+
+
 @allure.step("Get contract abi")
 def get_contract_abi(name, compiled):
     for key in compiled.keys():
@@ -92,14 +95,14 @@ def generate_text(min_len: int = 2, max_len: int = 200, simple: bool = True) -> 
 
 @allure.step("Wait condition")
 def wait_condition(
-        func_cond: tp.Callable[..., tp.Union[bool, tp.Any]],
+        func_cond: tp.Callable[..., T],
         timeout_sec: float = 15,
         delay: float = 0.5,
         args: tp.Tuple = (),
         kwargs: tp.Optional[dict[str, tp.Any]] = None,
         max_tries: tp.Optional[int] = None,
-        check_success: tp.Callable[[tp.Any], bool] = polling2.is_truthy,
-        step_function: tp.Callable[[int], float] = polling2.step_constant,
+        check_success: tp.Callable[[T], bool] = polling2.is_truthy,
+        step_function: tp.Callable[[float], float] = polling2.step_constant,
         ignore_exceptions: tp.Tuple[Exception, ...] = (),
         poll_forever: bool = False,
         collect_values: tp.Optional[Queue] = None,

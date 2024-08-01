@@ -18,11 +18,9 @@ from solana.publickey import PublicKey
 from solana.rpc import commitment
 from solana.rpc.types import TxOpts
 from web3.contract import Contract
-from web3.exceptions import InvalidAddress
 
 import allure
-from clickfile import network_manager
-from integration.tests.basic.helpers.chains import make_nonce_the_biggest_for_chain
+from clickfile import network_manager, EnvName
 from utils import web3client
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
@@ -60,6 +58,8 @@ def pytest_collection_modifyitems(config, items):
         if "-" in raw_proxy_version:
             raw_proxy_version = raw_proxy_version.split("-")[0].strip()
         proxy_version = version.parse(raw_proxy_version)
+    else:
+        deselected_marks.append("neon_only")
 
     if network_name == "devnet":
         deselected_marks.append("only_stands")
@@ -579,6 +579,7 @@ def eip1559_setup(
         pytestconfig: Config,
         accounts_session: EthAccounts,
         web3_client_session: NeonChainWeb3Client,
+        env_name: EnvName,
 ):
     """
     Creates type-2 transactions in the db
@@ -627,6 +628,7 @@ def eip1559_setup(
         assert receipt.status == 1
 
         # Sleep to make sure the next transaction goes to the next block
-        pause = 1.5 - (time.time() - start)
+        min_pause = 3 if env_name is EnvName.GETH else 0.4
+        pause = min_pause - (time.time() - start)
         if pause > 0:
             time.sleep(pause)
