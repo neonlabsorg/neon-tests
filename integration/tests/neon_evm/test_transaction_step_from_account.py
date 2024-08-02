@@ -430,27 +430,6 @@ class TestTransactionStepFromAccount:
                 system_program=fake_sys_program_id,
             )
 
-    def test_incorrect_sysvar(
-        self, sender_with_tokens, operator_keypair, evm_loader, treasury_pool, session_user, holder_acc
-    ):
-        signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
-        fake_sysvar = Keypair().public_key
-        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
-
-        error = str.format(InstructionAsserts.NOT_SYSVAR_PROGRAM, fake_sysvar)
-        operator_balance = evm_loader.get_operator_balance_pubkey(operator_keypair)
-        with pytest.raises(solana.rpc.core.RPCException, match=error):
-            evm_loader.send_transaction_step_from_account(
-                operator_keypair,
-                operator_balance,
-                treasury_pool,
-                holder_acc,
-                [],
-                1,
-                operator_keypair,
-                sysvar=fake_sysvar,
-            )
-
     def test_incorrect_holder_account(self, operator_keypair, evm_loader, treasury_pool):
         fake_holder_acc = Keypair.generate().public_key
         operator_balance = evm_loader.get_operator_balance_pubkey(operator_keypair)

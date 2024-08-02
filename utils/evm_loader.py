@@ -12,7 +12,6 @@ from solana.publickey import PublicKey
 import solana.system_program as sp
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
-from solana.sysvar import SYSVAR_INSTRUCTIONS_PUBKEY
 from solana.transaction import Transaction
 from solders.rpc.responses import SendTransactionResp, GetTransactionResp
 from spl.token.instructions import get_associated_token_address, MintToParams, ApproveParams, approve
@@ -180,7 +179,6 @@ class EvmLoader(SolanaClient):
         additional_accounts,
         signer: Keypair = None,
         system_program=sp.SYS_PROGRAM_ID,
-        sysvar=SYSVAR_INSTRUCTIONS_PUBKEY,
         compute_unit_price=None
     ) -> SendTransactionResp:
         signer = operator if signer is None else signer
@@ -196,9 +194,7 @@ class EvmLoader(SolanaClient):
                 treasury_buffer,
                 instruction.rawTransaction,
                 additional_accounts,
-                system_program,
-                sysvar
-            )
+                system_program            )
         )
 
         return self.send_tx(trx, signer)
@@ -274,7 +270,6 @@ class EvmLoader(SolanaClient):
         steps_count,
         signer: Keypair,
         system_program=sp.SYS_PROGRAM_ID,
-        sysvar=SYSVAR_INSTRUCTIONS_PUBKEY,
         index=0,
         tag=0x34,
     ) -> GetTransactionResp:
@@ -292,8 +287,7 @@ class EvmLoader(SolanaClient):
                 treasury,
                 additional_accounts,
                 system_program,
-                sysvar,
-                tag,
+                tag
             )
         )
 
@@ -348,7 +342,6 @@ class EvmLoader(SolanaClient):
         steps_count,
         signer: Keypair,
         system_program=sp.SYS_PROGRAM_ID,
-        sysvar=SYSVAR_INSTRUCTIONS_PUBKEY,
         compute_unit_price = None,
         tag=0x35,
         index=0,
@@ -365,8 +358,7 @@ class EvmLoader(SolanaClient):
                 treasury,
                 additional_accounts,
                 system_program,
-                sysvar,
-                tag,
+                tag
             )
         )
         return self.send_tx(trx, signer)
@@ -378,7 +370,6 @@ class EvmLoader(SolanaClient):
         storage_account,
         additional_accounts,
         signer: Keypair = None,
-        sysvar=SYSVAR_INSTRUCTIONS_PUBKEY,
         compute_unit_price = None
     ) -> GetTransactionResp:
         signer = operator if signer is None else signer
@@ -397,7 +388,6 @@ class EvmLoader(SolanaClient):
                 EVM_STEPS,
                 signer,
                 index=index,
-                sysvar=sysvar,
                 compute_unit_price=compute_unit_price
             )
             index += 1
