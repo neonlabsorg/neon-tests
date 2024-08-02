@@ -260,8 +260,8 @@ class SolanaInstruction(ForbidExtra):
     svmHeapSizeLimit: int
     svmCyclesLimit: int
     svmCyclesUsed: int
-    neonInstructionCode: int
-    neonInstructionName: str
+    neonInstructionCode: SolanaInstructionCode
+    neonInstructionName: SolanaInstructionName
     neonEvmSteps: int
     neonTotalEvmSteps: int
     neonGasUsed: int
@@ -352,7 +352,6 @@ class NeonGetTransactionResult(EthResult):
         return events
 
     result: NeonReceiptDetails
-
 
 class SolanaByNeonTransaction(EthResult):
     result: List[str]
