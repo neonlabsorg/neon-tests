@@ -7,7 +7,7 @@ from web3 import types
 
 from clickfile import EnvName
 from integration.tests.basic.helpers.assert_message import AssertMessage
-from integration.tests.basic.helpers.basic import NeonEventType
+from integration.tests.basic.helpers.basic import NeonEventType, SolanaInstructionCode, SolanaInstructionName
 from utils.models.result import NeonGetTransactionResult
 
 NoneType = type(None)
@@ -377,3 +377,48 @@ def assert_event_field(
                 assert (
                     getattr(event, field_name) is not expected_value
                 ), f"Expecting {field_name} to be different from {expected_value}, got {getattr(event, field_name)}. Event: {event}."
+
+
+def assert_instructions(neon_trx_receipt: NeonGetTransactionResult):
+    all_instructions = []
+    for trx in neon_trx_receipt.result.solanaTransactions:
+        all_instructions.extend(trx.solanaInstructions)
+    assert len(all_instructions) > 0
+    for instruction in all_instructions:
+        match instruction.neonInstructionName:
+            case SolanaInstructionName.TxExecFromData:
+                assert (
+                    instruction.neonInstructionCode.value == SolanaInstructionCode.TxExecFromData.value
+                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
+            case SolanaInstructionName.TxStepFromData:
+                assert (
+                    instruction.neonInstructionCode.value == SolanaInstructionCode.TxStepFromData.value
+                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
+            case SolanaInstructionName.CancelWithHash:
+                assert (
+                    instruction.neonInstructionCode.value == SolanaInstructionCode.CancelWithHash.value
+                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
+            case SolanaInstructionName.TxExecFromDataSolanaCall:
+                assert (
+                    instruction.neonInstructionCode.value == SolanaInstructionCode.TxExecFromDataSolanaCall.value
+                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
+            case SolanaInstructionName.HolderWrite:
+                assert (
+                    instruction.neonInstructionCode.value == SolanaInstructionCode.HolderWrite.value
+                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
+            case SolanaInstructionName.TxExecFromAccountSolanaCall:
+                assert (
+                    instruction.neonInstructionCode.value == SolanaInstructionCode.TxExecFromAccountSolanaCall.value
+                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
+            case SolanaInstructionName.TxStepFromAccountNoChainId:
+                assert instruction.neonInstructionCode.value == SolanaInstructionCode.TxStepFromAccountNoChainId.value
+            case SolanaInstructionName.TxExecFromAccount:
+                assert (
+                    instruction.neonInstructionCode.value == SolanaInstructionCode.TxExecFromAccount.value
+                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
+            case SolanaInstructionName.TxStepFromAccount:
+                assert (
+                    instruction.neonInstructionCode.value == SolanaInstructionCode.TxStepFromAccount.value
+                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
+            case _:
+                assert False, f"Unknown instruction name {instruction.neonInstructionName}"
