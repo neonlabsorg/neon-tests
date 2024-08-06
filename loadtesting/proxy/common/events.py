@@ -68,10 +68,9 @@ def operator_economy_pre_balance(environment, **kwargs):
     op = operator.Operator(
         environment.credentials["proxy_url"],
         environment.credentials["solana_url"],
-        environment.credentials["operator_neon_rewards_address"],
         environment.credentials["spl_neon_mint"],
-        environment.credentials["operator_keys"],
         web3_client=NeonChainWeb3Client(environment.credentials["proxy_url"]),
+        evm_loader=environment.credentials["evm_loader"],
     )
     environment.op = op
     environment.pre_balance = get_token_balance(op)

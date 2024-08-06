@@ -6,7 +6,7 @@ concurrency:
   cancel-in-progress: true
 on:
   schedule:
-    - cron: "41 3 * * *"
+    - cron: "41 3 * * 2,5"
   workflow_dispatch:
     inputs:
       network:
@@ -30,6 +30,7 @@ on:
           - auto
 env:
   BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  FAUCET_URL: "${{ secrets.DEVNET_FAUCET_URL }}"
   SOLANA_URL: "${{ secrets.SOLANA_URL }}"
   NUMPROCESSES: 4
   IMAGE:  neonlabsorg/neon_tests
@@ -39,7 +40,7 @@ jobs:
     if: ${{ github.ref_name != 'develop'}}
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: "Dockerize neon tests"
         id: requirements
         uses: ./.github/actions/dockerize-neon-tests
@@ -62,7 +63,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: "Define image tag"
         id: image_tag
         uses: ./.github/actions/define-image-tag
@@ -75,13 +76,8 @@ jobs:
         id: services
         run: |
           docker exec -i ${{ env.CONTAINER }} \
-            python3 ./clickfile.py run services -n ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}
-      - name: "Notify on failure."
-        if: failure()
-        run: |
-          docker exec -i ${{ env.CONTAINER }} \
-            python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
-          -b ${{ env.BUILD_URL }} -n ${{ env.NETWORK }}
+            /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && export SOLANA_URL=${{ env.SOLANA_URL }} && \
+            python3 ./clickfile.py run services --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
       - name: "Generate allure report"
         if: always()
         id: requirements
@@ -92,6 +88,12 @@ jobs:
           aws_access_key_id:  ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key:  ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           tests_name: services
+      - name: "Notify on failure."
+        if: failure() && github.ref_name == 'develop'
+        run: |
+          docker exec -i ${{ env.CONTAINER }} \
+            python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
+          -b ${{ env.BUILD_URL }} -n ${{ env.NETWORK }} --test-group services
       - name: Remove docker container
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}

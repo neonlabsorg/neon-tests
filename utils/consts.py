@@ -2,11 +2,29 @@ from enum import Enum
 
 from solana.publickey import PublicKey
 
+OPERATOR_KEYPAIR_PATH = "deploy/operator-keypairs"
 LAMPORT_PER_SOL = 1_000_000_000
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ZERO_HASH = "0000000000000000000000000000000000000000000000000000000000000000"
 INITIAL_ACCOUNT_AMOUNT = 100
 MAX_UINT_256 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+MAX_UINT_64 = 2 ** 64
+
+COMPUTE_BUDGET_ID: PublicKey = PublicKey("ComputeBudget111111111111111111111111111111")
+MEMO_PROGRAM_ID: PublicKey = PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
+SOLANA_CALL_PRECOMPILED_ID: PublicKey = PublicKey("83fAnx3LLG612mHbEh4HzXEpYwvSB5fqpwUS3sZkRuUB")
+COUNTER_ID: PublicKey = PublicKey("4RJAXLPq1HrXWP4zFrMhvB5drrzqrRFwaRVNUnALcaeh")
+TRANSFER_SOL_ID: PublicKey = PublicKey("6x9dAYQehxXLh16EHAKXevnQADTZPKP6ZT4t8BfNDxtB")
+TRANSFER_TOKENS_ID: PublicKey = PublicKey("BFsGPJUwgE1rz4eoL322HaKZYNZ5wDLafwYtKwomv2XF")
+
+
+class Time:
+    MINUTE = 60
+    HOUR = 60 * MINUTE
+    DAY = 24 * HOUR
+    WEEK = 7 * DAY
+    MONTH = 30 * DAY
+    YEAR = 365 * DAY
 
 
 class Unit(Enum):
@@ -23,17 +41,10 @@ class Unit(Enum):
 
 
 class InputTestConstants(Enum):
-    FAUCET_1ST_REQUEST_AMOUNT = 2_000
-    FAUCET_2ND_REQUEST_AMOUNT = 3
+    NEW_USER_REQUEST_AMOUNT = 200
     DEFAULT_TRANSFER_AMOUNT = 0.1
     SAMPLE_AMOUNT = 0.5
     ROUND_DIGITS = 3
-
-    def get_transfer_amount(self) -> float:
-        return self.DEFAULT_TRANSFER_AMOUNT.value
-
-    def get_default_initial_amount(self) -> int:
-        return self.FAUCET_1ST_REQUEST_AMOUNT.value
 
 
 wSOL = {
@@ -44,4 +55,9 @@ wSOL = {
     "name": "Wrapped SOL",
     "symbol": "wSOL",
     "logo_uri": "https://raw.githubusercontent.com/neonlabsorg/token-list/master/assets/solana-wsol-logo.svg",
+}
+
+MULTITOKEN_MINTS = {
+    "USDT": "2duuuuhNJHUYqcnZ7LKfeufeeTBgSJdftf2zM3cZV6ym",
+    "ETH": "EwJYd3UAFAgzodVeHprB2gMQ68r4ZEbbvpoVzCZ1dGq5",
 }

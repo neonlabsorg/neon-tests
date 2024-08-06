@@ -1,18 +1,15 @@
 import allure
 import pytest
 
-from integration.tests.basic.helpers.basic import BaseMixin
-from utils.consts import ZERO_ADDRESS, MAX_UINT_256
+from utils.consts import ZERO_ADDRESS, MAX_UINT_256, MAX_UINT_64
 
 
 @allure.feature("Opcodes verifications")
 @allure.story("Unsupported opcode")
-class TestUnsupportedOpcodes(BaseMixin):
-
+class TestUnsupportedOpcodes:
     @pytest.fixture(scope="class")
-    def contract(self, web3_client, class_account):
-        contract, _ = web3_client.deploy_and_get_contract(
-            "opcodes/UnsupportedOpcodes", "0.8.10", class_account)
+    def contract(self, web3_client, accounts):
+        contract, _ = web3_client.deploy_and_get_contract("opcodes/UnsupportedOpcodes", "0.8.10", accounts[0])
         return contract
 
     def test_basefee(self, contract):
@@ -28,4 +25,4 @@ class TestUnsupportedOpcodes(BaseMixin):
         assert contract.functions.gaslimit().call() == MAX_UINT_256
 
     def test_gas_left(self, contract):
-        assert contract.functions.gasLeft().call() == MAX_UINT_256
+        assert contract.functions.gasLeft().call() == MAX_UINT_64

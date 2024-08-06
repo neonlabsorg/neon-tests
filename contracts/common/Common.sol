@@ -21,6 +21,10 @@ contract Common {
         number = _number;
     }
 
+    function multiply(uint32 a, uint32 b) public pure returns (uint256) {
+        return a * b;
+    }
+
 
 }
 
@@ -42,5 +46,19 @@ contract BunchActions {
         for (uint256 i = 0; i < addresses.length; ++i) {
              Common(addresses[i]).setNumber(_numbers[i]);
         }
+    }
+}
+
+
+contract MappingActions {
+    mapping(uint256 => string) public stringMapping;
+
+    // Function to replace n values in the mapping
+    function replaceValues(uint256 n) external {
+
+        for (uint256 i = 0; i < n; i++) {
+            stringMapping[i] = "UpdatedString";
+        }
+
     }
 }
