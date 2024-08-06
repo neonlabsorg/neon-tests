@@ -551,20 +551,6 @@ def expected_error_checker(accounts, web3_client):
 
 
 @pytest.fixture(scope="class")
-def query_account_caller_contract(
-    web3_client: Web3Client,
-    accounts: EthAccounts,
-) -> Contract:
-    contract, _ = web3_client.deploy_and_get_contract(
-        "precompiled/QueryAccountCaller.sol",
-        "0.8.10",
-        contract_name="QueryAccountCaller",
-        account=accounts[0],
-    )
-    return contract
-
-
-@pytest.fixture(scope="class")
 def multiple_actions_erc721(web3_client, accounts):
     contract, contract_deploy_tx = web3_client.deploy_and_get_contract(
         "EIPs/ERC721/MultipleActions", "0.8.10", accounts[0], contract_name="MultipleActionsERC721"
@@ -589,15 +575,12 @@ def call_solana_caller(accounts, web3_client):
     return contract
 
 
-def create_resource(contract, salt, sender, owner, web3_client):
-    tx = web3_client.make_raw_tx(sender.address)
-    salt = web3_client.text_to_bytes32(salt)
-    instruction_tx = contract.functions.createResource(salt, 8, 100000, bytes(owner)).build_transaction(tx)
-    web3_client.send_transaction(sender, instruction_tx)
-
-    return contract.functions.getResourceAddress(salt).call()
-
-
 @pytest.fixture(scope="class")
 def counter_resource_address(call_solana_caller, accounts, web3_client):
-    yield create_resource(call_solana_caller, "1", accounts[0], COUNTER_ID, web3_client)
+    tx = web3_client.make_raw_tx(accounts[0].address)
+    salt = web3_client.text_to_bytes32("1")
+    instruction_tx = call_solana_caller.functions.createResource(salt, 8, 100000, bytes(COUNTER_ID)).build_transaction(
+        tx
+    )
+    web3_client.send_transaction(accounts[0], instruction_tx)
+    yield call_solana_caller.functions.getResourceAddress(salt).call()

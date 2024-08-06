@@ -7,8 +7,8 @@ from web3 import types
 
 from clickfile import EnvName
 from integration.tests.basic.helpers.assert_message import AssertMessage
-from integration.tests.basic.helpers.basic import NeonEventType, SolanaInstructionCode, SolanaInstructionName
-from utils.models.result import NeonGetTransactionResult
+from integration.tests.basic.helpers.basic import NeonEventType, SolanaInstruction
+from utils.models.result import NeonGetTransactionResult, SolanaByNeonTransaction
 
 NoneType = type(None)
 
@@ -380,45 +380,44 @@ def assert_event_field(
 
 
 def assert_instructions(neon_trx_receipt: NeonGetTransactionResult):
+    covered_instructions = [
+        SolanaInstruction.TxExecFromData,
+        SolanaInstruction.TxStepFromData,
+        SolanaInstruction.TxStepFromData,
+        SolanaInstruction.CancelWithHash,
+        SolanaInstruction.TxExecFromDataSolanaCall,
+        SolanaInstruction.HolderWrite,
+        SolanaInstruction.TxExecFromAccountSolanaCall,
+        SolanaInstruction.TxStepFromAccountNoChainId,
+        SolanaInstruction.TxExecFromAccount,
+        SolanaInstruction.TxStepFromAccount,
+    ]
     all_instructions = []
     for trx in neon_trx_receipt.result.solanaTransactions:
         all_instructions.extend(trx.solanaInstructions)
     assert len(all_instructions) > 0
     for instruction in all_instructions:
-        match instruction.neonInstructionName:
-            case SolanaInstructionName.TxExecFromData:
-                assert (
-                    instruction.neonInstructionCode.value == SolanaInstructionCode.TxExecFromData.value
-                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
-            case SolanaInstructionName.TxStepFromData:
-                assert (
-                    instruction.neonInstructionCode.value == SolanaInstructionCode.TxStepFromData.value
-                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
-            case SolanaInstructionName.CancelWithHash:
-                assert (
-                    instruction.neonInstructionCode.value == SolanaInstructionCode.CancelWithHash.value
-                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
-            case SolanaInstructionName.TxExecFromDataSolanaCall:
-                assert (
-                    instruction.neonInstructionCode.value == SolanaInstructionCode.TxExecFromDataSolanaCall.value
-                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
-            case SolanaInstructionName.HolderWrite:
-                assert (
-                    instruction.neonInstructionCode.value == SolanaInstructionCode.HolderWrite.value
-                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
-            case SolanaInstructionName.TxExecFromAccountSolanaCall:
-                assert (
-                    instruction.neonInstructionCode.value == SolanaInstructionCode.TxExecFromAccountSolanaCall.value
-                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
-            case SolanaInstructionName.TxStepFromAccountNoChainId:
-                assert instruction.neonInstructionCode.value == SolanaInstructionCode.TxStepFromAccountNoChainId.value
-            case SolanaInstructionName.TxExecFromAccount:
-                assert (
-                    instruction.neonInstructionCode.value == SolanaInstructionCode.TxExecFromAccount.value
-                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
-            case SolanaInstructionName.TxStepFromAccount:
-                assert (
-                    instruction.neonInstructionCode.value == SolanaInstructionCode.TxStepFromAccount.value
-                ), f"Instruction code is not correct. Actual: {instruction.neonInstructionCode}"
-            case _:
-                assert False, f"Unknown instruction name {instruction.neonInstructionName}"
+        assert instruction.neonInstructionName in [
+            inst.inst_name for inst in covered_instructions
+        ], f"Uncovered instruction {instruction.neonInstructionName}"
+
+        assert instruction.neonInstructionCode == SolanaInstruction[instruction.neonInstructionName].inst_code, (
+            f"Instruction {instruction.neonInstructionName} has wrong code. "
+            f"Expected: {SolanaInstruction[instruction.neonInstructionName].inst_code}, "
+            f"got: {instruction.neonInstructionCode}"
+        )
+
+
+def count_instructions(neon_trx_receipt: NeonGetTransactionResult):
+    all_instructions = []
+    for trx in neon_trx_receipt.result.solanaTransactions:
+        all_instructions.extend(trx.solanaInstructions)
+    return Counter([instruction.neonInstructionName for instruction in all_instructions])
+
+
+def assert_solana_trxs_in_neon_receipt(rpc_client, trx_hash, neon_receipt: NeonGetTransactionResult):
+    response = rpc_client.get_solana_trx_by_neon(trx_hash)
+    solana_transactions = SolanaByNeonTransaction(**response)
+
+    solana_trxs_by_neon = [trx.solanaTransactionSignature for trx in neon_receipt.result.solanaTransactions]
+    assert set(solana_transactions.result) == set(solana_trxs_by_neon)

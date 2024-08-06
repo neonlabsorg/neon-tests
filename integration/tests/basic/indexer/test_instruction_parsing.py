@@ -1,17 +1,18 @@
+from collections import Counter
+
 import pytest
 from solana.transaction import AccountMeta, TransactionInstruction
 
 import allure
-from integration.tests.basic.helpers.rpc_checks import assert_instructions
+from integration.tests.basic.helpers.rpc_checks import (
+    assert_instructions,
+    assert_solana_trxs_in_neon_receipt,
+    count_instructions,
+)
 from utils.accounts import EthAccounts
 from utils.consts import COUNTER_ID
-from utils.helpers import (
-    bytes32_to_solana_pubkey,
-    gen_hash_of_block,
-    generate_text,
-    serialize_instruction,
-)
-from utils.models.result import NeonGetTransactionResult, SolanaByNeonTransaction
+from utils.helpers import gen_hash_of_block, generate_text, serialize_instruction
+from utils.models.result import NeonGetTransactionResult
 from utils.solana_client import SolanaClient
 from utils.web3client import NeonChainWeb3Client
 
@@ -25,57 +26,46 @@ class TestInstruction:
     accounts: EthAccounts
     sol_client: SolanaClient
 
-    def test_events_for_trx_with_transfer(self, json_rpc_client):
-        # TxExecFromData
+    def test_tx_exec_from_data(self, json_rpc_client):
         sender_account, receiver_account = self.accounts[0], self.accounts[1]
         tx = self.web3_client.make_raw_tx(sender_account, receiver_account, amount=1000000, estimate_gas=True)
         resp = self.web3_client.send_transaction(sender_account, tx)
 
-        response = json_rpc_client.get_solana_trx_by_neon(resp["transactionHash"])
-        solana_transactions = SolanaByNeonTransaction(**response)
-
         response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         validated_response = NeonGetTransactionResult(**response)
 
-        solana_trxs_by_neon = [trx.solanaTransactionSignature for trx in validated_response.result.solanaTransactions]
-        assert set(solana_transactions.result) == set(solana_trxs_by_neon)
         assert_instructions(validated_response)
+        assert count_instructions(validated_response) == Counter({"TxExecFromData": 1})
+        assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
-    def test_contract_iterative_tx(self, counter_contract, json_rpc_client):
-        # TxStepFromData
+    def test_tx_step_from_data(self, counter_contract, json_rpc_client):
         sender_account = self.accounts[0]
         tx = self.web3_client.make_raw_tx(sender_account, estimate_gas=True)
 
         instruction_tx = counter_contract.functions.moreInstructionWithLogs(5, 2000).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender_account, instruction_tx)
+
         response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         validated_response = NeonGetTransactionResult(**response)
 
-        response = json_rpc_client.get_solana_trx_by_neon(resp["transactionHash"])
-        solana_transactions = SolanaByNeonTransaction(**response)
-
-        solana_trxs_by_neon = [trx.solanaTransactionSignature for trx in validated_response.result.solanaTransactions]
-        assert set(solana_transactions.result) == set(solana_trxs_by_neon)
         assert_instructions(validated_response)
+        assert count_instructions(validated_response) == Counter({"TxStepFromData": 12})
+        assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
-    def test_event_cancel(self, json_rpc_client, expected_error_checker):
-        # CancelWithHash
+    def test_cancel_with_hash(self, json_rpc_client, expected_error_checker):
         sender_account = self.accounts[0]
         tx = self.web3_client.make_raw_tx(sender_account)
         instruction_tx = expected_error_checker.functions.method1().build_transaction(tx)
         resp = self.web3_client.send_transaction(sender_account, instruction_tx)
-        response = json_rpc_client.send_rpc(method="neon_getTransactionReceipt", params=[resp["transactionHash"].hex()])
+
+        response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         validated_response = NeonGetTransactionResult(**response)
 
-        response = json_rpc_client.get_solana_trx_by_neon(resp["transactionHash"])
-        solana_transactions = SolanaByNeonTransaction(**response)
-
         assert_instructions(validated_response)
-        solana_trxs_by_neon = [trx.solanaTransactionSignature for trx in validated_response.result.solanaTransactions]
-        assert set(solana_transactions.result) == set(solana_trxs_by_neon)
+        assert count_instructions(validated_response) == Counter({"TxStepFromData": 11, "CancelWithHash": 1})
+        assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
-    def test_counter_execute_with_get_return_data(self, call_solana_caller, counter_resource_address, json_rpc_client):
-        # TxExecFromDataSolanaCall
+    def test_tx_exec_from_data_solana_call(self, call_solana_caller, counter_resource_address, json_rpc_client):
         sender = self.accounts[0]
         lamports = 0
 
@@ -93,38 +83,30 @@ class TestInstruction:
             lamports, serialized
         ).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
-        event_logs = call_solana_caller.events.LogData().process_receipt(resp)
-        assert bytes32_to_solana_pubkey(event_logs[0].args.program.hex()) == COUNTER_ID
 
         response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         validated_response = NeonGetTransactionResult(**response)
 
-        response = json_rpc_client.get_solana_trx_by_neon(resp["transactionHash"])
-        solana_transactions = SolanaByNeonTransaction(**response)
-
         assert_instructions(validated_response)
-        solana_trxs_by_neon = [trx.solanaTransactionSignature for trx in validated_response.result.solanaTransactions]
-        assert set(solana_transactions.result) == set(solana_trxs_by_neon)
+        assert count_instructions(validated_response) == Counter({"TxExecFromDataSolanaCall": 1})
+        assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
-    def test_contract_tx_no_chain(self, counter_contract, json_rpc_client):
-        # HolderWrite, TxStepFromAccountNoChainId
+    def test_tx_step_from_account_no_chain_id(self, counter_contract, json_rpc_client):
         sender_account = self.accounts[0]
         tx = self.web3_client.make_raw_tx(sender_account, estimate_gas=True)
         tx["chainId"] = None
 
         instruction_tx = counter_contract.functions.moreInstructionWithLogs(0, 3).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender_account, instruction_tx)
+
         response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         validated_response = NeonGetTransactionResult(**response)
 
-        response = json_rpc_client.get_solana_trx_by_neon(resp["transactionHash"])
-        solana_transactions = SolanaByNeonTransaction(**response)
-
         assert_instructions(validated_response)
-        solana_trxs_by_neon = [trx.solanaTransactionSignature for trx in validated_response.result.solanaTransactions]
-        assert set(solana_transactions.result) == set(solana_trxs_by_neon)
+        assert count_instructions(validated_response) == Counter({"TxStepFromAccountNoChainId": 3, "HolderWrite": 1})
+        assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
-    def test_transfer_mint(self, multiple_actions_erc721, json_rpc_client):
+    def test_holder_write_tx_exec_from_acccount(self, multiple_actions_erc721, json_rpc_client):
         sender_account = self.accounts[0]
         acc, contract = multiple_actions_erc721
 
@@ -144,14 +126,11 @@ class TestInstruction:
         response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         validated_response = NeonGetTransactionResult(**response)
 
-        response = json_rpc_client.get_solana_trx_by_neon(resp["transactionHash"])
-        solana_transactions = SolanaByNeonTransaction(**response)
-
         assert_instructions(validated_response)
-        solana_trxs_by_neon = [trx.solanaTransactionSignature for trx in validated_response.result.solanaTransactions]
-        assert set(solana_transactions.result) == set(solana_trxs_by_neon)
+        assert count_instructions(validated_response) == Counter({"HolderWrite": 1, "TxExecFromAccount": 1})
+        assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
-    def test_mint_mint_transfer_transfer(self, multiple_actions_erc721, json_rpc_client):
+    def test_step_from_account(self, multiple_actions_erc721, json_rpc_client):
         sender_account = self.accounts[0]
         acc, contract = multiple_actions_erc721
 
@@ -168,14 +147,11 @@ class TestInstruction:
         response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         validated_response = NeonGetTransactionResult(**response)
 
-        response = json_rpc_client.get_solana_trx_by_neon(resp["transactionHash"])
-        solana_transactions = SolanaByNeonTransaction(**response)
-
         assert_instructions(validated_response)
-        solana_trxs_by_neon = [trx.solanaTransactionSignature for trx in validated_response.result.solanaTransactions]
-        assert set(solana_transactions.result) == set(solana_trxs_by_neon)
+        assert count_instructions(validated_response) == Counter({"TxStepFromAccount": 9, "HolderWrite": 1})
+        assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
-    def test_counter_batch_execute(
+    def test_tx_exec_from_account_solana_call(
         self, call_solana_caller, counter_resource_address, get_counter_value, json_rpc_client
     ):
         sender = self.accounts[0]
@@ -191,19 +167,14 @@ class TestInstruction:
             )
             serialized = serialize_instruction(COUNTER_ID, instruction)
             call_params.append((0, serialized))
-            next(get_counter_value)
 
         tx = self.web3_client.make_raw_tx(sender.address)
         instruction_tx = call_solana_caller.functions.batchExecute(call_params).build_transaction(tx)
-
         resp = self.web3_client.send_transaction(sender, instruction_tx)
 
         response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         validated_response = NeonGetTransactionResult(**response)
 
-        response = json_rpc_client.get_solana_trx_by_neon(resp["transactionHash"])
-        solana_transactions = SolanaByNeonTransaction(**response)
-
         assert_instructions(validated_response)
-        solana_trxs_by_neon = [trx.solanaTransactionSignature for trx in validated_response.result.solanaTransactions]
-        assert set(solana_transactions.result) == set(solana_trxs_by_neon)
+        assert count_instructions(validated_response) == Counter({"HolderWrite": 3, "TxExecFromAccountSolanaCall": 1})
+        assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
