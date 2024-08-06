@@ -82,3 +82,23 @@ def test_emulate_with_small_amount_of_steps(neon_api_client, evm_loader, user_ac
         user_account.eth_address.hex(), contract=None, data=contract_code, max_steps_to_execute=10
     )
     assert result["exit_status"] == "revert", f"The 'exit_status' field is not revert. Result: {result}"
+
+
+@pytest.mark.parametrize("name", ["BlockTimestamp", "BlockNumber"])
+def test_emulate_call_contract(name, neon_api_client, operator_keypair, treasury_pool, evm_loader):
+    user_account = evm_loader.make_new_user(operator_keypair)
+    contract = deploy_contract(
+        operator_keypair,
+        user_account,
+        "common/Block.sol",
+        evm_loader,
+        treasury_pool,
+        version="0.8.10",
+        contract_name=name,
+    )
+    assert contract.eth_address
+    data = abi.function_signature_to_4byte_selector("callEventsInLoop()")
+
+    result = neon_api_client.emulate(user_account.eth_address.hex(), contract=contract.eth_address.hex(), data=data)
+
+    assert result["exit_status"] == "succeed", f"The 'exit_status' field is not succeed. Result: {result}"
