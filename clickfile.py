@@ -1070,5 +1070,34 @@ def make_dapps_report(directory, pr_url_for_report, token):
         gh_client.add_comment_to_pr(pr_url_for_report, format_data)
 
 
+@cli.group()
+@click.pass_context
+def k6(ctx):
+    """Commands for k6 load tests."""
+
+@k6.command("run", help="Run k6 performance test")
+@click.option(
+    "-n", "--network", default="local", help="Which network to use for envs assignment",
+)
+@catch_traceback
+def run(network):
+    with open('envs.json') as json_file:
+        config = json.load(json_file)
+    if os.environ.get('PROXY_URL') is None:
+        os.environ["PROXY_URL"] = config[network]['proxy_url']
+
+    if os.environ.get('SOLANA_URL') is None:
+        os.environ["SOLANA_URL"] = config[network]['solana_url']
+
+    if os.environ.get('FAUCET_URL') is None:
+        os.environ["FAUCET_URL"] = config[network]['faucet_url']
+
+    os.environ["TRACER_URL"] = config[network]['tracer_url']
+    os.environ["SPL_NEON_MINT"] = config[network]['spl_neon_mint']
+    os.environ["NEON_ERC20_WRAPPER_ADDRESS"] = config[network]['neon_erc20wrapper_address']
+    
+    
+   
+
 if __name__ == "__main__":
     cli()
