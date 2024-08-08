@@ -555,10 +555,10 @@ class TestAccountRevision:
         )
 
         signed_tx2 = make_contract_call_trx(evm_loader, sender_with_tokens, contract, "donateTenPercent()")
-
+        holder_acc_2 = create_holder(operator_keypair, evm_loader)
         resp = evm_loader.execute_trx_from_instruction(
             operator_keypair,
-            holder_acc,
+            holder_acc_2,
             treasury_pool.account,
             treasury_pool.buffer,
             signed_tx2,
