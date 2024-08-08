@@ -289,7 +289,7 @@ jobs:
         run: |
           docker pull ${{ env.IMAGE }} 
           docker run -i -d --name=aave-v3-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
-          docker exec -i -e NEON_PROXY_URL=${{env.PROXY_URL}} -e NEON_ACCOUNTS=${{ env.ACCOUNTS }} -e NEON_CHAIN_ID=${{ env.NETWORK_ID }} aave-v3-${{ github.run_number }} npm run neon:test --network=neonlabs
+          docker exec -i -e NEON_PROXY_URL=${{env.PROXY_URL}} -e NEON_ACCOUNTS=${{ env.ACCOUNTS }} -e NEON_CHAIN_ID=${{ env.NETWORK_ID }} aave-v3-${{ github.run_number }} run-neon-tests.sh
           docker cp aave-v3-${{ github.run_number }}:/app/report.json aave-v3-report.json
       - name: Delete the aave-v3 container
         if: always() && steps.aave-v3.result != 'skipped'
