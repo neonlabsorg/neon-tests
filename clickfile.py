@@ -1075,6 +1075,24 @@ def make_dapps_report(directory, pr_url_for_report, token):
 def k6(ctx):
     """Commands for k6 load tests."""
 
+
+@k6.command("build", help="Prepare k6 performance test")
+@click.option("-t", "--tag", default="05e0ce5", help="Eth plugin tag or commit sha to use")
+@catch_traceback
+def build(tag):
+    xk6_install = 'go install go.k6.io/xk6/cmd/xk6@latest'
+    xk6_build = f'xk6 build --with github.com/szkiba/xk6-prometheus --with github.com/neonlabsorg/xk6-ethereum@{tag}'
+
+    command_install = subprocess.run(xk6_install, shell=True)
+
+    if command_install.returncode != 0:
+        sys.exit(command_install.returncode)
+
+    command_build = subprocess.run(xk6_build, shell=True)
+    if command_build.returncode != 0:
+        sys.exit(command_build.returncode)
+
+
 @k6.command("run", help="Run k6 performance test")
 @click.option(
     "-n", "--network", default="local", help="Which network to use for envs assignment",
@@ -1095,8 +1113,6 @@ def run(network):
     os.environ["TRACER_URL"] = config[network]['tracer_url']
     os.environ["SPL_NEON_MINT"] = config[network]['spl_neon_mint']
     os.environ["NEON_ERC20_WRAPPER_ADDRESS"] = config[network]['neon_erc20wrapper_address']
-    
-    
    
 
 if __name__ == "__main__":
