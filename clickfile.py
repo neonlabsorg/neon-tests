@@ -1094,11 +1094,10 @@ def build(tag):
 
 
 @k6.command("run", help="Run k6 performance test")
-@click.option(
-    "-n", "--network", default="local", help="Which network to use for envs assignment",
-)
+@click.option("-n", "--network", default="local", help="Which network to use for envs assignment")
+@click.option("-s", "--script", default="./loadtesting/k6/tests/sendNeon.test.js", help="Path to k6 script")
 @catch_traceback
-def run(network):
+def run(network, script):
     with open('envs.json') as json_file:
         config = json.load(json_file)
     if os.environ.get('PROXY_URL') is None:
@@ -1113,7 +1112,12 @@ def run(network):
     os.environ["TRACER_URL"] = config[network]['tracer_url']
     os.environ["SPL_NEON_MINT"] = config[network]['spl_neon_mint']
     os.environ["NEON_ERC20_WRAPPER_ADDRESS"] = config[network]['neon_erc20wrapper_address']
-   
+    os.environ["NETWORK_ID"] = str(config[network]['network_ids']['neon'])
+    
+    command = f'./k6 run {script}'
+    command_run = subprocess.run(command, shell=True)
+    if command_run.returncode != 0:
+        sys.exit(command_run.returncode)
 
 if __name__ == "__main__":
     cli()
