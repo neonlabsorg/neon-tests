@@ -207,9 +207,9 @@ jobs:
         with:
           name: saddle-report
           path: saddle-report.json
-  aave:
+  aave-v2:
     runs-on: ubuntu-20.04
-    if: contains( inputs.dapps, 'aave')
+    if: contains( inputs.dapps, 'aave-v2')
     env:
       SOLANA_URL: ${{ inputs.solana_url }}
       PROXY_URL: ${{ inputs.proxy_url }}
@@ -233,26 +233,72 @@ jobs:
         run: |
           python3 ./clickfile.py infra gen-accounts -c 5 -a 20000 -n ${{env.NETWORK}}
 
-      - name: Launch aave tests
+      - name: Launch aave-v2 tests
         if: ${{ steps.accounts.outcome == 'success' }}
-        id: aave
+        id: aave-v2
         timeout-minutes: 60
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
           IMAGE: neonlabsorg/aave_tests:latest
         run: |
           docker pull ${{ env.IMAGE }} 
-          docker run -i -d --name=aave-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
-          docker exec -i -e NEON_PROXY_URL=${{env.PROXY_URL}} -e NEON_ACCOUNTS=${{ env.ACCOUNTS }} -e NEON_CHAIN_ID=${{ env.NETWORK_ID }} aave-${{ github.run_number }} npm run neonlabs:deploy --network=neonlabs
-          docker cp aave-${{ github.run_number }}:/app/report.json aave-report.json
-      - name: Delete the aave container
-        if: always() && steps.aave.result != 'skipped'
-        run: docker rm -f aave-${{ github.run_number }}
+          docker run -i -d --name=aave-v2-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
+          docker exec -i -e NEON_PROXY_URL=${{env.PROXY_URL}} -e NEON_ACCOUNTS=${{ env.ACCOUNTS }} -e NEON_CHAIN_ID=${{ env.NETWORK_ID }} aave-v2-${{ github.run_number }} npm run neonlabs:deploy --network=neonlabs
+          docker cp aave-v2-${{ github.run_number }}:/app/report.json aave-v2-report.json
+      - name: Delete the aave-v2 container
+        if: always() && steps.aave-v2.result != 'skipped'
+        run: docker rm -f aave-v2-${{ github.run_number }}
       - name: Save report
         uses: actions/upload-artifact@v4
         with:
-          name: aave-report
-          path: aave-report.json
+          name: aave-v2-report
+          path: aave-v2-report.json
+  aave-v3:
+    runs-on: ubuntu-20.04
+    if: contains( inputs.dapps, 'aave-v3')
+    env:
+      SOLANA_URL: ${{ inputs.solana_url }}
+      PROXY_URL: ${{ inputs.proxy_url }}
+      FAUCET_URL: ${{ inputs.faucet_url }}
+      NETWORK_ID: ${{ inputs.network_id }}
+      SOLANA_IP: ${{ inputs.solana_ip }}
+      PROXY_IP: ${{ inputs.proxy_ip }}
+    steps:
+      - uses: actions/checkout@v4
+      - if: ${{ inputs.external_call }}
+        uses: actions/checkout@v4
+        with:
+          repository: neonlabsorg/neon-tests
+          ref: develop
+      - name: Install python requirements
+        id: requirements
+        uses: ./.github/actions/python-requirements
+
+      - name: Prepare accounts
+        id: accounts
+        run: |
+          python3 ./clickfile.py infra gen-accounts -c 5 -a 20000 -n ${{env.NETWORK}}
+
+      - name: Launch aave-v3 tests
+        if: ${{ steps.accounts.outcome == 'success' }}
+        id: aave-v3
+        timeout-minutes: 60
+        env:
+          ACCOUNTS: ${{ env.ACCOUNTS }}
+          IMAGE: neonlabsorg/aave-v3-core:latest
+        run: |
+          docker pull ${{ env.IMAGE }} 
+          docker run -i -d --name=aave-v3-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
+          docker exec -i -e NEON_PROXY_URL=${{env.PROXY_URL}} -e NEON_ACCOUNTS=${{ env.ACCOUNTS }} -e NEON_CHAIN_ID=${{ env.NETWORK_ID }} aave-v3-${{ github.run_number }} npm run neon:test --network=neonlabs
+          docker cp aave-v3-${{ github.run_number }}:/app/report.json aave-v3-report.json
+      - name: Delete the aave-v3 container
+        if: always() && steps.aave-v3.result != 'skipped'
+        run: docker rm -f aave-v3-${{ github.run_number }}
+      - name: Save report
+        uses: actions/upload-artifact@v4
+        with:
+          name: aave-v3-report
+          path: aave-v3-report.json
   curve:
     runs-on: ubuntu-20.04
     if: contains( inputs.dapps, 'curve')
@@ -542,7 +588,7 @@ jobs:
 
   swap-report:
     runs-on: ubuntu-20.04
-    needs: [uniswap-v2, uniswap-v3, saddle, aave, curve, robonomics, yearn, compound, curve-factory, pancake]
+    needs: [uniswap-v2, uniswap-v3, saddle, aave-v2, aave-v3, curve, robonomics, yearn, compound, curve-factory, pancake]
     if: always()
     env:
       SOLANA_URL: ${{ inputs.solana_url }}
@@ -584,7 +630,12 @@ jobs:
       - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          name: aave-report
+          name: aave-v2-report
+          path: reports/
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: aave-v3-report
           path: reports/
       - uses: actions/download-artifact@v4
         continue-on-error: true
