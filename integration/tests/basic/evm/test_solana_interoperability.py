@@ -20,6 +20,17 @@ from utils.instructions import make_wSOL
 from utils.web3client import NeonChainWeb3Client
 
 
+@pytest.fixture(scope="session")
+def get_counter_value():
+    def gen_increment_counter():
+        count = 0
+        while True:
+            count += 1
+            yield count
+
+    return gen_increment_counter()
+
+
 @pytest.mark.proxy_version("v1.12.0")
 @allure.feature("EVM tests")
 @allure.story("Verify precompiled solana call contract")

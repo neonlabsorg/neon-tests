@@ -383,7 +383,6 @@ def assert_instructions(neon_trx_receipt: NeonGetTransactionResult):
     covered_instructions = [
         SolanaInstruction.TxExecFromData,
         SolanaInstruction.TxStepFromData,
-        SolanaInstruction.TxStepFromData,
         SolanaInstruction.CancelWithHash,
         SolanaInstruction.TxExecFromDataSolanaCall,
         SolanaInstruction.HolderWrite,

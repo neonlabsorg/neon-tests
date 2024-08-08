@@ -558,17 +558,6 @@ def multiple_actions_erc721(web3_client, accounts):
     return accounts[0], contract
 
 
-@pytest.fixture(scope="session")
-def get_counter_value():
-    def gen_increment_counter():
-        count = 0
-        while True:
-            count += 1
-            yield count
-
-    return gen_increment_counter()
-
-
 @pytest.fixture(scope="class")
 def call_solana_caller(accounts, web3_client):
     contract, _ = web3_client.deploy_and_get_contract("precompiled/CallSolanaCaller.sol", "0.8.10", accounts[0])

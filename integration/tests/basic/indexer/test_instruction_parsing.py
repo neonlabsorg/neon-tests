@@ -106,7 +106,7 @@ class TestInstruction:
         assert count_instructions(validated_response) == Counter({"TxStepFromAccountNoChainId": 3, "HolderWrite": 1})
         assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
-    def test_holder_write_tx_exec_from_acccount(self, multiple_actions_erc721, json_rpc_client):
+    def test_holder_write_tx_exec_from_account(self, multiple_actions_erc721, json_rpc_client):
         sender_account = self.accounts[0]
         acc, contract = multiple_actions_erc721
 
@@ -152,7 +152,7 @@ class TestInstruction:
         assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
     def test_tx_exec_from_account_solana_call(
-        self, call_solana_caller, counter_resource_address, get_counter_value, json_rpc_client
+        self, call_solana_caller, counter_resource_address, json_rpc_client
     ):
         sender = self.accounts[0]
         call_params = []
