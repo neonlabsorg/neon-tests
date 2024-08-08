@@ -523,8 +523,9 @@ class TestAccountRevision:
             )
 
     def test_parallel_change_balance_in_one_trx_and_check_in_second_trx(
-        self, operator_keypair, treasury_pool, neon_api_client, sender_with_tokens, evm_loader, holder_acc
+        self, operator_keypair, treasury_pool, neon_api_client, sender_with_tokens, evm_loader
     ):
+        holder_acc = create_holder(operator_keypair, evm_loader)
         contract = deploy_contract(
             operator_keypair, sender_with_tokens, "transfers", evm_loader, treasury_pool, value=1000
         )
