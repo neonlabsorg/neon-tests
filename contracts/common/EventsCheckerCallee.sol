@@ -13,7 +13,7 @@ contract SubcallContract {
     }
 }
 
-contract ContractCallee {
+contract EventsCheckerCallee {
     uint256 public parameter;
     address public sender;
 

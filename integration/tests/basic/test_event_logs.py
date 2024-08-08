@@ -3,7 +3,6 @@ import string
 
 import pytest
 import allure
-import web3
 from web3.logs import DISCARD
 
 from integration.tests.basic.helpers.rpc_checks import (
@@ -55,7 +54,7 @@ class TestLogs:
         assert event_logs[0].args.b == bytes_array
         assert event_logs[0].args.bol == bol
         assert event_logs[0].event == "AllTypes"
-        response = json_rpc_client.send_rpc(method="neon_getTransactionReceipt", params=[resp["transactionHash"].hex()])
+        response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         assert_log_field_in_neon_trx_receipt(response, 1)
 
     def test_indexed_args_event(self, event_caller_contract, json_rpc_client):
@@ -72,7 +71,7 @@ class TestLogs:
         assert event_logs[0].args.value == amount
         assert event_logs[0].event == "IndexedArgs"
 
-        response = json_rpc_client.send_rpc(method="neon_getTransactionReceipt", params=[resp["transactionHash"].hex()])
+        response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         assert_log_field_in_neon_trx_receipt(response, 1)
 
     def test_non_indexed_args_event(self, event_caller_contract, json_rpc_client):
@@ -87,7 +86,7 @@ class TestLogs:
         assert len(event_logs[0].args) == 1
         assert event_logs[0].args.hello == "world"
         assert event_logs[0].event == "NonIndexedArg"
-        response = json_rpc_client.send_rpc(method="neon_getTransactionReceipt", params=[resp["transactionHash"].hex()])
+        response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         assert_log_field_in_neon_trx_receipt(response, 1)
 
     def test_unnamed_args_event(self, event_caller_contract, json_rpc_client):
@@ -100,7 +99,7 @@ class TestLogs:
         assert len(event_logs) == 1
         assert len(event_logs[0].args) == 1
         assert event_logs[0].event == "UnnamedArg"
-        response = json_rpc_client.send_rpc(method="neon_getTransactionReceipt", params=[resp["transactionHash"].hex()])
+        response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         assert_log_field_in_neon_trx_receipt(response, 1)
 
     def test_big_args_count(self, event_caller_contract, json_rpc_client):
@@ -114,7 +113,7 @@ class TestLogs:
         assert len(event_logs[0].args) == 10
         assert event_logs[0].event == "BigArgsCount"
 
-        response = json_rpc_client.send_rpc(method="neon_getTransactionReceipt", params=[resp["transactionHash"].hex()])
+        response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         assert_log_field_in_neon_trx_receipt(response, 1)
 
     def test_several_events_in_one_trx(self, event_caller_contract, json_rpc_client):
@@ -129,7 +128,7 @@ class TestLogs:
         assert event1_logs[0].event == "IndexedArgs"
         assert event2_logs[0].event == "NonIndexedArg"
         assert event3_logs[0].event == "AllTypes"
-        response = json_rpc_client.send_rpc(method="neon_getTransactionReceipt", params=[resp["transactionHash"].hex()])
+        response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         assert_log_field_in_neon_trx_receipt(response, 3)
 
     def test_many_the_same_events_in_one_trx(self, event_caller_contract, json_rpc_client):
@@ -143,7 +142,7 @@ class TestLogs:
         assert len(event_logs) == changes_count
         for log in event_logs:
             assert log.event == "NonIndexedArg"
-        response = json_rpc_client.send_rpc(method="neon_getTransactionReceipt", params=[resp["transactionHash"].hex()])
+        response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
         assert_log_field_in_neon_trx_receipt(response, changes_count)
 
     def test_event_logs_deleted_if_trx_was_canceled(self, event_caller_contract):

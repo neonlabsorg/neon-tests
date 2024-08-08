@@ -14,18 +14,6 @@ class TestContractRecursion:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
 
-    @pytest.fixture(scope="function")
-    def recursion_factory(self, accounts):
-        sender_account = self.accounts[0]
-        contract, _ = self.web3_client.deploy_and_get_contract(
-            "common/Recursion",
-            "0.8.10",
-            sender_account,
-            contract_name="DeployRecursionFactory",
-            constructor_args=[3],
-        )
-        return contract
-
     def test_deploy_with_recursion(self, recursion_factory):
         sender_account = self.accounts[0]
         tx = self.web3_client.make_raw_tx(sender_account)

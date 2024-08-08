@@ -2,6 +2,7 @@ pragma solidity ^0.8.10;
 
 contract Counter {
     uint public count = 0;
+    event LogUint(uint value);
 
     // Function to get the current count
     function get() public view returns (uint) {
@@ -27,6 +28,21 @@ contract Counter {
 
         if (y - z == 1) {
             z ++;
+        }
+    }
+
+    function moreInstructionWithLogs(uint x, uint y) public {
+        uint z = x;
+        emit LogUint(z);
+        while (x < y) {
+            z++;
+            x = z;
+            emit LogUint(z);
+        }
+
+        if (y - z == 1) {
+            z ++;
+            emit LogUint(z);
         }
     }
 

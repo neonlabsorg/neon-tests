@@ -1,6 +1,3 @@
-import pathlib
-
-import solcx
 from eth_account.signers.local import LocalAccount
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts

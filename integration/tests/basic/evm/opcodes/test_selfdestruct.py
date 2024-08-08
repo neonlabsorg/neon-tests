@@ -13,13 +13,7 @@ class TestSelfDestructOpcode:
     accounts: EthAccounts
 
     @pytest.fixture(scope="function")
-    def destroyable_contract(self, accounts):
-        sender_account = self.accounts[0]
-        contract, _ = self.web3_client.deploy_and_get_contract("opcodes/SelfDestroyable", "0.8.10", sender_account)
-        return contract
-
-    @pytest.fixture(scope="function")
-    def contract_caller(self, destroyable_contract, accounts):
+    def contract_caller(self, destroyable_contract):
         sender_account = self.accounts[0]
         contract, _ = self.web3_client.deploy_and_get_contract(
             "opcodes/SelfDestroyable",

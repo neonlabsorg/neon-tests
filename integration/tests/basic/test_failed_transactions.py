@@ -1,6 +1,5 @@
 import pytest
 import allure
-import web3
 
 from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
@@ -12,14 +11,11 @@ class TestExpectedErrors:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
 
-    def test_bump_allocator_out_of_memory_expected_error(self):
+    def test_bump_allocator_out_of_memory_expected_error(self, expected_error_checker):
         sender_account = self.accounts[0]
-        contract, _ = self.web3_client.deploy_and_get_contract(
-            "common/ExpectedErrorsChecker", "0.8.12", sender_account, contract_name="A"
-        )
 
         tx = self.web3_client.make_raw_tx(sender_account)
-        instruction_tx = contract.functions.method1().build_transaction(tx)
+        instruction_tx = expected_error_checker.functions.method1().build_transaction(tx)
         try:
             resp = self.web3_client.send_transaction(sender_account, instruction_tx)
             assert resp["status"] == 0

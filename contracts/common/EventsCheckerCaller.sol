@@ -1,6 +1,6 @@
 pragma solidity >=0.8.0;
 
-import "./ContractCallee.sol";
+import "./EventsCheckerCallee.sol";
 
 contract ChildContract {
     address public childAddr;
@@ -16,11 +16,12 @@ contract ChildContractWithNewContractInConstructor {
 
     constructor() {
         emit EventChildContractWithNewContractInConstructor("Emit Child Contract Event");
-        childAddr = address(new ChildContract());
+        childAddr = address(new 
+        ChildContract());
     }
 }
 
-contract ContractCaller {
+contract EventsCheckerCaller {
     uint256 public parameter;
     address public sender;
 
@@ -87,7 +88,7 @@ contract ContractCaller {
     function getBalanceOfContractCallee(
         address _contractCallee
     ) public view returns (uint256) {
-        ContractCallee _callee = ContractCallee(_contractCallee);
+        EventsCheckerCallee _callee = EventsCheckerCallee(_contractCallee);
         uint256 balanceOfContractOne = _callee.getBalance();
         return balanceOfContractOne;
     }
@@ -96,7 +97,7 @@ contract ContractCaller {
         address _contractCallee
     ) public returns (uint256) {
         emit EventContractCaller("Emit ContractCaller Event");
-        ContractCallee _callee = ContractCallee(_contractCallee);
+        EventsCheckerCallee _callee = EventsCheckerCallee(_contractCallee);
         _callee.emitEvent();
         uint256 balanceOfContractOne = _callee.getBalance();
         return balanceOfContractOne;
@@ -106,7 +107,7 @@ contract ContractCaller {
         address _contractCallee
     ) public returns (uint256) {
         emit EventContractCaller("Emit ContractCaller Event");
-        ContractCallee _callee = ContractCallee(_contractCallee);
+        EventsCheckerCallee _callee = EventsCheckerCallee(_contractCallee);
         _callee.emitEvent();
         uint256 balanceOfContractOne = _callee.getValue();
         return balanceOfContractOne;
@@ -116,7 +117,7 @@ contract ContractCaller {
         address _contractCallee
     ) public {
         emit EventContractCaller("Emit ContractCaller Event");
-        ContractCallee _callee = ContractCallee(_contractCallee);
+        EventsCheckerCallee _callee = EventsCheckerCallee(_contractCallee);
         _callee.emitEvent();
     }
 
@@ -125,7 +126,7 @@ contract ContractCaller {
     ) public {
         emit EventContractCaller("Emit ContractCaller Event");
         emit AdditionalEventContractCaller("Emit Additional ContractCaller Event");
-        ContractCallee _callee = ContractCallee(_contractCallee);
+        EventsCheckerCallee _callee = EventsCheckerCallee(_contractCallee);
         _callee.emitEvent();
     }
 

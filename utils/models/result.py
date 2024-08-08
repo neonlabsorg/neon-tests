@@ -3,6 +3,7 @@ from typing import List, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from integration.tests.basic.helpers.basic import NeonEventType
 from utils.models.model_types import (
     BalanceString,
     EstimateGasPriceString,
@@ -193,7 +194,7 @@ class NeonGetLogsDetails(ForbidExtra):
     blockHash: Union[HexString, None]
     transactionHash: Union[HexString, None]
     transactionIndex: Union[HexString, None]
-    address: HexString
+    address: Union[HexString, None]
     data: Union[HexString, ZeroBytesString]
     topics: List[HexString]
     solanaTransactionSignature: str
@@ -252,3 +253,104 @@ class EthGetTransactionReceiptResult(EthResult):
 
 class EthGetTransactionByHashResult(EthResult):
     result: Transaction
+
+
+class SolanaInstruction(ForbidExtra):
+    solanaProgram: str
+    solanaInstructionIndex: int
+    solanaInnerInstructionIndex: Union[int, None]
+    svmHeapSizeLimit: int
+    svmCyclesLimit: int
+    svmCyclesUsed: int
+    neonInstructionCode: int
+    neonInstructionName: str
+    neonEvmSteps: int
+    neonTotalEvmSteps: int
+    neonGasUsed: int
+    neonTotalGasUsed: int
+    neonTransactionFee: int
+    neonMiner: HexString
+    neonLogs: List[NeonGetLogsDetails]
+
+
+class SolanaTransaction(ForbidExtra):
+    solanaTransactionSignature: str
+    solanaTransactionIsSuccess: bool
+    solanaBlockSlot: int
+    solanaLamportExpense: int
+    neonOperatorAddress: str
+    solanaInstructions: List[SolanaInstruction]
+
+
+class NeonCostsDetails(ForbidExtra):
+    neonOperatorAddress: str
+    solanaLamportExpense: int
+    neonAlanIncome: int
+
+
+class NeonReceiptDetails(ForbidExtra):
+    transactionHash: HexString
+    transactionIndex: HexString
+    type: HexString
+    blockHash: HexString
+    blockNumber: HexString
+    from_: HexString = Field(alias="from")
+    to: Union[HexString, None]
+    effectiveGasPrice: HexString
+    gasUsed: HexString
+    cumulativeGasUsed: HexString
+    contractAddress: Union[HexString, None]
+    status: HexString
+    logsBloom: HexString
+    logs: Union[List[NeonGetLogsDetails], List]
+    solanaBlockHash: str
+    solanaCompleteTransactionSignature: str
+    solanaCompleteInstructionIndex: int
+    solanaCompleteInnerInstructionIndex: Union[int, None]
+    neonRawTransaction: HexString
+    neonIsCompleted: bool
+    neonIsCanceled: bool
+    solanaTransactions: List[SolanaTransaction]
+    neonCosts: List[NeonCostsDetails]
+
+
+class NeonGetTransactionResult(EthResult):
+    def get_all_events(
+        self,
+        filter_by_type: tp.Optional[NeonEventType] = None,
+        ignore_events: tp.List[NeonEventType] = list(),
+        is_removed: Union[bool, None] = None,
+    ):
+        events = []
+        ignored_events = [event.value for event in ignore_events]
+        for transaction in self.result.solanaTransactions:
+            for instruction in transaction.solanaInstructions:
+                if filter_by_type:
+                    events.extend(
+                        [
+                            event
+                            for event in instruction.neonLogs
+                            if all(
+                                [
+                                    event.neonEventType == filter_by_type.value,
+                                    event.neonEventType not in ignored_events,
+                                    event.removed == is_removed if is_removed is not None else True,
+                                ]
+                            )
+                        ]
+                    )
+                else:
+                    events.extend(
+                        event
+                        for event in instruction.neonLogs
+                        if all(
+                            [
+                                event.neonEventType not in ignored_events,
+                                event.removed == is_removed if is_removed is not None else True,
+                            ]
+                        )
+                    )
+
+        return events
+
+    result: NeonReceiptDetails
