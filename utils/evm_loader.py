@@ -504,6 +504,8 @@ class EvmLoader(SolanaClient):
     def sent_token_from_solana_to_neon(self, solana_account, mint, neon_account, amount, chain_id):
         """Transfer any token from solana to neon transaction"""
         balance_pubkey = self.ether2balance(neon_account.address, chain_id)
+        if not self.account_exists(balance_pubkey):
+            self.create_balance_account(neon_account.address, solana_account, chain_id)
         contract_pubkey = PublicKey(self.ether2program(neon_account.address)[0])
         associated_token_address = get_associated_token_address(solana_account.public_key, mint)
         authority_pool = PublicKey.find_program_address([b"Deposit"], self.loader_id)[0]
