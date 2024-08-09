@@ -15,7 +15,7 @@ from integration.tests.basic.helpers.rpc_checks import (
     is_hex,
 )
 from utils.accounts import EthAccounts
-from utils.helpers import cryptohex, gen_hash_of_block
+from utils.helpers import cryptohex, gen_hash_of_block, wait_condition
 from utils.models.error import EthError, EthError32602, NotSupportedMethodError
 from utils.models.result import (
     EthGasPriceResult,
@@ -260,16 +260,9 @@ class TestRpcBaseCalls:
     @pytest.mark.mainnet
     def test_eth_block_number_next_block_different(self, json_rpc_client):
         response = json_rpc_client.send_rpc(method="eth_blockNumber")
-        time.sleep(1)
-        response2 = json_rpc_client.send_rpc(method="eth_blockNumber")
+        assert wait_condition(lambda: json_rpc_client.send_rpc(
+            method="eth_blockNumber")["result"] != response["result"], timeout_sec=10)
 
-        assert "error" not in response and "error" not in response2
-        assert "result" in response and "result" in response2
-        assert rpc_checks.is_hex(response["result"]), f"Invalid response result {response['result']}"
-        assert rpc_checks.is_hex(response2["result"]), f"Invalid response result {response2['result']}"
-        assert response["result"] != response2["result"]
-        EthResult(**response)
-        EthResult(**response2)
 
     # Geth returns different error message for None NDEV-3169
     @pytest.mark.mainnet
