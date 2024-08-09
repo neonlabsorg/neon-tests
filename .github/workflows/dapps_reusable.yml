@@ -277,7 +277,7 @@ jobs:
       - name: Prepare accounts
         id: accounts
         run: |
-          python3 ./clickfile.py infra gen-accounts -c 5 -a 20000 -n ${{env.NETWORK}}
+          python3 ./clickfile.py infra gen-accounts -c 12 -a 20000 -n ${{env.NETWORK}}
 
       - name: Launch aave-v3 tests
         if: ${{ steps.accounts.outcome == 'success' }}
