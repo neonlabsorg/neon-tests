@@ -55,14 +55,7 @@ class SolanaClient(solana.rpc.api.Client):
         tx = Transaction().add(
             transfer(TransferParams(from_pubkey=from_.public_key, to_pubkey=to, lamports=amount_lamports))
         )
-        balance_before = self.get_balance(to).value
-        self.send_transaction(tx, from_)
-        for _ in range(20):
-            if int(self.get_balance(to).value) > int(balance_before):
-                break
-            time.sleep(6)
-        else:
-            raise AssertionError(f"Balance not changed in account {to}")
+        self.send_tx_and_check_status_ok(tx, from_)
 
 
     @staticmethod
@@ -108,11 +101,8 @@ class SolanaClient(solana.rpc.api.Client):
         return token_mint, assoc_addr
 
     def send_tx_and_check_status_ok(self, tx, *signers):
-        opts = TxOpts(skip_preflight=True, skip_confirmation=False)
-        sig = self.send_transaction(tx, *signers, opts=opts).value
-        self.confirm_transaction(sig, commitment=Confirmed)
-        sig_status = json.loads((self.confirm_transaction(sig)).to_json())
-        assert sig_status["result"]["value"][0]["status"] == {"Ok": None}, f"error:{sig_status}"
+        receipt = self.send_tx(tx, *signers)
+        assert receipt.value.transaction.meta.err is None, f"error:{receipt}"
 
     def send_tx(self, trx: Transaction, *signers: Keypair, wait_status=Confirmed):
         result = self.send_transaction(trx, *signers,

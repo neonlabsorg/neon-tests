@@ -100,8 +100,9 @@ class SolanaCaller:
                 program_id,
             ]
             + (additional_accounts or []) +
-            self._get_all_pubkeys_from_instructions([instruction])        )
+            self._get_all_pubkeys_from_instructions([instruction]))
         return resp
+
     def batch_execute(self, call_params, sender=None, additional_accounts=None, additional_signers=None):
         # call_params = [(program_id, lamports, instruction), ...]
         execute_params = []
