@@ -101,14 +101,17 @@ class SolanaClient(solana.rpc.api.Client):
         return token_mint, assoc_addr
 
     def send_tx_and_check_status_ok(self, tx, *signers):
-        receipt = self.send_tx(tx, *signers)
-        assert receipt.value.transaction.meta.err is None, f"Error:{receipt}"
+        opts = TxOpts(skip_preflight=True, skip_confirmation=False)
+        sig = self.send_transaction(tx, *signers, opts=opts).value
+        statuses_resp = self.confirm_transaction(sig, commitment=Confirmed)
+        sig_status = json.loads(statuses_resp.to_json())
+        assert sig_status["result"]["value"][0]["status"] == {"Ok": None}, f"error:{sig_status}"
 
     def send_tx(self, trx: Transaction, *signers: Keypair, wait_status=Confirmed):
-        opts = TxOpts(skip_preflight=True, skip_confirmation=False)
-        sig = self.send_transaction(trx, *signers, opts=opts).value
-        self.confirm_transaction(sig, commitment=wait_status)
-        return self.get_transaction(sig, commitment=wait_status)
+        result = self.send_transaction(trx, *signers,
+                                         opts=TxOpts(skip_confirmation=True, preflight_commitment=wait_status))
+        self.confirm_transaction(result.value, commitment=Confirmed)
+        return self.get_transaction(result.value, commitment=Confirmed)
 
     def create_associate_token_acc(self, payer, owner, token_mint):
         if not self.account_exists(get_associated_token_address(owner.public_key, token_mint)):
