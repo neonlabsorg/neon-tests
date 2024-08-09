@@ -3,7 +3,7 @@ from typing import List, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from integration.tests.basic.helpers.basic import NeonEventType
+from integration.tests.basic.helpers.basic import NeonEventType, SolanaInstruction
 from utils.models.model_types import (
     BalanceString,
     EstimateGasPriceString,
@@ -269,7 +269,7 @@ class SolanaInstruction(ForbidExtra):
     neonGasUsed: int
     neonTotalGasUsed: int
     neonTransactionFee: int
-    neonMiner: HexString
+    neonMiner: Union[HexString, None]
     neonLogs: List[NeonGetLogsDetails]
 
 
@@ -354,3 +354,7 @@ class NeonGetTransactionResult(EthResult):
         return events
 
     result: NeonReceiptDetails
+
+
+class SolanaByNeonTransaction(EthResult):
+    result: List[str]

@@ -1,24 +1,34 @@
-import allure
 import pytest
 import spl
 from solana.keypair import Keypair
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
-from spl.token.instructions import (
-    create_associated_token_account,
-    TransferParams,
-    transfer,
-    get_associated_token_address,
-)
-from solana.transaction import TransactionInstruction, AccountMeta
+from solana.transaction import AccountMeta, TransactionInstruction
 from spl.token.client import Token as SplToken
 from spl.token.constants import TOKEN_PROGRAM_ID
+from spl.token.instructions import (
+    TransferParams,
+    get_associated_token_address,
+    transfer,
+)
 
+import allure
 from utils.accounts import EthAccounts
 from utils.consts import COUNTER_ID, TRANSFER_TOKENS_ID, wSOL
-from utils.helpers import serialize_instruction, bytes32_to_solana_pubkey
+from utils.helpers import bytes32_to_solana_pubkey, serialize_instruction
 from utils.instructions import make_wSOL
 from utils.web3client import NeonChainWeb3Client
+
+
+@pytest.fixture(scope="session")
+def get_counter_value():
+    def gen_increment_counter():
+        count = 0
+        while True:
+            count += 1
+            yield count
+
+    return gen_increment_counter()
 
 
 @pytest.mark.proxy_version("v1.12.0")
@@ -28,35 +38,6 @@ from utils.web3client import NeonChainWeb3Client
 class TestSolanaInteroperability:
     accounts: EthAccounts
     web3_client: NeonChainWeb3Client
-
-    @pytest.fixture(scope="class")
-    def call_solana_caller(self):
-        contract, _ = self.web3_client.deploy_and_get_contract(
-            "precompiled/CallSolanaCaller.sol", "0.8.10", self.accounts[0]
-        )
-        return contract
-
-    def create_resource(self, contract, salt, sender, owner):
-        tx = self.web3_client.make_raw_tx(sender.address)
-        salt = self.web3_client.text_to_bytes32(salt)
-        instruction_tx = contract.functions.createResource(salt, 8, 100000, bytes(owner)).build_transaction(tx)
-        self.web3_client.send_transaction(sender, instruction_tx)
-
-        return contract.functions.getResourceAddress(salt).call()
-
-    @pytest.fixture(scope="class")
-    def counter_resource_address(self, call_solana_caller):
-        yield self.create_resource(call_solana_caller, "1", self.accounts[0], COUNTER_ID)
-
-    @pytest.fixture(scope="class")
-    def get_counter_value(self):
-        def gen_increment_counter():
-            count = 0
-            while True:
-                count += 1
-                yield count
-
-        return gen_increment_counter()
 
     def test_counter_execute_with_get_return_data(
         self, call_solana_caller, counter_resource_address, get_counter_value
