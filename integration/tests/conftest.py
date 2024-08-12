@@ -3,6 +3,7 @@ import os
 import random
 import string
 import time
+import allure
 import typing as tp
 
 import base58
@@ -13,9 +14,8 @@ from solana.publickey import PublicKey
 from solana.rpc import commitment
 from solana.rpc.types import TxOpts
 
-import allure
 from utils.apiclient import JsonRPCSession
-from utils.consts import LAMPORT_PER_SOL, MULTITOKEN_MINTS
+from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS
 from utils.erc20 import ERC20
 from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
@@ -486,3 +486,28 @@ def expected_error_checker(accounts, web3_client):
         "common/ExpectedErrorsChecker", "0.8.12", accounts[0], contract_name="A"
     )
     yield contract
+
+
+@pytest.fixture(scope="class")
+def multiple_actions_erc721(web3_client, accounts):
+    contract, contract_deploy_tx = web3_client.deploy_and_get_contract(
+        "EIPs/ERC721/MultipleActions", "0.8.10", accounts[0], contract_name="MultipleActionsERC721"
+    )
+    return accounts[0], contract
+
+
+@pytest.fixture(scope="class")
+def call_solana_caller(accounts, web3_client):
+    contract, _ = web3_client.deploy_and_get_contract("precompiled/CallSolanaCaller.sol", "0.8.10", accounts[0])
+    return contract
+
+
+@pytest.fixture(scope="class")
+def counter_resource_address(call_solana_caller, accounts, web3_client):
+    tx = web3_client.make_raw_tx(accounts[0].address)
+    salt = web3_client.text_to_bytes32("1")
+    instruction_tx = call_solana_caller.functions.createResource(salt, 8, 100000, bytes(COUNTER_ID)).build_transaction(
+        tx
+    )
+    web3_client.send_transaction(accounts[0], instruction_tx)
+    yield call_solana_caller.functions.getResourceAddress(salt).call()

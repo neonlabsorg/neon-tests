@@ -45,6 +45,10 @@ class JsonRPCSession(Session):
 
     def get_neon_trx_receipt(self, trx_hash: str) -> tp.Dict:
         return self.send_rpc("neon_getTransactionReceipt", params=[trx_hash.hex()])
+    
+    def get_solana_trx_by_neon(self, trx_hash: str) -> tp.Dict:
+        return self.send_rpc("neon_getSolanaTransactionByNeonTransaction", params=[trx_hash.hex()])
+
 
 def wait_finalized_block(rpc_client: JsonRPCSession, block_num: int):
     fin_block_num = block_num - 32

@@ -38,19 +38,6 @@ def solana_associated_token_erc20(erc20_spl, sol_client, solana_account):
 
 
 @pytest.fixture(scope="class")
-def multiple_actions_erc20(web3_client_session, accounts, erc20_spl_mintable):
-    contract, contract_deploy_tx = web3_client_session.deploy_and_get_contract(
-        "EIPs/ERC20/MultipleActions",
-        "0.8.24",
-        accounts[0],
-        contract_name="MultipleActionsERC20",
-        constructor_args=[erc20_spl_mintable.address],
-    )
-    erc20_spl_mintable.transfer_ownership(erc20_spl_mintable.account, contract.address)
-    return accounts[0], contract
-
-
-@pytest.fixture(scope="class")
 def erc721(web3_client_session: NeonChainWeb3Client, faucet, pytestconfig: Config):
     contract = ERC721ForMetaplex(web3_client_session, faucet)
     return contract
@@ -71,10 +58,14 @@ def invalid_nft_receiver(web3_client_session, faucet, accounts):
     )
     return contract
 
-
 @pytest.fixture(scope="class")
-def multiple_actions_erc721(web3_client_session, faucet, accounts):
+def multiple_actions_erc20(web3_client_session, accounts, erc20_spl_mintable):
     contract, contract_deploy_tx = web3_client_session.deploy_and_get_contract(
-        "EIPs/ERC721/MultipleActions", "0.8.10", accounts[0], contract_name="MultipleActionsERC721"
+        "EIPs/ERC20/MultipleActions",
+        "0.8.24",
+        accounts[0],
+        contract_name="MultipleActionsERC20",
+        constructor_args=[erc20_spl_mintable.address],
     )
+    erc20_spl_mintable.transfer_ownership(erc20_spl_mintable.account, contract.address)
     return accounts[0], contract

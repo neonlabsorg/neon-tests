@@ -41,7 +41,7 @@ class TestRpcEstimateGas:
             response = json_rpc_client.send_rpc(method="eth_blockNumber")
             assert "result" in response
             EthResult(**response)
-            params.append(int(response["result"], 16))
+            params.append(response["result"])
         if isinstance(block_param, Tag):
             params.append(block_param.value)
         response = json_rpc_client.send_rpc(method="eth_estimateGas", params=params)
