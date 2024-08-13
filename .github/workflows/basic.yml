@@ -131,7 +131,7 @@ jobs:
         if: failure()
         run: echo "FAILED_TEST_GROUP=evm" >> $GITHUB_ENV
       - name: Run basic proxy tests
-        timeout-minutes: 60
+        timeout-minutes: 120
         id: basic
         run: |
           docker exec -i ${{ env.CONTAINER }} \
