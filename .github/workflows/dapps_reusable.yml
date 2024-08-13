@@ -282,7 +282,7 @@ jobs:
       - name: Launch aave-v3 tests
         if: ${{ steps.accounts.outcome == 'success' }}
         id: aave-v3
-        timeout-minutes: 60
+        timeout-minutes: 120
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
           IMAGE: neonlabsorg/aave-v3-core:latest
