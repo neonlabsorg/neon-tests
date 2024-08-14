@@ -51,6 +51,7 @@ class ComputeBudget:
             data=bytes.fromhex("03") + price.to_bytes(8, "little"),
         )
 
+
 class TransactionWithComputeBudget(Transaction):
     def __init__(
         self,
@@ -72,7 +73,6 @@ class TransactionWithComputeBudget(Transaction):
             self.add(ComputeBudget.set_compute_units_price(compute_unit_price,  operator))
 
 
-
 def make_WriteHolder(
     operator: PublicKey, evm_loader_id: PublicKey, holder_account: PublicKey, hash: bytes, offset: int, payload: bytes
 ):
@@ -91,20 +91,23 @@ def make_WriteHolder(
 def make_ExecuteTrxFromInstruction(
     operator: Keypair,
     operator_balance: PublicKey,
+    holder_address: PublicKey,
     evm_loader_id: PublicKey,
     treasury_address: PublicKey,
     treasury_buffer: bytes,
     message: bytes,
     additional_accounts: tp.List[PublicKey],
     system_program=sp.SYS_PROGRAM_ID,
-    tag=0x32
+    tag=0x3D
 ):
     data = bytes([tag]) + treasury_buffer + message
     print("make_ExecuteTrxFromInstruction accounts")
+    print("Holder: ", holder_address)
     print("Operator: ", operator.public_key)
     print("Treasury: ", treasury_address)
-    print("Operator eth solana: ", operator_balance)
+    print("Operator balance: ", operator_balance)
     accounts = [
+        AccountMeta(pubkey=holder_address, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator.public_key, is_signer=True, is_writable=True),
         AccountMeta(pubkey=treasury_address, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),

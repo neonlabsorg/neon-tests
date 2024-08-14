@@ -1,28 +1,25 @@
 import logging
 import inspect
-import json
 import os
-import pathlib
 import random
 import string
 import time
+import allure
 import typing as tp
 
 import base58
 import pytest
 from _pytest.config import Config
 from eth_account.signers.local import LocalAccount
-from packaging import version
 from solana.keypair import Keypair
 from solana.publickey import PublicKey
 from solana.rpc import commitment
 from solana.rpc.types import TxOpts
 from web3.contract import Contract
 
-import allure
-from clickfile import network_manager, EnvName
-from utils import web3client
+from clickfile import EnvName
 from utils.accounts import EthAccounts
+
 from utils.apiclient import JsonRPCSession
 from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS
 from utils.erc20 import ERC20
@@ -36,72 +33,6 @@ from utils.web3client import NeonChainWeb3Client, Web3Client
 log = logging.getLogger(__name__)
 
 NEON_AIRDROP_AMOUNT = 1_000
-
-
-def pytest_collection_modifyitems(config, items):
-    deselected_items = []
-    selected_items = []
-    deselected_marks = []
-    end_of_session_items = []
-    network_name = config.getoption("--network")
-
-    settings = network_manager.get_network_object(network_name)
-    web3_client = web3client.NeonChainWeb3Client(settings["proxy_url"])
-
-    if network_name != "geth":
-        raw_proxy_version = web3_client.get_proxy_version()["result"]
-
-        if "Neon-proxy/" in raw_proxy_version:
-            raw_proxy_version = raw_proxy_version.split("Neon-proxy/")[1].strip()
-        proxy_dev = "dev" in raw_proxy_version
-
-        if "-" in raw_proxy_version:
-            raw_proxy_version = raw_proxy_version.split("-")[0].strip()
-        proxy_version = version.parse(raw_proxy_version)
-    else:
-        deselected_marks.append("neon_only")
-
-    if network_name == "devnet":
-        deselected_marks.append("only_stands")
-    else:
-        deselected_marks.append("only_devnet")
-
-    envs_file = config.getoption("--envs")
-    with open(pathlib.Path().parent.parent / envs_file, "r+") as f:
-        environments = json.load(f)
-
-    if len(environments[network_name]["network_ids"]) == 1:
-        deselected_marks.append("multipletokens")
-
-    for item in items:
-        raw_item_pv = [mark.args[0] for mark in item.iter_markers(name="proxy_version")]
-        select_item = True
-
-        if any([item.get_closest_marker(mark) for mark in deselected_marks]):
-            deselected_items.append(item)
-            select_item = False
-        elif len(raw_item_pv) > 0:
-            item_proxy_version = version.parse(raw_item_pv[0])
-
-            if network_name != "geth":
-                if not proxy_dev and item_proxy_version > proxy_version:
-                    deselected_items.append(item)
-                    select_item = False
-
-        if select_item:
-            execute_in_the_end_of_session = item.get_closest_marker("execute_in_the_end_of_session")
-            if execute_in_the_end_of_session:
-                log.debug(f"Move {item} execution to the end of the session")
-
-                if end_of_session_items:
-                    log.warning(f"Other tests have also been moved to the end of the session: {end_of_session_items}")
-
-                end_of_session_items.append(item)
-            else:
-                selected_items.append(item)
-
-    config.hook.pytest_deselected(items=deselected_items)
-    items[:] = selected_items + end_of_session_items
 
 
 @pytest.fixture(scope="session")
