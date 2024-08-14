@@ -8,6 +8,9 @@ from utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
 from .utils.constants import TAG_FINALIZED_STATE, TAG_ACTIVE_STATE
 from .utils.contract import make_contract_call_trx, deploy_contract
 
+
+from .utils.storage import create_holder
+
 from .utils.transaction_checks import check_holder_account_tag, check_transaction_logs_have_text
 from ..basic.helpers.assert_message import ErrorMessage
 
@@ -16,12 +19,12 @@ class TestAccountRevision:
     def test_call_contract_with_changing_data(
         self,
         operator_keypair,
+        holder_acc,
         treasury_pool,
         rw_lock_caller,
         rw_lock_contract,
         session_user,
         evm_loader,
-        holder_acc,
         neon_api_client,
     ):
         trx_count = 4
@@ -345,11 +348,15 @@ class TestAccountRevision:
         )
 
         for _ in range(2):
-            signed_tx2 = make_contract_call_trx(
-                evm_loader, session_user, rw_lock_contract, "update_storage_map(uint256)", [3]
-            )
+            holder_acc_for_trx_from_instr = create_holder(operator_keypair, evm_loader)
+            signed_tx2 = make_contract_call_trx(evm_loader, session_user, rw_lock_contract, "update_storage_map(uint256)", [3])
             resp = evm_loader.execute_trx_from_instruction(
-                operator_keypair, treasury_pool.account, treasury_pool.buffer, signed_tx2, acc_from_emulation
+                operator_keypair,
+                holder_acc_for_trx_from_instr,
+                treasury_pool.account,
+                treasury_pool.buffer,
+                signed_tx2,
+                acc_from_emulation
             )
             check_transaction_logs_have_text(resp, "exit_status=0x11")
         resp = evm_loader.send_transaction_step_from_account(
@@ -369,7 +376,7 @@ class TestAccountRevision:
             assert data_acc_revision_after == 3
 
     def test_1_user_send_2_parallel_trx_with_neon_balance_change(
-        self, operator_keypair, treasury_pool, neon_api_client, session_user, evm_loader, holder_acc
+        self, operator_keypair, treasury_pool, neon_api_client, session_user, evm_loader, holder_acc, new_holder_acc
     ):
         amount = 1000000
         evm_loader.deposit_neon(operator_keypair, session_user.eth_address, 4 * amount)
@@ -414,7 +421,7 @@ class TestAccountRevision:
         )
 
         resp = evm_loader.execute_trx_from_instruction(
-            operator_keypair, treasury_pool.account, treasury_pool.buffer, signed_tx2, accounts
+            operator_keypair, new_holder_acc, treasury_pool.account, treasury_pool.buffer, signed_tx2, accounts
         )
         check_transaction_logs_have_text(resp, "exit_status=0x11")
 
@@ -442,6 +449,7 @@ class TestAccountRevision:
         session_user,
         evm_loader,
         new_holder_acc,
+        holder_acc
     ):
         sender = evm_loader.make_new_user(operator_keypair)
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
@@ -500,7 +508,7 @@ class TestAccountRevision:
         )
 
         resp = evm_loader.execute_trx_from_instruction(
-            operator_keypair, treasury_pool.account, treasury_pool.buffer, signed_tx2, accounts
+            operator_keypair, holder_acc, treasury_pool.account, treasury_pool.buffer, signed_tx2, accounts
         )
         check_transaction_logs_have_text(resp, "exit_status=0x11")
         with pytest.raises(solana.rpc.core.RPCException, match=ErrorMessage.INSUFFICIENT_BALANCE.value):
@@ -515,8 +523,9 @@ class TestAccountRevision:
             )
 
     def test_parallel_change_balance_in_one_trx_and_check_in_second_trx(
-        self, operator_keypair, treasury_pool, neon_api_client, sender_with_tokens, evm_loader, holder_acc
+        self, operator_keypair, treasury_pool, neon_api_client, sender_with_tokens, evm_loader
     ):
+        holder_acc = create_holder(operator_keypair, evm_loader)
         contract = deploy_contract(
             operator_keypair, sender_with_tokens, "transfers", evm_loader, treasury_pool, value=1000
         )
@@ -546,9 +555,14 @@ class TestAccountRevision:
         )
 
         signed_tx2 = make_contract_call_trx(evm_loader, sender_with_tokens, contract, "donateTenPercent()")
-
+        holder_acc_2 = create_holder(operator_keypair, evm_loader)
         resp = evm_loader.execute_trx_from_instruction(
-            operator_keypair, treasury_pool.account, treasury_pool.buffer, signed_tx2, accounts
+            operator_keypair,
+            holder_acc_2,
+            treasury_pool.account,
+            treasury_pool.buffer,
+            signed_tx2,
+            accounts
         )
         check_transaction_logs_have_text(resp, "exit_status=0x11")
 

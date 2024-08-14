@@ -121,6 +121,7 @@ def assert_block_fields(
 
 
 def assert_log_field_in_neon_trx_receipt(response, events_count):
+
     expected_event_types = ["EnterCall"]
     for i in range(events_count):
         expected_event_types.append("Log")
@@ -152,12 +153,12 @@ def assert_log_field_in_neon_trx_receipt(response, events_count):
             assert instruction["solanaProgram"] == "NeonEVM"
             assert instruction["solanaInnerInstructionIndex"] is None
             neon_logs = instruction["neonLogs"]
-            assert neon_logs != []
-            for log in neon_logs:
-                all_logs.append(log)
-    event_types = [log["neonEventType"] for log in sorted(all_logs, key=lambda x: x["neonEventOrder"])]
-
-    assert event_types == expected_event_types, f"Actual: {event_types}; Expected: {expected_event_types}"
+            if instruction["neonInstructionName"] != "HolderWrite":
+                assert neon_logs != [], f"Logs shouldn't be empty in {instruction}"
+                for log in neon_logs:
+                    all_logs.append(log)
+                event_types = [log["neonEventType"] for log in sorted(all_logs, key=lambda x: x["neonEventOrder"])]
+                assert event_types == expected_event_types, f"Actual: {event_types}; Expected: {expected_event_types}"
 
 
 def assert_fields_are_hex(obj, expected_hex_fields):

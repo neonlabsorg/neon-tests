@@ -43,13 +43,13 @@ class SolanaInstruction(Enum):
     HolderWrite = "HolderWrite", 38
     CreateAccountBalance = "CreateAccountBalance", 48
     Deposit = "Deposit", 49
-    TxExecFromData = "TxExecFromData", 50
+    TxExecFromData = "TxExecFromData", 61
     TxExecFromAccount = "TxExecFromAccount", 51
     TxStepFromData = "TxStepFromData", 52
     TxStepFromAccount = "TxStepFromAccount", 53
     TxStepFromAccountNoChainId = "TxStepFromAccountNoChainId", 54
     CancelWithHash = "CancelWithHash", 55
-    TxExecFromDataSolanaCall = "TxExecFromDataSolanaCall", 56
+    TxExecFromDataSolanaCall = "TxExecFromDataSolanaCall", 62
     TxExecFromAccountSolanaCall = "TxExecFromAccountSolanaCall", 57
     CreateOperatorBalance = "CreateOperatorBalance", 58
     DeleteOperatorBalance = "DeleteOperatorBalance", 59
