@@ -284,13 +284,13 @@ def deploy_uniswap_contracts(environment: "locust.env.Environment", **kwargs):
                 token_contracts[token2].contract.address if "SPL" in token2 else token_contracts[token2].address
             )
 
-            token1_amount = web3.Web3.to_wei(2000, "ether")
-            token2_amount = web3.Web3.to_wei(2000, "ether")
+            token1_amount = web3.Web3.to_wei(20, "ether")
+            token2_amount = web3.Web3.to_wei(20, "ether")
 
             if "SPL" in token1:
-                token1_amount = web3.Web3.to_wei(2000, "gwei")
+                token1_amount = web3.Web3.to_wei(20, "gwei")
             if "SPL" in token2:
-                token2_amount = web3.Web3.to_wei(2000, "gwei")
+                token2_amount = web3.Web3.to_wei(20, "gwei")
 
             for t in (token1, token2):
                 c = token_contracts[t]
