@@ -117,7 +117,7 @@ class TestEIP1559Transactions:
             sender_with_tokens: Caller,
             session_user: Caller,
             evm_loader,
-            neon_api_client,
+            holder_acc
     ):
         amount = 10
         max_fee_per_gas = 50000
@@ -136,12 +136,10 @@ class TestEIP1559Transactions:
             max_priority_fee_per_gas=max_priority_fee_per_gas,
             gas=10000,
         )
-        emulate_result = neon_api_client.emulate(
-            sender_with_tokens.eth_address.hex(), session_user.eth_address.hex(), value=hex(amount)
-        )
 
         resp = evm_loader.execute_trx_from_instruction(
             operator_keypair,
+            holder_acc,
             treasury_pool.account,
             treasury_pool.buffer,
             signed_tx,
