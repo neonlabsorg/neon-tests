@@ -135,6 +135,22 @@ def solana_account(bank_account, pytestconfig: Config, sol_client_session):
             pass
 
 
+@pytest.fixture(scope="function")
+def new_solana_account(bank_account, pytestconfig: Config, sol_client_session):
+    account = Keypair.generate()
+    if pytestconfig.environment.use_bank:
+        sol_client_session.send_sol(bank_account, account.public_key, int(0.01 * LAMPORT_PER_SOL))
+    else:
+        sol_client_session.request_airdrop(account.public_key, 1 * LAMPORT_PER_SOL)
+    yield account
+    if pytestconfig.environment.use_bank:
+        balance = sol_client_session.get_balance(account.public_key, commitment=commitment.Confirmed).value
+        try:
+            sol_client_session.send_sol(account, bank_account.public_key, balance - 5000)
+        except:
+            pass
+
+
 @pytest.fixture(scope="class")
 def accounts(request, accounts_session, web3_client_session, pytestconfig: Config, eth_bank_account):
     if inspect.isclass(request.cls):
