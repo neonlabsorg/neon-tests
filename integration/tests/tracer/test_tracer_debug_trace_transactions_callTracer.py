@@ -260,7 +260,7 @@ class TestDebugTraceTransactionCallTracer:
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
 
         expected_response = self.fill_expected_response(instruction_tx, receipt, calls_value="0x0", calls_type="DELEGATECALL")
-        expected_response["calls"][0]["to"] = tracer_callee_contract_address
+        expected_response["calls"][0]["to"] = event_checker_callee_address
         self.assert_response_contains_expected(expected_response, response)
 
     def test_callTracer_call_contract_from_contract_type_callcode(self, opcodes_checker):
