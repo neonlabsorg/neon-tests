@@ -82,14 +82,16 @@ class EvmLoader(SolanaClient):
             return ether
         return ether.hex()
 
-    def ether2operator_balance(self, keypair: Keypair, ether_address: Union[str, bytes], chain_id=CHAIN_ID) -> PublicKey:
+    def ether2operator_balance(
+        self, keypair: Keypair, ether_address: Union[str, bytes], chain_id=CHAIN_ID
+    ) -> PublicKey:
         address_bytes = self.ether2bytes(ether_address)
         key = bytes(keypair.public_key)
-        chain_id_bytes = chain_id.to_bytes(32, 'big')
+        chain_id_bytes = chain_id.to_bytes(32, "big")
         return PublicKey.find_program_address(
-            [self.account_seed_version, key, address_bytes, chain_id_bytes],
-            self.loader_id
+            [self.account_seed_version, key, address_bytes, chain_id_bytes], self.loader_id
         )[0]
+
     def get_neon_nonce(self, account: Union[str, bytes], chain_id=CHAIN_ID) -> int:
         solana_address = self.ether2balance(account, chain_id)
 
@@ -168,10 +170,10 @@ class EvmLoader(SolanaClient):
         operator_ether = eth_keys.PrivateKey(operator.secret_key[:32]).public_key.to_canonical_address()
         return self.ether2operator_balance(operator, operator_ether)
 
-
     def execute_trx_from_instruction(
         self,
         operator: Keypair,
+        holder_acc: PublicKey,
         treasury_address: PublicKey,
         treasury_buffer: bytes,
         instruction: SignedTransaction,
@@ -187,6 +189,7 @@ class EvmLoader(SolanaClient):
             make_ExecuteTrxFromInstruction(
                 operator,
                 operator_balance,
+                holder_acc,
                 self.loader_id,
                 treasury_address,
                 treasury_buffer,
@@ -198,9 +201,38 @@ class EvmLoader(SolanaClient):
 
         return self.send_tx(trx, signer)
 
+    def execute_trx_from_account(
+        self,
+        operator: Keypair,
+        holder_acc: PublicKey,
+        treasury_address: PublicKey,
+        treasury_buffer: bytes,
+        additional_accounts,
+        signer: Keypair,
+        system_program=sp.SYS_PROGRAM_ID,
+    ) -> SendTransactionResp:
+        operator_balance = self.get_operator_balance_pubkey(operator)
+
+        trx = TransactionWithComputeBudget(operator)
+        trx.add(
+            make_ExecuteTrxFromAccount(
+                operator,
+                operator_balance,
+                self.loader_id,
+                holder_acc,
+                treasury_address,
+                treasury_buffer,
+                additional_accounts,
+                system_program=system_program,
+            )
+        )
+
+        return self.send_tx(trx, signer)
+
     def execute_trx_from_instruction_with_solana_call(
         self,
         operator: Keypair,
+        holder_address: PublicKey,
         treasury_address: PublicKey,
         treasury_buffer: bytes,
         instruction: SignedTransaction,
@@ -215,13 +247,14 @@ class EvmLoader(SolanaClient):
             make_ExecuteTrxFromInstruction(
                 operator,
                 operator_balance_pubkey,
+                holder_address,
                 self.loader_id,
                 treasury_address,
                 treasury_buffer,
                 instruction.rawTransaction,
                 additional_accounts,
                 system_program,
-                tag=0x38,
+                tag=0x3E,
             )
         )
         return self.send_tx(trx, signer)

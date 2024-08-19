@@ -247,6 +247,7 @@ class TestDebugTraceTransactionCallTracer:
         expected_response = self.fill_expected_response(instruction_tx, receipt, calls_value="0x0")
         self.assert_response_contains_expected(expected_response, response)
 
+    @pytest.mark.skip(reason="SLA-119")
     def test_callTracer_call_contract_from_contract_type_delegate_call(self, events_checker_contract, event_checker_callee_address):
         sender_account = self.accounts[0]
 

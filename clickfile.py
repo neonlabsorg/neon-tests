@@ -1070,5 +1070,54 @@ def make_dapps_report(directory, pr_url_for_report, token):
         gh_client.add_comment_to_pr(pr_url_for_report, format_data)
 
 
+@cli.group()
+@click.pass_context
+def k6(ctx):
+    """Commands for k6 load tests."""
+
+
+@k6.command("build", help="Prepare k6 performance test")
+@click.option("-t", "--tag", default="05e0ce5", help="Eth plugin tag or commit sha to use")
+@catch_traceback
+def build(tag):
+    xk6_install = 'go install go.k6.io/xk6/cmd/xk6@latest'
+    xk6_build = f'xk6 build --with github.com/szkiba/xk6-prometheus --with github.com/neonlabsorg/xk6-ethereum@{tag}'
+
+    command_install = subprocess.run(xk6_install, shell=True)
+
+    if command_install.returncode != 0:
+        sys.exit(command_install.returncode)
+
+    command_build = subprocess.run(xk6_build, shell=True)
+    if command_build.returncode != 0:
+        sys.exit(command_build.returncode)
+
+
+@k6.command("run", help="Run k6 performance test")
+@click.option("-n", "--network", default="local", help="Which network to use for envs assignment")
+@click.option("-s", "--script", default="./loadtesting/k6/tests/sendNeon.test.js", help="Path to k6 script")
+@catch_traceback
+def run(network, script):
+    with open('envs.json') as json_file:
+        config = json.load(json_file)
+    if os.environ.get('PROXY_URL') is None:
+        os.environ["PROXY_URL"] = config[network]['proxy_url']
+
+    if os.environ.get('SOLANA_URL') is None:
+        os.environ["SOLANA_URL"] = config[network]['solana_url']
+
+    if os.environ.get('FAUCET_URL') is None:
+        os.environ["FAUCET_URL"] = config[network]['faucet_url']
+
+    os.environ["TRACER_URL"] = config[network]['tracer_url']
+    os.environ["SPL_NEON_MINT"] = config[network]['spl_neon_mint']
+    os.environ["NEON_ERC20_WRAPPER_ADDRESS"] = config[network]['neon_erc20wrapper_address']
+    os.environ["NETWORK_ID"] = str(config[network]['network_ids']['neon'])
+    
+    command = f'./k6 run {script}'
+    command_run = subprocess.run(command, shell=True)
+    if command_run.returncode != 0:
+        sys.exit(command_run.returncode)
+
 if __name__ == "__main__":
     cli()

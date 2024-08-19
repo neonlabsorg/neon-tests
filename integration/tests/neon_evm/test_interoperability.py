@@ -105,7 +105,7 @@ class TestInteroperability:
         check_transaction_logs_have_text(resp, "exit_status=0x11")
 
     def test_execute_from_instruction_for_call_memo(
-        self, sender_with_tokens, neon_api_client, operator_keypair, evm_loader, treasury_pool, sol_client
+        self, sender_with_tokens, neon_api_client, operator_keypair, evm_loader, treasury_pool, sol_client, holder_acc
     ):
         contract = deploy_contract(
             operator_keypair,
@@ -121,6 +121,7 @@ class TestInteroperability:
 
         resp = evm_loader.execute_trx_from_instruction_with_solana_call(
             operator_keypair,
+            holder_acc,
             treasury_pool.account,
             treasury_pool.buffer,
             signed_tx,
@@ -318,7 +319,7 @@ class TestInteroperability:
             solana_caller.execute(TOKEN_PROGRAM_ID, instruction, sender=from_wallet)
 
     def test_staticcall_does_not_support_external_call(
-        self, sender_with_tokens, solana_caller, operator_keypair, evm_loader, treasury_pool
+        self, sender_with_tokens, solana_caller, operator_keypair, evm_loader, treasury_pool, holder_acc
     ):
         precompiled_caller = deploy_contract(
             operator_keypair,
@@ -356,6 +357,7 @@ class TestInteroperability:
         try:
             resp = evm_loader.execute_trx_from_instruction_with_solana_call(
                 operator_keypair,
+                holder_acc,
                 treasury_pool.account,
                 treasury_pool.buffer,
                 signed_tx,
