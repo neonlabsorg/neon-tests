@@ -1,15 +1,13 @@
 import random
-
 import allure
 import pytest
-import json
 
 from deepdiff import DeepDiff
 from integration.tests.basic.helpers.basic import AccountData
 from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
 from utils.tracer_client import TracerClient
-from integration.tests.tracer.test_tracer_historical_methods import call_storage
+
 
 @allure.feature("Tracer API")
 @allure.story("Tracer API RPC calls debug method trace_transaction callTracer check")
@@ -123,11 +121,11 @@ class TestDebugTraceTransactionCallTracer:
         expected_response = self.fill_expected_response(instruction_tx, receipt, calls_value="0x0", calls_type="CREATE2")
         self.assert_response_contains_expected(expected_response, response)
 
-    def test_callTracer_type_call(self, storage_contract):
+    def test_callTracer_type_call(self, storage_object):
         sender_account = self.accounts[0]
         store_value = random.randint(1, 100)
     
-        tx_obj, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", self.web3_client)
+        tx_obj, _, receipt = storage_object.call_storage(sender_account, store_value, "blockNumber")
 
         tracer_params = { "tracer": "callTracer", "tracerConfig": { "onlyTopCall": True } }
         params = [receipt["transactionHash"].hex(), tracer_params]
@@ -390,11 +388,11 @@ class TestDebugTraceTransactionCallTracer:
         self.assert_response_contains_expected(expected_response, response)
 
     @pytest.mark.skip(reason="NDEV-2934")
-    def test_callTracer_without_tracerConfig(self, storage_contract):
+    def test_callTracer_without_tracerConfig(self, storage_object):
         sender_account = self.accounts[0]
         store_value = random.randint(1, 100)
     
-        tx_obj, _, receipt = call_storage(sender_account, storage_contract, store_value, "blockNumber", self.web3_client)
+        tx_obj, _, receipt = storage_object.call_storage(sender_account, store_value, "blockNumber")
 
         tracer_params = { "tracer": "callTracer" }
         params = [receipt["transactionHash"].hex(), tracer_params]

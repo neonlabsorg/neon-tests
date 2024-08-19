@@ -11,55 +11,6 @@ from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
 from utils.helpers import wait_condition
 
-def store_value(sender_account, value, storage_contract, web3_client):
-    nonce = web3_client.eth.get_transaction_count(sender_account.address)
-    instruction_tx = storage_contract.functions.store(value).build_transaction(
-        {
-            "nonce": nonce,
-            "gasPrice": web3_client.gas_price(),
-        }
-    )
-    receipt = web3_client.send_transaction(sender_account, instruction_tx)
-    assert receipt["status"] == 1
-
-
-def retrieve_value(sender_account, storage_contract, web3_client):
-    nonce = web3_client.eth.get_transaction_count(sender_account.address)
-    instruction_tx = storage_contract.functions.retrieve().build_transaction(
-        {
-            "nonce": nonce,
-            "gasPrice": web3_client.gas_price(),
-        }
-    )
-    receipt = web3_client.send_transaction(sender_account, instruction_tx)
-
-    assert receipt["status"] == 1
-    return instruction_tx, receipt
-
-
-def call_storage(sender_account, storage_contract, storage_value, request_type, web3_client):
-    request_value = None
-    store_value(sender_account, storage_value, storage_contract, web3_client)
-    tx, receipt = retrieve_value(sender_account, storage_contract, web3_client)
-
-    tx_obj = web3_client.make_raw_tx(
-        from_=sender_account.address,
-        to=storage_contract.address,
-        amount=tx["value"],
-        gas=hex(tx["gas"]),
-        gas_price=hex(tx["gasPrice"]),
-        data=tx["data"],
-        estimate_gas=False,
-    )
-    del tx_obj["chainId"]
-    del tx_obj["nonce"]
-
-    if request_type == "blockNumber":
-        request_value = hex(receipt[request_type])
-    else:
-        request_value = receipt[request_type].hex()
-    return tx_obj, request_value, receipt
-
 
 @allure.feature("Tracer API")
 @allure.story("Tracer API RPC calls historical methods check")
@@ -83,12 +34,11 @@ class TestTracerHistoricalMethods:
         assert "error" in response, "Error not in response"
 
     @pytest.mark.parametrize("request_type", ["blockNumber", "blockHash"])
-    def test_eth_call(self, storage_contract, request_type):
+    def test_eth_call(self, storage_object, request_type):
         sender_account = self.accounts[0]
         store_value_1 = random.randint(0, 100)
-        tx_obj, request_value, _ = call_storage(
-            sender_account, storage_contract, store_value_1, request_type, self.web3_client
-        )
+        tx_obj, request_value, _ = storage_object.call_storage(sender_account, store_value_1, request_type)
+
         wait_condition(
             lambda: int(
                 self.tracer_api.send_rpc(
@@ -101,9 +51,8 @@ class TestTracerHistoricalMethods:
         )
 
         store_value_2 = random.randint(0, 100)
-        tx_obj_2, request_value_2, _ = call_storage(
-            sender_account, storage_contract, store_value_2, request_type, self.web3_client
-        )
+        tx_obj_2, request_value_2, _ = storage_object.call_storage(sender_account, store_value_2, request_type)
+
         wait_condition(
             lambda: int(
                 self.tracer_api.send_rpc(
@@ -116,7 +65,7 @@ class TestTracerHistoricalMethods:
         )
 
         store_value_3 = random.randint(0, 100)
-        tx_obj_3, request_value_3, _ = call_storage(sender_account, storage_contract, store_value_3, request_type, self.web3_client)
+        tx_obj_3, request_value_3, _ = storage_object.call_storage(sender_account, store_value_3, request_type)
         wait_condition(
             lambda: int(
                 self.tracer_api.send_rpc(
@@ -128,21 +77,19 @@ class TestTracerHistoricalMethods:
             timeout_sec=120,
         )
 
-    def test_eth_call_invalid_params(self, storage_contract, web3_client):
+    def test_eth_call_invalid_params(self, storage_object):
         sender_account = self.accounts[0]
         store_value_1 = random.randint(0, 100)
-        tx_obj, _, _ = call_storage(sender_account, storage_contract, store_value_1, "blockHash", web3_client)
+        tx_obj, _, _ = storage_object.call_storage(sender_account, store_value_1, "blockHash")
         response = self.tracer_api.send_rpc(
             method="eth_call", req_type="blockHash", params=[tx_obj, {"blockHash": "0x0000"}]
         )
         self.assert_invalid_params(response)
 
-    def test_eth_call_by_block_and_hash(self, storage_contract):
+    def test_eth_call_by_block_and_hash(self, storage_object):
         sender_account = self.accounts[0]
         store_value_1 = random.randint(0, 100)
-        tx_obj, _, receipt = call_storage(
-            sender_account, storage_contract, store_value_1, "blockNumber", self.web3_client
-        )
+        tx_obj, _, receipt = storage_object.call_storage(sender_account, store_value_1, "blockNumber")
         request_value_block = hex(receipt["blockNumber"])
         request_value_hash = receipt["blockHash"].hex()
 
@@ -169,19 +116,17 @@ class TestTracerHistoricalMethods:
         )
 
     @pytest.mark.parametrize("request_type", ["blockNumber", "blockHash"])
-    def test_eth_get_storage_at(self, storage_contract, request_type):
+    def test_eth_get_storage_at(self, storage_object, request_type):
         sender_account = self.accounts[0]
         store_value_1 = random.randint(0, 100)
-        _, request_value_1, _ = call_storage(
-            sender_account, storage_contract, store_value_1, request_type, self.web3_client
-        )
+        _, request_value_1, _ = storage_object.call_storage(sender_account, store_value_1, request_type)
 
         wait_condition(
             lambda: int(
                 self.tracer_api.send_rpc(
                     method="eth_getStorageAt",
                     req_type=request_type,
-                    params=[storage_contract.address, "0x0", {request_type: request_value_1}],
+                    params=[storage_object.contract_address, "0x0", {request_type: request_value_1}],
                 )["result"],
                 0,
             )
@@ -190,16 +135,14 @@ class TestTracerHistoricalMethods:
         )
 
         store_value_2 = random.randint(0, 100)
-        _, request_value_2, _ = call_storage(
-            sender_account, storage_contract, store_value_2, request_type, self.web3_client
-        )
+        _, request_value_2, _ = storage_object.call_storage(sender_account, store_value_2, request_type)
 
         wait_condition(
             lambda: int(
                 self.tracer_api.send_rpc(
                     method="eth_getStorageAt",
                     req_type=request_type,
-                    params=[storage_contract.address, "0x0", {request_type: request_value_2}],
+                    params=[storage_object.contract_address, "0x0", {request_type: request_value_2}],
                 )["result"],
                 0,
             )
@@ -214,13 +157,11 @@ class TestTracerHistoricalMethods:
         self.assert_invalid_params(response)
 
     @pytest.mark.parametrize("request_type", ["blockNumber", "blockHash"])
-    def test_eth_get_transaction_count(self, storage_contract, request_type):
+    def test_eth_get_transaction_count(self, storage_object, request_type):
         sender_account = self.accounts[0]
         nonce = self.web3_client.eth.get_transaction_count(sender_account.address)
         store_value_1 = random.randint(0, 100)
-        _, request_value_1, _ = call_storage(
-            sender_account, storage_contract, store_value_1, request_type, self.web3_client
-        )
+        _, request_value_1, _ = storage_object.call_storage(sender_account, store_value_1, request_type)
 
         wait_condition(
             lambda: int(
@@ -236,7 +177,7 @@ class TestTracerHistoricalMethods:
         )
 
         request_value_2 = None
-        _, receipt = retrieve_value(sender_account, storage_contract, self.web3_client)
+        _, receipt = storage_object.retrieve_value(sender_account)
 
         if request_type == "blockNumber":
             request_value_2 = hex(receipt[request_type])
