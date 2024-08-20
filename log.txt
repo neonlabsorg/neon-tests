@@ -1,0 +1,28 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.10.14, pytest-6.2.5, py-1.11.0, pluggy-1.5.0
+rootdir: /Users/Kristina/Work/cloned/neon-tests, configfile: pyproject.toml
+plugins: timeout-2.2.0, allure-pytest-2.9.45, anyio-4.4.0, asyncio-0.17.0, web3-6.17.1, xdist-3.3.1
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+created: 1/1 worker
+1 worker [1 item]
+
+scheduling tests via LoadScheduling
+
+integration/tests/neon_evm/test_external_call_for_instructions.py::TestExternalCall::test_execute_from_instruction 
+[gw0] [100%] PASSED integration/tests/neon_evm/test_external_call_for_instructions.py::TestExternalCall::test_execute_from_instruction 
+
+=============================== warnings summary ===============================
+../../../../../opt/homebrew/lib/python3.10/site-packages/paramiko/pkey.py:82
+../../../../../opt/homebrew/lib/python3.10/site-packages/paramiko/pkey.py:82
+  /opt/homebrew/lib/python3.10/site-packages/paramiko/pkey.py:82: CryptographyDeprecationWarning: TripleDES has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.TripleDES and will be removed from this module in 48.0.0.
+    "cipher": algorithms.TripleDES,
+
+../../../../../opt/homebrew/lib/python3.10/site-packages/paramiko/transport.py:253
+../../../../../opt/homebrew/lib/python3.10/site-packages/paramiko/transport.py:253
+  /opt/homebrew/lib/python3.10/site-packages/paramiko/transport.py:253: CryptographyDeprecationWarning: TripleDES has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.TripleDES and will be removed from this module in 48.0.0.
+    "class": algorithms.TripleDES,
+
+-- Docs: https://docs.pytest.org/en/stable/warnings.html
+======================== 1 passed, 4 warnings in 29.36s ========================
