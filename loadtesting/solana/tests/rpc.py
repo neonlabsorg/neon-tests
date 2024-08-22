@@ -35,9 +35,9 @@ class SolanaRpc(HttpUser):
             assert resp["error"]["code"] ==-32009, resp
             print(f"Block {block_number} missed")
         else:
+            assert resp["result"], f"result is empty for {params}, resp: {resp}"
             if "blockhash" not in resp["result"]:
                 assert False, resp
-
 
     def is_exist_in_mainnet(self, params):
         body = {"jsonrpc": "2.0", "id": 1, "method": "getBlock", "params": params}
