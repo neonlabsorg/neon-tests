@@ -35,7 +35,9 @@ class SolanaRpc(HttpUser):
             assert resp["error"]["code"] ==-32009, resp
             print(f"Block {block_number} missed")
         else:
-            assert resp["result"]["blockhash"], resp
+            if "blockhash" not in resp["result"]:
+                assert False, resp
+
 
     def is_exist_in_mainnet(self, params):
         body = {"jsonrpc": "2.0", "id": 1, "method": "getBlock", "params": params}
@@ -95,7 +97,7 @@ class SolanaRpc(HttpUser):
             }
         ]
         resp = self.send_rpc("getBlock", params)
-        while "error" in resp:
+        while "error" in resp or resp["result"]:
             slot = self.send_rpc("getSlot", params=[])["result"]
             params = [
                 slot - 1000,
@@ -108,7 +110,10 @@ class SolanaRpc(HttpUser):
                 }
             ]
             resp = self.send_rpc("getBlock", params)
-        return resp["result"]
+        if "blockhash" not in resp["result"]:
+            return self.get_some_exist_block()
+        else:
+            return resp["result"]
 
     @task
     def task_get_transaction(self):
