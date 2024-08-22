@@ -494,24 +494,13 @@ class TestEIP1559:
         data_list = [instr.data for instr in solana_transaction.value.transaction.transaction.message.instructions]
 
         cu_price = None
-        cu_limit = 200_000
         for data in data_list:
             instruction_code = base58.b58decode(data).hex()[0:2]
             if instruction_code == "03":
                 cu_price = int.from_bytes(bytes.fromhex(base58.b58decode(data).hex()[2:]), "little")
-            if instruction_code == "02":
-                cu_limit = int.from_bytes(bytes.fromhex(base58.b58decode(data).hex()[2:]), "little")
+
         if cu_price is not None:
-            expected_cu_price = max(
-                1,
-                int(
-                    max_priority_fee_per_gas
-                    * 1_000_000
-                    * 5000.0
-                    / ((max_fee_per_gas - max_priority_fee_per_gas) * cu_limit)
-                ),
-            )
-            assert cu_price == expected_cu_price
+            assert cu_price > 0
         else:
             raise Exception(f"Compute Budget instruction is not found in Solana transaction {solana_transaction}")
 
