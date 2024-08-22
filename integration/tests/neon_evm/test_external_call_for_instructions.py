@@ -2,9 +2,8 @@ import pytest
 from solana.rpc.core import RPCException
 from solana.transaction import AccountMeta, Transaction, TransactionInstruction
 
-from utils.consts import COMPUTE_BUDGET_ID, TEST_INVOKE_ID
+from utils.consts import TEST_INVOKE_ID
 from utils.instructions import (
-    ComputeBudget,
     TransactionWithComputeBudget,
     make_ExecuteTrxFromInstruction,
 )
