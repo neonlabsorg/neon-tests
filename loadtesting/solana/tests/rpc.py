@@ -10,7 +10,6 @@ class SolanaRpc(HttpUser):
     def send_rpc(self, method, params):
         req_id = random.randint(0, 10000000000000)
         body = {"jsonrpc": "2.0", "id": req_id, "method": method, "params": params}
-        print( self.client.base_url)
         resp = self.client.post("/", json=body, headers={"Content-Type": "application/json"}, name=method)
         try:
             resp = resp.json()
