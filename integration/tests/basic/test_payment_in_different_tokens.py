@@ -290,7 +290,7 @@ class TestMultiplyChains:
                 assert item["common_contract"].functions.getNumber().call() == numbers[i]
 
     @pytest.mark.multipletokens
-    def test_send_non_neon_token_without_chain_id(self, account_with_all_tokens, web3_client_sol, sol_price, operator):
+    def test_send_non_neon_token_without_chain_id(self, account_with_all_tokens, web3_client_sol):
         # for transactions with non neon token and without chain_id NeonEVM should raise wrong chain id error
         # checks eip1820
         acc2 = web3_client_sol.create_account()
