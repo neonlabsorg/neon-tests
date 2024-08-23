@@ -3,7 +3,7 @@ import random
 
 import requests
 
-from locust import HttpUser, task, tag
+from locust import HttpUser, task
 
 
 class SolanaRpc(HttpUser):
@@ -20,7 +20,9 @@ class SolanaRpc(HttpUser):
 
     @task
     def task_get_block(self):
-        block_number = random.randint(0, 277134978)
+        last_slot = self.send_rpc("getSlot", params=[])["result"]
+
+        block_number = random.randint(195350522, last_slot)
         params = [
             block_number,
             {
@@ -79,8 +81,8 @@ class SolanaRpc(HttpUser):
     @task
     def task_blocks(self):
         slot = self.send_rpc("getSlot", params=[])["result"]
-        random_block = random.randint(0, slot)
-        params = [random_block, random_block+5]
+        random_block = random.randint(195350522, slot-20)
+        params = [random_block, random_block+10]
         resp = self.send_rpc("getBlocks", params)
         assert "result" in resp, f"{resp} for {params}"
 
