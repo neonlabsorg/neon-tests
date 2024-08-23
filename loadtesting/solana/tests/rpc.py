@@ -19,7 +19,6 @@ class SolanaRpc(HttpUser):
             assert False,  f"Bad response for {body} \n resp body:{resp.text} resp code:{resp.status_code}"
         return resp
 
-
     @task
     def task_get_block(self):
         last_slot = self.send_rpc("getSlot", params=[])["result"]
@@ -51,7 +50,6 @@ class SolanaRpc(HttpUser):
         else:
             return True
 
-
     @task
     def task_get_slot(self):
         self.send_rpc("getSlot", params=[])
@@ -81,6 +79,21 @@ class SolanaRpc(HttpUser):
         resp = self.send_rpc("getAccountInfo", params)
         assert "result" in resp, f"{resp} for {params}"
 
+    @task
+    def task_get_transaction(self):
+        block = self.get_some_exist_block()
+        assert len(block["transactions"]) > 0, f"block {block['blockhash']} doesn't have trx"
+        signature = block["transactions"][0]["transaction"]["signatures"][0]
+
+        params = [
+                signature,
+                {
+                    "encoding": "jsonParsed",
+                    "maxSupportedTransactionVersion": 0
+                }
+            ]
+        resp = self.send_rpc("getTransaction", params)
+        assert "result" in resp, f"{resp} for {params} for getTransaction"
 
     @task
     def task_blocks(self):
@@ -103,22 +116,8 @@ class SolanaRpc(HttpUser):
         ]
         resp = self.send_rpc("getBlock", params)
         if "error" in resp or resp["result"]:
+            print(f"!Block {random_block} missed")
             self.get_some_exist_block()
         else:
             return resp["result"]
 
-    @task
-    def task_get_transaction(self):
-        block = self.get_some_exist_block()
-        assert len(block["transactions"]) > 0, f"block {block['blockhash']} doesn't have trx"
-        signature = block["transactions"][0]["transaction"]["signatures"][0]
-
-        params = [
-                signature,
-                {
-                    "encoding": "jsonParsed",
-                    "maxSupportedTransactionVersion": 0
-                }
-            ]
-        resp = self.send_rpc("getTransaction", params)
-        assert "result" in resp, f"{resp} for {params} for getTransaction"
