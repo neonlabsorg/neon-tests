@@ -15,7 +15,7 @@ class SolanaRpc(HttpUser):
         resp = self.client.post("/", json=body, headers={"Content-Type": "application/json"}, name=method)
         try:
             resp = resp.json()
-        except Exception as e:
+        except requests.exceptions.JSONDecodeError as e:
             assert False,  f"Bad response for {body} \n resp body:{resp.text} resp code:{resp.status_code}"
         return resp
 
@@ -56,7 +56,7 @@ class SolanaRpc(HttpUser):
     def task_get_slot(self):
         self.send_rpc("getSlot", params=[])
 
-    #@task
+    @task
     def task_get_account_info(self):
         block = self.get_some_exist_block()
         params = [
@@ -78,7 +78,9 @@ class SolanaRpc(HttpUser):
                 }
             ]
 
-        self.send_rpc("getAccountInfo", params)
+        resp = self.send_rpc("getAccountInfo", params)
+        assert "result" in resp, f"{resp} for {params}"
+
 
     @task
     def task_blocks(self):
