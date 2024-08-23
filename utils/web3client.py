@@ -16,6 +16,7 @@ from web3.exceptions import TransactionNotFound
 from utils import helpers
 from utils.consts import InputTestConstants, Unit
 from utils.helpers import decode_function_signature
+from utils.helpers import wait_condition
 
 LOG = logging.getLogger(__name__)
 
