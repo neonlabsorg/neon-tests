@@ -5,6 +5,8 @@ import requests
 
 from locust import HttpUser, task
 
+START_BLOCK = 195350522
+MAX_BLOCK = 285326658
 
 class SolanaRpc(HttpUser):
     def send_rpc(self, method, params):
@@ -56,9 +58,9 @@ class SolanaRpc(HttpUser):
 
     #@task
     def task_get_account_info(self):
-        slot = self.send_rpc("getSlot", params=[])["result"]
+        block = self.get_some_exist_block()
         params = [
-            slot,
+            block,
             {
                 "encoding": "json",
                 "maxSupportedTransactionVersion": 0,
@@ -80,16 +82,15 @@ class SolanaRpc(HttpUser):
 
     @task
     def task_blocks(self):
-        slot = self.send_rpc("getSlot", params=[])["result"]
-        random_block = random.randint(195350522, slot-20)
+        random_block = random.randint(START_BLOCK, MAX_BLOCK)
         params = [random_block, random_block+10]
         resp = self.send_rpc("getBlocks", params)
         assert "result" in resp, f"{resp} for {params}"
 
     def get_some_exist_block(self):
-        slot = self.send_rpc("getSlot", params=[])["result"]
+        random_block = random.randint(START_BLOCK, MAX_BLOCK)
         params = [
-            slot-100,
+            random_block,
             {
                 "encoding": "json",
                 "maxSupportedTransactionVersion": 0,
@@ -99,21 +100,8 @@ class SolanaRpc(HttpUser):
             }
         ]
         resp = self.send_rpc("getBlock", params)
-        while "error" in resp or resp["result"]:
-            slot = self.send_rpc("getSlot", params=[])["result"]
-            params = [
-                slot - 1000,
-                {
-                    "encoding": "json",
-                    "maxSupportedTransactionVersion": 0,
-                    "transactionDetails": "full",
-                    "rewards": False,
-                    "commitment": "finalized"
-                }
-            ]
-            resp = self.send_rpc("getBlock", params)
-        if "blockhash" not in resp["result"]:
-            return self.get_some_exist_block()
+        if "error" in resp or resp["result"]:
+            self.get_some_exist_block()
         else:
             return resp["result"]
 
@@ -130,4 +118,5 @@ class SolanaRpc(HttpUser):
                     "maxSupportedTransactionVersion": 0
                 }
             ]
-        self.send_rpc("getTransaction", params)
+        resp = self.send_rpc("getTransaction", params)
+        assert "result" in resp, f"{resp} for {params} for getTransaction"
