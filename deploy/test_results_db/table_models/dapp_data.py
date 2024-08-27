@@ -11,15 +11,15 @@ class DappData(Base):
     cost_report_id: int = Column(Integer, ForeignKey('cost_report.id'), nullable=False)
     dapp_name: str = Column(String(255), nullable=False)
     action: str = Column(String(255), nullable=False)
-    fee_in_neon = Column(Numeric(20, 8), nullable=False)
     acc_count: int = Column(Integer, nullable=False)
     trx_count: int = Column(Integer, nullable=False)
     gas_estimated: int = Column(Integer, nullable=False)
     gas_used: int = Column(Integer, nullable=False)
+    compute_units: int = Column(Integer, nullable=False)
 
     report = relationship('CostReport', back_populates='dapp_data')
 
     def __repr__(self):
         return (f"<DappData(id={self.id}, dapp_name={self.dapp_name}, action={self.action}, "
-                f"fee_in_neon={self.fee_in_neon}, acc_count={self.acc_count}, "
+                f"compute_units={self.compute_units}, acc_count={self.acc_count}, "
                 f"trx_count={self.trx_count}, gas_estimated={self.gas_estimated}, gas_used={self.gas_used})>")

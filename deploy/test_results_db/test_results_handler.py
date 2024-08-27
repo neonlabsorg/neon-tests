@@ -1,64 +1,13 @@
 import textwrap
-import typing as tp
 from decimal import Decimal, ROUND_HALF_UP
 
-import click
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.backends.backend_pdf import PdfPages
 
-from utils.types import RepoType
-from deploy.test_results_db.db_handler import PostgresTestResultsHandler
-
 
 class TestResultsHandler:
-    def __init__(self):
-        self.db_handler = PostgresTestResultsHandler()
-
-    def save_to_db(
-            self,
-            report_data: pd.DataFrame,
-            repo: RepoType,
-            branch: str,
-            github_tag: tp.Optional[str],
-            neon_evm_tag: str,
-            proxy_tag: str,
-            token_usd_gas_price: float,
-    ):
-        cost_report_id = self.db_handler.save_cost_report(
-            repo=repo,
-            branch=branch,
-            github_tag=github_tag,
-            neon_evm_tag=neon_evm_tag,
-            proxy_tag=proxy_tag,
-            token_usd_gas_price=token_usd_gas_price,
-        )
-        self.db_handler.save_cost_report_data(report_data=report_data, cost_report_id=cost_report_id)
-
-    def delete_report_and_data(self, repo: str, branch: str, tag: tp.Optional[str]):
-        click.echo(f"delete_report_and_data: {locals()}")
-        report_ids = self.db_handler.get_cost_report_ids(repo=repo, branch=branch, tag=tag)
-        if report_ids:
-            self.db_handler.delete_data_by_report_ids(report_ids=report_ids)
-            self.db_handler.delete_reports(report_ids=report_ids)
-
-    def get_historical_data(
-            self,
-            depth: int,
-            repo: RepoType,
-            last_branch: str,
-            previous_branch: str,
-            github_tag: str,
-    ) -> pd.DataFrame:
-        return self.db_handler.get_historical_data(
-            depth=depth,
-            repo=repo,
-            last_branch=last_branch,
-            previous_branch=previous_branch,
-            github_tag=github_tag,
-        )
-
     @staticmethod
     def generate_and_save_plots_pdf(
             historical_data: pd.DataFrame,
@@ -66,31 +15,24 @@ class TestResultsHandler:
             output_pdf: str,
     ) -> str:
         historical_data["timestamp"] = pd.to_datetime(historical_data["timestamp"], errors="coerce")
-        historical_data["fee_in_neon"] = historical_data["fee_in_neon"].apply(Decimal)
-        historical_data["fee_in_usd"] = historical_data["fee_in_neon"] * historical_data["token_usd_gas_price"]
         historical_data["acc_count"] = historical_data["acc_count"].apply(Decimal)
         historical_data["trx_count"] = historical_data["trx_count"].apply(Decimal)
         historical_data["gas_estimated"] = historical_data["gas_estimated"].apply(Decimal)
         historical_data["gas_used"] = historical_data["gas_used"].apply(Decimal)
-        historical_data["token_usd_gas_price"] = historical_data["token_usd_gas_price"].apply(Decimal)
-        historical_data["used_%_of_EG"] = (
+        historical_data["gas_used_%"] = (
             (historical_data["gas_used"] / historical_data["gas_estimated"]) * Decimal("100")
         ).apply(lambda x: x.quantize(Decimal("0.00"), rounding=ROUND_HALF_UP))
+        historical_data["compute_units"] = historical_data["compute_units"].apply(Decimal)
 
         # analyze only the dapps that are present in the latest report
         latest_timestamp = historical_data["timestamp"].max()
         latest_report_data = historical_data[historical_data["timestamp"] == latest_timestamp]
         dapp_names = latest_report_data["dapp_name"].unique()
-        metrics = ["fee_in_neon", "fee_in_usd", "acc_count", "trx_count", "gas_estimated", "gas_used", "used_%_of_EG"]
+        metrics = ["acc_count", "trx_count", "gas_estimated", "gas_used", "gas_used_%", "compute_units"]
         historical_data = historical_data.sort_values(by=["timestamp"])
 
         unique_timestamps = historical_data["timestamp"].unique().tolist()
-        unique_tags = historical_data["tag"].unique().tolist()
-
-        if unique_tags:
-            x_tick_labels = unique_tags
-        else:
-            x_tick_labels = [historical_data["branch"].unique()[0]] * len(unique_timestamps)
+        x_tick_labels = historical_data.groupby('timestamp')['tag'].first().tolist()
 
         with PdfPages(output_pdf) as pdf:
             for dapp_name in dapp_names:
@@ -100,8 +42,9 @@ class TestResultsHandler:
 
                 num_rows = len(actions)
                 num_cols = len(metrics)
+                axes: plt.Axes
                 fig, axes = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(5 * num_cols, 3 * num_rows), sharex="col")
-                fig.suptitle(t=f'Cost report for "{dapp_name}" dApp on {title_end}', fontsize=16, fontweight="bold")
+                fig.suptitle(t=f'Cost report for "{dapp_name}" dApp\n{title_end}', fontsize=16, fontweight="bold")
 
                 for action_idx, action in enumerate(actions):
                     # Calculate y-axis limits for each metric
@@ -137,8 +80,7 @@ class TestResultsHandler:
                                     new_row = pd.DataFrame(
                                         data=[{
                                             "timestamp": unique_timestamp,
-                                            "branch": data_subset["branch"].unique()[0],
-                                            "tag": unique_tags[i] if unique_tags else None,
+                                            "tag": x_tick_labels[i],
                                             "dapp_name": data_subset.iloc[0]["dapp_name"],
                                             "action": data_subset.iloc[0]["action"],
                                         }],
@@ -174,11 +116,13 @@ class TestResultsHandler:
                             )
 
                             # Plot blue or red dots
-                            for x, y in zip(data_subset.index, data_subset[metric]):
+                            for i, (x, y) in enumerate(zip(data_subset.index, data_subset[metric])):
                                 if not pd.isna(y):
+                                    # last 2 dots should be larger
+                                    dot_size = 50 if i < len(data_subset[metric]) - 2 else 150
                                     if prev_value is not None and y != prev_value:
                                         # next data point has different value compared to the previous one
-                                        ax.scatter(x, y, color="red", zorder=2)
+                                        ax.scatter(x, y, color="red", zorder=2, s=dot_size)
                                         ax.annotate(
                                             f"{y}",
                                             (x, y),
@@ -202,7 +146,7 @@ class TestResultsHandler:
                                             )
                                         prev_is_valid = False
                                     else:
-                                        ax.scatter(x, y, color="blue")
+                                        ax.scatter(x, y, color="blue", s=dot_size)
                                         prev_is_valid = True
 
                                     prev_value = y
@@ -227,6 +171,10 @@ class TestResultsHandler:
 
                             if action_idx == 0:
                                 ax.set_title(metric)
+
+                            # add vertical grey dotted line before the last two dots
+                            if len(data_subset[metric]) > 2:
+                                ax.axvline(x=len(data_subset[metric]) - 2.5, color='#a6a4a4', linestyle=':')
 
                 plt.tight_layout()
                 plt.subplots_adjust(top=0.9)

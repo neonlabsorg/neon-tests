@@ -18,11 +18,11 @@ from urllib.parse import urlparse
 
 import pytest
 
+from deploy.test_results_db.db_handler import PostgresTestResultsHandler
 from deploy.test_results_db.test_results_handler import TestResultsHandler
 from utils.error_log import error_log
 from utils.slack_notification import SlackNotification
 from utils.types import TestGroup, RepoType
-from utils.version import tag_to_branch
 
 try:
     import click
@@ -77,6 +77,7 @@ PROXY_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-proxy.py"
 FAUCET_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-faucet"
 EXTERNAL_CONTRACT_PATH = Path.cwd() / "contracts" / "external"
 VERSION_BRANCH_TEMPLATE = r"[vt]{1}\d{1,2}\.\d{1,2}\.x.*"
+GITHUB_TAG_PATTERN = re.compile(r'^[vt]\d{1,2}\.\d{1,2}\.\d{1,2}$')
 
 TEST_GROUPS: tp.Tuple[TestGroup, ...] = tp.get_args(TestGroup)
 
@@ -1060,195 +1061,154 @@ def dapps():
     pass
 
 
-@dapps.command("report", help="Print dapps report (from .json files)")
+@dapps.command("save_dapps_cost_report_to_db", help="Save dApps Cost Report to db")
 @click.option("-d", "--directory", default="reports", help="Directory with reports")
 @click.option("--repo", type=click.Choice(tp.get_args(RepoType)), required=True)
-@click.option("--event_name", required=True)
-@click.option("--ref", required=True)
-@click.option("--ref_name", required=True)
-@click.option("--head_ref", required=True)
-@click.option("--base_ref", required=True)
-@click.option("--neon_evm_tag", required=True)
+@click.option("--evm_tag", required=True)
 @click.option("--proxy_tag", required=True)
-@click.option("--history_depth_limit", default=10, type=int, help="How many runs to include into statistical analysis")
-def make_dapps_report(
+@click.option("--evm_commit_sha", required=True)
+@click.option("--proxy_commit_sha", required=True)
+def save_dapps_cost_report_to_db(
         directory: str,
         repo: RepoType,
-        event_name: str,
-        ref: str,
-        ref_name: str,
-        head_ref: str,
-        base_ref: str,
-        neon_evm_tag: str,
+        evm_tag: str,
         proxy_tag: str,
-        history_depth_limit: int,
+        evm_commit_sha: str,
+        proxy_commit_sha: str,
 ):
-    gh_client = GithubClient(
-        token="",
-        repo=repo,
-        event_name=event_name,
-        ref=ref,
-        ref_name=ref_name,
-        head_ref=head_ref,
-        base_ref=base_ref,
-    )
-    click.echo(yellow(f"GithubClient: {gh_client.__dict__}"))
-
-    do_save = False
-    do_compare = False
-    do_delete = False
-
-    save_branch = None
-    current_branch = None
-    previous_branch = None
-    github_tag = None
-
-    if repo != "tests":
-        click.echo(f"GithubEvent: {gh_client.event}")
-
-        # merge to develop
-        if gh_client.event == "push_branch":
-            if gh_client.is_base_branch(ref_name):
-                do_save = True
-                save_branch = ref_name
-                click.echo("This is a merge to develop")
-
-        # creating a tag
-        elif gh_client.event == "push_tag":
-            do_save = do_compare = True
-            save_branch = current_branch = previous_branch = tag_to_branch(ref_name)
-            github_tag = ref_name
-            click.echo("This is a tag push")
-
-        # PR
-        elif gh_client.event == "pull_request":
-            is_base = gh_client.is_base_branch(base_ref)
-            is_version = gh_client.is_version_branch(base_ref)
-
-            # to develop
-            if is_base:
-                do_save = do_compare = do_delete = True
-                save_branch = head_ref
-                current_branch = head_ref
-                previous_branch = base_ref
-                click.echo("This is a pull request to develop")
-
-            # to version branch
-            elif is_version:
-                do_save = do_compare = True
-                save_branch = head_ref
-                current_branch = head_ref
-                previous_branch = base_ref
-                click.echo("This is a pull request to a version branch")
+    tag = evm_tag if repo == "evm" else proxy_tag
 
     report_data = dapps_cli.prepare_report_data(directory)
-    test_results_handler = TestResultsHandler()
+    db = PostgresTestResultsHandler()
 
+    # define if previous similar reports should be deleted
+    is_neon_evm_tag_version_branch = bool(re.fullmatch(VERSION_BRANCH_TEMPLATE, evm_tag))
+    is_proxy_tag_version_branch = bool(re.fullmatch(VERSION_BRANCH_TEMPLATE, proxy_tag))
+
+    if evm_tag == proxy_tag == "latest":
+        click.echo("This is a merge to develop")
+        do_delete = False
+    elif is_neon_evm_tag_version_branch and is_proxy_tag_version_branch and evm_tag == proxy_tag:
+        click.echo(f"This is a merge to version branch {evm_tag}")
+        do_delete = False
+    else:
+        do_delete = True
+
+    # delete them if needed
     if do_delete:
-        test_results_handler.delete_report_and_data(repo=repo, branch=save_branch, tag=None)
+        report_ids_old = db.get_cost_report_ids(repo=repo, tag=tag)
+        if report_ids_old:
+            db.delete_data_by_report_ids(report_ids=report_ids_old)
+            db.delete_reports(report_ids=report_ids_old)
 
-    if do_save:
-        proxy_url = network_manager.get_network_param(os.environ.get("NETWORK"), "proxy_url")
-        web3_client = NeonChainWeb3Client(proxy_url)
-        token_usd_gas_price = web3_client.get_token_usd_gas_price()
-        test_results_handler.save_to_db(
-            report_data=report_data,
-            repo=repo,
-            branch=save_branch,
-            github_tag=gh_client.tag_name,
-            neon_evm_tag=neon_evm_tag,
-            proxy_tag=proxy_tag,
-            token_usd_gas_price=token_usd_gas_price,
-        )
+    # save the new report
+    report_id_new = db.save_cost_report(
+        repo=repo,
+        neon_evm_tag=evm_tag,
+        proxy_tag=proxy_tag,
+        evm_commit_sha=evm_commit_sha,
+        proxy_commit_sha=proxy_commit_sha,
+    )
+    db.save_cost_report_data(report_data=report_data, cost_report_id=report_id_new)
 
-    if do_compare:
-        compare_and_save_dapp_results(
+
+@dapps.command("save_dapps_cost_report_to_md", help="Save dApps Cost Report to cost_reports.md")
+@click.option("-d", "--directory", default="reports", help="Directory with reports")
+def save_dapps_cost_report_to_md(directory: str):
+    report_data = dapps_cli.prepare_report_data(directory)
+
+    # Add 'gas_used_%' column after 'gas_used'
+    report_data.insert(
+        report_data.columns.get_loc("gas_used") + 1,
+        "gas_used_%",
+        (report_data["gas_used"] / report_data["gas_estimated"]) * 100,
+    )
+    report_data["gas_used_%"] = report_data["gas_used_%"].round(2)
+
+    # Dump report_data DataFrame to markdown, grouped by the dApp
+    report_as_markdown_table = dapps_cli.report_data_to_markdown(df=report_data)
+    Path("cost_reports.md").write_text(report_as_markdown_table)
+
+
+@dapps.command("compare_dapp_cost_reports", help="Compare dApp results")
+@click.option("--repo", type=click.Choice(tp.get_args(RepoType)), required=True)
+@click.option("--evm_tag", required=True)
+@click.option("--proxy_tag", required=True)
+@click.option("--version_branch", required=True)
+@click.option("--history_depth_limit", type=int, help="How many runs to include into statistical analysis")
+def compare_dapp_results(
+        repo: RepoType,
+        evm_tag: str,
+        proxy_tag: str,
+        version_branch: str,
+        history_depth_limit: int,
+):
+    """
+    >>> compared_service_tag
+    v1.1.1 - GitHub tag
+    feature_foo - feature branch
+
+    >>> other_service_tag
+    v1.1.x - version branch
+    feature_foo - feature branch
+    latest - develop branch
+    """
+    click.echo(f"compare_dapp_results: {locals()}")
+
+    compared_service_tag = evm_tag if repo == "evm" else proxy_tag
+    other_service_tag = evm_tag if repo == "proxy" else proxy_tag
+    db = PostgresTestResultsHandler()
+
+    # define the tags against which the comparison will be done
+    previous_tags: list[str]
+
+    if re.fullmatch(GITHUB_TAG_PATTERN, compared_service_tag):
+        previous_tags = db.get_previous_tags(
             repo=repo,
-            current_branch=current_branch,
-            previous_branch=previous_branch,
-            github_tag=github_tag,
-            neon_evm_tag=neon_evm_tag,
-            proxy_tag=proxy_tag,
-            history_depth_limit=history_depth_limit,
+            tag=compared_service_tag,
+            limit=history_depth_limit,
         )
     else:
-        proxy_url = network_manager.get_network_param(os.environ.get("NETWORK"), "proxy_url")
-        web3_client = NeonChainWeb3Client(proxy_url)
-        token_usd_gas_price = web3_client.get_token_usd_gas_price()
+        if version_branch:
+            previous_tags = [version_branch]
+        else:
+            previous_tags = ["latest"]
 
-        # Add 'fee_in_usd' column after 'fee_in_neon'
-        report_data.insert(
-            report_data.columns.get_loc("fee_in_neon") + 1, "fee_in_usd", report_data["fee_in_neon"] * token_usd_gas_price
-        )
+    click.echo(f"previous_tags: {previous_tags}")
 
-        # Add 'used_%_of_EG' column after 'gas_used'
-        report_data.insert(
-            report_data.columns.get_loc("gas_used") + 1,
-            "used_%_of_EG",
-            (report_data["gas_used"] / report_data["gas_estimated"]) * 100,
-        )
-        report_data["used_%_of_EG"] = report_data["used_%_of_EG"].round(2)
-
-        # Dump report_data DataFrame to markdown, grouped by the dApp
-        report_as_markdown_table = dapps_cli.report_data_to_markdown(df=report_data)
-        Path("cost_reports.md").write_text(report_as_markdown_table)
-
-
-@dapps.command("compare_results", help="Compare dApp results")
-@click.option("--repo", type=click.Choice(tp.get_args(RepoType)), required=True)
-@click.option("--current_branch", help="Head branch", required=True)
-@click.option("--previous_branch", help="The branch to compare against", required=True)
-@click.option("--github_tag", help="Github tag")
-@click.option("--neon_evm_tag", required=True)
-@click.option("--proxy_tag", required=True)
-@click.option("--history_depth_limit", type=int, help="How many runs to include into statistical analysis")
-def compare_and_save_results(
-        repo: RepoType,
-        current_branch: str,
-        previous_branch: str,
-        github_tag: tp.Optional[str],
-        neon_evm_tag: str,
-        proxy_tag: str,
-        history_depth_limit: int,
-):
-    compare_and_save_dapp_results(
-        repo=repo,
-        current_branch=current_branch,
-        previous_branch=previous_branch,
-        github_tag=github_tag,
-        neon_evm_tag=neon_evm_tag,
-        proxy_tag=proxy_tag,
-        history_depth_limit=history_depth_limit,
-    )
-
-
-def compare_and_save_dapp_results(
-        repo: RepoType,
-        current_branch: str,
-        previous_branch: str,
-        github_tag: tp.Optional[str],
-        neon_evm_tag: str,
-        proxy_tag: str,
-        history_depth_limit: int,
-):
-    click.echo(f"compare_and_save_dapp_results: {locals()}")
-    test_results_handler = TestResultsHandler()
-
-    # fetch statistical data
-    historical_data = test_results_handler.get_historical_data(
+    historical_data = db.get_historical_data(
         depth=history_depth_limit,
         repo=repo,
-        last_branch=current_branch,
-        previous_branch=previous_branch,
-        github_tag=github_tag,
+        latest_tag=compared_service_tag,
+        previous_tags=previous_tags,
     )
 
+    # get commit sha for compared_service and other_service
+    data_sample_row = historical_data[
+        (historical_data["repo"] == repo) &
+        (historical_data["neon_evm_tag"] == evm_tag) &
+        (historical_data["proxy_tag"] == proxy_tag)
+        ].iloc[0]
+
+    if repo == "evm":
+        compared_service_commit_sha = data_sample_row["evm_commit_sha"]
+        other_service_commit_sha = data_sample_row["proxy_commit_sha"]
+    elif repo == "proxy":
+        compared_service_commit_sha = data_sample_row["proxy_commit_sha"]
+        other_service_commit_sha = data_sample_row["evm_commit_sha"]
+    else:
+        raise ValueError(f'Unknown repo "{repo}"')
+
+    compared_service_sha_string = f", commit sha {compared_service_commit_sha}" if compared_service_commit_sha else ""
+    other_service_sha_string = f", commit sha {other_service_commit_sha}" if other_service_commit_sha else ""
+
     # generate plots and save to pdf
-    branch_ = f", branch {current_branch}" if current_branch else ""
-    gh_tag = f", GitHub tag {github_tag}" if github_tag else ""
+    other_service_name = "neon_evm" if repo == "proxy" else "proxy"
+    test_results_handler = TestResultsHandler()
     test_results_handler.generate_and_save_plots_pdf(
         historical_data=historical_data,
-        title_end=f"{repo}{branch_}{gh_tag}, Neon Evm {neon_evm_tag}, Proxy {proxy_tag}",
+        title_end=f"on {repo}:{compared_service_tag}{compared_service_sha_string}\n"
+                  f"with {other_service_name}:{other_service_tag}{other_service_sha_string}",
         output_pdf="cost_reports.pdf",
     )
 
@@ -1315,6 +1275,7 @@ def run(network, script):
     command_run = subprocess.run(command, shell=True)
     if command_run.returncode != 0:
         sys.exit(command_run.returncode)
+
 
 if __name__ == "__main__":
     cli()

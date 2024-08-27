@@ -4,82 +4,75 @@ run-name: dApps reusable (${{ inputs.dapps }}, ${{ inputs.network }})
 on:
   workflow_call:
     inputs:
-        network:
-          type: string
-          default: custom
-          required: true
-          description: "Stand name"
-        dapps:
-          type: string
-          required: true
-          description: "List of dapps separated by commas (if empty, all will be run)"
-        proxy_url:
-          type: string
-          required: true
-          description: "proxy_url (fill only for custom stand)"
-        solana_url:
-          type: string
-          required: true
-          description: "solana_url (fill only for custom stand)"
-        faucet_url:
-          type: string
-          required: true
-          description: "faucet_url (fill only for custom stand)"
-        network_id:
-          type: string
-          required: true
-          description: "network_id (fill only for custom stand)"
-        pr_url_for_report:
-          type: string
-          required: true
-          description: "Url to send the report as comment for PR"
-        proxy_ip:
-          type: string
-          required: true
-        solana_ip:
-          type: string
-          required: true
-        external_call:
-          description: 'To distinguish calls from other repositories and the current one'
-          type: boolean
-          required: false
-          default: true
-        repo:
-          type: string
-          description: "Repository type: tests | proxy | evm"
-          required: false
-        event_name:
-          type: string
-          description: "Event name"
-          required: false
-        ref:
-          type: string
-          description: "Reference (branch or tag)"
-          required: false
-        ref_name:
-          type: string
-          description: "Reference name"
-          required: false
-        head_ref:
-          type: string
-          description: "Head reference for pull requests"
-          required: false
-        base_ref:
-          type: string
-          description: "Base reference for pull requests"
-          required: false
-        neon_evm_tag:
-          type: string
-          description: "Neon EVM Docker image tag"
-          required: false
-        proxy_tag:
-          type: string
-          description: "Proxy Docker image tag"
-          required: false
-        history_depth_limit:
-          type: string
-          description: "Limit for commit history depth"
-          required: false
+      network:
+        type: string
+        default: custom
+        required: true
+        description: "Stand name"
+      dapps:
+        type: string
+        required: true
+        description: "List of dapps separated by commas (if empty, all will be run)"
+      proxy_url:
+        type: string
+        required: true
+        description: "proxy_url (fill only for custom stand)"
+      solana_url:
+        type: string
+        required: true
+        description: "solana_url (fill only for custom stand)"
+      faucet_url:
+        type: string
+        required: true
+        description: "faucet_url (fill only for custom stand)"
+      network_id:
+        type: string
+        required: true
+        description: "network_id (fill only for custom stand)"
+      pr_url_for_report:
+        type: string
+        required: true
+        description: "Url to send the report as comment for PR"
+      proxy_ip:
+        type: string
+        required: true
+      solana_ip:
+        type: string
+        required: true
+      external_call:
+        description: 'To distinguish calls from other repositories and the current one'
+        type: boolean
+        required: false
+        default: true
+      repo:
+        type: string
+        description: "Repository type: tests | proxy | evm"
+        required: false
+      evm_tag:
+        type: string
+        required: false
+        description: "Neon EVM Docker tag"
+      evm_sha_tag:
+        type: string
+        required: false
+        description: "Neon EVM GitHub commit SHA"
+      proxy_tag:
+        type: string
+        required: false
+        description: "Proxy Docker tag"
+      proxy_sha_tag:
+        type: string
+        required: false
+        description: "Proxy GitHub commit SHA"
+      proxy_pr_version_branch:
+        type: string
+        required: false
+        description: "Proxy version branch"
+      evm_pr_version_branch:
+        type: string
+        required: false
+        description: "Neon EVM version branch"
+
 
 env:
   NETWORK: ${{ inputs.network }}
@@ -698,7 +691,9 @@ jobs:
         with:
           name: pancake-report
           path: reports/
-      - name: "Swap report"
+      - name: "Save Cost Report to DB"
+        id: save-cost-report-to-db
+        if: ${{ inputs.repo == 'evm' || inputs.repo == 'proxy' }}
         env:
           TEST_RESULTS_DB_HOST: ${{ secrets.TEST_RESULTS_DB_HOST }}
           TEST_RESULTS_DB_PORT: ${{ secrets.TEST_RESULTS_DB_PORT }}
@@ -706,25 +701,50 @@ jobs:
           TEST_RESULTS_DB_USER: ${{ secrets.TEST_RESULTS_DB_USER }}
           TEST_RESULTS_DB_PASSWORD: ${{ secrets.TEST_RESULTS_DB_PASSWORD }}
         run: |
-          python3 ./clickfile.py dapps report --directory=reports \
+          python3 ./clickfile.py dapps save_dapps_cost_report_to_db \
+          --directory=reports \
           --repo="${{inputs.repo}}" \
-          --event_name="${{inputs.event_name}}" \
-          --ref="${{inputs.ref}}" \
-          --ref_name="${{inputs.ref_name}}" \
-          --head_ref="${{inputs.head_ref}}" \
-          --base_ref="${{inputs.base_ref}}" \
-          --neon_evm_tag="${{inputs.neon_evm_tag}}" \
+          --evm_tag="${{inputs.evm_tag}}" \
           --proxy_tag="${{inputs.proxy_tag}}" \
-          --history_depth_limit="${{inputs.history_depth_limit}}"
-      - name: "Upload cost_reports.pdf"
-        if: ${{ hashFiles('cost_reports.pdf') != '' }}
+          --evm_commit_sha="${{ inputs.evm_sha_tag }}" \
+          --proxy_commit_sha="${{ inputs.proxy_sha_tag }}"
+      - name: "Define if reports should be compared and set to outputs.compare"
+        id: set-do-compare-reports
+        run: |
+          if [[ 
+              ('${{ inputs.repo }}' == 'proxy' && '${{ inputs.proxy_tag }}' != 'latest' && ! '${{ inputs.proxy_tag }}' =~ ^[vt][0-9]+\.[0-9]+\.x$) || 
+              ('${{ inputs.repo }}' == 'evm' && '${{ inputs.evm_tag }}' != 'latest' && ! '${{ inputs.evm_tag }}' =~ ^[vt][0-9]+\.[0-9]+\.x$)
+            ]]; then
+            echo "compare=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "compare=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: "Compare Cost Reports and save to cost_reports.pdf"
+        id: compare-cost-reports
+        if: ${{ steps.set-do-compare-reports.outputs.compare == 'true' && steps.save-cost-report-to-db.outcome == 'success' }}
+        env:
+          TEST_RESULTS_DB_HOST: ${{ secrets.TEST_RESULTS_DB_HOST }}
+          TEST_RESULTS_DB_PORT: ${{ secrets.TEST_RESULTS_DB_PORT }}
+          TEST_RESULTS_DB_NAME: ${{ secrets.TEST_RESULTS_DB_NAME }}
+          TEST_RESULTS_DB_USER: ${{ secrets.TEST_RESULTS_DB_USER }}
+          TEST_RESULTS_DB_PASSWORD: ${{ secrets.TEST_RESULTS_DB_PASSWORD }}
+        run: |
+          python3 ./clickfile.py dapps compare_dapp_cost_reports \
+          	--repo "${{inputs.repo}}" \
+            --evm_tag="${{inputs.evm_tag}}" \
+            --proxy_tag="${{inputs.proxy_tag}}" \
+          	--version_branch "${{ inputs.repo == 'evm' && inputs.evm_pr_version_branch || inputs.proxy_pr_version_branch }}" \
+          	--history_depth_limit 10
+      - name: "Upload cost_reports.pdf to artifacts"
+        id: upload-cost-report-pdf
+        if: ${{ steps.compare-cost-reports.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: cost_reports
           path: cost_reports.pdf
-      - name: Get the download url for cost_reports and save to cost_reports.md
-        if: ${{ hashFiles('cost_reports.pdf') != '' }}
-        id: get_artifact_url
+      - name: "Get the cost_reports.zip download url and save it to cost_reports.md"
+        if: ${{ steps.upload-cost-report-pdf.outcome == 'success' }}
+        id: save-cost-reports-zip-url
         env:
           GITHUB_TOKEN: ${{ secrets.GHTOKEN }}
         run: |
@@ -741,7 +761,14 @@ jobs:
           
           ARTIFACT_URL="https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts/${ARTIFACT_ID}"
           echo "🔗[Cost report](${ARTIFACT_URL})" > cost_reports.md
-      - name: "Add cost reports to summary"
+      - name: "Save Cost Reports as markdown tables to cost_reports.md if Cost Reports were not compared"
+        id: dump-cost-reports-to-markdown
+        if: ${{ steps.set-do-compare-reports.outputs.compare == 'false' || steps.save-cost-reports-zip-url.outcome != 'success' }}
+        run: |
+          python3 ./clickfile.py dapps save_dapps_cost_report_to_md \
+          	--directory reports
+      - name: "Add cost_reports.zip download link or Cost Reports markdown tables to summary"
+        if: ${{ steps.dump-cost-reports-to-markdown.outcome == 'success' || steps.save-cost-reports-zip-url.outcome == 'success'  }}
         run: |
           cat cost_reports.md >> $GITHUB_STEP_SUMMARY
       - name: "Add PR comment"

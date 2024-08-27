@@ -42,44 +42,40 @@ class PostgresTestResultsHandler:
     def __handle_exit(self, signum, frame):
         self.Session.close_all()
 
-    def get_cost_report_ids_by_branch(self, branch: str) -> tp.List[int]:
-        cost_reports = self.session.query(CostReport).filter(CostReport.branch == branch).all()
-        return [cost_report.id for cost_report in cost_reports] if cost_reports else []
-
-    def get_cost_report_ids(self, repo: str, branch: str, tag: tp.Optional[str]) -> list[int]:
-        reports = self.session.query(CostReport).filter(
+    def get_cost_report_ids(self, repo: str, tag: str) -> list[int]:
+        tag_column = CostReport.neon_evm_tag if repo == "evm" else CostReport.proxy_tag
+        report_ids = self.session.query(CostReport.id).filter(
             CostReport.repo == repo,
-            CostReport.branch == branch,
-            CostReport.github_tag == tag,
+            tag_column == tag,
         ).all()
-        report_ids = [r.id for r in reports]
+        report_ids = [id_[0] for id_ in report_ids]
         return report_ids
 
     def delete_data_by_report_ids(self, report_ids: tp.List[int]):
+        click.echo(f"delete_data_by_report_ids: {report_ids}")
         self.session.query(DappData).filter(DappData.cost_report_id.in_(report_ids)).delete(synchronize_session=False)
         self.session.commit()
 
     def delete_reports(self, report_ids: tp.List[int]):
-        self.session.query(CostReport).filter(DappData.cost_report_id.in_(report_ids)).delete(synchronize_session=False)
+        click.echo(f"delete_reports: {report_ids}")
+        self.session.query(CostReport).filter(CostReport.id.in_(report_ids)).delete(synchronize_session=False)
         self.session.commit()
 
     def save_cost_report(
         self,
-        branch: str,
         repo: RepoType,
-        token_usd_gas_price: float,
-        github_tag: tp.Optional[str],
         neon_evm_tag: str,
         proxy_tag: str,
+        evm_commit_sha: tp.Optional[str],
+        proxy_commit_sha: str,
     ) -> int:
         click.echo(f"save_cost_report: {locals()}")
         cost_report = CostReport(
             repo=repo,
-            branch=branch,
-            github_tag=github_tag,
             neon_evm_tag=neon_evm_tag,
             proxy_tag=proxy_tag,
-            token_usd_gas_price=token_usd_gas_price,
+            evm_commit_sha=evm_commit_sha or None,
+            proxy_commit_sha=proxy_commit_sha,
         )
         self.session.add(cost_report)
         self.session.commit()
@@ -95,31 +91,42 @@ class PostgresTestResultsHandler:
                     cost_report_id=cost_report_id,
                     dapp_name=str(dapp_name),
                     action=row["action"],
-                    fee_in_neon=row["fee_in_neon"],
                     acc_count=row["acc_count"],
                     trx_count=row["trx_count"],
                     gas_estimated=row["gas_estimated"],
                     gas_used=row["gas_used"],
+                    compute_units=row["compute_units"],
                 )
                 self.session.add(cost_report_data)
 
         self.session.commit()
 
-    def get_previous_tags(self, repo: str, branch: str, tag: str, limit: int) -> list[str]:
+    def get_previous_tags(self, repo: RepoType, tag: str, limit: int) -> list[str]:
+        """
+
+        :param repo:
+        :param tag: must match GITHUB_TAG_PATTERN
+        :param limit:
+        :return:
+        """
+        from clickfile import GITHUB_TAG_PATTERN
+
+        assert re.fullmatch(GITHUB_TAG_PATTERN, tag)
+        tag_column = CostReport.neon_evm_tag if repo == "evm" else CostReport.proxy_tag
         tags: list[str] = (
-            self.session.query(distinct(CostReport.github_tag))
+            self.session.query(distinct(tag_column))
             .filter(
                 CostReport.repo == repo,
             )
             .all()
         )
-
+        tags = [tag[0] for tag in tags]
+        tags = [tag for tag in tags if GITHUB_TAG_PATTERN.match(tag)]
         sorted_tags: list[str] = sorted(
-            [t[0] for t in tags if t[0] is not None],
+            [t for t in tags if t is not None],
             key=lambda t: version.parse(remove_heading_chars_till_first_digit(t)),
             reverse=True,
         )
-
         latest_tag: version.Version = version.parse(remove_heading_chars_till_first_digit(tag))
 
         # Find the index of the first tag that is less than latest_tag
@@ -135,42 +142,30 @@ class PostgresTestResultsHandler:
         self,
         depth: int,
         repo: RepoType,
-        last_branch: str,
-        previous_branch: str,
-        github_tag: tp.Optional[str],
+        latest_tag: str,
+        previous_tags: list[str],
     ) -> pd.DataFrame:
-        # Define the previous tag
-        from clickfile import VERSION_BRANCH_TEMPLATE
-        tag_ = github_tag
-        if github_tag is None:
-            if re.fullmatch(VERSION_BRANCH_TEMPLATE, previous_branch):
-                # this ia a PR to a version branch
-                tag_ = previous_branch.replace("x", "99999999")
+        """
+        :param depth:
+        :param repo:
+        :param latest_tag:
+        :param previous_tags: ["latest] or ["v3.1.x"] or ["v3.1.0", "v3.1.1", ...]
+        """
 
-        previous_tags = [None] if tag_ is None else self.get_previous_tags(
-            repo=repo,
-            branch=previous_branch,
-            tag=tag_,
-            limit=depth - 1,
-        )
-        click.echo(f"previous_tags: {previous_tags}")
+        tag_column = CostReport.neon_evm_tag if repo == "evm" else CostReport.proxy_tag
 
         # Fetch previous CostReport entries
         previous_reports: Query = (
             self.session.query(CostReport)
             .filter(
                 CostReport.repo == repo,
-                CostReport.github_tag.in_(previous_tags),
+                tag_column.in_(previous_tags),
             )
             .order_by(desc(CostReport.timestamp))
         )
 
-        if not any(previous_tags):
-            previous_reports = previous_reports.filter(
-                CostReport.branch == previous_branch,
-            )
-
-        offset = 0 if previous_branch != last_branch or any(previous_tags) else 1
+        # offset the previous_reports query by 1 if it's a merge event because latest_tag is the same as previous_tags
+        offset = 1 if latest_tag in previous_tags else 0
         previous_reports: list[CostReport] = previous_reports.offset(offset).limit(depth - 1).all()
 
         # Fetch last CostReport
@@ -178,8 +173,7 @@ class PostgresTestResultsHandler:
             self.session.query(CostReport)
             .filter(
                 CostReport.repo == repo,
-                CostReport.branch == last_branch,
-                CostReport.github_tag == github_tag,
+                tag_column == latest_tag,
             )
             .order_by(desc(CostReport.timestamp))
             .first()
@@ -188,12 +182,14 @@ class PostgresTestResultsHandler:
         cost_report_entries: list[CostReport] = [last_report] + previous_reports
         cost_report_ids: list[int] = [r.id for r in previous_reports] + [last_report.id]
 
-        # Fetch DappData entries for these cost_report_ids
+        # Define the actions that are present in the last_report
         actions_tuples = (
             self.session.query(distinct(DappData.action)).filter(DappData.cost_report_id == last_report.id).all()
         )
         actions = [action_tuple[0] for action_tuple in actions_tuples]
-        dapp_data_entries = (
+
+        # Fetch DappData entries for cost_report_ids but only for actions present in last_report
+        dapp_data_entries: list[tp.Type[DappData]] = (
             self.session.query(DappData)
             .filter(
                 DappData.cost_report_id.in_(cost_report_ids),
@@ -205,23 +201,28 @@ class PostgresTestResultsHandler:
         # Convert the list of CostReport objects to a dictionary for quick lookup
         cost_report_dict: dict[int, CostReport] = {r.id: r for r in cost_report_entries}
 
+        # prepare data for the DataFrame
         df_data = []
         for data_entry in dapp_data_entries:
             cost_report: tp.Optional[CostReport] = cost_report_dict.get(data_entry.cost_report_id)
             if cost_report:
+                tag = cost_report.neon_evm_tag if repo == "evm" else cost_report.proxy_tag
                 df_data.append(
                     {
+                        "repo": cost_report.repo,
                         "timestamp": cost_report.timestamp,
-                        "branch": cost_report.branch,
-                        "tag": cost_report.github_tag,
-                        "token_usd_gas_price": cost_report.token_usd_gas_price,
-                        "dapp_name": data_entry.dapp_name,  # Directly use dapp_name from DappData
+                        "neon_evm_tag": cost_report.neon_evm_tag,
+                        "proxy_tag": cost_report.proxy_tag,
+                        "tag": tag,
+                        "dapp_name": data_entry.dapp_name,
                         "action": data_entry.action,
-                        "fee_in_neon": data_entry.fee_in_neon,
                         "acc_count": data_entry.acc_count,
                         "trx_count": data_entry.trx_count,
                         "gas_estimated": data_entry.gas_estimated,
                         "gas_used": data_entry.gas_used,
+                        "evm_commit_sha": cost_report.evm_commit_sha,
+                        "proxy_commit_sha": cost_report.proxy_commit_sha,
+                        "compute_units": data_entry.compute_units,
                     }
                 )
 

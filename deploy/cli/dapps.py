@@ -7,7 +7,7 @@ from collections import Counter
 
 import pandas as pd
 
-from deploy.cli.infrastructure import get_solana_accounts_in_tx
+from deploy.cli.infrastructure import get_solana_accounts_transactions_compute_units
 from deploy.cli.network_manager import NetworkManager
 from utils.web3client import NeonChainWeb3Client
 
@@ -56,27 +56,28 @@ def prepare_report_data(directory: str) -> pd.DataFrame:
             else:
                 unique_action_name = base_action_name
 
-            accounts, trx = get_solana_accounts_in_tx(action["tx"])
-            # accounts, trx = (2, 12)
+            accounts, trx, compute_units = get_solana_accounts_transactions_compute_units(action["tx"])
+            # accounts, trx, compute_units = (2, 12, 8946)
             tx = web3_client.get_transaction_by_hash(action["tx"])
             estimated_gas = int(tx.gas) if tx and tx.gas else None
             # estimated_gas = 122879
             used_gas = int(action["usedGas"])
-            fee = used_gas * int(action["gasPrice"]) / 1000000000000000000
 
             data.append(
                 {
                     "dapp_name": app.lower().strip(),
                     "action": unique_action_name,
-                    "fee_in_neon": fee,
                     "acc_count": accounts,
                     "trx_count": trx,
                     "gas_estimated": estimated_gas,
                     "gas_used": used_gas,
+                    "compute_units": compute_units,
                 }
             )
 
     df = pd.DataFrame(data)
+    if df.empty:
+        raise Exception(f"no reports found in {directory}")
     return df
 
 
@@ -84,7 +85,7 @@ def report_data_to_markdown(df: pd.DataFrame) -> str:
     report_content = ""
     dapp_names = df['dapp_name'].unique()
     df.columns = [col.upper() for col in df.columns]
-    df['USED_%_OF_EG'] = df['USED_%_OF_EG'].apply(lambda x: f"{x:.2f}")
+    df['GAS_USED_%'] = df['GAS_USED_%'].apply(lambda x: f"{x:.2f}")
 
     for dapp_name in dapp_names:
         dapp_df = df[df['DAPP_NAME'] == dapp_name].drop(columns='DAPP_NAME')

@@ -152,7 +152,7 @@ def prepare_accounts(network_name, count, amount) -> tp.List:
     return accounts
 
 
-def get_solana_accounts_in_tx(eth_transaction):
+def get_solana_accounts_transactions_compute_units(eth_transaction):
     network = os.environ.get("NETWORK")
     network_manager = NetworkManager(network)
     solana_url = network_manager.get_network_param(network, "solana_url")
@@ -166,8 +166,25 @@ def get_solana_accounts_in_tx(eth_transaction):
     print(f"get_slot={sol_client.get_slot()}")
     tr = sol_client.get_transaction(Signature.from_string(trx["result"][0]), max_supported_transaction_version=0)
     print(f"get_transaction({trx}): {tr}")
+
+    solana_transaction_hashes = trx["result"]
+    compute_units = 0
+
+    for solana_transaction_hash in solana_transaction_hashes:
+        solana_transaction = sol_client.get_transaction(
+            tx_sig=Signature.from_string(solana_transaction_hash),
+            max_supported_transaction_version=0,
+        )
+        log_messages = solana_transaction.value.transaction.meta.log_messages
+
+        for message in log_messages[::-1]:
+            match = re.match(r'^.+consumed (\d+) of \d+ compute units$', message)
+            if match:
+                compute_units += int(match.group(1))
+                break
+
     if tr.value.transaction.transaction.message.address_table_lookups:
         alt = tr.value.transaction.transaction.message.address_table_lookups
-        return len(alt[0].writable_indexes) + len(alt[0].readonly_indexes), len(trx["result"])
+        return len(alt[0].writable_indexes) + len(alt[0].readonly_indexes), len(trx["result"]), compute_units
     else:
-        return len(tr.value.transaction.transaction.message.account_keys), len(trx["result"])
+        return len(tr.value.transaction.transaction.message.account_keys), len(trx["result"]), compute_units
