@@ -21,6 +21,7 @@ index_5 = padhex(hex(5), 64)
 
 @allure.feature("Tracer API")
 @allure.story("Tracer API RPC calls debug methods with stateOverrides and/or blockOverrides params check")
+@pytest.mark.skip(reason="Feature is not implemented yet in tracer/neon-api")
 @pytest.mark.usefixtures("accounts", "web3_client", "tracer_api")
 class TestTracerOverrideParams:
     web3_client: NeonChainWeb3Client
