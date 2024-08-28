@@ -196,7 +196,7 @@ class EvmLoader(SolanaClient):
                 treasury_buffer,
                 instruction.rawTransaction,
                 additional_accounts,
-                system_program            )
+                system_program)
         )
 
         return self.send_tx(trx, signer)

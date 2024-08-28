@@ -50,7 +50,6 @@ class TransactionWithComputeBudget(Transaction):
         self,
         operator: Keypair,
         units=DEFAULT_UNITS,
-        additional_fee=DEFAULT_ADDITIONAL_FEE,
         heap_frame=DEFAULT_HEAP_FRAME,
         compute_unit_price=None,
         *args,
@@ -58,7 +57,7 @@ class TransactionWithComputeBudget(Transaction):
     ):
         super().__init__(*args, **kwargs)
         if units:
-            self.add(ComputeBudget.request_units(operator, units, additional_fee))
+            self.add(ComputeBudget.request_units(operator, units))
 
         if heap_frame:
             self.add(ComputeBudget.request_heap_frame(operator, heap_frame))
