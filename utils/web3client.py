@@ -259,7 +259,6 @@ class Web3Client:
         gas_multiplier: tp.Optional[float] = None,  # fix for some event depends transactions
         timeout: int = 120,
     ) -> web3.types.TxReceipt:
-        print(transaction)
         instruction_tx = self._web3.eth.account.sign_transaction(transaction, account.key)
         signature = self._web3.eth.send_raw_transaction(instruction_tx.rawTransaction)
         return self._web3.eth.wait_for_transaction_receipt(signature, timeout=timeout)
@@ -463,7 +462,6 @@ class Web3Client:
                 max_priority_fee_per_gas=max_priority_fee_per_gas,
                 max_fee_per_gas=max_fee_per_gas,
             )
-        print(transaction)
         signed_tx = self.eth.account.sign_transaction(transaction, from_.key)
         tx = self.eth.send_raw_transaction(signed_tx.rawTransaction)
         return self.eth.wait_for_transaction_receipt(tx)

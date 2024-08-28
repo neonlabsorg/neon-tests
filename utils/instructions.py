@@ -21,11 +21,11 @@ DEFAULT_ADDITIONAL_FEE = 0
 
 class ComputeBudget:
     @staticmethod
-    def request_units(operator, units, additional_fee):
+    def request_units(operator, units):
         return TransactionInstruction(
             program_id=COMPUTE_BUDGET_ID,
             keys=[AccountMeta(PublicKey(operator.public_key), is_signer=True, is_writable=False)],
-            data=bytes.fromhex("02") + units.to_bytes(4, "little"),  #  + additional_fee.to_bytes(4, "little")
+            data=bytes.fromhex("02") + units.to_bytes(4, "little")
         )
 
     @staticmethod
@@ -33,22 +33,15 @@ class ComputeBudget:
         return TransactionInstruction(
             program_id=COMPUTE_BUDGET_ID,
             keys=[AccountMeta(PublicKey(operator.public_key), is_signer=True, is_writable=False)],
-            data=bytes.fromhex("01") + heap_frame.to_bytes(4, "little"),
+            data=bytes.fromhex("01") + heap_frame.to_bytes(4, "little")
         )
-    #  @staticmethod
-    # def set_compute_units_limit(limit, operator):
-    #     return TransactionInstruction(
-    #         program_id=COMPUTE_BUDGET_ID,
-    #         keys=[AccountMeta(PublicKey(operator.public_key), is_signer=True, is_writable=False)],
-    #         data=bytes.fromhex("02") + limit.to_bytes(4, "little"),
-    #     )
 
     @staticmethod
     def set_compute_units_price(price, operator):
         return TransactionInstruction(
             program_id=COMPUTE_BUDGET_ID,
             keys=[AccountMeta(PublicKey(operator.public_key), is_signer=True, is_writable=False)],
-            data=bytes.fromhex("03") + price.to_bytes(8, "little"),
+            data=bytes.fromhex("03") + price.to_bytes(8, "little")
         )
 
 
