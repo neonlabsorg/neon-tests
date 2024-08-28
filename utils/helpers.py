@@ -164,7 +164,6 @@ def create_invalid_address(length=20) -> str:
     return address
 
 
-
 def cryptohex(text: str):
     return "0x" + keccak(text=text).hex()
 
@@ -184,6 +183,7 @@ def hasattr_recursive(obj: typing.Any, attribute: str) -> bool:
 
     return True
 
+
 def bytes32_to_solana_pubkey(bytes32_data):
     byte_data = bytes.fromhex(bytes32_data)
     base58_data = base58.b58encode(byte_data)
@@ -193,6 +193,7 @@ def bytes32_to_solana_pubkey(bytes32_data):
 def solana_pubkey_to_bytes32(solana_pubkey):
     byte_data = base58.b58decode(str(solana_pubkey))
     return byte_data
+
 
 def serialize_instruction(program_id, instruction) -> bytes:
     program_id_bytes = solana_pubkey_to_bytes32(PublicKey(program_id))
@@ -211,3 +212,8 @@ def case_snake_to_camel(snake_str: str) -> str:
     components = snake_str.split('_')
     camel_case = components[0].lower() + ''.join(x.title() for x in components[1:])
     return camel_case
+
+
+def padhex(s, size):
+    return '0x' + s[2:].zfill(size)
+
