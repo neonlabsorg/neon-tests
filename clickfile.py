@@ -522,7 +522,7 @@ def update_contracts(branch):
 
 
 @cli.command(help="Run any type of tests")
-@click.option("-n", "--network", default=EnvName.NIGHT_STAND.value, type=click.Choice(EnvName),
+@click.option("-n", "--network", type=click.Choice(EnvName),
               help="In which stand run tests")
 @click.option("-j", "--jobs", default=8, help="Number of parallel jobs (for openzeppelin)")
 @click.option("-p", "--numprocesses", help="Number of parallel jobs for basic tests")
