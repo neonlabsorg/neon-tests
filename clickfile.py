@@ -454,7 +454,7 @@ def get_evm_pinned_version(branch):
         raise click.ClickException(f"Can't get pipeline file for branch {branch}")
     info = resp.json()
     pipeline_file = yaml.safe_load(requests.get(info["download_url"]).text)
-    tag = pipeline_file["env"]["NEON_EVM_TAG"]
+    tag = pipeline_file["env"]["DEFAULT_NEON_EVM_TAG"]
     if tag == "latest":
         return "develop"
     if re.match(r"[vt]{1}\d{1,2}\.\d{1,2}.*", tag) is not None:
