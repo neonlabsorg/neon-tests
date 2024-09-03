@@ -92,6 +92,7 @@ class EnvName(str, enum.Enum):
     GETH = "geth"
     TRACER_CI = "tracer_ci"
     CUSTOM = "custom"
+    DOCKER_NET = "docker_net"
 
 
 def green(s):
