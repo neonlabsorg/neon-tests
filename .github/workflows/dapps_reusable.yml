@@ -79,6 +79,11 @@ env:
   DUMP_ENVS: True
   DEVNET_FAUCET_URL: ${{ secrets.DEVNET_FAUCET_URL }}
   DEVNET_SOLANA_URL: ${{ secrets.SOLANA_URL }}
+  TEST_RESULTS_DB_HOST: ${{ secrets.TEST_RESULTS_DB_HOST }}
+  TEST_RESULTS_DB_PORT: ${{ secrets.TEST_RESULTS_DB_PORT }}
+  TEST_RESULTS_DB_NAME: ${{ secrets.TEST_RESULTS_DB_NAME }}
+  TEST_RESULTS_DB_USER: ${{ secrets.TEST_RESULTS_DB_USER }}
+  TEST_RESULTS_DB_PASSWORD: ${{ secrets.TEST_RESULTS_DB_PASSWORD }}
 
 jobs:
   uniswap-v2:
@@ -694,12 +699,6 @@ jobs:
       - name: "Save Cost Report to DB"
         id: save-cost-report-to-db
         if: ${{ inputs.repo == 'evm' || inputs.repo == 'proxy' }}
-        env:
-          TEST_RESULTS_DB_HOST: ${{ secrets.TEST_RESULTS_DB_HOST }}
-          TEST_RESULTS_DB_PORT: ${{ secrets.TEST_RESULTS_DB_PORT }}
-          TEST_RESULTS_DB_NAME: ${{ secrets.TEST_RESULTS_DB_NAME }}
-          TEST_RESULTS_DB_USER: ${{ secrets.TEST_RESULTS_DB_USER }}
-          TEST_RESULTS_DB_PASSWORD: ${{ secrets.TEST_RESULTS_DB_PASSWORD }}
         run: |
           python3 ./clickfile.py dapps save_dapps_cost_report_to_db \
           --directory=reports \
@@ -722,12 +721,6 @@ jobs:
       - name: "Compare Cost Reports and save to cost_reports.pdf"
         id: compare-cost-reports
         if: ${{ steps.set-do-compare-reports.outputs.compare == 'true' && steps.save-cost-report-to-db.outcome == 'success' }}
-        env:
-          TEST_RESULTS_DB_HOST: ${{ secrets.TEST_RESULTS_DB_HOST }}
-          TEST_RESULTS_DB_PORT: ${{ secrets.TEST_RESULTS_DB_PORT }}
-          TEST_RESULTS_DB_NAME: ${{ secrets.TEST_RESULTS_DB_NAME }}
-          TEST_RESULTS_DB_USER: ${{ secrets.TEST_RESULTS_DB_USER }}
-          TEST_RESULTS_DB_PASSWORD: ${{ secrets.TEST_RESULTS_DB_PASSWORD }}
         run: |
           python3 ./clickfile.py dapps compare_dapp_cost_reports \
           	--repo "${{inputs.repo}}" \
