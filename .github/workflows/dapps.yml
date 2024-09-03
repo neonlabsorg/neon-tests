@@ -118,6 +118,7 @@ jobs:
       proxy_ip: ${{ needs.prepare.outputs.proxy_ip }}
       solana_ip: ${{ needs.prepare.outputs.solana_ip }}
       external_call: false
+      repo: "tests"
 
   notify:
     runs-on: ubuntu-20.04
