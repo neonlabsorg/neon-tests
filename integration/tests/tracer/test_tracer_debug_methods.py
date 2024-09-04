@@ -16,6 +16,10 @@ from utils.accounts import EthAccounts
 from utils.tracer_client import TracerClient
 from integration.tests.tracer.test_tracer_historical_methods import call_storage
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 SCHEMAS = "./integration/tests/tracer/schemas/"
 GOOD_CALLDATA = ["0x60fe60005360016000f3"]
 
@@ -127,6 +131,7 @@ class TestTracerDebugMethods:
 
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", [receipt["transactionHash"].hex()])
         assert "error" not in response, "Error in response"
+        logger.debug(f'Response: {response}, response["result"]["returnValue"]')
         assert 1 <= int(response["result"]["returnValue"], 16) <= 100
         self.validate_response_result(response)
 
@@ -237,7 +242,8 @@ class TestTracerDebugMethods:
         assert response["error"]["code"] == -32603, "Invalid error code"
         assert (
             response["error"]["message"]
-            == "eth_getBlockByHash failed for '\"0xd97ff4869d52c4add6f5bcb1ba96020dd7877244b4cbf49044f49f002015ea85\"' block"
+            # == "eth_getBlockByHash failed for '\"0xd97ff4869d52c4add6f5bcb1ba96020dd7877244b4cbf49044f49f002015ea85\"' block"
+            == "Block not found for 0xd97ff4869d52c4add6f5bcb1ba96020dd7877244b4cbf49044f49f002015ea85"
         )
 
     def decode_raw_header(self, header: bytes):
