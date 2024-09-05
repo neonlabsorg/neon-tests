@@ -103,7 +103,7 @@ def wait_condition(
         max_tries: tp.Optional[int] = None,
         check_success: tp.Callable[[T], bool] = polling2.is_truthy,
         step_function: tp.Callable[[float], float] = polling2.step_constant,
-        ignore_exceptions: tp.Tuple[Exception, ...] = (),
+        ignore_exceptions: tp.Tuple[Exception, ...] = (KeyError,),
         poll_forever: bool = False,
         collect_values: tp.Optional[Queue] = None,
         log: int = logging.NOTSET,
