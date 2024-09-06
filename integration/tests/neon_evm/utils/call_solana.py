@@ -1,5 +1,6 @@
 import eth_abi
 from eth_utils import keccak
+from solders.pubkey import Pubkey
 
 from integration.tests.neon_evm.utils.constants import NEON_CORE_API_URL
 from integration.tests.neon_evm.utils.contract import deploy_contract, make_contract_call_trx
@@ -42,14 +43,14 @@ class SolanaCaller:
         )
         return bytes32_to_solana_pubkey(sol_addr)
 
-    def get_solana_PDA(self, program_id, seeds):
+    def get_solana_PDA(self, program_id, seeds) -> Pubkey:
         args = eth_abi.encode(["bytes32", "bytes"], [bytes(program_id), seeds])
         addr = self.neon_api_client.call_contract_get_function(
             self.owner, self.contract, "getSolanaPDA(bytes32,bytes)", args
         )
         return bytes32_to_solana_pubkey(addr)
 
-    def get_eth_ext_authority(self, salt, sender):
+    def get_eth_ext_authority(self, salt, sender) -> Pubkey:
         args = eth_abi.encode(["bytes32"], [salt])
         addr = self.neon_api_client.call_contract_get_function(
             sender, self.contract, "getExtAuthority(bytes32)", args
@@ -181,5 +182,5 @@ class SolanaCaller:
     def _get_all_pubkeys_from_instructions(instructions):
         all_keys = []
         for item in instructions:
-            all_keys += item.keys
+            all_keys += item.accounts
         return [acc.pubkey for acc in all_keys]

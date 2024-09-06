@@ -6,6 +6,8 @@ import web3
 from _pytest.config import Config
 from solana.rpc.types import TokenAccountOpts, TxOpts
 from solana.transaction import Transaction
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
 from spl.token import instructions
 from spl.token.constants import TOKEN_PROGRAM_ID
 
@@ -313,20 +315,20 @@ class TestERC20SPL:
         self,
         erc20_contract,
         sol_client,
-        solana_associated_token_erc20,
+        solana_associated_token_erc20: tuple[Keypair, Pubkey, Pubkey],
     ):
         acc, token_mint, solana_address = solana_associated_token_erc20
         amount = random.randint(10000, 1000000)
-        sol_balance_before = sol_client.get_balance(acc.public_key).value
+        sol_balance_before = sol_client.get_balance(acc.pubkey()).value
         contract_balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
 
         opts = TokenAccountOpts(token_mint)
-        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.public_key, opts).value[0]
+        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts).value[0]
         token_balance_before = token_data.account.data.parsed["info"]["tokenAmount"]["amount"]
         erc20_contract.transfer_solana(erc20_contract.account, bytes(solana_address), amount)
         wait_condition(
             lambda: int(
-                sol_client.get_token_accounts_by_owner_json_parsed(acc.public_key, opts)
+                sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts)
                 .value[0]
                 .account.data.parsed["info"]["tokenAmount"]["amount"]
             )
@@ -334,8 +336,8 @@ class TestERC20SPL:
             timeout_sec=30,
         )
 
-        sol_balance_after = sol_client.get_balance(acc.public_key).value
-        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.public_key, opts).value[0]
+        sol_balance_after = sol_client.get_balance(acc.pubkey()).value
+        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts).value[0]
         token_balance_after = token_data.account.data.parsed["info"]["tokenAmount"]["amount"]
         contract_balance_after = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
 
@@ -349,17 +351,17 @@ class TestERC20SPL:
         self,
         erc20_contract,
         sol_client,
-        solana_associated_token_erc20,
+        solana_associated_token_erc20: tuple[Keypair, Pubkey, Pubkey],
     ):
         acc, token_mint, solana_address = solana_associated_token_erc20
         amount = random.randint(10000, 1000000)
         opts = TokenAccountOpts(token_mint)
-        erc20_contract.approve_solana(erc20_contract.account, bytes(acc.public_key), amount)
+        erc20_contract.approve_solana(erc20_contract.account, bytes(acc.pubkey()), amount)
         wait_condition(
-            lambda: len(sol_client.get_token_accounts_by_delegate_json_parsed(acc.public_key, opts).value) > 0,
+            lambda: len(sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts).value) > 0,
             timeout_sec=30,
         )
-        token_account = sol_client.get_token_accounts_by_delegate_json_parsed(acc.public_key, opts).value[0].account
+        token_account = sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts).value[0].account
         assert int(token_account.data.parsed["info"]["delegatedAmount"]["amount"]) == amount
         assert int(token_account.data.parsed["info"]["delegatedAmount"]["decimals"]) == erc20_contract.decimals
 
@@ -367,7 +369,7 @@ class TestERC20SPL:
         self,
         erc20_contract,
         sol_client,
-        solana_associated_token_erc20,
+        solana_associated_token_erc20: tuple[Keypair, Pubkey, Pubkey],
         pytestconfig,
     ):
         acc, token_mint, solana_address = solana_associated_token_erc20
@@ -385,7 +387,7 @@ class TestERC20SPL:
                         erc20_contract.contract.address,
                         pytestconfig.environment.evm_loader,
                     ),
-                    owner=acc.public_key,
+                    owner=acc.pubkey(),
                     amount=sent_amount,
                     signers=[],
                 )
@@ -399,7 +401,9 @@ class TestERC20SPL:
 
         assert balance_after == balance_before - sent_amount + claim_amount, "Balance is not correct"
 
-    def test_claimTo(self, erc20_contract, sol_client, solana_associated_token_erc20, pytestconfig):
+    def test_claimTo(
+        self, erc20_contract, sol_client, solana_associated_token_erc20: tuple[Keypair, Pubkey, Pubkey], pytestconfig
+    ):
         new_account = self.accounts.create_account()
         acc, token_mint, solana_address = solana_associated_token_erc20
         user1_balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
@@ -417,7 +421,7 @@ class TestERC20SPL:
                         erc20_contract.contract.address,
                         pytestconfig.environment.evm_loader,
                     ),
-                    owner=acc.public_key,
+                    owner=acc.pubkey(),
                     amount=sent_amount,
                     signers=[],
                 )
@@ -479,7 +483,7 @@ class TestERC20SPLMintable(TestERC20SPL):
         assert owner == accounts[2].address
 
     def test_metaplex_data(self, erc20_contract):
-        mint_key = erc20_contract.contract.functions.findMintAccount().call()
+        mint_key = Pubkey(erc20_contract.contract.functions.findMintAccount().call())
         metaplex.wait_account_info(self.sol_client, mint_key)
         metadata = metaplex.get_metadata(self.sol_client, mint_key)
         assert metadata["data"]["name"] == erc20_contract.name
@@ -553,19 +557,21 @@ class TestERC20SPLMintable(TestERC20SPL):
         total_after = erc20_contract.contract.functions.totalSupply().call()
         assert total_before + amount == total_after, "Total supply is not correct"
 
-    def test_transferSolana(self, sol_client, erc20_contract, solana_associated_token_mintable_erc20):
+    def test_transferSolana(
+        self, sol_client, erc20_contract, solana_associated_token_mintable_erc20: tuple[Keypair, Pubkey, Pubkey]
+    ):
         acc, token_mint, solana_address = solana_associated_token_mintable_erc20
         amount = random.randint(10000, 1000000)
-        sol_balance_before = sol_client.get_balance(acc.public_key).value
+        sol_balance_before = sol_client.get_balance(acc.pubkey()).value
         contract_balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
 
         opts = TokenAccountOpts(token_mint)
-        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.public_key, opts).value[0]
+        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts).value[0]
         token_balance_before = token_data.account.data.parsed["info"]["tokenAmount"]["amount"]
         erc20_contract.transfer_solana(erc20_contract.account, bytes(solana_address), amount)
         wait_condition(
             lambda: int(
-                sol_client.get_token_accounts_by_owner_json_parsed(acc.public_key, opts)
+                sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts)
                 .value[0]
                 .account.data.parsed["info"]["tokenAmount"]["amount"]
             )
@@ -573,8 +579,8 @@ class TestERC20SPLMintable(TestERC20SPL):
             timeout_sec=30,
         )
 
-        sol_balance_after = sol_client.get_balance(acc.public_key).value
-        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.public_key, opts).value[0]
+        sol_balance_after = sol_client.get_balance(acc.pubkey()).value
+        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts).value[0]
         token_balance_after = token_data.account.data.parsed["info"]["tokenAmount"]["amount"]
         contract_balance_after = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
 
@@ -588,17 +594,17 @@ class TestERC20SPLMintable(TestERC20SPL):
         self,
         erc20_contract,
         sol_client,
-        solana_associated_token_mintable_erc20,
+        solana_associated_token_mintable_erc20: tuple[Keypair, Pubkey, Pubkey],
     ):
         acc, token_mint, solana_address = solana_associated_token_mintable_erc20
         amount = random.randint(10000, 1000000)
         opts = TokenAccountOpts(token_mint)
-        erc20_contract.approve_solana(erc20_contract.account, bytes(acc.public_key), amount)
+        erc20_contract.approve_solana(erc20_contract.account, bytes(acc.pubkey()), amount)
         wait_condition(
-            lambda: len(sol_client.get_token_accounts_by_delegate_json_parsed(acc.public_key, opts).value) > 0,
+            lambda: len(sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts).value) > 0,
             timeout_sec=30,
         )
-        token_account = sol_client.get_token_accounts_by_delegate_json_parsed(acc.public_key, opts).value[0].account
+        token_account = sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts).value[0].account
         assert int(token_account.data.parsed["info"]["delegatedAmount"]["amount"]) == amount
         assert int(token_account.data.parsed["info"]["delegatedAmount"]["decimals"]) == erc20_contract.decimals
 
@@ -606,7 +612,7 @@ class TestERC20SPLMintable(TestERC20SPL):
         self,
         erc20_contract,
         sol_client,
-        solana_associated_token_mintable_erc20,
+        solana_associated_token_mintable_erc20: tuple[Keypair, Pubkey, Pubkey],
         pytestconfig,
     ):
         acc, token_mint, solana_address = solana_associated_token_mintable_erc20
@@ -624,7 +630,7 @@ class TestERC20SPLMintable(TestERC20SPL):
                         erc20_contract.contract.address,
                         pytestconfig.environment.evm_loader,
                     ),
-                    owner=acc.public_key,
+                    owner=acc.pubkey(),
                     amount=sent_amount,
                     signers=[],
                 )
@@ -642,7 +648,7 @@ class TestERC20SPLMintable(TestERC20SPL):
         self,
         erc20_contract,
         sol_client,
-        solana_associated_token_mintable_erc20,
+        solana_associated_token_mintable_erc20: tuple[Keypair, Pubkey, Pubkey],
         pytestconfig,
     ):
         acc, token_mint, solana_address = solana_associated_token_mintable_erc20
@@ -662,7 +668,7 @@ class TestERC20SPLMintable(TestERC20SPL):
                         erc20_contract.contract.address,
                         pytestconfig.environment.evm_loader,
                     ),
-                    owner=acc.public_key,
+                    owner=acc.pubkey(),
                     amount=sent_amount,
                     signers=[],
                 )
