@@ -115,8 +115,12 @@ class TestOpCodes:
             accounts: EthAccounts,
             basefee_checker
     ):
-        base_fee_contract = basefee_checker.functions.baseFee().call()
-        assert base_fee_contract == 0
+        base_fee_contract = basefee_checker.functions.baseFee().call(
+            transaction={
+                "gasPrice": 1_234_456
+            })
+        # put some random trivial gas_price
+        assert base_fee_contract == 1_234_456
 
     def test_base_fee_trx_type_0(
             self,
