@@ -247,7 +247,7 @@ class TestTracerDebugMethods:
         assert response["error"]["code"] == -32603, "Invalid error code"
         assert (
             response["error"]["message"]
-            == "eth_getBlockByHash failed for '\"0xd97ff4869d52c4add6f5bcb1ba96020dd7877244b4cbf49044f49f002015ea85\"' block"
+            == "Block not found for 0xd97ff4869d52c4add6f5bcb1ba96020dd7877244b4cbf49044f49f002015ea85"
         )
 
     def decode_raw_header(self, header: bytes):
