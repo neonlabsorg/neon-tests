@@ -71,10 +71,11 @@ EXTENSIONS_USER_DATA_PATH = "ui/extensions/chrome"
 HOME_DIR = Path(__file__).absolute().parent
 
 OZ_BALANCES = "./compatibility/results/oz_balance.json"
-NEON_EVM_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-evm"
+ORGANIZATION = os.environ.get("GITHUB_REPOSITORY_OWNER")
+NEON_EVM_GITHUB_URL = f"https://api.github.com/repos/{ORGANIZATION}/neon-evm"
 HOODIES_CHAINLINK_GITHUB_URL = "https://github.com/hoodieshq/chainlink-neon"
-PROXY_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-proxy.py"
-FAUCET_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-faucet"
+PROXY_GITHUB_URL = f"https://api.github.com/repos/{ORGANIZATION}/neon-proxy.py"
+FAUCET_GITHUB_URL = f"https://api.github.com/repos/{ORGANIZATION}/neon-faucet"
 EXTERNAL_CONTRACT_PATH = Path.cwd() / "contracts" / "external"
 VERSION_BRANCH_TEMPLATE = r"[vt]{1}\d{1,2}\.\d{1,2}\.x.*"
 GITHUB_TAG_PATTERN = re.compile(r'^[vt]\d{1,2}\.\d{1,2}\.\d{1,2}$')
@@ -520,7 +521,7 @@ def update_contracts(branch):
     update_contracts_from_git(HOODIES_CHAINLINK_GITHUB_URL, "hoodies_chainlink", "main")
 
     update_contracts_from_git(
-        "https://github.com/neonlabsorg/neon-contracts.git", "neon-contracts", "main", update_npm=False
+        f"https://github.com/{ORGANIZATION}/neon-contracts.git", "neon-contracts", "main", update_npm=False
     )
     subprocess.check_call(f'npm ci --prefix {EXTERNAL_CONTRACT_PATH / "neon-contracts" / "ERC20ForSPL"}', shell=True)
 
