@@ -817,7 +817,7 @@ class TestEconomics:
 
     ):
         """Trigger transaction than requires more than 30 accounts"""
-        sender_account = accounts[0]
+        sender_account = accounts[1]
         accounts_quantity = 45
         sol_balance_before = operator.get_solana_balance()
         neon_balance_before = operator.get_token_balance(web3_client)
