@@ -5,8 +5,8 @@ import eth_abi
 import solcx
 from eth_account.datastructures import SignedTransaction
 from eth_utils import abi
-from solana.keypair import Keypair
-from solana.publickey import PublicKey
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
 
 from utils.evm_loader import EvmLoader
 from utils.types import Caller, TreasuryPool, Contract
@@ -91,7 +91,7 @@ def make_deployment_transaction(
         tx["maxFeePerGas"] = max_fee_per_gas
         tx.pop("gasPrice")
 
-    return w3.eth.account.sign_transaction(tx, user.solana_account.secret_key[:32])
+    return w3.eth.account.sign_transaction(tx, user.solana_account.secret()[:32])
 
 
 def make_contract_call_trx(
@@ -128,7 +128,7 @@ def make_contract_call_trx(
         access_list=access_list,
         max_priority_fee_per_gas=max_priority_fee_per_gas,
         max_fee_per_gas=max_fee_per_gas,
-        type=trx_type,
+        type_=trx_type,
     )
 
     return signed_tx
@@ -153,7 +153,7 @@ def deploy_contract(
     emulate_result = neon_api_client.emulate(
         user.eth_address.hex(), contract=None, data=contract_code + encoded_args.hex()
     )
-    additional_accounts = [PublicKey(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+    additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
     contract: Contract = create_contract_address(user, evm_loader)
     holder_acc = create_holder(operator, evm_loader)

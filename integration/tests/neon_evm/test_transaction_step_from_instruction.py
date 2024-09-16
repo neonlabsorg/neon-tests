@@ -9,8 +9,8 @@ from eth_account.datastructures import SignedTransaction
 from eth_keys import keys as eth_keys
 from eth_utils import abi, to_text, to_int
 from hexbytes import HexBytes
-from solana.keypair import Keypair
-from solana.publickey import PublicKey
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
 from solana.rpc.commitment import Confirmed
 from solana.rpc.core import RPCException
 
@@ -166,8 +166,8 @@ class TestTransactionStepFromInstruction:
         self, operator_keypair, treasury_pool, sender_with_tokens, evm_loader, holder_acc
     ):
         # recipient account should be created
-        recipient = Keypair.generate()
-        recipient_ether = eth_keys.PrivateKey(recipient.secret_key[:32]).public_key.to_canonical_address()
+        recipient = Keypair()
+        recipient_ether = eth_keys.PrivateKey(recipient.secret()[:32]).public_key.to_canonical_address()
         recipient_solana_address, _ = evm_loader.ether2program(recipient_ether)
         recipient_balance_address = evm_loader.ether2balance(recipient_ether)
         amount = 10
@@ -179,7 +179,7 @@ class TestTransactionStepFromInstruction:
             holder_acc,
             signed_tx,
             [
-                PublicKey(recipient_solana_address),
+                Pubkey.from_string(recipient_solana_address),
                 recipient_balance_address,
                 sender_with_tokens.solana_account_address,
                 sender_with_tokens.balance_account_address,
@@ -345,7 +345,7 @@ class TestTransactionStepFromInstruction:
     def test_incorrect_treasure_pool(self, operator_keypair, sender_with_tokens, evm_loader, session_user, holder_acc):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         index = 2
-        treasury = TreasuryPool(index, Keypair().generate().public_key, index.to_bytes(4, "little"))
+        treasury = TreasuryPool(index, Keypair().pubkey(), index.to_bytes(4, "little"))
 
         error = str.format(InstructionAsserts.INVALID_ACCOUNT, treasury.account)
         with pytest.raises(solana.rpc.core.RPCException, match=error):
@@ -384,7 +384,7 @@ class TestTransactionStepFromInstruction:
 
     def test_incorrect_operator_account(self, sender_with_tokens, evm_loader, treasury_pool, session_user, holder_acc):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
-        fake_operator = Keypair().generate()
+        fake_operator = Keypair()
         with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.ACC_NOT_FOUND):
             evm_loader.execute_transaction_steps_from_instruction(
                 fake_operator,
@@ -421,7 +421,7 @@ class TestTransactionStepFromInstruction:
         self, sender_with_tokens, operator_keypair, evm_loader, treasury_pool, session_user, holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
-        fake_sys_program_id = Keypair().generate().public_key
+        fake_sys_program_id = Keypair().pubkey()
         operator_balance = evm_loader.get_operator_balance_pubkey(operator_keypair)
         with pytest.raises(
             solana.rpc.core.RPCException, match=str.format(InstructionAsserts.NOT_SYSTEM_PROGRAM, fake_sys_program_id)
@@ -447,7 +447,7 @@ class TestTransactionStepFromInstruction:
         self, sender_with_tokens, operator_keypair, evm_loader, treasury_pool, session_user
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
-        fake_holder_acc = Keypair.generate().public_key
+        fake_holder_acc = Keypair().pubkey()
         operator_balance = evm_loader.get_operator_balance_pubkey(operator_keypair)
         with pytest.raises(
             solana.rpc.core.RPCException, match=str.format(InstructionAsserts.NOT_PROGRAM_OWNED, fake_holder_acc)
@@ -638,7 +638,7 @@ class TestInstructionStepContractCallContractInteractions:
             rw_lock_caller.solana_address,
         ]
         for acc in result["solana_accounts"]:
-            additional_accounts.append(PublicKey(acc["pubkey"]))
+            additional_accounts.append(Pubkey.from_string(acc["pubkey"]))
 
         resp = evm_loader.execute_transaction_steps_from_instruction(
             operator_keypair, treasury_pool, holder_acc, signed_tx, additional_accounts

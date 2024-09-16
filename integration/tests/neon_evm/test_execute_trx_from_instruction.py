@@ -2,15 +2,14 @@ import random
 import string
 
 import pytest
-import solana
 import eth_abi
 from eth_account.datastructures import SignedTransaction
 from eth_keys import keys as eth_keys
 from eth_utils import abi, to_text
 from hexbytes import HexBytes
-from solana.keypair import Keypair
-from solana.publickey import PublicKey
-from solana.rpc.commitment import Confirmed
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
+from solana.rpc.core import RPCException as SolanaRPCException
 from spl.token.instructions import get_associated_token_address
 
 from utils.types import Caller, Contract
@@ -54,9 +53,9 @@ class TestExecuteTrxFromInstruction:
         self, operator_keypair, treasury_pool, sender_with_tokens: Caller, evm_loader, holder_acc
     ):
         # recipient account should be created
-        recipient = Keypair.generate()
+        recipient = Keypair()
 
-        recipient_ether = eth_keys.PrivateKey(recipient.secret_key[:32]).public_key.to_canonical_address()
+        recipient_ether = eth_keys.PrivateKey(recipient.secret()[:32]).public_key.to_canonical_address()
         recipient_solana_address, _ = evm_loader.ether2program(recipient_ether)
         recipient_balance_address = evm_loader.ether2balance(recipient_ether)
         amount = 10
@@ -70,7 +69,7 @@ class TestExecuteTrxFromInstruction:
             [
                 sender_with_tokens.balance_account_address,
                 recipient_balance_address,
-                PublicKey(recipient_solana_address),
+                Pubkey.from_string(recipient_solana_address),
             ],
         )
 
@@ -160,7 +159,7 @@ class TestExecuteTrxFromInstruction:
         signed_tx = make_eth_transaction(
             evm_loader, session_user.eth_address, None, sender_with_tokens, amount, chain_id=1
         )
-        with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.INVALID_CHAIN_ID):
+        with pytest.raises(SolanaRPCException, match=InstructionAsserts.INVALID_CHAIN_ID):
             evm_loader.execute_trx_from_instruction(
                 operator_keypair,
                 holder_acc,
@@ -191,7 +190,7 @@ class TestExecuteTrxFromInstruction:
                 session_user.solana_account_address,
             ],
         )
-        with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.INVALID_NONCE):
+        with pytest.raises(SolanaRPCException, match=InstructionAsserts.INVALID_NONCE):
             evm_loader.execute_trx_from_instruction(
                 operator_keypair,
                 holder_acc,
@@ -214,7 +213,7 @@ class TestExecuteTrxFromInstruction:
             evm_loader, sender_with_tokens.eth_address, None, session_user, user_balance + 1
         )
 
-        with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.INSUFFICIENT_FUNDS):
+        with pytest.raises(SolanaRPCException, match=InstructionAsserts.INSUFFICIENT_FUNDS):
             evm_loader.execute_trx_from_instruction(
                 operator_keypair,
                 holder_acc,
@@ -235,7 +234,7 @@ class TestExecuteTrxFromInstruction:
         amount = 10
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, amount, gas=1)
 
-        with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.OUT_OF_GAS):
+        with pytest.raises(SolanaRPCException, match=InstructionAsserts.OUT_OF_GAS):
             evm_loader.execute_trx_from_instruction(
                 operator_keypair,
                 holder_acc,
@@ -253,7 +252,7 @@ class TestExecuteTrxFromInstruction:
         self, operator_keypair, treasury_pool, session_user: Caller, sender_with_tokens: Caller, evm_loader, holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
-        with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.ADDRESS_MUST_BE_PRESENT):
+        with pytest.raises(SolanaRPCException, match=InstructionAsserts.ADDRESS_MUST_BE_PRESENT):
             evm_loader.execute_trx_from_instruction(
                 operator_keypair,
                 holder_acc,
@@ -267,7 +266,7 @@ class TestExecuteTrxFromInstruction:
         self, operator_keypair, treasury_pool, sender_with_tokens: Caller, session_user: Caller, evm_loader, holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
-        with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.ADDRESS_MUST_BE_PRESENT):
+        with pytest.raises(SolanaRPCException, match=InstructionAsserts.ADDRESS_MUST_BE_PRESENT):
             evm_loader.execute_trx_from_instruction(
                 operator_keypair,
                 holder_acc,
@@ -283,10 +282,10 @@ class TestExecuteTrxFromInstruction:
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
 
         treasury_buffer = b"\x02\x00\x00\x00"
-        treasury_pool = Keypair().public_key
+        treasury_pool = Keypair().pubkey()
 
         error = str.format(InstructionAsserts.INVALID_ACCOUNT, treasury_pool)
-        with pytest.raises(solana.rpc.core.RPCException, match=error):
+        with pytest.raises(SolanaRPCException, match=error):
             evm_loader.execute_trx_from_instruction(operator_keypair, holder_acc, treasury_pool, treasury_buffer, signed_tx, [])
 
     def test_incorrect_treasure_index(
@@ -296,7 +295,7 @@ class TestExecuteTrxFromInstruction:
         treasury_buffer = b"\x03\x00\x00\x00"
 
         error = str.format(InstructionAsserts.INVALID_ACCOUNT, treasury_pool.account)
-        with pytest.raises(solana.rpc.core.RPCException, match=error):
+        with pytest.raises(SolanaRPCException, match=error):
             evm_loader.execute_trx_from_instruction(
                 operator_keypair, holder_acc, treasury_pool.account, treasury_buffer, signed_tx, []
             )
@@ -306,7 +305,7 @@ class TestExecuteTrxFromInstruction:
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         fake_operator = Keypair()
-        with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.ACC_NOT_FOUND):
+        with pytest.raises(SolanaRPCException, match=InstructionAsserts.ACC_NOT_FOUND):
             evm_loader.execute_trx_from_instruction(
                 fake_operator,
                 holder_acc,
@@ -345,9 +344,9 @@ class TestExecuteTrxFromInstruction:
         self, sender_with_tokens, operator_keypair, evm_loader, treasury_pool, session_user, holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
-        fake_sys_program_id = Keypair().public_key
+        fake_sys_program_id = Keypair().pubkey()
         with pytest.raises(
-            solana.rpc.core.RPCException, match=str.format(InstructionAsserts.NOT_SYSTEM_PROGRAM, fake_sys_program_id)
+            SolanaRPCException, match=str.format(InstructionAsserts.NOT_SYSTEM_PROGRAM, fake_sys_program_id)
         ):
             evm_loader.execute_trx_from_instruction(
                 operator_keypair,
@@ -363,16 +362,16 @@ class TestExecuteTrxFromInstruction:
     def test_operator_does_not_have_enough_founds(
         self, evm_loader, treasury_pool, session_user: Caller, sender_with_tokens: Caller, operator_keypair, holder_acc
     ):
-        key = Keypair.generate()
-        caller_ether = eth_keys.PrivateKey(key.secret_key[:32]).public_key.to_canonical_address()
+        key = Keypair()
+        caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
         caller, caller_nonce = evm_loader.ether2program(caller_ether)
-        caller_token = get_associated_token_address(PublicKey(caller), NEON_TOKEN_MINT_ID)
+        caller_token = get_associated_token_address(Pubkey.from_string(caller), NEON_TOKEN_MINT_ID)
 
-        operator_without_money = Caller(key, PublicKey(caller), caller_ether, caller_nonce, caller_token)
+        operator_without_money = Caller(key, Pubkey.from_string(caller), caller_ether, caller_nonce, caller_token)
 
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         with pytest.raises(
-            solana.rpc.core.RPCException, match="Attempt to debit an account but found no record of a prior credit"
+            SolanaRPCException, match="Attempt to debit an account but found no record of a prior credit"
         ):
             evm_loader.execute_trx_from_instruction(
                 operator_without_money.solana_account,

@@ -10,6 +10,7 @@ from eth_utils import abi
 from web3.logs import DISCARD
 
 from integration.tests.economy.steps import assert_profit
+from eth_account.signers.local import LocalAccount
 from utils.erc20wrapper import ERC20Wrapper
 from utils.erc721ForMetaplex import ERC721ForMetaplex
 from utils.helpers import gen_hash_of_block
@@ -43,7 +44,7 @@ def accounts(web3_client):
 
 
 @pytest.fixture(scope="class")
-def bob(accounts):
+def bob(accounts) -> LocalAccount:
     return accounts[0]
 
 
@@ -54,24 +55,24 @@ def alice(accounts):
 
 @pytest.fixture(scope="class")
 def trx_list():
-    list = []
-    yield list
+    list_ = []
+    yield list_
     print("Trx list:")
-    for trx in list:
+    for trx in list_:
         print(trx.hex())
+
 
 @pytest.fixture(scope="class")
 def counter(web3_client, accounts):
     contract_address = os.environ.get("COUNTER_ADDRESS")
     if contract_address:
-        contract = web3_client.get_deployed_contract(
-            contract_address, contract_file="common/Counter"
-        )
+        contract = web3_client.get_deployed_contract(contract_address, contract_file="common/Counter")
         print(f"Using Counter deployed earlier at {contract_address}")
     else:
         contract, _ = web3_client.deploy_and_get_contract("common/Counter", "0.8.10", account=accounts[0])
         print(f"Counter deployed at address: {contract.address}")
     return contract
+
 
 @pytest.fixture(scope="class")
 def counter_with_map(web3_client, accounts):
@@ -82,10 +83,11 @@ def counter_with_map(web3_client, accounts):
         )
         print(f"Using CounterWithMap deployed earlier at {contract_address}")
     else:
-        contract, _ = web3_client.deploy_and_get_contract("common/Counter", "0.8.10", contract_name="CounterWithMap", account=accounts[0])
+        contract, _ = web3_client.deploy_and_get_contract(
+            "common/Counter", "0.8.10", contract_name="CounterWithMap", account=accounts[0]
+        )
         print(f"CounterWithMap deployed at address: {contract.address}")
     return contract
-
 
 
 @pytest.fixture(scope="class")
@@ -134,25 +136,25 @@ def erc721(web3_client, faucet, bob):
 
     return erc721
 
-def check_counter(sender, contract, web3_client, sol_client):
 
+def check_counter(sender, contract, web3_client, sol_client):
     tx = web3_client.make_raw_tx(sender.address)
 
-    solana_accounts = get_solana_accounts_by_emulation(web3_client, sender, contract.address,
-                                           "inc()")
-    print_solana_accounts_info(sol_client, solana_accounts,"before inc")
+    solana_accounts = get_solana_accounts_by_emulation(web3_client, sender, contract.address, "inc()")
+    print_solana_accounts_info(sol_client, solana_accounts, "before inc")
 
     value_before = contract.functions.get().call({"from": sender.address})
     print("Value before:", value_before)
 
     tx = contract.functions.inc().build_transaction(tx)
     receipt = web3_client.send_transaction(sender, tx)
-    print_solana_accounts_info(sol_client, solana_accounts,"after inc")
+    print_solana_accounts_info(sol_client, solana_accounts, "after inc")
 
     print("Transaction receipt:", receipt)
     value_after = contract.functions.get().call({"from": sender.address})
     print("Value after:", value_after)
     assert value_after == value_before + 1
+
 
 def get_solana_accounts_by_emulation(web3_client, sender, contract, function_signature, params=None):
     data = abi.function_signature_to_4byte_selector(function_signature)
@@ -161,12 +163,11 @@ def get_solana_accounts_by_emulation(web3_client, sender, contract, function_sig
         types = function_signature.split("(")[1].split(")")[0].split(",")
         data += eth_abi.encode(types, params)
     tx = web3_client.make_raw_tx(sender.address, contract, data=data, estimate_gas=True)
-    signed_tx = web3_client.eth.account.sign_transaction(
-        tx, sender.key)
-    result = web3_client.get_neon_emulate(
-        str(signed_tx.rawTransaction.hex())[2:])
+    signed_tx = web3_client.eth.account.sign_transaction(tx, sender.key)
+    result = web3_client.get_neon_emulate(str(signed_tx.rawTransaction.hex())[2:])
     print(result)
     return [item["pubkey"] for item in result["result"]["solana_accounts"]]
+
 
 def print_solana_accounts_info(sol_client, accounts, action):
     print("Solana accounts info", action)
@@ -194,7 +195,6 @@ class TestAccountMigration:
 
         token_diff = web3_client.to_main_currency(token_balance_after - token_balance_before)
         assert_profit(sol_diff, sol_price, token_diff, neon_price, web3_client.native_token_name)
-
 
     def test_transfers(self, alice, bob, accounts, web3_client, trx_list, check_operator_balance):
         web3_client.send_neon(alice, bob, 5)
@@ -249,36 +249,45 @@ class TestAccountMigration:
         seed = web3_client.text_to_bytes32(gen_hash_of_block(8))
         erc721.mint(seed, erc721.account.address, "uri")
 
-
-    def test_erc721_interaction(self, erc721, web3_client, sol_client, bob, alice, accounts, trx_list, check_operator_balance):
+    def test_erc721_interaction(
+        self, erc721, web3_client, sol_client, bob, alice, accounts, trx_list, check_operator_balance
+    ):
         seed = web3_client.text_to_bytes32(gen_hash_of_block(8))
 
-        solana_accounts = get_solana_accounts_by_emulation(web3_client, erc721.account, erc721.contract.address,
-                                               "mint(bytes32,address,string)",
-                                               [seed, erc721.account.address, "uri"])
-        print_solana_accounts_info(sol_client, solana_accounts,"before mint")
+        solana_accounts = get_solana_accounts_by_emulation(
+            web3_client,
+            erc721.account,
+            erc721.contract.address,
+            "mint(bytes32,address,string)",
+            [seed, erc721.account.address, "uri"],
+        )
+        print_solana_accounts_info(sol_client, solana_accounts, "before mint")
         token_id = erc721.mint(seed, erc721.account.address, "uri")
-        print_solana_accounts_info(sol_client, solana_accounts,"after mint")
+        print_solana_accounts_info(sol_client, solana_accounts, "after mint")
 
         balance_usr1_before = erc721.contract.functions.balanceOf(erc721.account.address).call()
         balance_usr2_before = erc721.contract.functions.balanceOf(alice.address).call()
 
-        solana_accounts = get_solana_accounts_by_emulation(web3_client, erc721.account, erc721.contract.address,
-                                               "approve(address,uint256)",
-                                               [alice.address, token_id])
-        print_solana_accounts_info(sol_client, solana_accounts,"before approve")
+        solana_accounts = get_solana_accounts_by_emulation(
+            web3_client, erc721.account, erc721.contract.address, "approve(address,uint256)", [alice.address, token_id]
+        )
+        print_solana_accounts_info(sol_client, solana_accounts, "before approve")
         resp = erc721.approve(alice.address, token_id, erc721.account)
-        print_solana_accounts_info(sol_client, solana_accounts,"after approve")
+        print_solana_accounts_info(sol_client, solana_accounts, "after approve")
 
         trx_list.append(resp["transactionHash"])
 
-        solana_accounts = get_solana_accounts_by_emulation(web3_client, alice, erc721.contract.address,
-                                               "transferFrom(address,address,uint256)",
-                                               [erc721.account.address, alice.address, token_id])
-        print_solana_accounts_info(sol_client, solana_accounts,"before transfer_from")
+        solana_accounts = get_solana_accounts_by_emulation(
+            web3_client,
+            alice,
+            erc721.contract.address,
+            "transferFrom(address,address,uint256)",
+            [erc721.account.address, alice.address, token_id],
+        )
+        print_solana_accounts_info(sol_client, solana_accounts, "before transfer_from")
 
         resp = erc721.transfer_from(erc721.account.address, alice.address, token_id, alice)
-        print_solana_accounts_info(sol_client, solana_accounts,"after transfer_from")
+        print_solana_accounts_info(sol_client, solana_accounts, "after transfer_from")
 
         trx_list.append(resp["transactionHash"])
 
@@ -368,8 +377,6 @@ class TestAccountMigration:
             assert balance_acc2_after == balance_acc2_before + amount
             assert total_before == total_after
 
-
-
     def test_simple_counter(self, web3_client, accounts, counter, sol_client):
         # the data fits into contract account
         sender = accounts[7]
@@ -378,5 +385,3 @@ class TestAccountMigration:
     def test_counter_with_map(self, web3_client, accounts, counter_with_map, sol_client):
         sender = accounts[9]
         check_counter(sender, counter_with_map, web3_client, sol_client)
-
-
