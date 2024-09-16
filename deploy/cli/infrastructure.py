@@ -26,7 +26,7 @@ TF_BACKEND_CONFIG = {"bucket": TFSTATE_BUCKET, "key": TF_STATE_KEY, "region": TF
 
 os.environ["TF_VAR_run_number"] = os.environ.get("GITHUB_RUN_NUMBER", "0")
 os.environ["TF_VAR_branch"] = os.environ.get("GITHUB_REF_NAME", "develop").replace("/", "-").replace("_", "-")
-os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("DOCKERHUB_ORG_NAME")
+os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("GITHUB_REPOSITORY_OWNER")
 
 
 terraform = Terraform(working_dir=pathlib.Path(__file__).parent.parent / "hetzner")
