@@ -101,7 +101,7 @@ jobs:
       - if: ${{ inputs.external_call }}
         uses: actions/checkout@v4
         with:
-          repository: neonlabsorg/neon-tests
+          repository: ${{ github.repository_owner }}/neon-tests
           ref: develop
       - name: Install python requirements
         id: requirements
@@ -118,7 +118,7 @@ jobs:
         id: uniswap-v2
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: neonlabsorg/uniswap-v2:latest
+          IMAGE: ${{ github.repository_owner }}/uniswap-v2:latest
         run: |
           test -t 1 && USE_TTY="-t"
           docker pull ${{ env.IMAGE }}
@@ -153,7 +153,7 @@ jobs:
       - if: ${{ inputs.external_call }}
         uses: actions/checkout@v4
         with:
-          repository: neonlabsorg/neon-tests
+          repository: ${{ github.repository_owner }}/neon-tests
           ref: develop
       - name: Install python requirements
         id: requirements
@@ -170,7 +170,7 @@ jobs:
         timeout-minutes: 30
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: neonlabsorg/uniswap-v3:latest
+          IMAGE: ${{ github.repository_owner }}/uniswap-v3:latest
         run: |
           test -t 1 && USE_TTY="-t"
           docker pull ${{ env.IMAGE }}
@@ -204,7 +204,7 @@ jobs:
       - if: ${{ inputs.external_call }}
         uses: actions/checkout@v4
         with:
-          repository: neonlabsorg/neon-tests
+          repository: ${{ github.repository_owner }}/neon-tests
           ref: develop
       - name: Install python requirements
         id: requirements
@@ -221,7 +221,7 @@ jobs:
         timeout-minutes: 60
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: neonlabsorg/saddle_tests:latest
+          IMAGE: ${{ github.repository_owner }}/saddle_tests:latest
         run: |
           docker pull ${{ env.IMAGE }}
           docker run -i -d --name=saddle-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
@@ -256,7 +256,7 @@ jobs:
       - if: ${{ inputs.external_call }}
         uses: actions/checkout@v4
         with:
-          repository: neonlabsorg/neon-tests
+          repository: ${{ github.repository_owner }}/neon-tests
           ref: develop
       - name: Install python requirements
         id: requirements
@@ -273,7 +273,7 @@ jobs:
         timeout-minutes: 60
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: neonlabsorg/aave_tests:latest
+          IMAGE: ${{ github.repository_owner }}/aave_tests:latest
         run: |
           docker pull ${{ env.IMAGE }} 
           docker run -i -d --name=aave-v2-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
@@ -302,7 +302,7 @@ jobs:
       - if: ${{ inputs.external_call }}
         uses: actions/checkout@v4
         with:
-          repository: neonlabsorg/neon-tests
+          repository: ${{ github.repository_owner }}/neon-tests
           ref: develop
       - name: Install python requirements
         id: requirements
@@ -319,7 +319,7 @@ jobs:
         timeout-minutes: 120
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: neonlabsorg/aave-v3-core:latest
+          IMAGE: ${{ github.repository_owner }}/aave-v3-core:latest
         run: |
           docker pull ${{ env.IMAGE }} 
           docker run -i -d --name=aave-v3-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
@@ -348,7 +348,7 @@ jobs:
       - if: ${{ inputs.external_call }}
         uses: actions/checkout@v4
         with:
-          repository: neonlabsorg/neon-tests
+          repository: ${{ github.repository_owner }}/neon-tests
           ref: develop
       - name: Install python requirements
         id: requirements
@@ -364,7 +364,7 @@ jobs:
         timeout-minutes: 60
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: neonlabsorg/curve_tests:latest
+          IMAGE: ${{ github.repository_owner }}/curve_tests:latest
         run: |
           docker pull ${{ env.IMAGE }}
           docker run -i -d --name curve-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
@@ -399,7 +399,7 @@ jobs:
       - if: ${{ inputs.external_call }}
         uses: actions/checkout@v4
         with:
-          repository: neonlabsorg/neon-tests
+          repository: ${{ github.repository_owner }}/neon-tests
           ref: develop
       - name: Install python requirements
         id: requirements
@@ -431,7 +431,7 @@ jobs:
       - if: ${{ inputs.external_call }}
         uses: actions/checkout@v4
         with:
-          repository: neonlabsorg/neon-tests
+          repository: ${{ github.repository_owner }}/neon-tests
           ref: develop
       - name: Install python requirements
         id: requirements
@@ -447,7 +447,7 @@ jobs:
         timeout-minutes: 30
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: neonlabsorg/compound_tests:latest
+          IMAGE: ${{ github.repository_owner }}/compound_tests:latest
         run: |
           docker pull ${{ env.IMAGE }}
           docker run -i -d --name compound-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
@@ -483,7 +483,7 @@ jobs:
       - if: ${{ inputs.external_call }}
         uses: actions/checkout@v4
         with:
-          repository: neonlabsorg/neon-tests
+          repository: ${{ github.repository_owner }}/neon-tests
           ref: develop
       - name: Install python requirements
         id: requirements
@@ -500,7 +500,7 @@ jobs:
         timeout-minutes: 60
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: neonlabsorg/robonomics_tests:latest
+          IMAGE: ${{ github.repository_owner }}/robonomics_tests:latest
         run: |
           docker pull ${{ env.IMAGE }}
           docker run -i -d --entrypoint "sleep" --name=robonomics-${{ github.run_number }} ${{ env.IMAGE }} infinity
@@ -532,7 +532,7 @@ jobs:
       - if: ${{ inputs.external_call }}
         uses: actions/checkout@v4
         with:
-          repository: neonlabsorg/neon-tests
+          repository: ${{ github.repository_owner }}/neon-tests
           ref: develop
       - name: Install python requirements
         id: requirements
@@ -548,7 +548,7 @@ jobs:
         timeout-minutes: 60
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: neonlabsorg/yearn_tests:latest
+          IMAGE: ${{ github.repository_owner }}/yearn_tests:latest
         run: |
           docker pull ${{ env.IMAGE }}
           docker run -i -d --name yearn-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
@@ -584,7 +584,7 @@ jobs:
       - if: ${{ inputs.external_call }}
         uses: actions/checkout@v4
         with:
-          repository: neonlabsorg/neon-tests
+          repository: ${{ github.repository_owner }}/neon-tests
           ref: develop
       - name: Install python requirements
         id: requirements
@@ -601,7 +601,7 @@ jobs:
         timeout-minutes: 60
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: neonlabsorg/pancake:latest
+          IMAGE: ${{ github.repository_owner }}/pancake:latest
         run: |
           test -t 1 && USE_TTY="-t"
           docker pull ${{ env.IMAGE }}
@@ -636,7 +636,7 @@ jobs:
       - if: ${{ inputs.external_call }}
         uses: actions/checkout@v4
         with:
-          repository: neonlabsorg/neon-tests
+          repository: ${{ github.repository_owner }}/neon-tests
           ref: develop
       - name: Install python requirements
         id: requirements
