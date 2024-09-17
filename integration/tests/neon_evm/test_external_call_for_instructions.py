@@ -1,6 +1,6 @@
 import pytest
 from solana.rpc.core import RPCException
-from solana.transaction import AccountMeta, Transaction, TransactionInstruction
+from solana.transaction import AccountMeta, Transaction, Instruction
 
 from utils.consts import TEST_INVOKE_ID
 from utils.instructions import (
@@ -45,8 +45,8 @@ class TestExternalCall:
             msg.rawTransaction,
             accounts,
         )
-        upd_instruction = TransactionInstruction(
-            keys=[AccountMeta(evm_loader.loader_id, is_signer=False, is_writable=True)] + instruction.keys,
+        upd_instruction = Instruction(
+            accounts=[AccountMeta(evm_loader.loader_id, is_signer=False, is_writable=True)] + instruction.accounts,
             program_id=TEST_INVOKE_ID,
             data=instruction.data,
         )
@@ -94,8 +94,8 @@ class TestExternalCall:
             msg.rawTransaction,
             accounts,
         )
-        upd_instruction = TransactionInstruction(
-            keys=[AccountMeta(evm_loader.loader_id, is_signer=False, is_writable=True)] + instruction.keys,
+        upd_instruction = Instruction(
+            accounts=[AccountMeta(evm_loader.loader_id, is_signer=False, is_writable=True)] + instruction.accounts,
             program_id=TEST_INVOKE_ID,
             data=instruction.data,
         )

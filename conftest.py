@@ -10,7 +10,7 @@ from _pytest.config import Config
 from _pytest.config.argparsing import Parser
 from _pytest.nodes import Item
 from _pytest.runner import runtestprotocol
-from solana.keypair import Keypair
+from solders.keypair import Keypair
 from web3.middleware import geth_poa_middleware
 
 from clickfile import TEST_GROUPS, EnvName
@@ -131,7 +131,7 @@ def pytest_configure(config: Config):
     if "NEON_TOKEN_MINT" not in os.environ or not os.environ["NEON_TOKEN_MINT"]:
         os.environ["NEON_TOKEN_MINT"] = env["spl_neon_mint"]
     if "CHAIN_ID" not in os.environ or not os.environ["CHAIN_ID"]:
-        os.environ["CHAIN_ID"]: env["network_ids"]["neon"]
+        os.environ["CHAIN_ID"] = str(env["network_ids"]["neon"])
 
     if network_name == "terraform":
         env["solana_url"] = env["solana_url"].replace("<solana_ip>", os.environ.get("SOLANA_IP"))
@@ -149,22 +149,22 @@ def env_name(pytestconfig: Config) -> EnvName:
 @pytest.fixture(scope="session")
 def operator_keypair():
     with open("operator-keypair.json", "r") as key:
-        secret_key = json.load(key)[:32]
-        return Keypair.from_secret_key(secret_key)
+        secret_key = json.load(key)
+        return Keypair.from_bytes(secret_key)
 
 
 @pytest.fixture(scope="session")
 def evm_loader_keypair():
     with open("evm_loader-keypair.json", "r") as key:
-        secret_key = json.load(key)[:32]
-        return Keypair.from_secret_key(secret_key)
+        secret_key = json.load(key)
+        return Keypair.from_bytes(secret_key)
 
 
 @pytest.fixture(scope="session", autouse=True)
 def allure_environment(pytestconfig: Config, web3_client_session: NeonChainWeb3Client):
     opts = {}
     network_name = pytestconfig.getoption("--network")
-    if  network_name != "geth" and network_name != "mainnet" and "neon_evm" not in os.getenv("PYTEST_CURRENT_TEST"):
+    if network_name != "geth" and network_name != "mainnet" and "neon_evm" not in os.getenv("PYTEST_CURRENT_TEST"):
         opts = {
             "Network": pytestconfig.environment.proxy_url,
             "Proxy.Version": web3_client_session.get_proxy_version()["result"],
@@ -213,7 +213,7 @@ def web3_client_session(
         tracer_url=pytestconfig.environment.tracer_url,
     )
     if env_name is EnvName.GETH:
-        client._web3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        client._web3.middleware_onion.inject(geth_poa_middleware, layer=0)  # noqa
     return client
 
 

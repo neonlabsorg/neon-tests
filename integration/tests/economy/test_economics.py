@@ -1,6 +1,5 @@
 import json
 import os
-import random
 from decimal import Decimal
 
 import allure
@@ -10,9 +9,9 @@ import web3
 import web3.types
 from _pytest.config import Config
 from eth_account.signers.local import LocalAccount
-from solana.keypair import Keypair as SolanaAccount
-from solana.publickey import PublicKey
-from solana.rpc.types import Commitment, TxOpts
+from solders.keypair import Keypair as SolanaAccount
+from solders.pubkey import Pubkey
+from solana.rpc.types import Commitment
 from solana.transaction import Transaction
 from spl.token.instructions import (
     create_associated_token_account,
@@ -23,18 +22,16 @@ from web3.contract import Contract
 from utils.accounts import EthAccounts
 from utils.consts import LAMPORT_PER_SOL, Time
 from utils.erc20 import ERC20
-from utils.faucet import Faucet
 from utils.helpers import wait_condition, gen_hash_of_block
 from utils.operator import Operator
 from utils.solana_client import SolanaClient
 from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client, Web3Client
-from .const import INSUFFICIENT_FUNDS_ERROR, GAS_LIMIT_ERROR, BIG_STRING, TX_COST, DECIMAL_CONTEXT
+from .const import INSUFFICIENT_FUNDS_ERROR, GAS_LIMIT_ERROR, BIG_STRING, DECIMAL_CONTEXT
 from .steps import (
     wait_for_block,
     assert_profit,
     get_gas_used_percent,
-    check_alt_on,
     check_alt_off,
     get_sol_trx_with_alt,
 )
@@ -231,7 +228,7 @@ class TestEconomics:
     ):
         sender_account = accounts[0]
         sol_user = SolanaAccount()
-        sol_client.request_airdrop(sol_user.public_key, 5 * LAMPORT_PER_SOL)
+        sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
 
         sol_balance_before = operator.get_solana_balance()
         neon_balance_before = operator.get_token_balance(web3_client)
@@ -247,14 +244,14 @@ class TestEconomics:
 
         tx = self.web3_client.make_raw_tx(from_=sender_account, amount=move_amount, tx_type=tx_type)
 
-        instruction_tx = contract.functions.withdraw(bytes(sol_user.public_key)).build_transaction(tx)
+        instruction_tx = contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
 
         receipt = web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
         assert (user_neon_balance_before - web3_client.get_balance(sender_account)) > 5
 
-        balance = sol_client.get_account_info_json_parsed(sol_user.public_key, commitment=Commitment("confirmed"))
+        balance = sol_client.get_account_info_json_parsed(sol_user.pubkey(), commitment=Commitment("confirmed"))
         assert int(balance.value.lamports) == int(move_amount / 1_000_000_000)
 
         sol_balance_after = operator.get_solana_balance()
@@ -278,7 +275,7 @@ class TestEconomics:
     def test_withdraw_neon_existing_ata(
             self,
             pytestconfig: Config,
-            neon_mint: PublicKey,
+            neon_mint: Pubkey,
             neon_price: float,
             sol_price: float,
             sol_client: SolanaClient,
@@ -290,16 +287,16 @@ class TestEconomics:
     ):
         sender_account = accounts[0]
         sol_user = SolanaAccount()
-        sol_client.request_airdrop(sol_user.public_key, 5 * LAMPORT_PER_SOL)
+        sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
 
-        wait_condition(lambda: sol_client.get_balance(sol_user.public_key) != 0)
+        wait_condition(lambda: sol_client.get_balance(sol_user.pubkey()) != 0)
 
         trx = Transaction()
-        trx.add(create_associated_token_account(sol_user.public_key, sol_user.public_key, neon_mint))
+        trx.add(create_associated_token_account(sol_user.pubkey(), sol_user.pubkey(), neon_mint))
 
         sol_client.send_tx_and_check_status_ok(trx, sol_user)
 
-        dest_token_acc = get_associated_token_address(sol_user.public_key, neon_mint)
+        dest_token_acc = get_associated_token_address(sol_user.pubkey(), neon_mint)
 
         sol_balance_before = operator.get_solana_balance()
         neon_balance_before = operator.get_token_balance(web3_client)
@@ -308,7 +305,7 @@ class TestEconomics:
         move_amount = web3_client._web3.to_wei(5, "ether")
 
         tx = web3_client.make_raw_tx(sender_account, amount=move_amount, tx_type=tx_type)
-        instruction_tx = withdraw_contract.functions.withdraw(bytes(sol_user.public_key)).build_transaction(tx)
+        instruction_tx = withdraw_contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
 
         receipt = web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
@@ -820,7 +817,7 @@ class TestEconomics:
 
     ):
         """Trigger transaction than requires more than 30 accounts"""
-        sender_account = accounts[0]
+        sender_account = accounts[1]
         accounts_quantity = 45
         sol_balance_before = operator.get_solana_balance()
         neon_balance_before = operator.get_token_balance(web3_client)

@@ -6,6 +6,7 @@ import typing as tp
 import pathlib
 import logging
 
+import click
 from paramiko.client import SSHClient
 from scp import SCPClient
 
@@ -175,7 +176,12 @@ def get_solana_accounts_transactions_compute_units(eth_transaction):
             tx_sig=Signature.from_string(solana_transaction_hash),
             max_supported_transaction_version=0,
         )
-        log_messages = solana_transaction.value.transaction.meta.log_messages
+
+        try:
+            log_messages = solana_transaction.value.transaction.meta.log_messages
+        except AttributeError:
+            click.echo(f"WARNING: no log messages in transaction {solana_transaction_hash}: {solana_transaction}")
+            continue
 
         for message in log_messages[::-1]:
             match = re.match(r'^.+consumed (\d+) of \d+ compute units$', message)

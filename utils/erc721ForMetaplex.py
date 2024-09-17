@@ -46,7 +46,7 @@ class ERC721ForMetaplex:
         return contract
 
     @allure.step("Mint")
-    def mint(self, seed, to_address, uri, gas_price=None, gas=None, signer=None):
+    def mint(self, seed, to_address, uri, gas_price=None, gas=None, signer=None) -> int:
         signer = self.account if signer is None else signer
         tx = self.make_tx_object(signer.address, gas_price, gas)
         instruction_tx = self.contract.functions.mint(seed, to_address, uri).build_transaction(tx)

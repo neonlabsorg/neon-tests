@@ -1,7 +1,10 @@
+from spl.token.client import Token
 from eth_account.signers.local import LocalAccount
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
 
 from . import web3client
 from .metaplex import create_metadata_instruction_data, create_metadata_instruction
@@ -17,7 +20,7 @@ class ERC20Wrapper:
         name,
         symbol,
         sol_client,
-        solana_account,
+        solana_account: Keypair,
         decimals=9,
         evm_loader_id=None,
         account=None,
@@ -45,6 +48,8 @@ class ERC20Wrapper:
         self.decimals = decimals
         self.sol_client = sol_client
         self.contract_address = contract_address
+        self.token_mint: Token
+        self.solana_associated_token_acc: Pubkey
 
         if not contract_address:
             self.contract_address = self.deploy_wrapper(mintable)
@@ -139,10 +144,10 @@ class ERC20Wrapper:
         txn.add(
             create_metadata_instruction(
                 metadata,
-                self.solana_acc.public_key,
+                self.solana_acc.pubkey(),
                 self.token_mint.pubkey,
-                self.solana_acc.public_key,
-                self.solana_acc.public_key,
+                self.solana_acc.pubkey(),
+                self.solana_acc.pubkey(),
             )
         )
         self.sol_client.send_transaction(

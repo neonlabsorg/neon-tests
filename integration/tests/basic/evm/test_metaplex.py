@@ -1,6 +1,6 @@
 import allure
 import pytest
-from solana.keypair import Keypair
+from solders.keypair import Keypair
 
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
@@ -19,14 +19,14 @@ class TestPrecompiledMetaplex:
 
     @pytest.fixture(scope="class")
     def mint_id(self, web3_client, accounts, metaplex_caller):
-        mint = Keypair.generate()
+        mint = Keypair()
         tx = {
             "from": accounts[0].address,
             "nonce": web3_client.eth.get_transaction_count(accounts[0].address),
             "gasPrice": web3_client.gas_price(),
         }
         instruction_tx = metaplex_caller.functions.callCreateMetadata(
-            bytes(mint.public_key), NAME, SYMBOL, URI
+            bytes(mint.pubkey()), NAME, SYMBOL, URI
         ).build_transaction(tx)
         resp = web3_client.send_transaction(accounts[0], instruction_tx)
         log = metaplex_caller.events.LogBytes().process_receipt(resp)[0]
@@ -35,9 +35,9 @@ class TestPrecompiledMetaplex:
 
     def test_create_metadata(self, metaplex):
         sender_account = self.accounts[0]
-        mint = Keypair.generate()
+        mint = Keypair()
         tx = self.web3_client.make_raw_tx(sender_account)
-        instruction_tx = metaplex.functions.createMetadata(bytes(mint.public_key), NAME, SYMBOL, URI).build_transaction(
+        instruction_tx = metaplex.functions.createMetadata(bytes(mint.pubkey()), NAME, SYMBOL, URI).build_transaction(
             tx
         )
 
@@ -46,9 +46,9 @@ class TestPrecompiledMetaplex:
 
     def test_create_master_edition(self, metaplex):
         sender_account = self.accounts[0]
-        mint = Keypair.generate()
+        mint = Keypair()
         tx = self.web3_client.make_raw_tx(sender_account)
-        instruction_tx = metaplex.functions.createMasterEdition(bytes(mint.public_key), 0).build_transaction(tx)
+        instruction_tx = metaplex.functions.createMasterEdition(bytes(mint.pubkey()), 0).build_transaction(tx)
 
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
