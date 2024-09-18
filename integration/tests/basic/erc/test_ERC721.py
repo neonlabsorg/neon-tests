@@ -16,7 +16,7 @@ from spl.token.instructions import (
 )
 
 from integration.tests.basic.helpers.assert_message import ErrorMessage
-from utils import metaplex
+from utils import metaplex, stats_collector
 from utils.accounts import EthAccounts
 from utils.consts import ZERO_ADDRESS
 from utils.erc721ForMetaplex import ERC721ForMetaplex
@@ -60,6 +60,7 @@ class TestERC721:
         assert metadata["data"]["name"] == "Metaplex"
         assert metadata["data"]["symbol"] == "MPL"
 
+    @pytest.mark.cost_report
     def test_mint(self, erc721):
         seed = self.web3_client.text_to_bytes32(gen_hash_of_block(8))
         uri = generate_text(min_len=10, max_len=200)
@@ -219,6 +220,7 @@ class TestERC721:
                 **param,
             )
 
+    @pytest.mark.cost_report
     def test_transferFrom_with_approval(self, erc721, token_id, accounts):
         recipient = accounts[2]
 

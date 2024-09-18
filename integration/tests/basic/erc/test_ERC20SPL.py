@@ -11,8 +11,9 @@ from solders.pubkey import Pubkey
 from spl.token import instructions
 from spl.token.constants import TOKEN_PROGRAM_ID
 
-from utils import metaplex
+from utils import metaplex, stats_collector
 from utils.consts import ZERO_ADDRESS
+from utils.erc20wrapper import ERC20Wrapper
 from utils.helpers import gen_hash_of_block, wait_condition, create_invalid_address
 from utils.web3client import NeonChainWeb3Client
 from utils.solana_client import SolanaClient
@@ -37,7 +38,7 @@ class TestERC20SPL:
     sol_client: SolanaClient
 
     @pytest.fixture(scope="class")
-    def erc20_contract(self, erc20_spl, eth_bank_account, pytestconfig: Config):
+    def erc20_contract(self, erc20_spl, eth_bank_account, pytestconfig: Config) -> ERC20Wrapper:
         if pytestconfig.getoption("--network") == "mainnet":
             self.web3_client.send_neon(eth_bank_account, erc20_spl.account.address, 10)
         return erc20_spl
@@ -55,6 +56,7 @@ class TestERC20SPL:
         assert metadata["is_mutable"] is True
 
     @pytest.mark.mainnet
+    @pytest.mark.cost_report
     def test_balanceOf(self, erc20_contract):
         recipient_account = self.accounts[1]
         transfer_amount = random.randint(0, 1000)
@@ -62,6 +64,7 @@ class TestERC20SPL:
         erc20_contract.transfer(erc20_contract.account, recipient_account, transfer_amount)
         assert erc20_contract.get_balance(recipient_account) == initial_balance + transfer_amount
 
+    @pytest.mark.cost_report
     def test_totalSupply(self, erc20_contract):
         total_before = erc20_contract.contract.functions.totalSupply().call()
         amount = random.randint(0, 10000)
@@ -82,6 +85,7 @@ class TestERC20SPL:
         name = erc20_contract.contract.functions.name().call()
         assert name == erc20_contract.name
 
+    @pytest.mark.cost_report
     def test_burn(self, erc20_contract, restore_balance):
         balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         total_before = erc20_contract.contract.functions.totalSupply().call()
@@ -155,6 +159,7 @@ class TestERC20SPL:
         with pytest.raises(ValueError, match=msg):
             erc20_contract.burn_from(new_account, erc20_contract.account.address, 1, **param)
 
+    @pytest.mark.cost_report
     def test_approve_more_than_total_supply(self, erc20_contract):
         new_account = self.accounts[0]
         amount = erc20_contract.contract.functions.totalSupply().call() + 1
@@ -442,7 +447,7 @@ class TestERC20SPL:
 @allure.story("ERC20SPL: Tests for ERC20ForSPLMintable contract")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
 @pytest.mark.neon_only
-class TestERC20SPLMintable(TestERC20SPL):
+class TestERC20SPLMintable:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
     sol_client: SolanaClient
@@ -498,6 +503,7 @@ class TestERC20SPLMintable(TestERC20SPL):
         balance_after = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         assert balance_after == balance_before + amount
 
+    @pytest.mark.cost_report
     def test_mint_to_another_account(self, erc20_contract):
         new_account = self.accounts.create_account(0)
         amount = random.randint(1, MAX_TOKENS_AMOUNT)

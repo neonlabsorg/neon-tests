@@ -32,6 +32,11 @@ on:
           - 8
           - 12
           - auto
+      generate_cost_report:
+        type: boolean
+        default: false
+        required: false
+        description: "Flag defining whether cost report should be generated"
 env:
   NETWORK: ${{ github.event.inputs.network || 'terraform' }}
   NUMPROCESSES: ${{ github.event.inputs.numprocesses || 8 }}
@@ -40,6 +45,7 @@ env:
   FAUCET_URL: "${{ secrets.DEVNET_FAUCET_URL }}"
   IMAGE:  ${{ github.repository_owner }}/neon_tests
   DOCKER_HUB_ORG_NAME: ${{ github.repository_owner }}
+  GENERATE_COST_REPORT: ${{ github.event.inputs.generate_cost_report || 'false' }}
 jobs:
   dockerize:
     if: ${{ github.ref_name != 'develop'}}
@@ -137,12 +143,35 @@ jobs:
         timeout-minutes: 60
         id: basic
         run: |
-          docker exec -i ${{ env.CONTAINER }} \
-            /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && \
-            python3 ./clickfile.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
+          CMD="python3 ./clickfile.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
+      
+          if [[ "${{ env.GENERATE_COST_REPORT }}" == "true" ]]; then
+            CMD="$CMD --cost_reports_dir reports/cost_reports"
+          fi
+      
+          docker exec -i ${{ env.CONTAINER }} /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && $CMD"
+
       - name: Set failed test group to basic
         if: failure()
         run: echo "FAILED_TEST_GROUP=basic" >> $GITHUB_ENV
+      - name: Copy cost reports from container
+        if: ${{ env.GENERATE_COST_REPORT == 'true' }}
+        run: |
+          mkdir -p ./reports/cost_reports/ && \
+          docker cp ${{ env.CONTAINER }}:/opt/neon-tests/reports/cost_reports/. ./reports/cost_reports/
+      - name: Upload cost reports as artifacts
+        if: ${{ env.GENERATE_COST_REPORT == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cost-reports
+          path: reports/cost_reports/**.json
+      - name: Save Cost Reports to cost_reports.md and echo to Summary
+        if: ${{ env.GENERATE_COST_REPORT == 'true' }}
+        run: |
+          docker exec -i -e NETWORK=${{ env.NETWORK }} ${{ env.CONTAINER }} \
+            python3 ./clickfile.py dapps save_dapps_cost_report_to_md \
+            --directory reports/cost_reports && \
+          docker exec -i ${{ env.CONTAINER }} cat cost_reports.md >> $GITHUB_STEP_SUMMARY
       - name: "Generate allure report"
         if: always()
         uses: ./.github/actions/generate-allure-report
@@ -181,4 +210,3 @@ jobs:
         uses: ./.github/actions/destroy-tf-stand
         with:
           ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
-
