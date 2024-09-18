@@ -58,9 +58,7 @@ ERR_MESSAGES = {
 }
 
 SRC_ALLURE_CATEGORIES = Path("./allure/categories.json")
-
 DST_ALLURE_CATEGORIES = Path("./allure-results/categories.json")
-
 DST_ALLURE_ENVIRONMENT = Path("./allure-results/environment.properties")
 
 BASE_EXTENSIONS_TPL_DATA = "ui/extensions/data"
@@ -535,6 +533,7 @@ def update_contracts(branch):
 @click.option("-u", "--users", default=8, help="Accounts numbers used in OZ tests")
 @click.option("-c", "--case", default="", type=str, help="Specific test case name pattern to run")
 @click.option("--marker", help="Run tests by mark")
+@click.option("--cost_reports_dir", default="", help="Directory where CostReports will be created")
 @click.option(
     "--ui-item",
     default="all",
@@ -564,6 +563,7 @@ def run(
         case,
         keep_error_log: bool,
         marker: str,
+        cost_reports_dir: str,
 ):
     if not network and name == "ui":
         network = "devnet"
@@ -613,14 +613,24 @@ def run(
         if network != "geth":
             assert wait_for_tracer_service(network)
 
-    if case != "":
-        command += " -vk {}".format(case)
+    if case:
+        if " " in case:
+            command += f' -k "{case}"'
+        else:
+            command += f" -k {case}"
+
     if marker:
-        command += f" -m {marker}"
+        if " " in marker:
+            command += f' -m "{marker}"'
+        else:
+            command += f" -m {marker}"
 
     command += f" -s --network={network} --make-report --test-group {name}"
     if keep_error_log:
         command += " --keep-error-log"
+    if cost_reports_dir:
+        command += f" --cost_reports_dir {cost_reports_dir}"
+
     args = command.split()[1:]
     exit_code = int(pytest.main(args=args))
     if name != "ui":

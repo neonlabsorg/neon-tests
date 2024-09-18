@@ -1,6 +1,7 @@
 import os
 import glob
 import json
+import re
 import typing as tp
 import pathlib
 from collections import Counter
@@ -43,16 +44,17 @@ def prepare_report_data(directory: str) -> pd.DataFrame:
     data = []
 
     for app, actions in reports.items():
-        added_number = 1
         counts = Counter([action["name"].lower().strip() for action in actions])
         duplicate_actions = [action for action, count in counts.items() if count > 1]
+        added_numbers = {dup_action: 1 for dup_action in duplicate_actions}
 
         for action in actions:
             # Ensure action name is unique by appending a counter if necessary
             base_action_name = action["name"].lower().strip()
             if base_action_name in duplicate_actions:
+                added_number = added_numbers[base_action_name]
                 unique_action_name = f"{base_action_name} {added_number}"
-                added_number += 1
+                added_numbers[base_action_name] += 1
             else:
                 unique_action_name = base_action_name
 
@@ -87,8 +89,20 @@ def report_data_to_markdown(df: pd.DataFrame) -> str:
     df.columns = [col.upper() for col in df.columns]
     df['GAS_USED_%'] = df['GAS_USED_%'].apply(lambda x: f"{x:.2f}")
 
+    def split_action(action):
+        match = re.match(r"([a-zA-Z_]+)\s*(\d*)", action)
+        text = match.group(1)  # Textual part
+        number = int(match.group(2)) if match.group(2).isdigit() else 0
+        return text, number
+
     for dapp_name in dapp_names:
         dapp_df = df[df['DAPP_NAME'] == dapp_name].drop(columns='DAPP_NAME')
+
+        # sort by ACTION (to mitigate [action 1, action 10, action 2, ...])
+        dapp_df[['ACTION_TEXT', 'ACTION_NUM']] = dapp_df['ACTION'].apply(split_action).apply(pd.Series)
+        dapp_df = dapp_df.sort_values(by=['ACTION_TEXT', 'ACTION_NUM'])
+        dapp_df = dapp_df.drop(columns=['ACTION_TEXT', 'ACTION_NUM'])
+
         report_content += f'\n## Cost Report for "{dapp_name.title()}" dApp\n\n'
         report_content += dapp_df.to_markdown(index=False) + "\n"
 
