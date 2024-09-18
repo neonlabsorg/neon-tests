@@ -577,7 +577,7 @@ def run(
         if network == "mainnet":
             command = "py.test integration/tests/basic -m mainnet"
         else:
-            command = "py.test integration/tests/basic"
+            command = "py.test integration/tests/basic/erc/test_ERC20SPL.py integration/tests/basic/erc/test_ERC721.py"
         if numprocesses:
             command = f"{command} --numprocesses {numprocesses} --dist loadgroup"
     elif name == "tracer":

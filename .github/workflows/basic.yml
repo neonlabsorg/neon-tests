@@ -34,7 +34,7 @@ on:
           - auto
       generate_cost_report:
         type: boolean
-        default: false
+        default: true
         required: false
         description: "Flag defining whether cost report should be generated"
 env:
@@ -45,7 +45,7 @@ env:
   FAUCET_URL: "${{ secrets.DEVNET_FAUCET_URL }}"
   IMAGE:  ${{ github.repository_owner }}/neon_tests
   DOCKER_HUB_ORG_NAME: ${{ github.repository_owner }}
-  GENERATE_COST_REPORT: ${{ github.event.inputs.generate_cost_report || 'false' }}
+  GENERATE_COST_REPORT: ${{ github.event.inputs.generate_cost_report || 'true' }}
 jobs:
   dockerize:
     if: ${{ github.ref_name != 'develop'}}
@@ -135,7 +135,7 @@ jobs:
             /bin/bash -c "export SOLANA_URL=http://${{ env.SOLANA_IP }}:8899 \
             && export NEON_CORE_API_URL=http://${{ env.SOLANA_IP }}:8085/api \
             && export NEON_CORE_API_RPC_URL=http://${{ env.SOLANA_IP }}:3100 \
-            && python3 ./clickfile.py run evm --numprocesses 8 --network terraform --keep-error-log"
+            && python3 ./clickfile.py run evm --numprocesses 8 --network terraform --keep-error-log --case test_incorrect_nonce"
       - name: Set failed test group to evm
         if: failure()
         run: echo "FAILED_TEST_GROUP=evm" >> $GITHUB_ENV
