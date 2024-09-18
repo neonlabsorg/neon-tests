@@ -44,3 +44,5 @@ jobs:
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
           oz_tag: ${{ steps.define-env.outputs.oz_tag }}
+          image_name: ${{ github.repository_owner }}/neon_tests
+          docker_hub_org_name: ${{ github.repository_owner }}

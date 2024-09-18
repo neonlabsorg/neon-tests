@@ -182,15 +182,20 @@ def allure_environment(pytestconfig: Config, web3_client_session: NeonChainWeb3C
     shutil.copy(categories_from, categories_to)
 
     if "CI" in os.environ:
+        github_server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
+        github_organization = os.environ.get("GITHUB_REPOSITORY_OWNER")
+        github_repository = os.environ.get("GITHUB_REPOSITORY", "neon-tests")
+        actions_url = f"{github_server_url}/{github_organization}/{github_repository}/actions"
+
         with open(allure_path / "executor.json", "w+") as f:
             json.dump(
                 {
                     "name": "Github Action",
                     "type": "github",
-                    "url": "https://github.com/neonlabsorg/neon-tests/actions",
+                    "url": actions_url,
                     "buildOrder": os.environ.get("GITHUB_RUN_ID", "0"),
                     "buildName": os.environ.get("GITHUB_WORKFLOW", "neon-tests"),
-                    "buildUrl": f'{os.environ.get("GITHUB_SERVER_URL", "https://github.com")}/{os.environ.get("GITHUB_REPOSITORY", "neon-tests")}/actions/runs/{os.environ.get("GITHUB_RUN_ID", "0")}',
+                    "buildUrl": f'{actions_url}/runs/{os.environ.get("GITHUB_RUN_ID", "0")}',
                     "reportUrl": "",
                     "reportName": "Allure report for neon-tests",
                 },

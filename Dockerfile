@@ -1,6 +1,6 @@
 ARG OZ_TAG=latest
-
-FROM neonlabsorg/openzeppelin-contracts:$OZ_TAG as oz-contracts
+ARG DOCKER_HUB_ORG_NAME
+FROM $DOCKER_HUB_ORG_NAME/openzeppelin-contracts:$OZ_TAG as oz-contracts
 FROM ubuntu:20.04
 
 ENV TZ=Europe/Moscow
@@ -63,6 +63,8 @@ ADD ./ /opt/neon-tests
 # Install all requirements
 RUN python3 ./clickfile.py requirements -d all
 
+ARG DOCKER_HUB_ORG_NAME
+ENV DOCKER_HUB_ORG_NAME=${DOCKER_HUB_ORG_NAME}
 ARG CONTRACTS_BRANCH
 RUN python3 ./clickfile.py update-contracts --branch ${CONTRACTS_BRANCH}
 

@@ -71,10 +71,11 @@ EXTENSIONS_USER_DATA_PATH = "ui/extensions/chrome"
 HOME_DIR = Path(__file__).absolute().parent
 
 OZ_BALANCES = "./compatibility/results/oz_balance.json"
-NEON_EVM_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-evm"
+DOCKER_HUB_ORG_NAME = os.environ.get("DOCKER_HUB_ORG_NAME")
+NEON_EVM_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-evm"
 HOODIES_CHAINLINK_GITHUB_URL = "https://github.com/hoodieshq/chainlink-neon"
-PROXY_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-proxy.py"
-FAUCET_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-faucet"
+PROXY_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-proxy.py"
+FAUCET_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-faucet"
 EXTERNAL_CONTRACT_PATH = Path.cwd() / "contracts" / "external"
 VERSION_BRANCH_TEMPLATE = r"[vt]{1}\d{1,2}\.\d{1,2}\.x.*"
 GITHUB_TAG_PATTERN = re.compile(r'^[vt]\d{1,2}\.\d{1,2}\.\d{1,2}$')
@@ -454,7 +455,7 @@ def get_evm_pinned_version(branch):
     resp = requests.get(f"{PROXY_GITHUB_URL}/contents/.github/workflows/pipeline.yml?ref={branch}")
 
     if resp.status_code != 200:
-        click.echo(f"Can't get pipeline file for branch {branch}: {resp.text}")
+        click.echo(f"Can't get pipeline file for {PROXY_GITHUB_URL}: {resp.text}")
         raise click.ClickException(f"Can't get pipeline file for branch {branch}")
     info = resp.json()
     pipeline_file = yaml.safe_load(requests.get(info["download_url"]).text)
@@ -520,7 +521,7 @@ def update_contracts(branch):
     update_contracts_from_git(HOODIES_CHAINLINK_GITHUB_URL, "hoodies_chainlink", "main")
 
     update_contracts_from_git(
-        "https://github.com/neonlabsorg/neon-contracts.git", "neon-contracts", "main", update_npm=False
+        f"https://github.com/{DOCKER_HUB_ORG_NAME}/neon-contracts.git", "neon-contracts", "main", update_npm=False
     )
     subprocess.check_call(f'npm ci --prefix {EXTERNAL_CONTRACT_PATH / "neon-contracts" / "ERC20ForSPL"}', shell=True)
 

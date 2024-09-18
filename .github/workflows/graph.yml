@@ -29,6 +29,6 @@ jobs:
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.GHTOKEN }}
-          repository: neonlabsorg/graph-node
+          repository: ${{ github.repository_owner }}/graph-node
           event-type: integration-tests
           client-payload: '{"accounts": "${{ env.ACCOUNTS }}"}'
