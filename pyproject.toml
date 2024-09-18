@@ -18,7 +18,8 @@ markers = [
     "bug: mark for tests containing bugs which need to be fixed or refactored",
     "neon_only: tests for Neon functionality",
     "need_eip1559_blocks: values passed to this marker will be used by fixture eip1559_setup",
-    "execute_in_the_end_of_session: moves the test to the end of the session"
+    "execute_in_the_end_of_session: moves the test to the end of the session",
+    "cost_report: enables Cost Report data collection for this test"
 ]
 asyncio_mode = "auto"
 addopts = "--alluredir=allure-results"

@@ -173,7 +173,7 @@ def erc20_spl(
     solana_account,
     eth_bank_account,
     accounts_session,
-):
+) -> ERC20Wrapper:
     symbol = "".join([random.choice(string.ascii_uppercase) for _ in range(3)])
     erc20 = ERC20Wrapper(
         web3_client_session,
