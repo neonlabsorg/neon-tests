@@ -15,10 +15,9 @@ export const options = testConfig;
 const transferAmount = randomIntBetween(1, 5);
 
 export default function sendNeonTest() {
-    let account = createAccount();
     const accountReceiver = createAccount();
     const accountSender = createAccount();
-    const client = ethClient(account.private_key);
+    const client = ethClient(accountSender.private_key);
     fundAccountFromFaucet(client, accountSender.address, initialAccountBalance);
 
     const startTime = new Date();

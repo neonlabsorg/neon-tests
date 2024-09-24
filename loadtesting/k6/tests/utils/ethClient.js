@@ -46,10 +46,7 @@ export function sendTokens(client, from, to, value, gas, gasPrice, nonce) {
         });
     }
 
-    console.log('Transaction: ' + JSON.stringify(transaction));
     const txh = client.sendRawTransaction(transaction);
-    console.log('Transaction send neon from: ' + from + ' to: ' + to + ' amount: ' + value);
-    console.log('Transaction hash: ' + txh);
     const receipt = client.waitForTransactionReceipt(txh);
 
     return receipt;
