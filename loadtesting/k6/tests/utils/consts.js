@@ -8,3 +8,7 @@ if (!faucetUri.includes("request_neon")) {
 }
 export const faucetUrl = faucetUrlObject;
 export const proxyUrl = __ENV.PROXY_URL;
+export const networkId = parseInt(__ENV.NETWORK_ID);
+
+// Initial Account balance in Neon
+export const initialAccountBalance = 10;
