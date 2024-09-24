@@ -1,5 +1,5 @@
-import wallet from 'k6/x/ethereum/wallet';
-import http from 'k6/http';
+import { wallet } from 'k6/x/ethereum/wallet';
+import { http } from 'k6/http';
 import { check } from 'k6';
 import { faucetUrl } from './consts.js';
 import { sendTokens } from './ethClient.js';
