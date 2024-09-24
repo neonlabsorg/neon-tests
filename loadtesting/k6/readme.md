@@ -9,7 +9,7 @@ export PATH=$PATH:$(go env GOPATH)/bin
 
 
 ## Run performance test using clickfile:
-Install xk6 and build exe file, tag is a neonlabsorg forked xk6-ethereum plugin tag, it can be a fixed version of a forked xk6-ethereum plugin or commit sha (ex. ```05e0ce5```)
+Install xk6 and build an executable file, tag is a neonlabsorg forked xk6-ethereum plugin tag, it can be a fixed version of a forked xk6-ethereum plugin or commit sha (ex. ```05e0ce5```)
 ```bash
 ./clickfile.py k6 build --tag 05e0ce5
 ```
@@ -20,7 +20,7 @@ Run load scenario:
 ```
 
 
-## Native commands to run load tests:
+## Native commands to build k6:
 Install k6
 ```bash
 go install go.k6.io/xk6/cmd/xk6@latest
@@ -36,6 +36,12 @@ where:
 - neonlabsorg/xk6-ethereum - the ethereum plugin forked by neonlabsorg
 
 
+## Local test run with local version of the xk6-ethereum plugin
+It is common approach to do some changes in the plugin and test it locally before pushing changes to github.
+Pass the xk6-ethereum plugin repository path (on your local machine) as a parameter to the build command:
+```bash
+xk6 build --with github.com/szkiba/xk6-prometheus --with github.com/neonlabsorg/xk6-ethereum="<path_to_xk6_ethereum_plugin_repository>" 
+```
 
 ## Run infrastructure
 go to the monitoring folder and run
