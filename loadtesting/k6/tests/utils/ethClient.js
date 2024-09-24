@@ -17,16 +17,12 @@ export function sendNeon(client, from, to, amount, gas, gasPrice, nonce) {
 }
 
 export function sendTokens(client, from, to, value, gas, gasPrice, nonce) {
-    let nonceRequests = 0;
-    let gasPriceRequests = 0;
     if (nonce == null) {
         nonce = client.getNonce(from);
-        nonceRequests++;
     }
 
     if (gasPrice == null) {
         gasPrice = client.gasPrice();
-        gasPriceRequests++;
     }
 
     let transaction = {
@@ -50,9 +46,11 @@ export function sendTokens(client, from, to, value, gas, gasPrice, nonce) {
         });
     }
 
+    console.log('Transaction: ' + JSON.stringify(transaction));
     const txh = client.sendRawTransaction(transaction);
+    console.log('Transaction send neon from: ' + from + ' to: ' + to + ' amount: ' + value);
+    console.log('Transaction hash: ' + txh);
     const receipt = client.waitForTransactionReceipt(txh);
 
-    return receipt, nonceRequests, gasPriceRequests;
+    return receipt;
 }
-
