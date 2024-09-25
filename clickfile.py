@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 
 import pytest
 
+from deploy.cli.cost_report import prepare_report_data, report_data_to_markdown
 from deploy.test_results_db.db_handler import PostgresTestResultsHandler
 from deploy.test_results_db.test_results_handler import TestResultsHandler
 from utils.error_log import error_log
@@ -58,9 +59,7 @@ ERR_MESSAGES = {
 }
 
 SRC_ALLURE_CATEGORIES = Path("./allure/categories.json")
-
 DST_ALLURE_CATEGORIES = Path("./allure-results/categories.json")
-
 DST_ALLURE_ENVIRONMENT = Path("./allure-results/environment.properties")
 
 BASE_EXTENSIONS_TPL_DATA = "ui/extensions/data"
@@ -535,6 +534,7 @@ def update_contracts(branch):
 @click.option("-u", "--users", default=8, help="Accounts numbers used in OZ tests")
 @click.option("-c", "--case", default="", type=str, help="Specific test case name pattern to run")
 @click.option("--marker", help="Run tests by mark")
+@click.option("--cost_reports_dir", default="", help="Directory where CostReports will be created")
 @click.option(
     "--ui-item",
     default="all",
@@ -564,6 +564,7 @@ def run(
         case,
         keep_error_log: bool,
         marker: str,
+        cost_reports_dir: str,
 ):
     if not network and name == "ui":
         network = "devnet"
@@ -613,14 +614,24 @@ def run(
         if network != "geth":
             assert wait_for_tracer_service(network)
 
-    if case != "":
-        command += " -vk {}".format(case)
+    if case:
+        if " " in case:
+            command += f' -vk "{case}"'
+        else:
+            command += f" -vk {case}"
+
     if marker:
-        command += f" -m {marker}"
+        if " " in marker:
+            command += f' -m "{marker}"'
+        else:
+            command += f" -m {marker}"
 
     command += f" -s --network={network} --make-report --test-group {name}"
     if keep_error_log:
         command += " --keep-error-log"
+    if cost_reports_dir:
+        command += f" --cost_reports_dir {cost_reports_dir}"
+
     args = command.split()[1:]
     exit_code = int(pytest.main(args=args))
     if name != "ui":
@@ -1079,7 +1090,7 @@ def save_dapps_cost_report_to_db(
 ):
     tag = evm_tag if repo == "evm" else proxy_tag
 
-    report_data = dapps_cli.prepare_report_data(directory)
+    report_data = prepare_report_data(directory)
     db = PostgresTestResultsHandler()
 
     # define if previous similar reports should be deleted
@@ -1116,7 +1127,7 @@ def save_dapps_cost_report_to_db(
 @dapps.command("save_dapps_cost_report_to_md", help="Save dApps Cost Report to cost_reports.md")
 @click.option("-d", "--directory", default="reports", help="Directory with reports")
 def save_dapps_cost_report_to_md(directory: str):
-    report_data = dapps_cli.prepare_report_data(directory)
+    report_data = prepare_report_data(directory)
 
     # Add 'gas_used_%' column after 'gas_used'
     report_data.insert(
@@ -1127,7 +1138,7 @@ def save_dapps_cost_report_to_md(directory: str):
     report_data["gas_used_%"] = report_data["gas_used_%"].round(2)
 
     # Dump report_data DataFrame to markdown, grouped by the dApp
-    report_as_markdown_table = dapps_cli.report_data_to_markdown(df=report_data)
+    report_as_markdown_table = report_data_to_markdown(df=report_data)
     Path("cost_reports.md").write_text(report_as_markdown_table)
 
 
