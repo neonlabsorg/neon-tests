@@ -8,7 +8,7 @@ export PATH=$PATH:$(go env GOPATH)/bin
 ```
 
 
-## Run performance test using clickfile:
+### Run performance test using clickfile:
 Install xk6 and build an executable file, tag is a neonlabsorg forked xk6-ethereum plugin tag, it can be a fixed version of a forked xk6-ethereum plugin or commit sha (ex. ```05e0ce5```)
 ```bash
 ./clickfile.py k6 build --tag 05e0ce5
@@ -20,7 +20,7 @@ Run load scenario:
 ```
 
 
-## Native commands to build k6:
+### Native commands to build and run k6:
 Install k6
 ```bash
 go install go.k6.io/xk6/cmd/xk6@latest
@@ -35,15 +35,20 @@ where:
 
 - neonlabsorg/xk6-ethereum - the ethereum plugin forked by neonlabsorg
 
+Run test scenario:
+```bash
+./k6 run ./loadtesting/k6/tests/sendNeon.test.js
+```
 
-## Local test run with local version of the xk6-ethereum plugin
+### Local test run with local version of the xk6-ethereum plugin
 It is common approach to do some changes in the plugin and test it locally before pushing changes to github.
 Pass the xk6-ethereum plugin repository path (on your local machine) as a parameter to the build command:
 ```bash
 xk6 build --with github.com/szkiba/xk6-prometheus --with github.com/neonlabsorg/xk6-ethereum="<path_to_xk6_ethereum_plugin_repository>" 
 ```
+Use an executable file builded with command above to run test scenario (see 'Run performance test using clickfile' or 'Native commands to build and run k6' sections).
 
-## Run infrastructure
+### Run infrastructure
 go to the monitoring folder and run
 ```bash
 docker-compose -f compose.yml up -d --build
@@ -54,10 +59,39 @@ run telegraf with config
 ```bash
 telegraf --config telegraf.conf
 ```
-## Run load test
-To run tests go to the repo k6
-```bash
-./k6 run ./scenarios/sendNeon.test.js
+### Monitoring
+Run test scenario and go to the default grafana host/port ```localhost:3000```. Open dashboard: ``` Neonlabs performance test```.
+
+## Scenario options
+Send Neon scenario settings:
+```json
+{
+    "scenarios": {
+        "contacts": {
+            "executor": "ramping-vus",
+            "startVUs": 0,
+            "stages": [
+                {
+                    "duration": "90s",
+                    "target": 100
+                },
+                {
+                    "duration": "1200s",
+                    "target": 100
+                }
+            ],
+            "gracefulRampDown": "60s"
+        }
+    },
+    "noConnectionReuse": true
+}
 ```
-## Monitoring
-To monitor your test run go to the default grafana host/port ```localhost:3000```. Open dashboard: ``` Neonlabs performance test```.
+```"executor": "ramping-vus"``` -  VUs execute as many iterations as possible for a specified amount of time
+
+```"startVUs": 0``` - number of VUs to start the run with
+
+```"stages"``` - an array of objects that specify the target number of VUs to ramp up or down to, in our case: number of VUs is increased from 0 to 100 during 90 seconds, then 100 VUs execute the scenario during 1200 seconds
+
+```"gracefulRampDown": "60s"``` - time to wait for an already started iteration to finish before stopping it during a ramp down 
+
+```"noConnectionReuse": true``` - determines whether a connection is reused throughout different actions of the same virtual user and in the same iteration
