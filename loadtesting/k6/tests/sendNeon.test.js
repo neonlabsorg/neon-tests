@@ -9,7 +9,7 @@ const sendNeonRequests = new Counter('send_neon_requests');
 const sendNeonErrorCounter = new Counter('send_neon_errors');
 const sendNeonRequestTime = new Trend('send_neon_request_time', true);
 
-const testConfig = JSON.parse(open('../env/options.json'));
+const testConfig = JSON.parse(open('../run_options/options.json'));
 export const options = testConfig;
 
 const transferAmount = randomIntBetween(1, 5);
