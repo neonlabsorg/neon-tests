@@ -16,9 +16,10 @@ Install xk6 and build an executable file, tag is a neonlabsorg forked xk6-ethere
 
 Run load scenario:
 ```bash
-./clickfile.py k6 run --network local --script ./loadtesting/k6/tests/sendNeon.test.js
+./clickfile.py k6 run --network local --script ./loadtesting/k6/tests/sendNeon.test.js --users 100 --balance 200
 ```
 
+It is mandatory either set up `K6_USERS_NUMBER` and `K6_INITIAL_BALANCE` envs or pass `--users` and `--balance` flags to run the command. We need these values to prepare test accounts for further transfers transactions. 
 
 ### Native commands to build and run k6:
 Install k6
@@ -37,7 +38,7 @@ where:
 
 Run test scenario:
 ```bash
-./k6 run ./loadtesting/k6/tests/sendNeon.test.js
+./k6 run -e K6_USERS_NUMBER=100 -e K6_INITIAL_BALANCE=200 ./loadtesting/k6/tests/sendNeon.test.js
 ```
 
 ### Local test run with local version of the xk6-ethereum plugin
@@ -64,34 +65,28 @@ Run test scenario and go to the default grafana host/port ```localhost:3000```. 
 
 ## Scenario options
 Send Neon scenario settings:
-```json
-{
-    "scenarios": {
-        "contacts": {
-            "executor": "ramping-vus",
-            "startVUs": 0,
-            "stages": [
-                {
-                    "duration": "90s",
-                    "target": 100
-                },
-                {
-                    "duration": "1200s",
-                    "target": 100
-                }
+```js
+export const sendNeonOptions = {
+    scenarios: {
+        sendNeon: {
+            executor: 'ramping-vus',
+            startVUs: 0,
+            stages: [
+                { duration: '30s', target: usersNumber },
+                { duration: '1200s', target: usersNumber },
             ],
-            "gracefulRampDown": "60s"
-        }
+            gracefulRampDown: '30s',
+        },
     },
-    "noConnectionReuse": true
-}
+    noConnectionReuse: true,
+};
 ```
-```"executor": "ramping-vus"``` -  VUs execute as many iterations as possible for a specified amount of time
+```executor: 'ramping-vus'``` -  VUs execute as many iterations as possible for a specified amount of time
 
-```"startVUs": 0``` - number of VUs to start the run with
+```startVUs: 0``` - number of VUs to start the run with
 
-```"stages"``` - an array of objects that specify the target number of VUs to ramp up or down to, in our case: number of VUs is increased from 0 to 100 during 90 seconds, then 100 VUs execute the scenario during 1200 seconds
+```stages``` - an array of objects that specify the target number of VUs to ramp up or down to, in our case: number of VUs is increased from 0 to `usersNumber` value during 30 seconds, then `usersNumber` VUs execute the scenario during 1200 seconds
 
-```"gracefulRampDown": "60s"``` - time to wait for an already started iteration to finish before stopping it during a ramp down 
+```gracefulRampDown: '30s'``` - time to wait for an already started iteration to finish before stopping it during a ramp down 
 
-```"noConnectionReuse": true``` - determines whether a connection is reused throughout different actions of the same virtual user and in the same iteration
+```noConnectionReuse: true``` - determines whether a connection is reused throughout different actions of the same virtual user and in the same iteration
