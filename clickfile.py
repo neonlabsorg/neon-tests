@@ -45,7 +45,7 @@ try:
     from utils import cloud
     from utils.operator import Operator
     from utils.web3client import NeonChainWeb3Client
-    from utils.prices import get_sol_price
+    from utils.prices import get_sol_price_with_retry
     from utils.helpers import wait_condition
     from utils.apiclient import JsonRPCSession
 except ImportError:
@@ -174,7 +174,7 @@ def check_profitability(func: tp.Callable) -> tp.Callable:
             after = get_tokens_balances(op)
             profitability = dict(
                 neon=round(float(after["neon"] - pre["neon"]) * 0.25, 2),
-                sol=round((float(pre["sol"] - after["sol"])) * get_sol_price(), 2),
+                sol=round((float(pre["sol"] - after["sol"])) * get_sol_price_with_retry(), 2),
             )
             path = Path(OZ_BALANCES)
             path.absolute().parent.mkdir(parents=True, exist_ok=True)
