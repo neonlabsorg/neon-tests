@@ -41,15 +41,6 @@ def k6_set_envs(network, env_filename, users_number=None, initial_balance=None, 
     if os.environ.get('FAUCET_URL') is None:
         os.environ["FAUCET_URL"] = config[network]['faucet_url']
 
-    if os.environ.get('TRACER_URL') is None:
-        os.environ["TRACER_URL"] = config[network]['tracer_url']
-
-    if os.environ.get('SPL_NEON_MINT') is None:
-        os.environ["SPL_NEON_MINT"] = config[network]['spl_neon_mint']
-
-    if os.environ.get('NEON_ERC20_WRAPPER_ADDRESS') is None:
-        os.environ["NEON_ERC20_WRAPPER_ADDRESS"] = config[network]['neon_erc20wrapper_address']
-
     if os.environ.get('NETWORK_ID') is None:
         os.environ["NETWORK_ID"] = str(config[network]['network_ids']['neon'])
     
