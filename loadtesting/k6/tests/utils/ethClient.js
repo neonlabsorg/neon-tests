@@ -36,14 +36,7 @@ export function sendTokens(client, from, to, value, gas, gasPrice, nonce) {
     };
 
     if (gas == null) {
-        transaction["gas"] = client.estimateGas({
-            "from": from,
-            "to": to,
-            "value": value,
-            "input": [],
-            "gas_price": gasPrice,
-            "gas": 0,
-        });
+        transaction["gas"] = client.estimateGas(transaction);
     }
 
     const txh = client.sendRawTransaction(transaction);
