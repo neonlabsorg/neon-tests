@@ -20,8 +20,8 @@ def pytest_collection_modifyitems(config, items):
 
     raw_proxy_version = web3_client.get_proxy_version()["result"]
 
-    if "Neon-proxy/" in raw_proxy_version:
-        raw_proxy_version = raw_proxy_version.split("Neon-proxy/")[1].strip()
+    if "Neon-Proxy/" in raw_proxy_version:
+        raw_proxy_version = raw_proxy_version.split("Neon-Proxy/")[1].strip()
     proxy_dev = "dev" in raw_proxy_version
 
     if "-" in raw_proxy_version:
