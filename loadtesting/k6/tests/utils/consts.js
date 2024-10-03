@@ -21,11 +21,7 @@ switch (network) {
 export const networkId = parseInt(env.network_ids.neon);
 
 // Set Proxy URL
-let proxyUrlParam = __ENV.PROXY_URL;
-if (proxyUrlParam == undefined) {
-    proxyUrlParam = env.proxy_url;
-}
-export const proxyUrl = proxyUrlParam;
+export const proxyUrl = env.proxy_url;
 
 // Accounts data
 export const initialAccountBalance = parseInt(__ENV.K6_INITIAL_BALANCE);
