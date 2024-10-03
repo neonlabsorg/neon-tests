@@ -22,8 +22,10 @@ from deploy.cli.cost_report import prepare_report_data, report_data_to_markdown
 from deploy.test_results_db.db_handler import PostgresTestResultsHandler
 from deploy.test_results_db.test_results_handler import TestResultsHandler
 from utils.error_log import error_log
+from utils.faucet import Faucet
 from utils.slack_notification import SlackNotification
 from utils.types import TestGroup, RepoType
+from utils.accounts import EthAccounts
 
 try:
     import click
@@ -45,6 +47,7 @@ try:
     from utils import cloud
     from utils.operator import Operator
     from utils.web3client import NeonChainWeb3Client
+    from utils.k6_helpers import k6_prepare_accounts
     from utils.prices import get_sol_price_with_retry
     from utils.helpers import wait_condition
     from utils.apiclient import JsonRPCSession
@@ -1263,31 +1266,21 @@ def build(tag):
 
 
 @k6.command("run", help="Run k6 performance test")
-@click.option("-n", "--network", default="local", help="Which network to use for envs assignment")
-@click.option("-s", "--script", default="./loadtesting/k6/tests/sendNeon.test.js", help="Path to k6 script")
+@click.option("-n", "--network",required=True, default="local", help="Which network to use for envs assignment")
+@click.option("-s", "--script", required=True, default="./loadtesting/k6/tests/sendNeon.test.js", help="Path to k6 script")
+@click.option("-u", "--users", default=None, required=True, help="Number of users (will be generated before load test run)")
+@click.option("-b", "--balance", default=None, required=True, help="Initial balance of each user in Neon")
+@click.option("-a", "--bank_account", default=None, required=False, help="Bank account address")
 @catch_traceback
-def run(network, script):
-    with open('envs.json') as json_file:
-        config = json.load(json_file)
-    if os.environ.get('PROXY_URL') is None:
-        os.environ["PROXY_URL"] = config[network]['proxy_url']
-
-    if os.environ.get('SOLANA_URL') is None:
-        os.environ["SOLANA_URL"] = config[network]['solana_url']
-
-    if os.environ.get('FAUCET_URL') is None:
-        os.environ["FAUCET_URL"] = config[network]['faucet_url']
-
-    os.environ["TRACER_URL"] = config[network]['tracer_url']
-    os.environ["SPL_NEON_MINT"] = config[network]['spl_neon_mint']
-    os.environ["NEON_ERC20_WRAPPER_ADDRESS"] = config[network]['neon_erc20wrapper_address']
-    os.environ["NETWORK_ID"] = str(config[network]['network_ids']['neon'])
+def run(network, script, users, balance, bank_account):
+    network_object = network_manager.get_network_object(network)
+    k6_prepare_accounts(network, network_object, users, balance, bank_account)
     
+    print("Running load test scenario...")
     command = f'./k6 run {script}'
     command_run = subprocess.run(command, shell=True)
     if command_run.returncode != 0:
         sys.exit(command_run.returncode)
-
 
 if __name__ == "__main__":
     cli()

@@ -2,30 +2,27 @@ import eth from 'k6/x/ethereum';
 import { proxyUrl, networkId } from './consts.js';
 
 
-export function ethClient() {
+export function ethClient(privateKey) {
     const client = new eth.Client({
         url: proxyUrl,
         chainID: networkId,
+        privateKey: privateKey,
     });
     return client;
 }
 
 export function sendNeon(client, from, to, amount, gas, gasPrice, nonce) {
-    const value = amount * 10e18;
+    const value = amount;
     return sendTokens(client, from, to, value, gas, gasPrice, nonce)
 }
 
 export function sendTokens(client, from, to, value, gas, gasPrice, nonce) {
-    let nonceRequests = 0;
-    let gasPriceRequests = 0;
     if (nonce == null) {
         nonce = client.getNonce(from);
-        nonceRequests++;
     }
 
     if (gasPrice == null) {
         gasPrice = client.gasPrice();
-        gasPriceRequests++;
     }
 
     let transaction = {
@@ -38,13 +35,12 @@ export function sendTokens(client, from, to, value, gas, gasPrice, nonce) {
         "chain_id": client.chainID,
     };
 
-    if (transaction["gas"] == 0) {
+    if (gas == null) {
         transaction["gas"] = client.estimateGas(transaction);
     }
 
     const txh = client.sendRawTransaction(transaction);
     const receipt = client.waitForTransactionReceipt(txh);
 
-    return receipt, nonceRequests, gasPriceRequests;
+    return receipt;
 }
-
