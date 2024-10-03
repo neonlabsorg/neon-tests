@@ -1,14 +1,31 @@
-import http from 'k6/http';
-
-// Network params
-let faucetUri = __ENV.FAUCET_URL;
-let faucetUrlObject;
-if (!faucetUri.includes("request_neon")) {
-    faucetUrlObject = http.url([faucetUri, 'request_neon']);
+// Parse envs.json
+const network = __ENV.K6_NETWORK;
+const envConfig = JSON.parse(open("../../../../envs.json"));
+if (network == undefined) {
+    throw new Error("Network is not defined, please set K6_NETWORK env variable.");
 }
-export const faucetUrl = faucetUrlObject;
-export const proxyUrl = __ENV.PROXY_URL;
-export const networkId = parseInt(__ENV.NETWORK_ID);
+
+let env;
+switch (network) {
+    case "local":
+        env = envConfig.local;
+        break;
+    case "devnet":
+        env = envConfig.devnet;
+        break;
+    default:
+        env = envConfig.local;
+}
+
+// Set Chain Id
+export const networkId = parseInt(env.network_ids.neon);
+
+// Set Proxy URL
+let proxyUrlParam = __ENV.PROXY_URL;
+if (proxyUrlParam == undefined) {
+    proxyUrlParam = env.proxy_url;
+}
+export const proxyUrl = proxyUrlParam;
 
 // Accounts data
 export const initialAccountBalance = parseInt(__ENV.K6_INITIAL_BALANCE);

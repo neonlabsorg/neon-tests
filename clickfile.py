@@ -1261,7 +1261,8 @@ def build(tag):
 @click.option("-a", "--bank_account", default=None, required=False, help="Bank account address")
 @catch_traceback
 def run(network, script, users, balance, bank_account):
-    k6_prepare_accounts(network, users, balance, bank_account)
+    network_object = network_manager.get_network_object(network)
+    k6_prepare_accounts(network, network_object, users, balance, bank_account)
     
     print("Running load test scenario...")
     command = f'./k6 run {script}'
