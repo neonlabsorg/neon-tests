@@ -29,12 +29,12 @@ class ERC20Wrapper:
         contract_address=None,
         bank_account=None,
     ):
-        self.solana_associated_token_acc = None
-        self.token_mint = None
+        self.solana_associated_token_acc: Pubkey = None
+        self.token_mint: Token = None
         self.solana_acc = solana_account
         self.evm_loader_id = evm_loader_id
         self.web3_client = web3_client
-        self.account = account
+        self.account: LocalAccount = account
         if self.account is None:
             self.account = web3_client.create_account()
             if bank_account is not None:
@@ -49,8 +49,6 @@ class ERC20Wrapper:
         self.decimals = decimals
         self.sol_client = sol_client
         self.contract_address = contract_address
-        self.token_mint: Token
-        self.solana_associated_token_acc: Pubkey
 
         if not contract_address:
             self.contract_address = self.deploy_wrapper(mintable)

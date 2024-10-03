@@ -9,8 +9,17 @@ from rlp.sedes import List, big_endian_int, binary
 
 import allure
 import pytest
+from web3 import Web3
 
+from clickfile import EnvName
+from integration.tests.basic.erc.test_EIP3541 import BAD_CALLDATA
+from integration.tests.basic.evm.test_precompiled_contracts import PRECOMPILED_FIXTURES
+from utils.apiclient import JsonRPCSession
+from utils.erc20wrapper import ERC20Wrapper
+from utils.evm_loader import EvmLoader
+from utils.faucet import Faucet
 from utils.helpers import wait_condition
+from utils.solana_client import SolanaClient
 from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
 from utils.tracer_client import TracerClient
@@ -467,3 +476,133 @@ class TestTracerDebugMethods:
             response["error"]["message"]
             == "Empty Neon transaction receipt for 0xd9765b77e470204ae5edb1a796ab92ecb0e20fea50aeb09275aea740af7bbc69"
         )
+
+    def test_evm_sets_tracer_exit_status(self):
+        address = PRECOMPILED_FIXTURES["modexp"]["address"]
+        sender_account = self.accounts[0]
+        amount = random.randint(1, 10)
+        instruction_tx = self.web3_client.make_raw_tx(sender_account.address, address, amount=amount, estimate_gas=True)
+        receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
+
+        response = self.tracer_api.send_rpc_and_wait_response(
+            method_name="debug_traceTransaction",
+            params=[receipt["transactionHash"].hex()],
+        )
+
+        assert "error" not in response, "Error in response"
+
+    def test_emulate_and_db_accounts_count_is_equal_a(self, revert_contract_caller):
+        sender_account = self.accounts[0]
+        tx = self.web3_client.make_raw_tx(sender_account, gas=10000000)
+        instruction_tx = revert_contract_caller.functions.deployContract().build_transaction(tx)
+        receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
+
+        response = self.tracer_api.send_rpc_and_wait_response(
+            method_name="debug_traceTransaction",
+            params=[receipt["transactionHash"].hex()],
+        )
+
+        assert "error" not in response, "Error in response"
+
+    def test_emulate_and_db_accounts_count_is_equal_b(self):
+        sender_account = self.accounts[0]
+        transaction = self.web3_client.make_raw_tx(sender_account, data=BAD_CALLDATA[0], gas=10000000)
+        receipt = self.web3_client.send_transaction(sender_account, transaction)
+
+        response = self.tracer_api.send_rpc_and_wait_response(
+            method_name="debug_traceTransaction",
+            params=[receipt["transactionHash"].hex()],
+        )
+
+        assert "error" not in response, "Error in response"
+
+    def test_gas_price_emulation_matches_real_transaction(self, json_rpc_client: JsonRPCSession):
+        sender_account = self.accounts.create_account()
+
+        big_gas_contract, _ = self.web3_client.deploy_and_get_contract(
+            contract="issues/Ndev49",
+            version="0.8.10",
+            contract_name="BigGasFactory1",
+            account=sender_account,
+            constructor_args=[850_000, 15_000],
+        )
+
+        tx = self.web3_client.make_raw_tx(from_=sender_account, estimate_gas=True)
+        trx_big_gas = big_gas_contract.functions.checkBigGasRequirements().build_transaction(tx)
+        trx_big_gas["value"] = Web3.to_hex(0)
+        trx_big_gas["nonce"] = Web3.to_hex(trx_big_gas["nonce"])
+        trx_big_gas["chainId"] = Web3.to_hex(trx_big_gas["chainId"])
+        trx_big_gas["gasPrice"] = Web3.to_hex(trx_big_gas["gasPrice"])
+
+        trx_big_gas["gas"] = Web3.to_hex((850_000 + 15_000) + self.web3_client.gas_price() // 1000)
+
+        gas_estimate = self.web3_client.eth.estimate_gas(trx_big_gas)
+        trx_big_gas["gas"] = Web3.to_hex(gas_estimate)
+
+        json_rpc_client.send_rpc(method="eth_estimateGas", params=trx_big_gas)
+
+        signed_trx_big_gas = self.web3_client.eth.account.sign_transaction(trx_big_gas, sender_account.key)
+        raw_trx_big_gas = self.web3_client.eth.send_raw_transaction(signed_trx_big_gas.rawTransaction)
+        receipt = self.web3_client.eth.wait_for_transaction_receipt(raw_trx_big_gas)
+
+        response = self.tracer_api.send_rpc_and_wait_response(
+            method_name="debug_traceTransaction",
+            params=[receipt["transactionHash"].hex()],
+        )
+
+        assert "error" not in response, "Error in response"
+
+    def test_emulate_status_matches_receipt_status(
+            self,
+            erc20_spl: ERC20Wrapper,
+            faucet: Faucet,
+            env_name: EnvName,
+            evm_loader: EvmLoader,
+            sol_client: SolanaClient,
+    ):
+        """
+        use this geyser config
+        {
+            "filter_include_owners": [
+                "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io",
+                "B6iyiLoahfN2GzMaKtWprMm7vYPoqZKNQq3rvmq1ZDUJ",
+                "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+                "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
+                "BPFLoaderUpgradeab1e11111111111111111111111"
+            ],
+            "filter_include_pubkeys": [
+                "SysvarC1ock11111111111111111111111111111111",
+                "SysvarEpochSchedu1e111111111111111111111111",
+                "SysvarFees111111111111111111111111111111111",
+                "SysvarRent111111111111111111111111111111111",
+                "SysvarS1otHashes111111111111111111111111111",
+                "SysvarRecentB1ockHashes11111111111111111111",
+                "SysvarStakeHistory1111111111111111111111111",
+                "11111111111111111111111111111111",
+                "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io",
+                "B6iyiLoahfN2GzMaKtWprMm7vYPoqZKNQq3rvmq1ZDUJ",
+                "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+                "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+                "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+            ],
+            "filter_include_tx_account_keys": [
+                "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io"
+            ]
+        }
+        """
+
+        if env_name != EnvName.MAINNET:
+            faucet.request_neon(address=erc20_spl.account.address, amount=10)
+
+        new_account = self.accounts.create_account()
+        amount = random.randint(1, 10)
+        receipt = erc20_spl.transfer(erc20_spl.account, new_account.address, amount)
+
+        # adds =
+
+        response = self.tracer_api.send_rpc_and_wait_response(
+            method_name="debug_traceTransaction",
+            params=[receipt["transactionHash"].hex()],
+        )
+
+        assert "error" not in response, "Error in response"
