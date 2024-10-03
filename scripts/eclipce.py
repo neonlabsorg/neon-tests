@@ -5,15 +5,15 @@ import web3
 import typing as tp
 
 import solana.rpc.api
-from solana.keypair import Keypair
-from solana.publickey import PublicKey
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
 from solana.rpc.commitment import Finalized
 from solana.rpc.types import TxOpts
-from solana.transaction import Transaction, AccountMeta, TransactionInstruction
+from solana.transaction import Transaction, AccountMeta, Instruction
 from solders.rpc.errors import InternalErrorMessage
 from solders.rpc.responses import RequestAirdropResp
 from spl.token.instructions import get_associated_token_address, create_associated_token_account, approve, ApproveParams
-import solana.system_program as sp
+import solders.system_program as sp
 from spl.token.constants import TOKEN_PROGRAM_ID
 
 
@@ -23,9 +23,9 @@ from spl.token.constants import TOKEN_PROGRAM_ID
 
 PROXY_URL = "http://localhost:9090/solana"
 SOLANA_URL = "http://localhost:8899/"
-LOADER_ID = PublicKey("6HALMT8ZvZz3p9zigdUdn7bZ4ae3nrSSNNDV8qRZm22q")
+LOADER_ID = Pubkey.from_string("6HALMT8ZvZz3p9zigdUdn7bZ4ae3nrSSNNDV8qRZm22q")
 AMOUNT = 1_000_000_000
-MINT_PUBKEY = PublicKey("So11111111111111111111111111111111111111112")
+MINT_PUBKEY = Pubkey.from_string("So11111111111111111111111111111111111111112")
 RECIPIENT = ""  # New account will be created if empty
 
 
@@ -55,7 +55,7 @@ class SolanaClient(solana.rpc.api.Client):
             bytes(account_seed_version, encoding="utf-8").decode("unicode-escape").encode("utf-8")
         )
 
-    def request_airdrop(self, pubkey: PublicKey, lamports: int) -> RequestAirdropResp:
+    def request_airdrop(self, pubkey: Pubkey, lamports: int) -> RequestAirdropResp:
         airdrop_resp = None
         for _ in range(5):
             airdrop_resp = super().request_airdrop(pubkey, lamports, commitment=Finalized)
@@ -83,31 +83,31 @@ class SolanaClient(solana.rpc.api.Client):
         sig_status = json.loads((self.confirm_transaction(sig)).to_json())
         assert sig_status["result"]["value"][0]["status"] == {"Ok": None}, f"error:{sig_status}"
 
-    def create_ata(self, solana_account, token_mint):
+    def create_ata(self, solana_account: Keypair, token_mint):
         trx = Transaction()
-        trx.add(create_associated_token_account(solana_account.public_key, solana_account.public_key, token_mint))
+        trx.add(create_associated_token_account(solana_account.pubkey(), solana_account.pubkey(), token_mint))
         opts = TxOpts(skip_preflight=True, skip_confirmation=False)
         self.send_transaction(trx, solana_account, opts=opts)
 
     def ether2program(self, ether: tp.Union[str, bytes]) -> tp.Tuple[str, int]:
-        items = PublicKey.find_program_address([self.account_seed_version, self.ether2bytes(ether)], LOADER_ID)
+        items = Pubkey.find_program_address([self.account_seed_version, self.ether2bytes(ether)], LOADER_ID)
         return str(items[0]), items[1]
 
-    def sent_token_from_solana_to_neon(self, solana_account, mint, neon_account, amount):
-        contract_pubkey = PublicKey(self.ether2program(neon_account)[0])
-        associated_token_address = get_associated_token_address(solana_account.public_key, mint)
-        authority_pool = PublicKey.find_program_address([b"Deposit"], LOADER_ID)[0]
+    def sent_token_from_solana_to_neon(self, solana_account: Keypair, mint, neon_account, amount):
+        contract_pubkey = Pubkey.from_string(self.ether2program(neon_account)[0])
+        associated_token_address = get_associated_token_address(solana_account.pubkey(), mint)
+        authority_pool = Pubkey.find_program_address([b"Deposit"], LOADER_ID)[0]
 
         pool = get_associated_token_address(authority_pool, mint)
 
-        tx = Transaction(fee_payer=solana_account.public_key)
+        tx = Transaction(fee_payer=solana_account.pubkey())
         tx.add(
             approve(
                 ApproveParams(
                     program_id=TOKEN_PROGRAM_ID,
                     source=associated_token_address,
                     delegate=contract_pubkey,
-                    owner=solana_account.public_key,
+                    owner=solana_account.pubkey(),
                     amount=amount,
                 )
             )
@@ -120,7 +120,7 @@ class SolanaClient(solana.rpc.api.Client):
                 associated_token_address,
                 pool,
                 TOKEN_PROGRAM_ID,
-                solana_account.public_key,
+                solana_account.pubkey(),
                 LOADER_ID,
             )
         )
@@ -129,10 +129,14 @@ class SolanaClient(solana.rpc.api.Client):
 
 def make_wsol(amount, solana_wallet, associated_address):
     tx = Transaction(fee_payer=solana_wallet)
-    tx.add(sp.transfer(sp.TransferParams(solana_wallet, associated_address, amount)))
+    tx.add(sp.transfer(sp.TransferParams(
+        from_pubkey=solana_wallet, 
+        to_pubkey=associated_address, 
+        lamports=amount),
+    ))
 
-    sync_native_instr = TransactionInstruction(
-        keys=[AccountMeta(pubkey=associated_address, is_signer=False, is_writable=True)],
+    sync_native_instr = Instruction(
+        accounts=[AccountMeta(pubkey=associated_address, is_signer=False, is_writable=True)],
         program_id=TOKEN_PROGRAM_ID,
         data=bytes.fromhex("11"),
     )
@@ -142,13 +146,13 @@ def make_wsol(amount, solana_wallet, associated_address):
 
 def make_deposit(
     ether_address: bytes,
-    solana_account: PublicKey,
-    source: PublicKey,
-    pool: PublicKey,
-    token_program: PublicKey,
-    operator_pubkey: PublicKey,
-    evm_loader_id: PublicKey,
-) -> TransactionInstruction:
+    solana_account: Pubkey,
+    source: Pubkey,
+    pool: Pubkey,
+    token_program: Pubkey,
+    operator_pubkey: Pubkey,
+    evm_loader_id: Pubkey,
+) -> Instruction:
     data = bytes.fromhex("27") + ether_address
 
     accounts = [
@@ -157,10 +161,10 @@ def make_deposit(
         AccountMeta(pubkey=solana_account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=token_program, is_signer=False, is_writable=False),
         AccountMeta(pubkey=operator_pubkey, is_signer=True, is_writable=True),
-        AccountMeta(pubkey=sp.SYS_PROGRAM_ID, is_signer=False, is_writable=False),
+        AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
     ]
 
-    return TransactionInstruction(program_id=evm_loader_id, data=data, keys=accounts)
+    return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
 
 solana_client = SolanaClient(endpoint=SOLANA_URL)
@@ -174,18 +178,18 @@ else:
     recipient = RECIPIENT
 
 
-sol_account = Keypair.generate()
-solana_client.request_airdrop(sol_account.public_key, 10 * AMOUNT)
+sol_account = Keypair()
+solana_client.request_airdrop(sol_account.pubkey(), 10 * AMOUNT)
 # with open("sol_account_with_tokens-keypair.json", "r") as key:
 #     secret_key = json.load(key)[:32]
 #     sol_account = Keypair.from_secret_key(secret_key)
 
-ata_address = get_associated_token_address(sol_account.public_key, MINT_PUBKEY)
+ata_address = get_associated_token_address(sol_account.pubkey(), MINT_PUBKEY)
 
 solana_client.create_ata(sol_account, MINT_PUBKEY)
 
 # wrap SOL
-wrap_sol_tx = make_wsol(AMOUNT, sol_account.public_key, ata_address)
+wrap_sol_tx = make_wsol(AMOUNT, sol_account.pubkey(), ata_address)
 solana_client.send_tx_and_check_status_ok(wrap_sol_tx, sol_account)
 
 solana_client.sent_token_from_solana_to_neon(sol_account, MINT_PUBKEY, recipient, AMOUNT)

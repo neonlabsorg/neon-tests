@@ -2,7 +2,6 @@ import os
 import pathlib
 import random
 import string
-import time
 import typing
 import typing as tp
 import logging
@@ -14,9 +13,10 @@ import solcx
 import web3
 from eth_abi import abi
 from eth_utils import keccak
-from solana.publickey import PublicKey
+from solders.pubkey import Pubkey
 from solcx import link_code
 import polling2
+from semantic_version import Version
 
 
 T = tp.TypeVar('T')
@@ -58,7 +58,7 @@ def get_contract_interface(
     compiled = solcx.compile_files(
         [contract_path],
         output_values=["abi", "bin"],
-        solc_version=version,
+        solc_version=Version(version),
         import_remappings=import_remapping,
         allow_paths=["."],
         optimize=True,
@@ -136,18 +136,18 @@ def decode_function_signature(function_name: str, args=None) -> str:
 
 
 @allure.step("Get functions signatures with params as keccak256 from contract abi")
-def get_selectors(abi):
+def get_selectors(abi_):
     """Get functions signatures with params as keccak256 from contract abi"""
     selectors = []
-    for function in filter(lambda item: item["type"] == "function", abi):
+    for function in filter(lambda item: item["type"] == "function", abi_):
         input_types = ""
-        for input in function["inputs"]:
-            if "struct" in input["internalType"]:
-                struct_name = input["name"]
-                struct_types = ",".join(i["type"] for i in input["components"] if i["name"] != struct_name)
+        for input_ in function["inputs"]:
+            if "struct" in input_["internalType"]:
+                struct_name = input_["name"]
+                struct_types = ",".join(i["type"] for i in input_["components"] if i["name"] != struct_name)
                 input_types += "," + f"({struct_types})[]"
             else:
-                input_types += "," + input["type"]
+                input_types += "," + input_["type"]
 
         input_types = input_types[1:]
         encoded_selector = f"{function['name']}({input_types})"
@@ -184,10 +184,9 @@ def hasattr_recursive(obj: typing.Any, attribute: str) -> bool:
     return True
 
 
-def bytes32_to_solana_pubkey(bytes32_data):
+def bytes32_to_solana_pubkey(bytes32_data: str) -> Pubkey:
     byte_data = bytes.fromhex(bytes32_data)
-    base58_data = base58.b58encode(byte_data)
-    return PublicKey(base58_data.decode('utf-8'))
+    return Pubkey(byte_data)
 
 
 def solana_pubkey_to_bytes32(solana_pubkey):
@@ -195,11 +194,11 @@ def solana_pubkey_to_bytes32(solana_pubkey):
     return byte_data
 
 
-def serialize_instruction(program_id, instruction) -> bytes:
-    program_id_bytes = solana_pubkey_to_bytes32(PublicKey(program_id))
-    serialized = program_id_bytes + len(instruction.keys).to_bytes(8, "little")
+def serialize_instruction(program_id: Pubkey, instruction) -> bytes:
+    program_id_bytes = solana_pubkey_to_bytes32(program_id)
+    serialized = program_id_bytes + len(instruction.accounts).to_bytes(8, "little")
 
-    for key in instruction.keys:
+    for key in instruction.accounts:
         serialized += bytes(key.pubkey)
         serialized += key.is_signer.to_bytes(1, "little")
         serialized += key.is_writable.to_bytes(1, "little")
@@ -216,4 +215,3 @@ def case_snake_to_camel(snake_str: str) -> str:
 
 def padhex(s, size):
     return '0x' + s[2:].zfill(size)
-

@@ -1,3 +1,4 @@
+import builtins
 import os
 import json
 import shutil
@@ -10,7 +11,7 @@ from _pytest.config import Config
 from _pytest.config.argparsing import Parser
 from _pytest.nodes import Item
 from _pytest.runner import runtestprotocol
-from solana.keypair import Keypair
+from solders.keypair import Keypair
 from web3.middleware import geth_poa_middleware
 
 from clickfile import TEST_GROUPS, EnvName
@@ -24,6 +25,7 @@ from utils.solana_client import SolanaClient
 
 
 pytest_plugins = ["ui.plugins.browser"]
+COST_REPORT_DIR: pathlib.Path = pathlib.Path()
 
 
 @dataclass
@@ -58,6 +60,12 @@ def pytest_addoption(parser: Parser):
         default=False,
         help="Store tests result to file",
     )
+    parser.addoption(
+        "--cost_reports_dir",
+        default="",
+        type=pathlib.Path,
+        help=f"Saves cost reports .json files in {COST_REPORT_DIR}",
+    )
     known_args = parser.parse_known_args(args=sys.argv[1:])
     test_group_required = known_args.make_report
     parser.addoption(
@@ -82,6 +90,9 @@ def pytest_sessionstart(session: pytest.Session):
     if not keep_error_log:
         error_log.clear()
 
+    if COST_REPORT_DIR != pathlib.Path() and COST_REPORT_DIR.exists() and COST_REPORT_DIR.is_dir():
+        shutil.rmtree(COST_REPORT_DIR)
+
 
 def pytest_runtest_protocol(item: Item, nextitem):
     ihook = item.ihook
@@ -101,6 +112,14 @@ def pytest_runtest_protocol(item: Item, nextitem):
 
 
 def pytest_configure(config: Config):
+    # redirect print to stderr for xdist-spawned processes because otherwise print statements get lost
+    if "PYTEST_XDIST_WORKER" in os.environ:
+        original_print = builtins.print
+        builtins.print = lambda *args, **kwargs: original_print(*args, file=sys.stderr, **kwargs)
+
+    global COST_REPORT_DIR
+    COST_REPORT_DIR = config.getoption("--cost_reports_dir")
+
     solana_url_env_vars = ["SOLANA_URL", "DEVNET_INTERNAL_RPC", "MAINNET_INTERNAL_RPC"]
     network_name = config.getoption("--network")
     envs_file = config.getoption("--envs")
@@ -131,7 +150,7 @@ def pytest_configure(config: Config):
     if "NEON_TOKEN_MINT" not in os.environ or not os.environ["NEON_TOKEN_MINT"]:
         os.environ["NEON_TOKEN_MINT"] = env["spl_neon_mint"]
     if "CHAIN_ID" not in os.environ or not os.environ["CHAIN_ID"]:
-        os.environ["CHAIN_ID"]: env["network_ids"]["neon"]
+        os.environ["CHAIN_ID"] = str(env["network_ids"]["neon"])
 
     if network_name == "terraform":
         env["solana_url"] = env["solana_url"].replace("<solana_ip>", os.environ.get("SOLANA_IP"))
@@ -149,22 +168,22 @@ def env_name(pytestconfig: Config) -> EnvName:
 @pytest.fixture(scope="session")
 def operator_keypair():
     with open("operator-keypair.json", "r") as key:
-        secret_key = json.load(key)[:32]
-        return Keypair.from_secret_key(secret_key)
+        secret_key = json.load(key)
+        return Keypair.from_bytes(secret_key)
 
 
 @pytest.fixture(scope="session")
 def evm_loader_keypair():
     with open("evm_loader-keypair.json", "r") as key:
-        secret_key = json.load(key)[:32]
-        return Keypair.from_secret_key(secret_key)
+        secret_key = json.load(key)
+        return Keypair.from_bytes(secret_key)
 
 
 @pytest.fixture(scope="session", autouse=True)
 def allure_environment(pytestconfig: Config, web3_client_session: NeonChainWeb3Client):
     opts = {}
     network_name = pytestconfig.getoption("--network")
-    if  network_name != "geth" and network_name != "mainnet" and "neon_evm" not in os.getenv("PYTEST_CURRENT_TEST"):
+    if network_name != "geth" and network_name != "mainnet" and "neon_evm" not in os.getenv("PYTEST_CURRENT_TEST"):
         opts = {
             "Network": pytestconfig.environment.proxy_url,
             "Proxy.Version": web3_client_session.get_proxy_version()["result"],
@@ -182,15 +201,20 @@ def allure_environment(pytestconfig: Config, web3_client_session: NeonChainWeb3C
     shutil.copy(categories_from, categories_to)
 
     if "CI" in os.environ:
+        github_server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
+        github_organization = os.environ.get("GITHUB_REPOSITORY_OWNER")
+        github_repository = os.environ.get("GITHUB_REPOSITORY", "neon-tests")
+        actions_url = f"{github_server_url}/{github_organization}/{github_repository}/actions"
+
         with open(allure_path / "executor.json", "w+") as f:
             json.dump(
                 {
                     "name": "Github Action",
                     "type": "github",
-                    "url": "https://github.com/neonlabsorg/neon-tests/actions",
+                    "url": actions_url,
                     "buildOrder": os.environ.get("GITHUB_RUN_ID", "0"),
                     "buildName": os.environ.get("GITHUB_WORKFLOW", "neon-tests"),
-                    "buildUrl": f'{os.environ.get("GITHUB_SERVER_URL", "https://github.com")}/{os.environ.get("GITHUB_REPOSITORY", "neon-tests")}/actions/runs/{os.environ.get("GITHUB_RUN_ID", "0")}',
+                    "buildUrl": f'{actions_url}/runs/{os.environ.get("GITHUB_RUN_ID", "0")}',
                     "reportUrl": "",
                     "reportName": "Allure report for neon-tests",
                 },
@@ -208,7 +232,7 @@ def web3_client_session(
         tracer_url=pytestconfig.environment.tracer_url,
     )
     if env_name is EnvName.GETH:
-        client._web3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        client._web3.middleware_onion.inject(geth_poa_middleware, layer=0)  # noqa
     return client
 
 

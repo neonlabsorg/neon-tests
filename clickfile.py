@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 
 import pytest
 
+from deploy.cli.cost_report import prepare_report_data, report_data_to_markdown
 from deploy.test_results_db.db_handler import PostgresTestResultsHandler
 from deploy.test_results_db.test_results_handler import TestResultsHandler
 from utils.error_log import error_log
@@ -47,7 +48,7 @@ try:
     from utils.operator import Operator
     from utils.web3client import NeonChainWeb3Client
     from utils.k6_helpers import k6_prepare_accounts
-    from utils.prices import get_sol_price
+    from utils.prices import get_sol_price_with_retry
     from utils.helpers import wait_condition
     from utils.apiclient import JsonRPCSession
 except ImportError:
@@ -61,9 +62,7 @@ ERR_MESSAGES = {
 }
 
 SRC_ALLURE_CATEGORIES = Path("./allure/categories.json")
-
 DST_ALLURE_CATEGORIES = Path("./allure-results/categories.json")
-
 DST_ALLURE_ENVIRONMENT = Path("./allure-results/environment.properties")
 
 BASE_EXTENSIONS_TPL_DATA = "ui/extensions/data"
@@ -74,10 +73,11 @@ EXTENSIONS_USER_DATA_PATH = "ui/extensions/chrome"
 HOME_DIR = Path(__file__).absolute().parent
 
 OZ_BALANCES = "./compatibility/results/oz_balance.json"
-NEON_EVM_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-evm"
+DOCKER_HUB_ORG_NAME = os.environ.get("DOCKER_HUB_ORG_NAME")
+NEON_EVM_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-evm"
 HOODIES_CHAINLINK_GITHUB_URL = "https://github.com/hoodieshq/chainlink-neon"
-PROXY_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-proxy.py"
-FAUCET_GITHUB_URL = "https://api.github.com/repos/neonlabsorg/neon-faucet"
+PROXY_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-proxy.py"
+FAUCET_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-faucet"
 EXTERNAL_CONTRACT_PATH = Path.cwd() / "contracts" / "external"
 VERSION_BRANCH_TEMPLATE = r"[vt]{1}\d{1,2}\.\d{1,2}\.x.*"
 GITHUB_TAG_PATTERN = re.compile(r'^[vt]\d{1,2}\.\d{1,2}\.\d{1,2}$')
@@ -177,7 +177,7 @@ def check_profitability(func: tp.Callable) -> tp.Callable:
             after = get_tokens_balances(op)
             profitability = dict(
                 neon=round(float(after["neon"] - pre["neon"]) * 0.25, 2),
-                sol=round((float(pre["sol"] - after["sol"])) * get_sol_price(), 2),
+                sol=round((float(pre["sol"] - after["sol"])) * get_sol_price_with_retry(), 2),
             )
             path = Path(OZ_BALANCES)
             path.absolute().parent.mkdir(parents=True, exist_ok=True)
@@ -457,7 +457,7 @@ def get_evm_pinned_version(branch):
     resp = requests.get(f"{PROXY_GITHUB_URL}/contents/.github/workflows/pipeline.yml?ref={branch}")
 
     if resp.status_code != 200:
-        click.echo(f"Can't get pipeline file for branch {branch}: {resp.text}")
+        click.echo(f"Can't get pipeline file for {PROXY_GITHUB_URL}: {resp.text}")
         raise click.ClickException(f"Can't get pipeline file for branch {branch}")
     info = resp.json()
     pipeline_file = yaml.safe_load(requests.get(info["download_url"]).text)
@@ -523,7 +523,7 @@ def update_contracts(branch):
     update_contracts_from_git(HOODIES_CHAINLINK_GITHUB_URL, "hoodies_chainlink", "main")
 
     update_contracts_from_git(
-        "https://github.com/neonlabsorg/neon-contracts.git", "neon-contracts", "main", update_npm=False
+        f"https://github.com/{DOCKER_HUB_ORG_NAME}/neon-contracts.git", "neon-contracts", "main", update_npm=False
     )
     subprocess.check_call(f'npm ci --prefix {EXTERNAL_CONTRACT_PATH / "neon-contracts" / "ERC20ForSPL"}', shell=True)
 
@@ -537,6 +537,7 @@ def update_contracts(branch):
 @click.option("-u", "--users", default=8, help="Accounts numbers used in OZ tests")
 @click.option("-c", "--case", default="", type=str, help="Specific test case name pattern to run")
 @click.option("--marker", help="Run tests by mark")
+@click.option("--cost_reports_dir", default="", help="Directory where CostReports will be created")
 @click.option(
     "--ui-item",
     default="all",
@@ -566,6 +567,7 @@ def run(
         case,
         keep_error_log: bool,
         marker: str,
+        cost_reports_dir: str,
 ):
     if not network and name == "ui":
         network = "devnet"
@@ -615,14 +617,24 @@ def run(
         if network != "geth":
             assert wait_for_tracer_service(network)
 
-    if case != "":
-        command += " -vk {}".format(case)
+    if case:
+        if " " in case:
+            command += f' -vk "{case}"'
+        else:
+            command += f" -vk {case}"
+
     if marker:
-        command += f" -m {marker}"
+        if " " in marker:
+            command += f' -m "{marker}"'
+        else:
+            command += f" -m {marker}"
 
     command += f" -s --network={network} --make-report --test-group {name}"
     if keep_error_log:
         command += " --keep-error-log"
+    if cost_reports_dir:
+        command += f" --cost_reports_dir {cost_reports_dir}"
+
     args = command.split()[1:]
     exit_code = int(pytest.main(args=args))
     if name != "ui":
@@ -1081,7 +1093,7 @@ def save_dapps_cost_report_to_db(
 ):
     tag = evm_tag if repo == "evm" else proxy_tag
 
-    report_data = dapps_cli.prepare_report_data(directory)
+    report_data = prepare_report_data(directory)
     db = PostgresTestResultsHandler()
 
     # define if previous similar reports should be deleted
@@ -1118,7 +1130,7 @@ def save_dapps_cost_report_to_db(
 @dapps.command("save_dapps_cost_report_to_md", help="Save dApps Cost Report to cost_reports.md")
 @click.option("-d", "--directory", default="reports", help="Directory with reports")
 def save_dapps_cost_report_to_md(directory: str):
-    report_data = dapps_cli.prepare_report_data(directory)
+    report_data = prepare_report_data(directory)
 
     # Add 'gas_used_%' column after 'gas_used'
     report_data.insert(
@@ -1129,7 +1141,7 @@ def save_dapps_cost_report_to_md(directory: str):
     report_data["gas_used_%"] = report_data["gas_used_%"].round(2)
 
     # Dump report_data DataFrame to markdown, grouped by the dApp
-    report_as_markdown_table = dapps_cli.report_data_to_markdown(df=report_data)
+    report_as_markdown_table = report_data_to_markdown(df=report_data)
     Path("cost_reports.md").write_text(report_as_markdown_table)
 
 

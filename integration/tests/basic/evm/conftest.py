@@ -1,12 +1,7 @@
-import json
-import pathlib
-
 import pytest
-from solana.publickey import PublicKey
+from solders.pubkey import Pubkey
 from web3.contract import Contract
-from packaging import version
-from clickfile import network_manager
-from utils import helpers, web3client
+from utils import helpers
 from utils.accounts import EthAccounts
 from utils.solana_client import SolanaClient
 from utils.web3client import Web3Client
@@ -87,7 +82,7 @@ def max_non_existent_solana_address(
 
     while address_exists:
         address_uint_256 -= 1
-        pubkey = PublicKey(address_uint_256.to_bytes(32, byteorder='big'))
+        pubkey = Pubkey(address_uint_256.to_bytes(32, byteorder='big'))
         address_exists = sol_client_session.get_account_info(pubkey=pubkey).value is not None
 
     return address_uint_256
