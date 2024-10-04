@@ -4,7 +4,7 @@ import web3
 import web3.exceptions
 from eth_abi import abi
 from eth_utils import is_hex, keccak
-from solana.keypair import Keypair
+from solders.keypair import Keypair
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
@@ -63,10 +63,10 @@ class TestPrecompiledSplToken:
         txn.add(
             create_metadata_instruction(
                 metadata,
-                solana_account.public_key,
+                solana_account.pubkey(),
                 token_mint.pubkey,
-                solana_account.public_key,
-                solana_account.public_key,
+                solana_account.pubkey(),
+                solana_account.pubkey(),
             )
         )
         self.sol_client.send_transaction(
@@ -94,10 +94,10 @@ class TestPrecompiledSplToken:
         txn.add(
             create_metadata_instruction(
                 metadata,
-                solana_account.public_key,
+                solana_account.pubkey(),
                 token_mint.pubkey,
-                solana_account.public_key,
-                solana_account.public_key,
+                solana_account.pubkey(),
+                solana_account.pubkey(),
             )
         )
         self.sol_client.send_transaction(
@@ -137,8 +137,8 @@ class TestPrecompiledSplToken:
         yield self.web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account)
 
     def test_get_mint_for_non_initialized_acc(self, spl_token_caller):
-        acc = Keypair.generate()
-        mint = Mint(spl_token_caller.functions.getMint(bytes(acc.public_key)).call())
+        acc = Keypair()
+        mint = Mint(spl_token_caller.functions.getMint(bytes(acc.pubkey())).call())
         assert mint.supply == 0
         assert mint.decimals == 0
         assert mint.is_initialized is False
@@ -203,15 +203,15 @@ class TestPrecompiledSplToken:
         sender_account = self.accounts[1]
         tx = self.web3_client.make_raw_tx(sender_account)
 
-        acc = Keypair.generate()
+        acc = Keypair()
         with pytest.raises(web3.exceptions.ContractLogicError, match=ErrorMessage.INCORRECT_PROGRAM_ID.value):
             spl_token_caller.functions.initializeAccount(
-                sender_account.address, bytes(acc.public_key)
+                sender_account.address, bytes(acc.pubkey())
             ).build_transaction(tx)
         try:
             calldata = keccak(text="initializeAccount(address,bytes32)")[:4] + abi.encode(
                 ["address", "bytes32"],
-                [sender_account.address, bytes(acc.public_key)],
+                [sender_account.address, bytes(acc.pubkey())],
             )
             tx = self.web3_client.make_raw_tx(
                 sender_account, spl_token_caller.address, data=calldata, gas=1000000, estimate_gas=False

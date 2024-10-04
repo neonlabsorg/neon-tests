@@ -4,9 +4,9 @@ import pathlib
 import eth_abi
 import pytest
 from eth_utils import abi
-from solana.keypair import Keypair
+from solders.keypair import Keypair
 from eth_keys import keys as eth_keys
-from solana.publickey import PublicKey
+from solders.pubkey import Pubkey
 from solana.rpc.commitment import Confirmed
 
 from utils.consts import OPERATOR_KEYPAIR_PATH
@@ -26,14 +26,14 @@ def evm_loader() -> EvmLoader:
     return loader
 
 
-def prepare_operator(key_file, evm_loader):
+def prepare_operator(key_file, evm_loader: EvmLoader):
     with open(key_file, "r") as key:
-        secret_key = json.load(key)[:32]
-        account = Keypair.from_secret_key(secret_key)
+        secret_key = json.load(key)
+        account = Keypair.from_bytes(secret_key)
 
-    evm_loader.request_airdrop(account.public_key, 1000 * 10**9, commitment=Confirmed)
+    evm_loader.request_airdrop(account.pubkey(), 1000 * 10**9, commitment=Confirmed)
 
-    operator_ether = eth_keys.PrivateKey(account.secret_key[:32]).public_key.to_canonical_address()
+    operator_ether = eth_keys.PrivateKey(account.secret()[:32]).public_key.to_canonical_address()
 
     ether_balance_pubkey = evm_loader.ether2operator_balance(account, operator_ether)
     acc_info = evm_loader.get_account_info(ether_balance_pubkey, commitment=Confirmed)
@@ -44,7 +44,7 @@ def prepare_operator(key_file, evm_loader):
 
 
 @pytest.fixture(scope="session")
-def default_operator_keypair(evm_loader) -> Keypair:
+def default_operator_keypair(evm_loader: EvmLoader) -> Keypair:
     """
     Initialized solana keypair with balance. Get private keys from ci/operator-keypairs/id.json
     """
@@ -110,12 +110,12 @@ def sender_with_tokens(evm_loader, operator_keypair) -> Caller:
 
 
 @pytest.fixture(scope="session")
-def holder_acc(operator_keypair, evm_loader) -> PublicKey:
+def holder_acc(operator_keypair, evm_loader) -> Pubkey:
     return create_holder(operator_keypair, evm_loader)
 
 
 @pytest.fixture(scope="function")
-def new_holder_acc(operator_keypair, evm_loader) -> PublicKey:
+def new_holder_acc(operator_keypair, evm_loader) -> Pubkey:
     return create_holder(operator_keypair, evm_loader)
 
 
@@ -225,7 +225,7 @@ def erc20_for_spl(
         "deploy(string,string,string,uint8)",
         ["Test", "TTT", "http://uri.com", 9],
     )
-    additional_accounts = [PublicKey(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+    additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
     signed_tx = make_contract_call_trx(
         evm_loader,
         sender_with_tokens,

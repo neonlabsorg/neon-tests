@@ -32,13 +32,20 @@ on:
           - 8
           - 12
           - auto
+      generate_cost_report:
+        type: boolean
+        default: false
+        required: false
+        description: "Flag defining whether cost report should be generated"
 env:
   NETWORK: ${{ github.event.inputs.network || 'terraform' }}
   NUMPROCESSES: ${{ github.event.inputs.numprocesses || 8 }}
   BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
   SOLANA_URL: "${{ secrets.SOLANA_URL }}"
   FAUCET_URL: "${{ secrets.DEVNET_FAUCET_URL }}"
-  IMAGE:  neonlabsorg/neon_tests
+  IMAGE:  ${{ github.repository_owner }}/neon_tests
+  DOCKER_HUB_ORG_NAME: ${{ github.repository_owner }}
+  GENERATE_COST_REPORT: ${{ github.event.inputs.generate_cost_report || 'false' }}
 jobs:
   dockerize:
     if: ${{ github.ref_name != 'develop'}}
@@ -51,6 +58,8 @@ jobs:
           image_tag: ${{ github.sha }}
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
+          image_name: ${{ env.IMAGE }}
+          docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
   prepare-env:
     runs-on: ubuntu-20.04
     if: always()
@@ -126,7 +135,7 @@ jobs:
             /bin/bash -c "export SOLANA_URL=http://${{ env.SOLANA_IP }}:8899 \
             && export NEON_CORE_API_URL=http://${{ env.SOLANA_IP }}:8085/api \
             && export NEON_CORE_API_RPC_URL=http://${{ env.SOLANA_IP }}:3100 \
-            && python3 ./clickfile.py run evm --numprocesses 8 --keep-error-log"
+            && python3 ./clickfile.py run evm --numprocesses 8 --network terraform --keep-error-log"
       - name: Set failed test group to evm
         if: failure()
         run: echo "FAILED_TEST_GROUP=evm" >> $GITHUB_ENV
@@ -134,12 +143,35 @@ jobs:
         timeout-minutes: 60
         id: basic
         run: |
-          docker exec -i ${{ env.CONTAINER }} \
-            /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && \
-            python3 ./clickfile.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
+          CMD="python3 ./clickfile.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
+      
+          if [[ "${{ env.GENERATE_COST_REPORT }}" == "true" ]]; then
+            CMD="$CMD --cost_reports_dir reports/cost_reports"
+          fi
+      
+          docker exec -i ${{ env.CONTAINER }} /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && $CMD"
+
       - name: Set failed test group to basic
         if: failure()
         run: echo "FAILED_TEST_GROUP=basic" >> $GITHUB_ENV
+      - name: Copy cost reports from container
+        if: ${{ env.GENERATE_COST_REPORT == 'true' }}
+        run: |
+          mkdir -p ./reports/cost_reports/ && \
+          docker cp ${{ env.CONTAINER }}:/opt/neon-tests/reports/cost_reports/. ./reports/cost_reports/
+      - name: Upload cost reports as artifacts
+        if: ${{ env.GENERATE_COST_REPORT == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cost-reports
+          path: reports/cost_reports/**.json
+      - name: Save Cost Reports to cost_reports.md and echo to Summary
+        if: ${{ env.GENERATE_COST_REPORT == 'true' }}
+        run: |
+          docker exec -i -e NETWORK=${{ env.NETWORK }} ${{ env.CONTAINER }} \
+            python3 ./clickfile.py dapps save_dapps_cost_report_to_md \
+            --directory reports/cost_reports && \
+          docker exec -i ${{ env.CONTAINER }} cat cost_reports.md >> $GITHUB_STEP_SUMMARY
       - name: "Generate allure report"
         if: always()
         uses: ./.github/actions/generate-allure-report
@@ -154,7 +186,7 @@ jobs:
         run: |
           docker exec -i ${{ env.CONTAINER }} \
             python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
-          -b ${{ env.BUILD_URL }} -n ${{ env.NETWORK }} --test-group ${{ env.FAILED_TEST_GROUP }}
+          -b ${{ env.BUILD_URL }} --network ${{ env.NETWORK }} --test-group ${{ env.FAILED_TEST_GROUP }}
       - name: Remove docker container
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}
@@ -178,4 +210,3 @@ jobs:
         uses: ./.github/actions/destroy-tf-stand
         with:
           ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
-

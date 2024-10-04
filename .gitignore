@@ -248,3 +248,5 @@ reports
 uniswap_contracts.json
 *.url
 *.lock
+node_modules
+loadtesting/k6/data

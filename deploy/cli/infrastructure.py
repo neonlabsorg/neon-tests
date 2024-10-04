@@ -6,6 +6,7 @@ import typing as tp
 import pathlib
 import logging
 
+import click
 from paramiko.client import SSHClient
 from scp import SCPClient
 
@@ -26,7 +27,6 @@ TF_BACKEND_CONFIG = {"bucket": TFSTATE_BUCKET, "key": TF_STATE_KEY, "region": TF
 
 os.environ["TF_VAR_run_number"] = os.environ.get("GITHUB_RUN_NUMBER", "0")
 os.environ["TF_VAR_branch"] = os.environ.get("GITHUB_REF_NAME", "develop").replace("/", "-").replace("_", "-")
-os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("DOCKERHUB_ORG_NAME", "neonlabsorg")
 
 
 terraform = Terraform(working_dir=pathlib.Path(__file__).parent.parent / "hetzner")
@@ -56,6 +56,8 @@ def deploy_infrastructure(
     os.environ["TF_VAR_faucet_model_commit"] = faucet_tag
     os.environ["TF_VAR_proxy_image_tag"] = proxy_tag
     os.environ["TF_VAR_proxy_model_commit"] = proxy_branch
+    os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("GITHUB_REPOSITORY_OWNER")
+
     if use_real_price:
         os.environ["TF_VAR_use_real_price"] = "1"
 
@@ -85,6 +87,7 @@ def destroy_infrastructure():
     os.environ["TF_VAR_faucet_model_commit"] = "develop"
     os.environ["TF_VAR_proxy_image_tag"] = "latest"
     os.environ["TF_VAR_proxy_model_commit"] = "develop"
+    os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("GITHUB_REPOSITORY_OWNER")
 
     log = logging.getLogger()
     log.handlers = []
@@ -152,7 +155,7 @@ def prepare_accounts(network_name, count, amount) -> tp.List:
     return accounts
 
 
-def get_solana_accounts_in_tx(eth_transaction):
+def get_solana_accounts_transactions_compute_units(eth_transaction):
     network = os.environ.get("NETWORK")
     network_manager = NetworkManager(network)
     solana_url = network_manager.get_network_param(network, "solana_url")
@@ -166,8 +169,30 @@ def get_solana_accounts_in_tx(eth_transaction):
     print(f"get_slot={sol_client.get_slot()}")
     tr = sol_client.get_transaction(Signature.from_string(trx["result"][0]), max_supported_transaction_version=0)
     print(f"get_transaction({trx}): {tr}")
+
+    solana_transaction_hashes = trx["result"]
+    compute_units = 0
+
+    for solana_transaction_hash in solana_transaction_hashes:
+        solana_transaction = sol_client.get_transaction(
+            tx_sig=Signature.from_string(solana_transaction_hash),
+            max_supported_transaction_version=0,
+        )
+
+        try:
+            log_messages = solana_transaction.value.transaction.meta.log_messages
+        except AttributeError:
+            click.echo(f"WARNING: no log messages in transaction {solana_transaction_hash}: {solana_transaction}")
+            continue
+
+        for message in log_messages[::-1]:
+            match = re.match(r'^.+consumed (\d+) of \d+ compute units$', message)
+            if match:
+                compute_units += int(match.group(1))
+                break
+
     if tr.value.transaction.transaction.message.address_table_lookups:
         alt = tr.value.transaction.transaction.message.address_table_lookups
-        return len(alt[0].writable_indexes) + len(alt[0].readonly_indexes), len(trx["result"])
+        return len(alt[0].writable_indexes) + len(alt[0].readonly_indexes), len(trx["result"]), compute_units
     else:
-        return len(tr.value.transaction.transaction.message.account_keys), len(trx["result"])
+        return len(tr.value.transaction.transaction.message.account_keys), len(trx["result"]), compute_units

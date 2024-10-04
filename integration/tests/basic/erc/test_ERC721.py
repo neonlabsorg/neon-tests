@@ -7,7 +7,7 @@ import base58
 import pytest
 import web3
 import web3.exceptions
-from solana.publickey import PublicKey
+from solders.pubkey import Pubkey
 from solana.rpc.types import TokenAccountOpts, TxOpts
 from solana.transaction import Transaction
 from spl.token.instructions import (
@@ -16,7 +16,7 @@ from spl.token.instructions import (
 )
 
 from integration.tests.basic.helpers.assert_message import ErrorMessage
-from utils import metaplex
+from utils import metaplex, stats_collector
 from utils.accounts import EthAccounts
 from utils.consts import ZERO_ADDRESS
 from utils.erc721ForMetaplex import ERC721ForMetaplex
@@ -45,25 +45,26 @@ class TestERC721:
     sol_client: SolanaClient
 
     @pytest.fixture(scope="function")
-    def token_id(self, erc721, web3_client):
+    def token_id(self, erc721, web3_client) -> int:
         seed = web3_client.text_to_bytes32(gen_hash_of_block(8))
         uri = generate_text(min_len=10, max_len=200)
-        token_id = erc721.mint(seed, erc721.account.address, uri)
-        yield token_id
+        token_id_ = erc721.mint(seed, erc721.account.address, uri)
+        yield token_id_
 
     @allure.step("Check metaplex data")
-    def metaplex_checks(self, token_id):
+    def metaplex_checks(self, token_id: int):
         solana_acc = base58.b58encode(token_id.to_bytes(32, "big")).decode("utf-8")
-        metaplex.wait_account_info(self.sol_client, solana_acc)
-        metadata = metaplex.get_metadata(self.sol_client, solana_acc)
+        metaplex.wait_account_info(self.sol_client, Pubkey.from_string(solana_acc))
+        metadata = metaplex.get_metadata(self.sol_client, Pubkey.from_string(solana_acc))
         assert metadata["mint"] == solana_acc.encode("utf-8")
         assert metadata["data"]["name"] == "Metaplex"
         assert metadata["data"]["symbol"] == "MPL"
 
+    @pytest.mark.cost_report
     def test_mint(self, erc721):
         seed = self.web3_client.text_to_bytes32(gen_hash_of_block(8))
         uri = generate_text(min_len=10, max_len=200)
-        token_id = erc721.mint(seed, erc721.account.address, uri)
+        token_id: int = erc721.mint(seed, erc721.account.address, uri)
         self.metaplex_checks(token_id)
 
     def test_mint_with_used_seed(self, erc721, accounts):
@@ -219,6 +220,7 @@ class TestERC721:
                 **param,
             )
 
+    @pytest.mark.cost_report
     def test_transferFrom_with_approval(self, erc721, token_id, accounts):
         recipient = accounts[2]
 
@@ -436,25 +438,25 @@ class TestERC721:
     @pytest.mark.xfail(reason="NDEV-1333")
     def test_transferSolanaFrom(self, erc721, token_id, sol_client, solana_account):
         acc = solana_account
-        token_mint = PublicKey(base58.b58encode(token_id.to_bytes(32, "big")).decode("utf-8"))
+        token_mint = Pubkey(token_id.to_bytes(32, "big"))
         trx = Transaction()
-        trx.add(create_associated_token_account(acc.public_key, acc.public_key, token_mint))
+        trx.add(create_associated_token_account(acc.pubkey(), acc.pubkey(), token_mint))
         opts = TxOpts(skip_preflight=False, skip_confirmation=False)
         sol_client.send_transaction(trx, acc, opts=opts)
-        solana_address = bytes(get_associated_token_address(acc.public_key, token_mint))
+        solana_address = bytes(get_associated_token_address(acc.pubkey(), token_mint))
 
         erc721.transfer_solana_from(erc721.account.address, solana_address, token_id, erc721.account)
         opts = TokenAccountOpts(token_mint)
 
         wait_condition(
             lambda: int(
-                sol_client.get_token_accounts_by_owner_json_parsed(acc.public_key, opts)
+                sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts)
                 .value[0]
                 .account.data.parsed["info"]["tokenAmount"]["amount"]
             )
             > 0
         )
-        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.public_key, opts).value[0]
+        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts).value[0]
         token_amount = token_data.account.data.parsed["info"]["tokenAmount"]
         assert int(token_amount["amount"]) == 1
         assert int(token_amount["decimals"]) == 0
@@ -538,7 +540,7 @@ class TestMultipleActionsForERC721:
         assert contract_balance == contract_balance_before, "Contract balance is not correct"
 
     def test_mint_mint_transfer_transfer_different_accounts(self, multiple_actions_erc721):
-        recipient= self.accounts[1]
+        recipient = self.accounts[1]
 
         sender_account = self.accounts[0]
         acc, contract = multiple_actions_erc721

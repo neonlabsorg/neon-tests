@@ -17,7 +17,7 @@ def test_get_storage_at(neon_api_client, operator_keypair, user_account, evm_loa
 def test_get_balance(neon_api_client, user_account, evm_loader):
     result = neon_api_client.get_balance(user_account.eth_address.hex())['value']
     assert str(user_account.balance_account_address) == result[0]["solana_address"]
-    assert evm_loader.get_account_info(user_account.solana_account.public_key).value is not None
+    assert evm_loader.get_account_info(user_account.solana_account.pubkey()).value is not None
 
 
 def test_emulate_transfer(neon_api_client, user_account, session_user):
@@ -55,5 +55,4 @@ def test_emulate_with_small_amount_of_steps(neon_api_client, evm_loader, user_ac
     contract_code = get_contract_bin("hello_world")
     result = neon_api_client.emulate(user_account.eth_address.hex(),
                                      contract=None, data=contract_code, max_steps_to_execute=10)
-    
     assert result['exit_status'] == 'revert', f"The 'exit_status' field is not revert. Result: {result}"

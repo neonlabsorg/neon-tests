@@ -1,9 +1,12 @@
+import typing as tp
+
 import pytest
 import spl
-from solana.keypair import Keypair
+from solders.keypair import Keypair
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
-from solana.transaction import AccountMeta, TransactionInstruction
+from solana.transaction import AccountMeta, Instruction
+from solders.pubkey import Pubkey
 from spl.token.client import Token as SplToken
 from spl.token.constants import TOKEN_PROGRAM_ID
 from spl.token.instructions import (
@@ -21,7 +24,7 @@ from utils.web3client import NeonChainWeb3Client
 
 
 @pytest.fixture(scope="session")
-def get_counter_value():
+def get_counter_value() -> tp.Iterator[int]:
     def gen_increment_counter():
         count = 0
         while True:
@@ -40,15 +43,15 @@ class TestSolanaInteroperability:
     web3_client: NeonChainWeb3Client
 
     def test_counter_execute_with_get_return_data(
-        self, call_solana_caller, counter_resource_address, get_counter_value
+        self, call_solana_caller, counter_resource_address: bytes, get_counter_value
     ):
         sender = self.accounts[0]
         lamports = 0
 
-        instruction = TransactionInstruction(
+        instruction = Instruction(
             program_id=COUNTER_ID,
-            keys=[
-                AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
+            accounts=[
+                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
             ],
             data=bytes([0x1]),
         )
@@ -64,14 +67,14 @@ class TestSolanaInteroperability:
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
         assert bytes32_to_solana_pubkey(event_logs[0].args.program.hex()) == COUNTER_ID
 
-    def test_counter_with_seed(self, call_solana_caller, counter_resource_address, get_counter_value):
+    def test_counter_with_seed(self, call_solana_caller, counter_resource_address: bytes, get_counter_value):
         sender = self.accounts[0]
         lamports = 0
 
-        instruction = TransactionInstruction(
+        instruction = Instruction(
             program_id=COUNTER_ID,
-            keys=[
-                AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
+            accounts=[
+                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
             ],
             data=bytes([0x1]),
         )
@@ -85,14 +88,14 @@ class TestSolanaInteroperability:
         event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
 
-    def test_counter_execute(self, call_solana_caller, counter_resource_address, get_counter_value):
+    def test_counter_execute(self, call_solana_caller, counter_resource_address: bytes, get_counter_value):
         sender = self.accounts[0]
         lamports = 0
 
-        instruction = TransactionInstruction(
+        instruction = Instruction(
             program_id=COUNTER_ID,
-            keys=[
-                AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
+            accounts=[
+                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
             ],
             data=bytes([0x1]),
         )
@@ -105,16 +108,16 @@ class TestSolanaInteroperability:
         event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
 
-    def test_counter_batch_execute(self, call_solana_caller, counter_resource_address, get_counter_value):
+    def test_counter_batch_execute(self, call_solana_caller, counter_resource_address: bytes, get_counter_value):
         sender = self.accounts[0]
         call_params = []
         current_counter = 0
 
         for _ in range(10):
-            instruction = TransactionInstruction(
+            instruction = Instruction(
                 program_id=COUNTER_ID,
-                keys=[
-                    AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
+                accounts=[
+                    AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
                 ],
                 data=bytes([0x1]),
             )
@@ -135,24 +138,24 @@ class TestSolanaInteroperability:
         self, call_solana_caller, sol_client, solana_account, pytestconfig, bank_account
     ):
         sender = self.accounts[0]
-        from_wallet = Keypair.generate()
-        to_wallet = Keypair.generate()
+        from_wallet = Keypair()
+        to_wallet = Keypair()
         amount = 100000
         if pytestconfig.environment.use_bank:
-            sol_client.send_sol(bank_account, from_wallet.public_key, int(0.5 * 10**9))
+            sol_client.send_sol(bank_account, from_wallet.pubkey(), int(0.5 * 10**9))
         else:
-            sol_client.request_airdrop(from_wallet.public_key, 1000 * 10**9, commitment=Confirmed)
+            sol_client.request_airdrop(from_wallet.pubkey(), 1000 * 10**9, commitment=Confirmed)
 
         mint = spl.token.client.Token.create_mint(
             conn=sol_client,
             payer=from_wallet,
-            mint_authority=from_wallet.public_key,
+            mint_authority=from_wallet.pubkey(),
             decimals=9,
             program_id=TOKEN_PROGRAM_ID,
         )
         mint.payer = from_wallet
-        from_token_account = mint.create_associated_token_account(from_wallet.public_key)
-        to_token_account = mint.create_associated_token_account(to_wallet.public_key)
+        from_token_account = mint.create_associated_token_account(from_wallet.pubkey())
+        to_token_account = mint.create_associated_token_account(to_wallet.pubkey())
         mint.mint_to(
             dest=from_token_account,
             mint_authority=from_wallet,
@@ -160,22 +163,22 @@ class TestSolanaInteroperability:
             opts=TxOpts(skip_confirmation=False, skip_preflight=True),
         )
 
-        authority_pubkey = call_solana_caller.functions.getSolanaPDA(bytes(TRANSFER_TOKENS_ID), b"authority").call()
+        authority_pubkey: bytes = call_solana_caller.functions.getSolanaPDA(bytes(TRANSFER_TOKENS_ID), b"authority").call()
         mint.set_authority(
             from_token_account,
             from_wallet,
             spl.token.instructions.AuthorityType.ACCOUNT_OWNER,
-            authority_pubkey,
+            Pubkey(authority_pubkey),
             opts=TxOpts(skip_confirmation=False, skip_preflight=True),
         )
 
-        instruction = TransactionInstruction(
+        instruction = Instruction(
             program_id=TRANSFER_TOKENS_ID,
-            keys=[
+            accounts=[
                 AccountMeta(from_token_account, is_signer=False, is_writable=True),
                 AccountMeta(mint.pubkey, is_signer=False, is_writable=True),
                 AccountMeta(to_token_account, is_signer=False, is_writable=True),
-                AccountMeta(authority_pubkey, is_signer=False, is_writable=True),
+                AccountMeta(Pubkey(authority_pubkey), is_signer=False, is_writable=True),
                 AccountMeta(TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
             ],
             data=bytes([0x0]),
@@ -192,23 +195,23 @@ class TestSolanaInteroperability:
 
     def test_transfer_tokens_with_ext_authority(self, call_solana_caller, sol_client, pytestconfig, bank_account):
         sender = self.accounts[0]
-        from_wallet = Keypair.generate()
-        to_wallet = Keypair.generate()
+        from_wallet = Keypair()
+        to_wallet = Keypair()
         amount = 100000
         if pytestconfig.environment.use_bank:
-            sol_client.send_sol(bank_account, from_wallet.public_key, int(0.5 * 10**9))
+            sol_client.send_sol(bank_account, from_wallet.pubkey(), int(0.5 * 10**9))
         else:
-            sol_client.request_airdrop(from_wallet.public_key, 1000 * 10**9, commitment=Confirmed)
+            sol_client.request_airdrop(from_wallet.pubkey(), 1000 * 10**9, commitment=Confirmed)
         mint = spl.token.client.Token.create_mint(
             conn=sol_client,
             payer=from_wallet,
-            mint_authority=from_wallet.public_key,
+            mint_authority=from_wallet.pubkey(),
             decimals=9,
             program_id=TOKEN_PROGRAM_ID,
         )
         mint.payer = from_wallet
-        from_token_account = mint.create_associated_token_account(from_wallet.public_key)
-        to_token_account = mint.create_associated_token_account(to_wallet.public_key)
+        from_token_account = mint.create_associated_token_account(from_wallet.pubkey())
+        to_token_account = mint.create_associated_token_account(to_wallet.pubkey())
         mint.mint_to(
             dest=from_token_account,
             mint_authority=from_wallet,
@@ -217,18 +220,18 @@ class TestSolanaInteroperability:
         )
 
         seed = self.web3_client.text_to_bytes32("myseed")
-        authority = call_solana_caller.functions.getExtAuthority(seed).call({"from": sender.address})
+        authority: bytes = call_solana_caller.functions.getExtAuthority(seed).call({"from": sender.address})
 
         mint.set_authority(
             from_token_account,
             from_wallet,
             spl.token.instructions.AuthorityType.ACCOUNT_OWNER,
-            authority,
+            Pubkey(authority),
             opts=TxOpts(skip_confirmation=False, skip_preflight=True),
         )
 
         instruction = transfer(
-            TransferParams(TOKEN_PROGRAM_ID, from_token_account, to_token_account, authority, amount)
+            TransferParams(TOKEN_PROGRAM_ID, from_token_account, to_token_account, Pubkey(authority), amount)
         )
 
         serialized = serialize_instruction(TOKEN_PROGRAM_ID, instruction)
@@ -241,26 +244,26 @@ class TestSolanaInteroperability:
         event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == 0
 
-    def test_gas_estimate_for_wsol_transfer(self, solana_account, call_solana_caller, sol_client):
+    def test_gas_estimate_for_wsol_transfer(self, new_solana_account, call_solana_caller, sol_client):
         sender = self.accounts[0]
         mint = wSOL["address_spl"]
-        recipient = Keypair.generate()
+        recipient = Keypair()
 
-        spl_token = SplToken(sol_client, mint, TOKEN_PROGRAM_ID, solana_account)
-        ata_address_from = get_associated_token_address(solana_account.public_key, mint)
-        ata_address_to = get_associated_token_address(recipient.public_key, mint)
-        sol_client.create_associate_token_acc(solana_account, solana_account, mint)
-        sol_client.create_associate_token_acc(solana_account, recipient, mint)
+        spl_token = SplToken(sol_client, mint, TOKEN_PROGRAM_ID, new_solana_account)
+        ata_address_from = get_associated_token_address(new_solana_account.pubkey(), mint)
+        ata_address_to = get_associated_token_address(recipient.pubkey(), mint)
+        sol_client.create_associate_token_acc(new_solana_account, new_solana_account, mint)
+        sol_client.create_associate_token_acc(new_solana_account, recipient, mint)
 
         def get_gas_used_for_emulate_send_wsol(amount):
-            wrap_sol_tx = make_wSOL(amount, solana_account.public_key, ata_address_from)
-            sol_client.send_tx_and_check_status_ok(wrap_sol_tx, solana_account)
+            wrap_sol_tx = make_wSOL(amount, new_solana_account.pubkey(), ata_address_from)
+            sol_client.send_tx_and_check_status_ok(wrap_sol_tx, new_solana_account)
             seed = self.web3_client.text_to_bytes32("myseed")
             authority = call_solana_caller.functions.getExtAuthority(seed).call({"from": sender.address}).hex()
             authority = bytes32_to_solana_pubkey(authority)
             spl_token.set_authority(
                 ata_address_from,
-                solana_account,
+                new_solana_account,
                 spl.token.instructions.AuthorityType.ACCOUNT_OWNER,
                 authority,
                 opts=TxOpts(skip_confirmation=False, skip_preflight=True),
@@ -282,15 +285,15 @@ class TestSolanaInteroperability:
         gas_used_amount2 = get_gas_used_for_emulate_send_wsol(10000 * 2)
         assert gas_used_amount1 == gas_used_amount2, "Gas used for different transfer amounts should be the same"
 
-    def test_limit_of_simple_instr_in_one_trx(self, call_solana_caller, counter_resource_address):
+    def test_limit_of_simple_instr_in_one_trx(self, call_solana_caller, counter_resource_address: bytes):
         sender = self.accounts[0]
         call_params = []
 
         for _ in range(24):
-            instruction = TransactionInstruction(
+            instruction = Instruction(
                 program_id=COUNTER_ID,
-                keys=[
-                    AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
+                accounts=[
+                    AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
                 ],
                 data=bytes([0x1]),
             )
@@ -301,4 +304,3 @@ class TestSolanaInteroperability:
         instruction_tx = call_solana_caller.functions.batchExecute(call_params).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 0
-

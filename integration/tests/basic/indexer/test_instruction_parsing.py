@@ -1,9 +1,9 @@
-from collections import Counter
-
 import pytest
-from solana.transaction import AccountMeta, TransactionInstruction
+from solana.transaction import AccountMeta, Instruction
 
 import allure
+from solders.pubkey import Pubkey
+
 from integration.tests.basic.helpers.rpc_checks import (
     assert_instructions,
     assert_solana_trxs_in_neon_receipt,
@@ -64,14 +64,14 @@ class TestInstruction:
         assert "CancelWithHash" in count_instructions(validated_response).keys()
         assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
-    def test_tx_exec_from_data_solana_call(self, call_solana_caller, counter_resource_address, json_rpc_client):
+    def test_tx_exec_from_data_solana_call(self, call_solana_caller, counter_resource_address: bytes, json_rpc_client):
         sender = self.accounts[0]
         lamports = 0
 
-        instruction = TransactionInstruction(
+        instruction = Instruction(
             program_id=COUNTER_ID,
-            keys=[
-                AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
+            accounts=[
+                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
             ],
             data=bytes([0x1]),
         )
@@ -153,16 +153,16 @@ class TestInstruction:
         assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
     def test_tx_exec_from_account_solana_call(
-        self, call_solana_caller, counter_resource_address, json_rpc_client
+        self, call_solana_caller, counter_resource_address: bytes, json_rpc_client
     ):
         sender = self.accounts[0]
         call_params = []
 
         for _ in range(10):
-            instruction = TransactionInstruction(
+            instruction = Instruction(
                 program_id=COUNTER_ID,
-                keys=[
-                    AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
+                accounts=[
+                    AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
                 ],
                 data=bytes([0x1]),
             )

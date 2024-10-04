@@ -7,9 +7,9 @@ import typing as tp
 
 from eth_keys import keys as eth_keys
 from eth_account.datastructures import SignedTransaction
-from solana.keypair import Keypair
-from solana.publickey import PublicKey
-import solana.system_program as sp
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
+import solders.system_program as sp
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
@@ -46,23 +46,23 @@ EVM_STEPS = 500
 class EvmLoader(SolanaClient):
     def __init__(self, program_id, endpoint):
         super().__init__(endpoint)
-        EvmLoader.loader_id = PublicKey(program_id)
+        EvmLoader.loader_id = Pubkey.from_string(program_id)
         self.loader_id = EvmLoader.loader_id
 
-    def create_balance_account(self, ether: Union[str, bytes], sender, chain_id=CHAIN_ID) -> PublicKey:
+    def create_balance_account(self, ether: Union[str, bytes], sender, chain_id=CHAIN_ID) -> Pubkey:
         account_pubkey = self.ether2balance(ether, chain_id)
-        contract_pubkey = PublicKey(self.ether2program(ether)[0])
+        contract_pubkey = Pubkey.from_string(self.ether2program(ether)[0])
         trx = Transaction()
         trx.add(
             make_CreateBalanceAccount(
-                self.loader_id, sender.public_key, self.ether2bytes(ether), account_pubkey, contract_pubkey, chain_id
+                self.loader_id, sender.pubkey(), self.ether2bytes(ether), account_pubkey, contract_pubkey, chain_id
             )
         )
         self.send_tx(trx, sender)
         return account_pubkey
 
     def create_treasury_pool_address(self, pool_index):
-        return PublicKey.find_program_address(
+        return Pubkey.find_program_address(
             [bytes(TREASURY_POOL_SEED, "utf8"), pool_index.to_bytes(4, "little")], self.loader_id
         )[0]
 
@@ -84,11 +84,11 @@ class EvmLoader(SolanaClient):
 
     def ether2operator_balance(
         self, keypair: Keypair, ether_address: Union[str, bytes], chain_id=CHAIN_ID
-    ) -> PublicKey:
+    ) -> Pubkey:
         address_bytes = self.ether2bytes(ether_address)
-        key = bytes(keypair.public_key)
+        key = bytes(keypair.pubkey())
         chain_id_bytes = chain_id.to_bytes(32, "big")
-        return PublicKey.find_program_address(
+        return Pubkey.find_program_address(
             [self.account_seed_version, key, address_bytes, chain_id_bytes], self.loader_id
         )[0]
 
@@ -100,9 +100,9 @@ class EvmLoader(SolanaClient):
 
         return layout.trx_count
 
-    def get_solana_account_data(self, account: Union[str, PublicKey, Keypair], expected_length: int) -> bytes:
+    def get_solana_account_data(self, account: Union[str, Pubkey, Keypair], expected_length: int) -> bytes:
         if isinstance(account, Keypair):
-            account = account.public_key
+            account = account.pubkey()
         info = self.get_account_info(account, commitment=Confirmed)
         info = info.value
         if info is None:
@@ -131,7 +131,7 @@ class EvmLoader(SolanaClient):
     def write_transaction_to_holder_account(
         self,
         signed_tx: SignedTransaction,
-        holder_account: PublicKey,
+        holder_account: Pubkey,
         operator: Keypair,
     ):
         offset = 0
@@ -140,7 +140,7 @@ class EvmLoader(SolanaClient):
         while len(rest):
             (part, rest) = (rest[:920], rest[920:])
             trx = Transaction()
-            trx.add(make_WriteHolder(operator.public_key, self.loader_id, holder_account, signed_tx.hash, offset, part))
+            trx.add(make_WriteHolder(operator.pubkey(), self.loader_id, holder_account, signed_tx.hash, offset, part))
             receipts.append(
                 self.send_transaction(
                     trx,
@@ -154,35 +154,36 @@ class EvmLoader(SolanaClient):
             self.confirm_transaction(rcpt.value, commitment=Confirmed)
 
     def ether2program(self, ether: tp.Union[str, bytes]) -> tp.Tuple[str, int]:
-        items = PublicKey.find_program_address([self.account_seed_version, self.ether2bytes(ether)], self.loader_id)
+        items = Pubkey.find_program_address([self.account_seed_version, self.ether2bytes(ether)], self.loader_id)
         return str(items[0]), items[1]
 
-    def ether2balance(self, address: tp.Union[str, bytes], chain_id=CHAIN_ID) -> PublicKey:
+    def ether2balance(self, address: tp.Union[str, bytes], chain_id=CHAIN_ID) -> Pubkey:
         # get public key associated with chain_id for an address
         address_bytes = self.ether2bytes(address)
 
         chain_id_bytes = chain_id.to_bytes(32, "big")
-        return PublicKey.find_program_address(
+        return Pubkey.find_program_address(
             [self.account_seed_version, address_bytes, chain_id_bytes], self.loader_id
         )[0]
 
     def get_operator_balance_pubkey(self, operator: Keypair):
-        operator_ether = eth_keys.PrivateKey(operator.secret_key[:32]).public_key.to_canonical_address()
+        operator_ether = eth_keys.PrivateKey(operator.secret()[:32]).public_key.to_canonical_address()
         return self.ether2operator_balance(operator, operator_ether)
 
     def execute_trx_from_instruction(
         self,
         operator: Keypair,
-        holder_acc: PublicKey,
-        treasury_address: PublicKey,
+        holder_acc: Pubkey,
+        treasury_address: Pubkey,
         treasury_buffer: bytes,
         instruction: SignedTransaction,
         additional_accounts,
         signer: Keypair = None,
-        system_program=sp.SYS_PROGRAM_ID,
+        system_program=sp.ID,
+        compute_unit_price=None
     ) -> SendTransactionResp:
         signer = operator if signer is None else signer
-        trx = TransactionWithComputeBudget(operator)
+        trx = TransactionWithComputeBudget(operator, compute_unit_price=compute_unit_price)
         operator_balance = self.get_operator_balance_pubkey(operator)
 
         trx.add(
@@ -195,8 +196,7 @@ class EvmLoader(SolanaClient):
                 treasury_buffer,
                 instruction.rawTransaction,
                 additional_accounts,
-                system_program,
-            )
+                system_program)
         )
 
         return self.send_tx(trx, signer)
@@ -204,12 +204,12 @@ class EvmLoader(SolanaClient):
     def execute_trx_from_account(
         self,
         operator: Keypair,
-        holder_acc: PublicKey,
-        treasury_address: PublicKey,
+        holder_acc: Pubkey,
+        treasury_address: Pubkey,
         treasury_buffer: bytes,
         additional_accounts,
         signer: Keypair,
-        system_program=sp.SYS_PROGRAM_ID,
+        system_program=sp.ID,
     ) -> SendTransactionResp:
         operator_balance = self.get_operator_balance_pubkey(operator)
 
@@ -232,13 +232,13 @@ class EvmLoader(SolanaClient):
     def execute_trx_from_instruction_with_solana_call(
         self,
         operator: Keypair,
-        holder_address: PublicKey,
-        treasury_address: PublicKey,
+        holder_address: Pubkey,
+        treasury_address: Pubkey,
         treasury_buffer: bytes,
         instruction: SignedTransaction,
         additional_accounts,
         signer: Keypair = None,
-        system_program=sp.SYS_PROGRAM_ID,
+        system_program=sp.ID,
     ) -> SendTransactionResp:
         signer = operator if signer is None else signer
         operator_balance_pubkey = self.get_operator_balance_pubkey(operator)
@@ -263,12 +263,12 @@ class EvmLoader(SolanaClient):
         self,
         operator: Keypair,
         holder_address,
-        treasury_address: PublicKey,
+        treasury_address: Pubkey,
         treasury_buffer: bytes,
         additional_accounts,
         signer: Keypair = None,
         additional_signers: typing.List[Keypair] = None,
-        system_program=sp.SYS_PROGRAM_ID,
+        system_program=sp.ID,
     ) -> SendTransactionResp:
         signer = operator if signer is None else signer
         operator_balance_pubkey = self.get_operator_balance_pubkey(operator)
@@ -301,7 +301,7 @@ class EvmLoader(SolanaClient):
         additional_accounts,
         steps_count,
         signer: Keypair,
-        system_program=sp.SYS_PROGRAM_ID,
+        system_program=sp.ID,
         index=0,
         tag=0x34,
     ) -> GetTransactionResp:
@@ -319,7 +319,7 @@ class EvmLoader(SolanaClient):
                 treasury,
                 additional_accounts,
                 system_program,
-                tag,
+                tag
             )
         )
 
@@ -373,11 +373,12 @@ class EvmLoader(SolanaClient):
         additional_accounts,
         steps_count,
         signer: Keypair,
-        system_program=sp.SYS_PROGRAM_ID,
+        system_program=sp.ID,
+        compute_unit_price=None,
         tag=0x35,
         index=0,
     ) -> GetTransactionResp:
-        trx = TransactionWithComputeBudget(operator)
+        trx = TransactionWithComputeBudget(operator, compute_unit_price=compute_unit_price)
         trx.add(
             make_ExecuteTrxFromAccountDataIterativeOrContinue(
                 index,
@@ -389,13 +390,19 @@ class EvmLoader(SolanaClient):
                 treasury,
                 additional_accounts,
                 system_program,
-                tag,
+                tag
             )
         )
         return self.send_tx(trx, signer)
 
     def execute_transaction_steps_from_account(
-        self, operator: Keypair, treasury, storage_account, additional_accounts, signer: Keypair = None
+        self,
+        operator: Keypair,
+        treasury,
+        storage_account,
+        additional_accounts,
+        signer: Keypair = None,
+        compute_unit_price=None
     ) -> GetTransactionResp:
         signer = operator if signer is None else signer
         operator_balance_pubkey = self.get_operator_balance_pubkey(operator)
@@ -413,6 +420,7 @@ class EvmLoader(SolanaClient):
                 EVM_STEPS,
                 signer,
                 index=index,
+                compute_unit_price=compute_unit_price
             )
             index += 1
 
@@ -445,7 +453,7 @@ class EvmLoader(SolanaClient):
                 EVM_STEPS,
                 signer,
                 tag=0x36,
-                index=index,
+                index=index
             )
             index += 1
 
@@ -462,28 +470,28 @@ class EvmLoader(SolanaClient):
 
     def deposit_neon(self, operator_keypair: Keypair, ether_address: Union[str, bytes], amount: int):
         balance_pubkey = self.ether2balance(ether_address)
-        contract_pubkey = PublicKey(self.ether2program(ether_address)[0])
+        contract_pubkey = Pubkey.from_string(self.ether2program(ether_address)[0])
 
-        evm_token_authority = PublicKey.find_program_address([b"Deposit"], self.loader_id)[0]
+        evm_token_authority = Pubkey.find_program_address([b"Deposit"], self.loader_id)[0]
         evm_pool_key = get_associated_token_address(evm_token_authority, NEON_TOKEN_MINT_ID)
 
-        token_pubkey = get_associated_token_address(operator_keypair.public_key, NEON_TOKEN_MINT_ID)
+        token_pubkey = get_associated_token_address(operator_keypair.pubkey(), NEON_TOKEN_MINT_ID)
 
         with open("evm_loader-keypair.json", "r") as key:
-            secret_key = json.load(key)[:32]
-            mint_authority = Keypair.from_secret_key(secret_key)
+            secret_key = json.load(key)
+            mint_authority = Keypair.from_bytes(secret_key)
 
         trx = Transaction()
         trx.add(
             make_CreateAssociatedTokenIdempotent(
-                operator_keypair.public_key, operator_keypair.public_key, NEON_TOKEN_MINT_ID
+                operator_keypair.pubkey(), operator_keypair.pubkey(), NEON_TOKEN_MINT_ID
             ),
             spl.token.instructions.mint_to(
                 MintToParams(
                     TOKEN_PROGRAM_ID,
                     NEON_TOKEN_MINT_ID,
                     token_pubkey,
-                    mint_authority.public_key,
+                    mint_authority.pubkey(),
                     amount,
                 )
             ),
@@ -492,7 +500,7 @@ class EvmLoader(SolanaClient):
                     spl.token.constants.TOKEN_PROGRAM_ID,
                     token_pubkey,
                     balance_pubkey,
-                    operator_keypair.public_key,
+                    operator_keypair.pubkey(),
                     amount,
                 )
             ),
@@ -505,7 +513,7 @@ class EvmLoader(SolanaClient):
                 token_pubkey,
                 evm_pool_key,
                 spl.token.constants.TOKEN_PROGRAM_ID,
-                operator_keypair.public_key,
+                operator_keypair.pubkey(),
                 self.loader_id,
             ),
         )
@@ -515,10 +523,10 @@ class EvmLoader(SolanaClient):
         return receipt
 
     def make_new_user(self, sender: Keypair) -> Caller:
-        key = Keypair.generate()
-        if self.get_solana_balance(key.public_key) == 0:
-            self.request_airdrop(key.public_key, 1000 * 10**9, commitment=Confirmed)
-        caller_ether = eth_keys.PrivateKey(key.secret_key[:32]).public_key.to_canonical_address()
+        key = Keypair()
+        if self.get_solana_balance(key.pubkey()) == 0:
+            self.request_airdrop(key.pubkey(), 1000 * 10**9, commitment=Confirmed)
+        caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
         caller_solana = self.ether2program(caller_ether)[0]
         caller_balance = self.ether2balance(caller_ether)
         caller_token = get_associated_token_address(caller_balance, NEON_TOKEN_MINT_ID)
@@ -527,30 +535,30 @@ class EvmLoader(SolanaClient):
             print(f"Create Neon account {caller_ether} for user {caller_balance}")
             self.create_balance_account(caller_ether, sender)
 
-        print("Account solana address:", key.public_key)
+        print("Account solana address:", key.pubkey())
         print(
             f"Account ether address: {caller_ether.hex()}",
         )
         print(f"Account solana address: {caller_balance}")
-        return Caller(key, PublicKey(caller_solana), caller_balance, caller_ether, caller_token)
+        return Caller(key, Pubkey.from_string(caller_solana), caller_balance, caller_ether, caller_token)
 
     def sent_token_from_solana_to_neon(self, solana_account, mint, neon_account, amount, chain_id):
         """Transfer any token from solana to neon transaction"""
         balance_pubkey = self.ether2balance(neon_account.address, chain_id)
-        contract_pubkey = PublicKey(self.ether2program(neon_account.address)[0])
-        associated_token_address = get_associated_token_address(solana_account.public_key, mint)
-        authority_pool = PublicKey.find_program_address([b"Deposit"], self.loader_id)[0]
+        contract_pubkey = Pubkey.from_string(self.ether2program(neon_account.address)[0])
+        associated_token_address = get_associated_token_address(solana_account.pubkey(), mint)
+        authority_pool = Pubkey.find_program_address([b"Deposit"], self.loader_id)[0]
 
         pool = get_associated_token_address(authority_pool, mint)
 
-        tx = Transaction(fee_payer=solana_account.public_key)
+        tx = Transaction(fee_payer=solana_account.pubkey())
         tx.add(
             approve(
                 ApproveParams(
                     program_id=TOKEN_PROGRAM_ID,
                     source=associated_token_address,
                     delegate=balance_pubkey,
-                    owner=solana_account.public_key,
+                    owner=solana_account.pubkey(),
                     amount=amount,
                 )
             )
@@ -566,7 +574,7 @@ class EvmLoader(SolanaClient):
                 associated_token_address,
                 pool,
                 TOKEN_PROGRAM_ID,
-                solana_account.public_key,
+                solana_account.pubkey(),
                 self.loader_id,
             )
         )
@@ -576,12 +584,12 @@ class EvmLoader(SolanaClient):
         if not full_amount:
             full_amount = int(0.1 * LAMPORT_PER_SOL)
         mint_pubkey = wSOL["address_spl"]
-        ata_address = get_associated_token_address(solana_account.public_key, mint_pubkey)
+        ata_address = get_associated_token_address(solana_account.pubkey(), mint_pubkey)
 
         self.create_associate_token_acc(solana_account, solana_account, mint_pubkey)
 
         # wrap SOL
-        wrap_sol_tx = make_wSOL(full_amount, solana_account.public_key, ata_address)
+        wrap_sol_tx = make_wSOL(full_amount, solana_account.pubkey(), ata_address)
         self.send_tx_and_check_status_ok(wrap_sol_tx, solana_account)
 
         self.sent_token_from_solana_to_neon(solana_account, wSOL["address_spl"], neon_account, full_amount, chain_id)
