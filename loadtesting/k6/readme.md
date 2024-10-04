@@ -9,6 +9,19 @@ export PATH=$PATH:$(go env GOPATH)/bin
 
 
 ### Run performance test using clickfile:
+First of all you need to run infra for monitoring:
+go to the ./loadtesting/k6/monitoring folder and run
+```bash
+docker-compose -f compose.yml up -d --build
+```
+It is needed to include telegraf tool in the infrastructure. Install it if do not have one (```brew install telegraf``` or similar for your system)
+
+run telegraf with config
+```bash
+telegraf --config telegraf.conf
+```
+
+Run needed scenario:
 Install xk6 and build an executable file, tag is a neonlabsorg forked xk6-ethereum plugin tag, it can be a fixed version of a forked xk6-ethereum plugin or commit sha (ex. ```05e0ce5```)
 ```bash
 ./clickfile.py k6 build --tag 05e0ce5
@@ -20,6 +33,8 @@ Run load scenario:
 ```
 
 It is mandatory either set up `K6_USERS_NUMBER` and `K6_INITIAL_BALANCE` envs or pass `--users` and `--balance` flags to run the command. We need these values to prepare test accounts for further transfers transactions. 
+
+To monitor test metrics you should go to the default grafana host/port ```localhost:3000```. Default login/password: admin/admin. Open dashboard: ``` Neonlabs performance test```.
 
 ### Native commands to build and run k6:
 Install k6
@@ -38,7 +53,7 @@ where:
 
 Run test scenario:
 ```bash
-./k6 run -e K6_USERS_NUMBER=100 -e K6_INITIAL_BALANCE=200 ./loadtesting/k6/tests/sendNeon.test.js
+./k6 run -o 'prometheus=namespace=k6 -e K6_USERS_NUMBER=100 -e K6_INITIAL_BALANCE=200 ./loadtesting/k6/tests/sendNeon.test.js
 ```
 
 ### Local test run with local version of the xk6-ethereum plugin
@@ -49,19 +64,6 @@ xk6 build --with github.com/szkiba/xk6-prometheus --with github.com/neonlabsorg/
 ```
 Use an executable file builded with command above to run test scenario (see 'Run performance test using clickfile' or 'Native commands to build and run k6' sections).
 
-### Run infrastructure
-go to the monitoring folder and run
-```bash
-docker-compose -f compose.yml up -d --build
-```
-It is needed to include telegraf tool in the infrastructure. Install it if do not have one (```brew install telegraf``` or similar for your system)
-
-run telegraf with config
-```bash
-telegraf --config telegraf.conf
-```
-### Monitoring
-Run test scenario and go to the default grafana host/port ```localhost:3000```. Open dashboard: ``` Neonlabs performance test```.
 
 ## Scenario options
 Send Neon scenario settings:

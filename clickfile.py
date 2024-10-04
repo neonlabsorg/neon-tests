@@ -1277,7 +1277,7 @@ def run(network, script, users, balance, bank_account):
     k6_prepare_accounts(network, network_object, users, balance, bank_account)
     
     print("Running load test scenario...")
-    command = f'./k6 run {script}'
+    command = f"./k6 run {script} -o 'prometheus=namespace=k6'"
     command_run = subprocess.run(command, shell=True)
     if command_run.returncode != 0:
         sys.exit(command_run.returncode)
