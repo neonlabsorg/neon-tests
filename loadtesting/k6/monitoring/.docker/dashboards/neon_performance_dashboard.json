@@ -24,7 +24,6 @@
     "editable": true,
     "fiscalYearStartMonth": 0,
     "graphTooltip": 0,
-    "id": 6,
     "links": [],
     "liveNow": false,
     "panels": [
@@ -196,7 +195,7 @@
           "x": 12,
           "y": 1
         },
-        "id": 19,
+        "id": 49,
         "options": {
           "legend": {
             "calcs": [],
@@ -249,7 +248,7 @@
                 "tooltip": false,
                 "viz": false
               },
-              "lineInterpolation": "linear",
+              "lineInterpolation": "smooth",
               "lineWidth": 1,
               "pointSize": 5,
               "scaleDistribution": {
@@ -308,50 +307,202 @@
               "uid": "P4169E866C3094E38"
             },
             "editorMode": "code",
-            "expr": "irate(k6_send_neon_requests_counter{testrun=\"$testrun\"}[$__rate_interval])",
+            "expr": "irate(k6_ethereum_req_duration_count{})[$__rate_interval]",
             "hide": false,
-            "legendFormat": "send neon",
+            "legendFormat": "{{call}}",
             "range": true,
             "refId": "B"
-          },
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "P4169E866C3094E38"
-            },
-            "editorMode": "code",
-            "expr": "irate(k6_nonce_requests_counter{testrun=\"$testrun\"}[$__rate_interval])",
-            "hide": false,
-            "legendFormat": "nonce",
-            "range": true,
-            "refId": "A"
-          },
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "P4169E866C3094E38"
-            },
-            "editorMode": "code",
-            "expr": "irate(k6_block_number_requests_counter{testrun=\"$testrun\"}[$__rate_interval])",
-            "hide": false,
-            "legendFormat": "block number",
-            "range": true,
-            "refId": "C"
-          },
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "P4169E866C3094E38"
-            },
-            "editorMode": "code",
-            "expr": "irate(k6_gas_price_requests_counter{testrun=\"$testrun\"}[$__rate_interval])",
-            "hide": false,
-            "legendFormat": "gas price",
-            "range": true,
-            "refId": "D"
           }
         ],
-        "title": "Aggregated RPS",
+        "title": "RPS eth_* methods",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "P4169E866C3094E38"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 25,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "smooth",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "normal"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 10
+        },
+        "id": 43,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "P4169E866C3094E38"
+            },
+            "editorMode": "code",
+            "expr": "sum(irate(k6_ethereum_req_duration_count{})[$__rate_interval])",
+            "hide": false,
+            "legendFormat": "{{call}}",
+            "range": true,
+            "refId": "B"
+          }
+        ],
+        "title": "Aggregated RPS eth_* methods",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "P4169E866C3094E38"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 25,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "normal"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            },
+            "unit": "ms"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 19
+        },
+        "id": 41,
+        "interval": "5",
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "P4169E866C3094E38"
+            },
+            "editorMode": "code",
+            "expr": "avg by (call) (k6_ethereum_req_duration_0.95{})[$__interval]",
+            "legendFormat": "{{call}}",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Requests Time eth_* 0.95%tile",
         "type": "timeseries"
       },
       {
@@ -417,9 +568,9 @@
           "h": 9,
           "w": 12,
           "x": 12,
-          "y": 10
+          "y": 19
         },
-        "id": 41,
+        "id": 44,
         "interval": "5",
         "options": {
           "legend": {
@@ -440,49 +591,13 @@
               "uid": "P4169E866C3094E38"
             },
             "editorMode": "code",
-            "expr": "max by (testrun) (k6_send_neon_request_time_0.95{testrun=\"$testrun\"})",
-            "legendFormat": "send neon",
+            "expr": "avg by (call) (k6_ethereum_req_duration_1{})[$__interval]",
+            "legendFormat": "{{call}}",
             "range": true,
             "refId": "A"
-          },
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "P4169E866C3094E38"
-            },
-            "editorMode": "code",
-            "expr": "max by (testrun) (k6_nonce_request_time_0.95{testrun=\"$testrun\"})",
-            "hide": false,
-            "legendFormat": "nonce",
-            "range": true,
-            "refId": "B"
-          },
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "P4169E866C3094E38"
-            },
-            "editorMode": "code",
-            "expr": "max by (testrun) (k6_block_number_request_time_0.95{testrun=\"$testrun\"})",
-            "hide": false,
-            "legendFormat": "block",
-            "range": true,
-            "refId": "C"
-          },
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "P4169E866C3094E38"
-            },
-            "editorMode": "code",
-            "expr": "max by (testrun) (k6_gas_price_request_time_0.95{testrun=\"$testrun\"})",
-            "hide": false,
-            "legendFormat": "gas",
-            "range": true,
-            "refId": "D"
           }
         ],
-        "title": "Aggregated Requests Time",
+        "title": "Requests Time eth_* 1%tile",
         "type": "timeseries"
       },
       {
@@ -577,7 +692,7 @@
           "h": 9,
           "w": 12,
           "x": 0,
-          "y": 19
+          "y": 28
         },
         "id": 42,
         "options": {
@@ -600,53 +715,247 @@
               "uid": "P4169E866C3094E38"
             },
             "editorMode": "code",
-            "expr": "irate(k6_send_neon_errors_counter{testrun=\"$testrun\"}[$__rate_interval])",
-            "legendFormat": "send neon",
+            "expr": "irate(k6_ethereum_req_error_counter{})[$__rate_interval]",
+            "legendFormat": "{{call}}",
             "range": true,
             "refId": "A"
-          },
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "P4169E866C3094E38"
-            },
-            "editorMode": "code",
-            "expr": "irate(k6_nonce_errors_counter{testrun=\"$testrun\"}[$__rate_interval])",
-            "hide": false,
-            "legendFormat": "nonce",
-            "range": true,
-            "refId": "B"
-          },
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "P4169E866C3094E38"
-            },
-            "editorMode": "code",
-            "expr": "irate(k6_gas_price_errors_counter{testrun=\"$testrun\"}[$__rate_interval])",
-            "hide": false,
-            "legendFormat": "gas price",
-            "range": true,
-            "refId": "C"
-          },
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "P4169E866C3094E38"
-            },
-            "editorMode": "code",
-            "expr": "irate(k6_block_number_errors_counter{testrun=\"$testrun\"}[$__rate_interval])",
-            "hide": false,
-            "legendFormat": "block number",
-            "range": true,
-            "refId": "D"
           }
         ],
         "title": "Requests Errors",
         "type": "timeseries"
+      },
+      {
+        "collapsed": false,
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 37
+        },
+        "id": 46,
+        "panels": [],
+        "title": "k6 Params",
+        "type": "row"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "P4169E866C3094E38"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "smooth",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "blue",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "iteration rate"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "purple",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 38
+        },
+        "id": 48,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "P4169E866C3094E38"
+            },
+            "editorMode": "code",
+            "expr": "irate(k6_iterations_counter{})[$__rate_interval]",
+            "legendFormat": "iteration rate",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Iterations",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "P4169E866C3094E38"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "smooth",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "normal"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            },
+            "unit": "ms"
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "avg duration"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "#d4e222",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 38
+        },
+        "id": 19,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "P4169E866C3094E38"
+            },
+            "editorMode": "code",
+            "expr": "avg(k6_iteration_duration_1{})",
+            "legendFormat": "avg duration",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Iterations duration",
+        "type": "timeseries"
       }
     ],
-    "refresh": false,
+    "refresh": "5s",
     "schemaVersion": 37,
     "style": "dark",
     "tags": [],
@@ -682,13 +991,13 @@
       ]
     },
     "time": {
-      "from": "2023-12-12T08:47:21.284Z",
-      "to": "2023-12-12T09:00:09.102Z"
+      "from": "now-30m",
+      "to": "now"
     },
     "timepicker": {},
     "timezone": "",
     "title": "Neonlabs performance test",
     "uid": "-PUaX7vIk",
-    "version": 27,
+    "version": 1,
     "weekStart": ""
   }
