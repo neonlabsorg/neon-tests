@@ -56,8 +56,8 @@ class TestNeonRPCBaseCalls:
         assert int(gas_price, 16) > 100000000, f"gas price should be greater 100000000, got {int(gas_price, 16)}"
 
     def test_neon_cli_version(self, json_rpc_client):
-        response = json_rpc_client.send_rpc(method="neon_cli_version", params=[])
-        pattern = r"Neon-cli/[vt]\d{1,2}.\d{1,2}.\d{1,2}.*"
+        response = json_rpc_client.send_rpc(method="neon_coreVersion", params=[])
+        pattern = r"Neon-Core-API/[vt]\d{1,2}.\d{1,2}.\d{1,2}.*"
         assert re.match(
             pattern, response["result"]
         ), f"Version format is not correct. Pattern: {pattern}; Response: {response}"

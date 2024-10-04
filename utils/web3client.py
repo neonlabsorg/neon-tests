@@ -69,11 +69,11 @@ class Web3Client:
 
     @allure.step("Get proxy version")
     def get_proxy_version(self):
-        return self._get_evm_info("neon_proxy_version")
+        return self._get_evm_info("neon_proxyVersion")
 
     @allure.step("Get cli version")
     def get_cli_version(self):
-        return self._get_evm_info("neon_cli_version")
+        return self._get_evm_info("neon_coreVersion")
 
     @allure.step("Get neon version")
     def get_neon_versions(self):
