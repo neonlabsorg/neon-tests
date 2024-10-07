@@ -27,10 +27,10 @@ on:
 env:
   JOBS_NUMBER: ${{ github.event.inputs.jobsNumber || '8' }}
   NETWORK: ${{ github.event.inputs.network || 'terraform' }}
-  IMAGE:  neonlabsorg/neon_tests
+  IMAGE:  ${{ github.repository_owner }}/neon_tests
   CONTAINER:  oz-${{ github.run_id }}
   BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
+  DOCKER_HUB_ORG_NAME: ${{ github.repository_owner }}
 jobs:
   dockerize:
     if: github.ref_name != 'develop' || github.event.inputs.oz_tag !=''
@@ -44,6 +44,8 @@ jobs:
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
           oz_tag: ${{ github.event.inputs.oz_tag || 'latest' }}
+          image_name: ${{ env.IMAGE }}
+          docker_hub_org_name: ${{ github.repository_owner }}
   prepare-env:
     runs-on: ubuntu-20.04
     steps:

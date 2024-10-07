@@ -103,7 +103,10 @@ class TestResultsHandler:
                                         above_value = data_subset_filled.loc[i - 1, column]
                                         below_value = data_subset_filled.loc[i + 1, column]
                                         if pd.notna(above_value) and pd.notna(below_value):
-                                            data_subset_filled.loc[i, column] = (above_value + below_value) / 2
+                                            try:  # for numerical data
+                                                data_subset_filled.loc[i, column] = (above_value + below_value) / 2
+                                            except TypeError:  # for non-numerical data
+                                                data_subset_filled.loc[i, column] = above_value or below_value
 
                             # Plot grey lines before scatter
                             ax.plot(

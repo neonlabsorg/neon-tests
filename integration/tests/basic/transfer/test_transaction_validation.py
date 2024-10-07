@@ -3,13 +3,10 @@ import re
 
 import allure
 import pytest
-import solana
-from solana.rpc.core import RPCException
 
 from integration.tests.basic.helpers.assert_message import ErrorMessage
 from integration.tests.basic.helpers.rpc_checks import is_hex
 from utils.accounts import EthAccounts
-from utils.solana_client import SolanaClient
 from utils.web3client import NeonChainWeb3Client
 from utils.helpers import gen_hash_of_block
 
@@ -78,7 +75,7 @@ class TestTransactionsValidation:
         transaction = self.web3_client.make_raw_tx(
             from_=sender_account, to=recipient_account, amount=1, estimate_gas=True
         )
-        transaction["data"] = gen_hash_of_block(256 * 1024)
+        transaction["data"] = gen_hash_of_block(1024 * 1024)
         signed_tx = self.web3_client.eth.account.sign_transaction(transaction, sender_account.key)
         params = [signed_tx.rawTransaction.hex()]
         response = json_rpc_client.send_rpc("eth_sendRawTransaction", params)

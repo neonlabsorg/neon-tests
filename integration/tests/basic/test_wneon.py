@@ -191,14 +191,14 @@ class TestWNeon:
             < withdraw_amount
         )
 
-        wait_condition(lambda: self.sol_client.get_balance(solana_account.public_key) != 0)
+        wait_condition(lambda: self.sol_client.get_balance(solana_account.pubkey()) != 0)
 
         trx = Transaction()
-        trx.add(create_associated_token_account(solana_account.public_key, solana_account.public_key, neon_mint))
+        trx.add(create_associated_token_account(solana_account.pubkey(), solana_account.pubkey(), neon_mint))
         opts = TxOpts(skip_preflight=True, skip_confirmation=False)
         self.sol_client.send_transaction(trx, solana_account, opts=opts)
 
-        dest_token_acc = get_associated_token_address(solana_account.public_key, neon_mint)
+        dest_token_acc = get_associated_token_address(solana_account.pubkey(), neon_mint)
 
         spl_neon_token = SplToken(self.sol_client, neon_mint, TOKEN_PROGRAM_ID, solana_account)
 
@@ -206,7 +206,7 @@ class TestWNeon:
         neon_balance_before, wneon_balance_before = self.get_balances(wneon, recipient_account.address)
 
         instruction_tx = withdraw_contract.functions.withdraw(
-            bytes(solana_account.public_key),
+            bytes(solana_account.pubkey()),
         ).build_transaction(
             {
                 "from": recipient_account.address,

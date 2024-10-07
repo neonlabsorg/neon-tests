@@ -6,6 +6,7 @@ import typing as tp
 import pathlib
 import logging
 
+import click
 from paramiko.client import SSHClient
 from scp import SCPClient
 
@@ -26,7 +27,6 @@ TF_BACKEND_CONFIG = {"bucket": TFSTATE_BUCKET, "key": TF_STATE_KEY, "region": TF
 
 os.environ["TF_VAR_run_number"] = os.environ.get("GITHUB_RUN_NUMBER", "0")
 os.environ["TF_VAR_branch"] = os.environ.get("GITHUB_REF_NAME", "develop").replace("/", "-").replace("_", "-")
-os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("DOCKERHUB_ORG_NAME", "neonlabsorg")
 
 
 terraform = Terraform(working_dir=pathlib.Path(__file__).parent.parent / "hetzner")
@@ -56,6 +56,8 @@ def deploy_infrastructure(
     os.environ["TF_VAR_faucet_model_commit"] = faucet_tag
     os.environ["TF_VAR_proxy_image_tag"] = proxy_tag
     os.environ["TF_VAR_proxy_model_commit"] = proxy_branch
+    os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("GITHUB_REPOSITORY_OWNER")
+
     if use_real_price:
         os.environ["TF_VAR_use_real_price"] = "1"
 
@@ -85,6 +87,7 @@ def destroy_infrastructure():
     os.environ["TF_VAR_faucet_model_commit"] = "develop"
     os.environ["TF_VAR_proxy_image_tag"] = "latest"
     os.environ["TF_VAR_proxy_model_commit"] = "develop"
+    os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("GITHUB_REPOSITORY_OWNER")
 
     log = logging.getLogger()
     log.handlers = []
@@ -175,7 +178,12 @@ def get_solana_accounts_transactions_compute_units(eth_transaction):
             tx_sig=Signature.from_string(solana_transaction_hash),
             max_supported_transaction_version=0,
         )
-        log_messages = solana_transaction.value.transaction.meta.log_messages
+
+        try:
+            log_messages = solana_transaction.value.transaction.meta.log_messages
+        except AttributeError:
+            click.echo(f"WARNING: no log messages in transaction {solana_transaction_hash}: {solana_transaction}")
+            continue
 
         for message in log_messages[::-1]:
             match = re.match(r'^.+consumed (\d+) of \d+ compute units$', message)

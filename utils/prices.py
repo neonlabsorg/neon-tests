@@ -60,6 +60,7 @@ async def get_price(solana_address: str, feed_address: str):
 
 def get_sol_price() -> float:
     """Get SOL price from Solana mainnet"""
+    result = None
     for network in SOL_FEED_ADDRESSES:
         try:
             result = asyncio.run(
@@ -72,9 +73,20 @@ def get_sol_price() -> float:
         except Exception as e:
             LOG.warning(f"Get error when try to get SOL price from: {network}: {e}")
             time.sleep(5)
-    else:
-        raise AssertionError("Can't get SOL price for all networks")
     return result
+
+
+def get_sol_price_with_retry(timeout: int = 120) -> float:
+    price = get_sol_price()
+    started = time.time()
+    while price is None and (time.time() - started) < timeout:
+        print("Can't get SOL price")
+        time.sleep(3)
+        price = get_sol_price()
+        return price
+    if price is not None:
+        return price
+    raise TimeoutError("Failed to get SOL price within the timeout period.")
 
 
 def get_btc_price_detailed() -> PythPriceAccount:
