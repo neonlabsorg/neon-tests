@@ -45,7 +45,7 @@ export PROXY_IMAGE_NAME="neon-proxy.py"
 
 # Receive docker-compose file and create override file
 cd /opt
-curl -O https://raw.githubusercontent.com/neonlabsorg/neon-proxy.py/${proxy_model_commit}/docker-compose/docker-compose-ci.yml
+curl -O https://raw.githubusercontent.com/${dockerhub_org_name}/neon-proxy.py/${proxy_model_commit}/docker-compose/docker-compose-ci.yml
 cat > docker-compose-ci.override.yml<<EOF
 version: "3"
 services:

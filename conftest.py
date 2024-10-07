@@ -1,3 +1,4 @@
+import builtins
 import os
 import json
 import shutil
@@ -24,6 +25,7 @@ from utils.solana_client import SolanaClient
 
 
 pytest_plugins = ["ui.plugins.browser"]
+COST_REPORT_DIR: pathlib.Path = pathlib.Path()
 
 
 @dataclass
@@ -58,6 +60,12 @@ def pytest_addoption(parser: Parser):
         default=False,
         help="Store tests result to file",
     )
+    parser.addoption(
+        "--cost_reports_dir",
+        default="",
+        type=pathlib.Path,
+        help=f"Saves cost reports .json files in {COST_REPORT_DIR}",
+    )
     known_args = parser.parse_known_args(args=sys.argv[1:])
     test_group_required = known_args.make_report
     parser.addoption(
@@ -82,6 +90,9 @@ def pytest_sessionstart(session: pytest.Session):
     if not keep_error_log:
         error_log.clear()
 
+    if COST_REPORT_DIR != pathlib.Path() and COST_REPORT_DIR.exists() and COST_REPORT_DIR.is_dir():
+        shutil.rmtree(COST_REPORT_DIR)
+
 
 def pytest_runtest_protocol(item: Item, nextitem):
     ihook = item.ihook
@@ -101,6 +112,14 @@ def pytest_runtest_protocol(item: Item, nextitem):
 
 
 def pytest_configure(config: Config):
+    # redirect print to stderr for xdist-spawned processes because otherwise print statements get lost
+    if "PYTEST_XDIST_WORKER" in os.environ:
+        original_print = builtins.print
+        builtins.print = lambda *args, **kwargs: original_print(*args, file=sys.stderr, **kwargs)
+
+    global COST_REPORT_DIR
+    COST_REPORT_DIR = config.getoption("--cost_reports_dir")
+
     solana_url_env_vars = ["SOLANA_URL", "DEVNET_INTERNAL_RPC", "MAINNET_INTERNAL_RPC"]
     network_name = config.getoption("--network")
     envs_file = config.getoption("--envs")
@@ -182,15 +201,20 @@ def allure_environment(pytestconfig: Config, web3_client_session: NeonChainWeb3C
     shutil.copy(categories_from, categories_to)
 
     if "CI" in os.environ:
+        github_server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
+        github_organization = os.environ.get("GITHUB_REPOSITORY_OWNER")
+        github_repository = os.environ.get("GITHUB_REPOSITORY", "neon-tests")
+        actions_url = f"{github_server_url}/{github_organization}/{github_repository}/actions"
+
         with open(allure_path / "executor.json", "w+") as f:
             json.dump(
                 {
                     "name": "Github Action",
                     "type": "github",
-                    "url": "https://github.com/neonlabsorg/neon-tests/actions",
+                    "url": actions_url,
                     "buildOrder": os.environ.get("GITHUB_RUN_ID", "0"),
                     "buildName": os.environ.get("GITHUB_WORKFLOW", "neon-tests"),
-                    "buildUrl": f'{os.environ.get("GITHUB_SERVER_URL", "https://github.com")}/{os.environ.get("GITHUB_REPOSITORY", "neon-tests")}/actions/runs/{os.environ.get("GITHUB_RUN_ID", "0")}',
+                    "buildUrl": f'{actions_url}/runs/{os.environ.get("GITHUB_RUN_ID", "0")}',
                     "reportUrl": "",
                     "reportName": "Allure report for neon-tests",
                 },

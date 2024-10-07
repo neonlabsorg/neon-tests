@@ -75,7 +75,7 @@ class TestTransactionsValidation:
         transaction = self.web3_client.make_raw_tx(
             from_=sender_account, to=recipient_account, amount=1, estimate_gas=True
         )
-        transaction["data"] = gen_hash_of_block(256 * 1024)
+        transaction["data"] = gen_hash_of_block(1024 * 1024)
         signed_tx = self.web3_client.eth.account.sign_transaction(transaction, sender_account.key)
         params = [signed_tx.rawTransaction.hex()]
         response = json_rpc_client.send_rpc("eth_sendRawTransaction", params)

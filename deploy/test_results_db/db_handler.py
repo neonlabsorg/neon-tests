@@ -182,17 +182,24 @@ class PostgresTestResultsHandler:
         cost_report_entries: list[CostReport] = [last_report] + previous_reports
         cost_report_ids: list[int] = [r.id for r in previous_reports] + [last_report.id]
 
+        # Define the dapps that are present in the last_report
+        dapp_name_tuples = (
+            self.session.query(distinct(DappData.dapp_name)).filter(DappData.cost_report_id == last_report.id).all()
+        )
+        dapp_names = [dapp_name_tuple[0] for dapp_name_tuple in dapp_name_tuples]
+
         # Define the actions that are present in the last_report
         actions_tuples = (
             self.session.query(distinct(DappData.action)).filter(DappData.cost_report_id == last_report.id).all()
         )
         actions = [action_tuple[0] for action_tuple in actions_tuples]
 
-        # Fetch DappData entries for cost_report_ids but only for actions present in last_report
+        # Fetch DappData entries for cost_report_ids but only for dapps and actions present in last_report
         dapp_data_entries: list[tp.Type[DappData]] = (
             self.session.query(DappData)
             .filter(
                 DappData.cost_report_id.in_(cost_report_ids),
+                DappData.dapp_name.in_(dapp_names),
                 DappData.action.in_(actions),
             )
             .all()

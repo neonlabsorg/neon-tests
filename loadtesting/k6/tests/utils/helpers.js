@@ -6,7 +6,7 @@ export async function smartWaiter({ func, args, check, retries = 10 }) {
     let result;
     let counter = 0;
     while (!check(result) && counter < retries) {
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 500));
         if (args != undefined)
             result = await func(...args);
         else {

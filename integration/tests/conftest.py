@@ -27,7 +27,7 @@ from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
 from utils.operator import Operator
 from utils.solana_client import SolanaClient
-from utils.prices import get_sol_price
+from utils.prices import get_sol_price_with_retry
 from utils.web3client import NeonChainWeb3Client, Web3Client
 
 log = logging.getLogger(__name__)
@@ -173,7 +173,7 @@ def erc20_spl(
     solana_account,
     eth_bank_account,
     accounts_session,
-):
+) -> ERC20Wrapper:
     symbol = "".join([random.choice(string.ascii_uppercase) for _ in range(3)])
     erc20 = ERC20Wrapper(
         web3_client_session,
@@ -445,15 +445,8 @@ def revert_contract_caller(web3_client, accounts, revert_contract):
 @pytest.fixture(scope="session")
 def sol_price() -> float:
     """Get SOL price from Solana mainnet"""
-    price = get_sol_price()
-    started = time.time()
-    timeout = 120
-    while price is None and (time.time() - started) < timeout:
-        print("Can't get SOL price")
-        time.sleep(3)
-        price = get_sol_price()
-    with allure.step(f"SOL price {price}$"):
-        return price
+    return get_sol_price_with_retry()
+
 
 
 @pytest.fixture(scope="session")

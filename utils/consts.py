@@ -55,7 +55,7 @@ wSOL = {
     "decimals": 9,
     "name": "Wrapped SOL",
     "symbol": "wSOL",
-    "logo_uri": "https://raw.githubusercontent.com/neonlabsorg/token-list/master/assets/solana-wsol-logo.svg",
+    "logo_uri": "",
 }
 
 MULTITOKEN_MINTS = {

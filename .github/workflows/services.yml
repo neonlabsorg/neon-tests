@@ -33,8 +33,9 @@ env:
   FAUCET_URL: "${{ secrets.DEVNET_FAUCET_URL }}"
   SOLANA_URL: "${{ secrets.SOLANA_URL }}"
   NUMPROCESSES: 4
-  IMAGE:  neonlabsorg/neon_tests
+  IMAGE:  ${{ github.repository_owner }}/neon_tests
   CONTAINER:  services-${{ github.run_id }}
+  DOCKER_HUB_ORG_NAME: ${{ github.repository_owner }}
 jobs:
   dockerize:
     if: ${{ github.ref_name != 'develop'}}
@@ -48,7 +49,8 @@ jobs:
           image_tag: ${{ github.sha }}
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
-
+          image_name: ${{ env.IMAGE }}
+          docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
   tests:
     name: "Services tests"
     needs:
