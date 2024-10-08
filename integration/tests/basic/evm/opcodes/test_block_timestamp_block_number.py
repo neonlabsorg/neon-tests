@@ -162,7 +162,7 @@ class TestBlockTimestampAndNumber:
         assert self.web3_client.is_trx_iterative(receipt["transactionHash"].hex())
         assert receipt["status"] == 1
         event_logs = contract.events.DataAdded().process_receipt(receipt)
-        assert len(event_logs) == 1, "Event logs are not found"
+        assert len(event_logs) == 5, "Event logs are not found"
         block_number_added = event_logs[0]["args"]["number"]
-        assert hex(block_number_added) <= receipt["blockNumber"]
-        assert contract.functions.getDataFromMapping(block_number_added).call() == (v1, v2)
+        assert block_number_added <= receipt["blockNumber"]
+        assert contract.functions.getDataFromMapping(block_number_added).call() == [v1, v2]
