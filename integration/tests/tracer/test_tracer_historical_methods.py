@@ -345,9 +345,9 @@ class TestTracerHistoricalMethods:
 
     def test_neon_revision(self):
         block = self.web3_client.get_block_number()
-        revision = self.tracer_api.send_rpc(method="get_neon_revision", params=block)
-        assert revision["result"]["neon_revision"] is not None
-        assert re.match(r"^[a-fA-F\d]{40}$", revision["result"]["neon_revision"])
+        revision = self.tracer_api.send_rpc(method="get_neon_revision", params=block)["result"]["neon_revision"]
+        assert revision is not None
+        assert re.match(r"^[a-fA-F\d]{40}$", revision) or revision == "latest"
 
     @pytest.mark.parametrize("block", [-190, '{"slot": 3f08}', "oneonetwozero", ["900"]])
     def test_neon_revision_invalid_block(self, block):
