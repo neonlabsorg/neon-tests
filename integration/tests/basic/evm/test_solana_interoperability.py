@@ -34,7 +34,6 @@ def get_counter_value() -> tp.Iterator[int]:
     return gen_increment_counter()
 
 
-@pytest.mark.proxy_version("v1.12.0")
 @allure.feature("EVM tests")
 @allure.story("Verify precompiled solana call contract")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client_session")

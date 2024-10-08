@@ -61,7 +61,6 @@ class TestOpCodes:
         with pytest.raises(web3.exceptions.ContractLogicError, match="execution reverted"):
             opcodes_checker.functions.test_revert().build_transaction(tx)
 
-    @pytest.mark.proxy_version("v1.12.0")
     @pytest.mark.parametrize(
         "dst, src, length, expected_result",
         [
@@ -78,7 +77,6 @@ class TestOpCodes:
         result = mcopy_checker.functions.copy(initial_data, dst, src, length).call(tx)
         assert result == self.web3_client.text_to_bytes32(expected_result)
 
-    @pytest.mark.proxy_version("v1.12.0")
     def test_tstore(self, accounts):
         sender_account = self.accounts[0]
 
