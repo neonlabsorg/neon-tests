@@ -8,9 +8,6 @@ def pytest_collection_modifyitems(config, items):
     deselected_marks = []
     network_name = config.getoption("--network")
 
-    if network_name == "geth":
-        return
-
     if network_name == "devnet":
         deselected_marks.append("only_stands")
     else:
@@ -22,6 +19,12 @@ def pytest_collection_modifyitems(config, items):
 
     if len(environments[network_name]["network_ids"]) == 1:
         deselected_marks.append("multipletokens")
+
+    for item in items:
+        if any([item.get_closest_marker(mark) for mark in deselected_marks]):
+            deselected_items.append(item)
+        else:
+            selected_items.append(item)
 
     config.hook.pytest_deselected(items=deselected_items)
     items[:] = selected_items
