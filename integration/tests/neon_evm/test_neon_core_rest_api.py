@@ -35,6 +35,9 @@ def test_emulate_transfer(neon_api_client, user_account, session_user, account_i
     assert result["used_gas"] > 0, f"Used gas is less than 0. Result: {result}"
     assert "accounts_data" in result
 
+    if account_info is None:
+        assert result["accounts_data"] is None
+
     if account_info in ["Changed", "All"]:
         assert len(result["accounts_data"]) > 0
         assert len(result["solana_accounts"]) > 0
