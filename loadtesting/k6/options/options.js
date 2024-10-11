@@ -1,6 +1,6 @@
 import { usersNumber } from "../tests/utils/consts.js";
 
-export const sendNeonOptions = {
+export const sendTokenOptions = {
     scenarios: {
         sendNeon: {
             executor: 'ramping-vus',

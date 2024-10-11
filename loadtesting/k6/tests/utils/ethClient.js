@@ -44,3 +44,15 @@ export function sendTokens(client, from, to, value, gas, gasPrice, nonce) {
 
     return receipt;
 }
+
+export function deployContract(client, abi, bytecode, args) {
+    const receipt = client.deployContract(abi, bytecode, args);
+    console.log('Receipt: ' + JSON.stringify(receipt));
+    const address = receipt.contractAddress;
+    return client.newContract(address, abi);
+}
+
+
+export function getContract(client, address, abi) {
+    return client.newContract(address, abi);
+}

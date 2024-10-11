@@ -1,18 +1,15 @@
 import json
 import os
+import web3
 from utils.accounts import EthAccounts
 from utils.faucet import Faucet
 from utils.web3client import NeonChainWeb3Client
+from utils.erc20 import ERC20
 
-def k6_prepare_accounts(network, network_object, users, balance, bank_account):
-    print("Setting k6 envs...")
-    k6_set_envs(network, users, balance, bank_account)
 
+def k6_prepare_accounts(web3_client, faucet, account_manager, users, balance):
     print("Creating accounts...")
     accounts = {}
-    web3_client = NeonChainWeb3Client(proxy_url=network_object["proxy_url"])
-    faucet = Faucet(faucet_url=network_object['faucet_url'], web3_client=web3_client)
-    account_manager = EthAccounts(web3_client, faucet, None)
 
     # We create 2 accounts for each k6 virtual user: sender and receiver.
     # We need to create 2*VU accounts cause we want to make sure account's nonces is not overlapping.
@@ -28,10 +25,20 @@ def k6_prepare_accounts(network, network_object, users, balance, bank_account):
     with open('./loadtesting/k6/data/accounts.json', 'w', encoding='utf-8') as f:
         json.dump(accounts, f)
 
-def k6_set_envs(network, users_number=None, initial_balance=None, bank_account=None):
+def deploy_erc20_contract(web3_client, faucet, account):
+    erc_contract = ERC20(
+        web3_client,
+        faucet,
+        owner=account,
+        amount=web3.Web3.to_wei(10000000000, "ether"),
+    )
+    return erc_contract
+
+def k6_set_envs(network, users_number=None, initial_balance=None, bank_account=None, erc20_contract=None):
     os.environ["K6_NETWORK"] = network
     os.environ["K6_USERS_NUMBER"] = users_number
     os.environ["K6_INITIAL_BALANCE"] = initial_balance
+    os.environ["K6_ERC20_ADDRESS"] = erc20_contract
     
     if bank_account is not None:
         os.environ["K6_BANK_ACCOUNT"] = bank_account

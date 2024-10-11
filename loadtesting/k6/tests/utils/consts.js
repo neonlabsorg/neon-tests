@@ -1,3 +1,5 @@
+import http from 'k6/http';
+
 // Parse envs.json
 const network = __ENV.K6_NETWORK;
 const envConfig = JSON.parse(open("../../../../envs.json"));
@@ -23,6 +25,18 @@ export const networkId = parseInt(env.network_ids.neon);
 // Set Proxy URL
 export const proxyUrl = env.proxy_url;
 
+// Faucet URL
+let faucetUri = env.faucet_url;
+let faucetUrlObject;
+if (!faucetUri.includes("request_neon")) {
+    faucetUrlObject = http.url([faucetUri, 'request_neon']);
+}
+export const faucetUrl = faucetUrlObject.url;
+
 // Accounts data
 export const initialAccountBalance = parseInt(__ENV.K6_INITIAL_BALANCE);
 export const usersNumber = parseInt(__ENV.K6_USERS_NUMBER);
+
+
+// ERC20 contract data
+export const erc20Address = __ENV.K6_ERC20_ADDRESS;
