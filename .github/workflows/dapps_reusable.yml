@@ -213,6 +213,10 @@ jobs:
             -e PROXY_IP=${{ env.PROXY_IP }} \
             ${{ env.IMAGE }}
           docker wait uniswap-v4-${{ github.run_number }}
+          docker run -i -d --name=uniswap-v4-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
+          docker exec -i -e NETWORK=${{ env.NETWORK }} uniswap-v4-${{ github.run_number }} \
+            bash -c " \
+              pytest --network=$NETWORK test_v4_router.py -vvv -s"
           echo "exit_code=$?" >> $GITHUB_ENV
       - name: Delete the uniswap-v4 container
         if: always() && steps.uniswap-v4.result != 'skipped'
