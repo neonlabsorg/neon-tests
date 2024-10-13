@@ -207,12 +207,6 @@ jobs:
           IMAGE: neonlabsorg/uniswap-v4:add-to-ci
         run: |
           docker pull ${{ env.IMAGE }}
-          docker run --name=uniswap-v4-${{ github.run_number }} \
-            -e NETWORK=${{ env.NETWORK }} \
-            -e SOLANA_IP=${{ env.SOLANA_IP }} \
-            -e PROXY_IP=${{ env.PROXY_IP }} \
-            ${{ env.IMAGE }}
-          docker wait uniswap-v4-${{ github.run_number }}
           docker run -i -d --name=uniswap-v4-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
           docker exec -i -e NETWORK=${{ env.NETWORK }} uniswap-v4-${{ github.run_number }} \
             bash -c " \
