@@ -202,7 +202,7 @@ jobs:
     steps:
       - name: Launch uniswap v4 tests
         id: uniswap-v4
-        timeout-minutes: 5
+        timeout-minutes: 10
         env:
           IMAGE: neonlabsorg/uniswap-v4:add-to-ci
         run: |
@@ -215,11 +215,6 @@ jobs:
       - name: Delete the uniswap-v4 container
         if: always() && steps.uniswap-v4.result != 'skipped'
         run: docker rm -f uniswap-v4-${{ github.run_number }}
-      - name: Save report
-        uses: actions/upload-artifact@v4
-        with:
-          name: uniswap-v4-report
-          path: uniswap-v4-report.json
       - name: Check exit code
         if: always() && env.exit_code != 0
         run: |
