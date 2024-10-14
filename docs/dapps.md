@@ -4,13 +4,14 @@ This project includes GHA Workflow for regular testing DApps like Uniswap V2, AA
 This workflow is triggered by cron every Sunday at 01:00 UTC and runs DApp tests, gets a cost report from these tests, and shows this report.
 
 1. Uniswap V2
-2. Uniswap 3
-3. Saddle finance
-4. AAVE
-5. Curve and Curve-factory
-6. Yearn finance
-7. Compound
-8. Robonomics
+2. Uniswap V3
+3. Uniswap V4
+4. Saddle finance
+5. AAVE
+6. Curve and Curve-factory
+7. Yearn finance
+8. Compound
+9. Robonomics
 
 
 ## dApp report
