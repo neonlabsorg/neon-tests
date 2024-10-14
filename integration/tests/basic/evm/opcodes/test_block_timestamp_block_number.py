@@ -95,7 +95,7 @@ class TestBlockTimestampAndNumber:
         event_logs = contract.events.DataAdded().process_receipt(receipt)
         added_timestamp = event_logs[0]["args"]["timestamp"]
 
-        assert hex(added_timestamp) <= tx_block_timestamp
+        assert added_timestamp <= int(tx_block_timestamp, 16)
         assert contract.functions.getDataFromMapping(added_timestamp).call() == [v1, v2]
 
     def test_block_number_call(self, block_number_contract, json_rpc_client):
