@@ -34,11 +34,13 @@ def deploy_erc20_contract(web3_client, faucet, account):
     )
     return erc_contract
 
-def k6_set_envs(network, users_number=None, initial_balance=None, bank_account=None, erc20_contract=None):
+def k6_set_envs(network, users_number=None, initial_balance=None, bank_account=None, erc20_contract=None, erc20_owner=None):
     os.environ["K6_NETWORK"] = network
     os.environ["K6_USERS_NUMBER"] = users_number
     os.environ["K6_INITIAL_BALANCE"] = initial_balance
     os.environ["K6_ERC20_ADDRESS"] = erc20_contract
+    os.environ["K6_ERC20_OWNER"] = erc20_owner.address
+    os.environ["K6_ERC20_OWNER_KEY"] = erc20_owner.key.hex()[2:]
     
     if bank_account is not None:
         os.environ["K6_BANK_ACCOUNT"] = bank_account

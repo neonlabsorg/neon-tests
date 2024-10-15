@@ -47,7 +47,7 @@ try:
     from utils import cloud
     from utils.operator import Operator
     from utils.web3client import NeonChainWeb3Client
-    from utils.k6_helpers import k6_prepare_accounts
+    from utils.k6_helpers import k6_prepare_accounts, k6_set_envs, deploy_erc20_contract
     from utils.prices import get_sol_price_with_retry
     from utils.helpers import wait_condition
     from utils.apiclient import JsonRPCSession
@@ -1274,8 +1274,15 @@ def build(tag):
 @catch_traceback
 def run(network, script, users, balance, bank_account):
     network_object = network_manager.get_network_object(network)
-    k6_prepare_accounts(network, network_object, users, balance, bank_account)
+    web3_client = NeonChainWeb3Client(proxy_url=network_object["proxy_url"])
+    faucet = Faucet(faucet_url=network_object['faucet_url'], web3_client=web3_client)
+    account_manager = EthAccounts(web3_client, faucet, None)
     
+    owner = account_manager.create_account(balance=int(balance))
+    erc20 = deploy_erc20_contract(web3_client, faucet, owner)
+    print(str(erc20.contract.address))
+    k6_set_envs(network, users, balance, bank_account, erc20.contract.address, owner)
+    k6_prepare_accounts(web3_client, faucet, account_manager, users, balance)
     print("Running load test scenario...")
     command = f"./k6 run {script} -o 'prometheus=namespace=k6'"
     command_run = subprocess.run(command, shell=True)

@@ -40,3 +40,5 @@ export const usersNumber = parseInt(__ENV.K6_USERS_NUMBER);
 
 // ERC20 contract data
 export const erc20Address = __ENV.K6_ERC20_ADDRESS;
+export const erc20Owner = __ENV.K6_ERC20_OWNER;
+export const erc20OwnerKey = __ENV.K6_ERC20_OWNER_KEY;

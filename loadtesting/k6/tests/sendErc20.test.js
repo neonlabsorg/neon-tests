@@ -1,51 +1,69 @@
-import { ethClient, deployContract, getContract } from './utils/ethClient.js';
-import { randomItem } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
-import { createAccount, fundAccountFromFaucet } from './utils/accountManager.js';
-import { initialAccountBalance, erc20Address } from './utils/consts.js';
+import { ethClient } from './utils/ethClient.js';
+import { fundAccountFromFaucet } from './utils/accountManager.js';
+import { initialAccountBalance, erc20Address, erc20Owner, erc20OwnerKey } from './utils/consts.js';
 import { sendTokenOptions } from '../options/options.js';
 import { Trend, Counter } from 'k6/metrics';
+import { SharedArray } from 'k6/data';
 import exec from 'k6/execution';
-// import { check } from 'k6';
+import { check } from 'k6';
 
-const sendNeonRequests = new Counter('send_neon_requests');
-const sendNeonErrorCounter = new Counter('send_neon_errors');
-const sendNeonRequestTime = new Trend('send_neon_request_time', true);
+const sendErc20Requests = new Counter('send_erc20_requests');
+const sendErc20ErrorCounter = new Counter('send_erc20_errors');
+const sendErc20RequestTime = new Trend('send_erc20_request_time', true);
 
 export const options = sendTokenOptions;
 
-const account = createAccount();
-const client = ethClient(account.privateKey);
-const pathToContractData = '../contracts/ERC20';
-const abi = open(pathToContractData + '.abi');
+const client = ethClient(erc20OwnerKey);
+const pathToContractData = '../contracts/ERC20/ERC20'; 
+const abi = JSON.parse(open(pathToContractData + '.abi'));
 const bytecode = open(pathToContractData + '.bin');
-let contract;
+
+const usersArray = new SharedArray('Users accounts', function () {
+    const accounts = JSON.parse(open("../data/accounts.json"));
+    let data = [];
+    for (let i = 0; i < Object.keys(accounts).length; i++) {
+        data[i] = accounts[i];
+    }
+    return data;
+});
 
 export function setup() {
-    fundAccountFromFaucet(client, account.address, initialAccountBalance);
-    // const contract = deployContract(client, abi, bytecode, ["TestToken", "TT", 10000000000]);
-    contract = client.newContract(erc20Address, abi);
-    // console.log('Contract: ' + JSON.stringify(contract));
-    // console.log('Contract deployed at address: ' + contract.address);
+    // const receipt = client.deployContract(JSON.stringify(abi), bytecode, "TestToken", "TT", 500000000000);
+    // console.log('Contract deployed: ' + JSON.stringify(receipt));
+
+    const erc20 = client.newContract(erc20Address, JSON.stringify(abi), erc20OwnerKey);
+    const signer = erc20.getAddress();
+    fundAccountFromFaucet(client, signer, initialAccountBalance*10);
 }
 
-const transferAmountRange = [0.01, 0.02, 0.03, 0.04, 0.05];
-
-export default function sendErc20Test() {
+export default function sendErc20Test(data) {
     const vuID = exec.vu.idInTest;
     const index = vuID % usersArray.length;
+    const accountAddress = usersArray[index].sender_address;
 
-    console.log('Contract: ' + JSON.stringify(contract));
-    txOpts = {
-        "value": randomItem(transferAmountRange),
+    const number = client.blockNumber();
+    const block = client.getBlockByNumber(number, false);
+
+    const txOpts = {
+        "value": 1,
         "gas_price": client.gasPrice(),
-        "gas_limit": gas,
-        "nonce": client.getNonce(from),
-    };
+        "gas_limit": block.gasLimit,
+        "nonce": client.getNonce(accountAddress),
+    };  
+    const erc20 = client.newContract(erc20Address, JSON.stringify(abi), erc20OwnerKey);
 
-    contract.txn("transfer", {
-       
-    });
-
-    const accountSenderAddress = usersArray[index].sender_address;
-    const accountReceiverAddress = usersArray[index].receiver_address;
+    const startTime = new Date();
+    let receipt;
+    try {
+        const hash = erc20.txn("transfer", txOpts, accountAddress, 1);
+        receipt = client.waitForTransactionReceipt(txh);
+        check(receipt, {
+            'receipt status is 1': (r) => r.status === 1,
+        });
+    } catch (e) {
+        console.log('Error sendErc20: ' + e);
+        sendErc20ErrorCounter.add(1);
+    }   
+    sendErc20RequestTime.add(new Date() - startTime);
+    sendErc20Requests.add(1);
 }

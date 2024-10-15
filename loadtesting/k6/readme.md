@@ -7,6 +7,11 @@ Make sure you have Golang bin path in PATH, otherwise
 export PATH=$PATH:$(go env GOPATH)/bin
 ```
 
+### Compile contracts
+Make sure you have solc installed and run
+```bash
+solc --abi ./contracts/EIPs/ERC20/ERC20.sol -o ./loadtesting/k6/contracts/ERC20 --combined-json abi,bin --pretty-json
+```
 
 ### Run performance test using clickfile:
 First of all you need to run infra for monitoring:
