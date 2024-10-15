@@ -1,5 +1,4 @@
 import random
-import string
 
 import pytest
 
@@ -123,12 +122,10 @@ class TestBlockTimestampAndNumber:
         tx = self.web3_client.make_raw_tx(sender_account)
         instruction_tx = contract.functions.callIterativeTrx().build_transaction(tx)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
-        print(receipt["transactionHash"].hex())
         assert self.web3_client.is_trx_iterative(receipt["transactionHash"].hex())
         response = json_rpc_client.send_rpc(method="eth_getBlockByHash", params=[receipt["blockHash"].hex(), False])
         tx_block_number = EthGetBlockByHashResult(**response).result.number
         event_logs = contract.events.Result().process_receipt(receipt)
-        print(event_logs[0]["args"]["block_number"])
 
         assert hex(event_logs[0]["args"]["block_number"]) <= tx_block_number
 
