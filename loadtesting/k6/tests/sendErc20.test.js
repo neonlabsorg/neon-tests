@@ -39,23 +39,23 @@ export function setup() {
 export default function sendErc20Test(data) {
     const vuID = exec.vu.idInTest;
     const index = vuID % usersArray.length;
-    const accountAddress = usersArray[index].sender_address;
-
-    const number = client.blockNumber();
-    const block = client.getBlockByNumber(number, false);
-
+    const receiverAddress = usersArray[index].sender_address;
+    
+    const erc20 = client.newContract(erc20Address, JSON.stringify(abi), erc20OwnerKey);
+    
+    const signer = erc20.getAddress();
     const txOpts = {
         "value": 1,
-        "gas_price": client.gasPrice(),
-        "gas_limit": block.gasLimit,
-        "nonce": client.getNonce(accountAddress),
+        "gas_price": 0,
+        "gas_limit": 0,
+        "nonce": client.getNonce(signer),
     };  
-    const erc20 = client.newContract(erc20Address, JSON.stringify(abi), erc20OwnerKey);
+    console.log('TxOpts: ' + JSON.stringify(txOpts));
 
     const startTime = new Date();
     let receipt;
     try {
-        const hash = erc20.txn("transfer", txOpts, accountAddress, 1);
+        const hash = erc20.txn("transfer", txOpts, receiverAddress, 1);
         receipt = client.waitForTransactionReceipt(txh);
         check(receipt, {
             'receipt status is 1': (r) => r.status === 1,
