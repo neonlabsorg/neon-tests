@@ -9,7 +9,7 @@ export const sendTokenOptions = {
                 { duration: '30s', target: usersNumber },
                 { duration: '1200s', target: usersNumber },
             ],
-            gracefulRampDown: '30s',
+            gracefulRampDown: '60s',
         },
     },
     noConnectionReuse: true,
