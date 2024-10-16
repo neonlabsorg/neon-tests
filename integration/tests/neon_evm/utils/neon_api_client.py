@@ -11,7 +11,7 @@ class NeonApiClient:
         self.url = url
         self.headers = {"Content-Type": "application/json"}
 
-    def emulate(self, sender, contract, data=bytes(), chain_id=CHAIN_ID, value='0x0', max_steps_to_execute=500000):
+    def emulate(self, sender, contract, data=bytes(), chain_id=CHAIN_ID, value='0x0', max_steps_to_execute=500000, provide_account_info=None):
         if isinstance(data, bytes):
             data = data.hex()
         body = {
@@ -24,7 +24,7 @@ class NeonApiClient:
                 "value": value
             },
             "accounts": [],
-            "provide_account_info": None
+            "provide_account_info": provide_account_info
         }
         resp = requests.post(url=f"{self.url}/emulate", json=body, headers=self.headers)
         if resp.status_code == 200:

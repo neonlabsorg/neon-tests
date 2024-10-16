@@ -110,7 +110,7 @@ def sender_with_tokens(evm_loader, operator_keypair) -> Caller:
 
 
 @pytest.fixture(scope="session")
-def holder_acc(operator_keypair, evm_loader) -> Pubkey:
+def holder_acc(operator_keypair: Keypair, evm_loader: EvmLoader) -> Pubkey:
     return create_holder(operator_keypair, evm_loader)
 
 
