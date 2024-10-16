@@ -1,8 +1,6 @@
 import json
-import os
 import time
 
-import pytest
 from solana.transaction import Transaction
 
 from integration.tests.neon_evm.utils.transaction_checks import (
@@ -68,7 +66,6 @@ class TestCancelTrx:
         evm_loader.send_tx(trx, operator_keypair)
         check_holder_account_tag(storage_account, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_ACTIVE_STATE)
 
-    @pytest.mark.skipif(os.getenv("PROXY_IP", "") != "", reason="Proxy cancels transaction before this timeout.")
     def test_try_to_cancel_trx_after_timeout_expiration(
         self, operator_keypair, user_account, rw_lock_contract, treasury_pool, evm_loader, sol_client
     ):
@@ -127,7 +124,6 @@ class TestCancelTrx:
         print(f"\n{decode_logs(receipt_cancel.value.transaction.meta.log_messages)}\n")
         check_holder_account_tag(storage_account, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
 
-    @pytest.mark.skipif(os.getenv("PROXY_IP", "") != "", reason="Proxy cancels transaction before this timeout.")
     def test_try_to_cancel_trx_after_timeout_expiration_with_continue(
         self, operator_keypair, user_account, rw_lock_contract, treasury_pool, evm_loader, sol_client
     ):
