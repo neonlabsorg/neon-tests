@@ -12,11 +12,16 @@ export function ethClient(privateKey) {
 }
 
 export function sendNeon(client, from, to, amount, gas, gasPrice, nonce) {
-    const value = amount;
-    return sendTokens(client, from, to, value, gas, gasPrice, nonce)
+    return sendTokens(client, from, to, amount, null, gas, gasPrice, nonce)
 }
 
-export function sendTokens(client, from, to, value, gas, gasPrice, nonce) {
+export function sendErc20ViaTransferFunction(client, erc20, owner, abi, signerAddress, receiverAddress, amount) {
+    const input = erc20.fillInput(abi, "transfer");
+    const nonce = client.getNonce(signerAddress);
+    return sendTokens(client, owner, receiverAddress, amount, input, null, null, nonce)
+}
+
+export function sendTokens(client, from, to, value, input, gas, gasPrice, nonce) {
     if (nonce == null) {
         nonce = client.getNonce(from);
     }
@@ -34,6 +39,10 @@ export function sendTokens(client, from, to, value, gas, gasPrice, nonce) {
         "nonce": nonce,
         "chain_id": client.chainID,
     };
+
+    if (input != null) {
+        transaction["input"] = input;
+    }
 
     if (gas == null) {
         transaction["gas"] = client.estimateGas(transaction);

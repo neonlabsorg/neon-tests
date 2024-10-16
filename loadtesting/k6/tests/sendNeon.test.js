@@ -1,6 +1,6 @@
 import { randomItem } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 import { ethClient, sendNeon } from './utils/ethClient.js';
-import { sendNeonOptions } from '../options/options.js';
+import { sendTokenOptions } from '../options/options.js';
 import { Trend, Counter } from 'k6/metrics';
 import { SharedArray } from 'k6/data';
 import exec from 'k6/execution';
@@ -10,7 +10,7 @@ const sendNeonRequests = new Counter('send_neon_requests');
 const sendNeonErrorCounter = new Counter('send_neon_errors');
 const sendNeonRequestTime = new Trend('send_neon_request_time', true);
 
-export const options = sendNeonOptions;
+export const options = sendTokenOptions;
 
 const usersArray = new SharedArray('Users accounts', function () {
     const accounts = JSON.parse(open("../data/accounts.json"));
