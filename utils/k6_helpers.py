@@ -7,7 +7,7 @@ from utils.web3client import NeonChainWeb3Client
 from utils.erc20 import ERC20
 
 
-def k6_prepare_accounts(web3_client, faucet, account_manager, users, balance):
+def k6_prepare_accounts(account_manager, users, balance):
     print("Creating accounts...")
     accounts = {}
 
@@ -26,21 +26,29 @@ def k6_prepare_accounts(web3_client, faucet, account_manager, users, balance):
         json.dump(accounts, f)
 
 def deploy_erc20_contract(web3_client, faucet, account):
-    erc_contract = ERC20(
+    erc20 = ERC20(
         web3_client,
         faucet,
         owner=account,
         amount=web3.Web3.to_wei(10000000000, "ether"),
     )
-    return erc_contract
+    erc20_info = {"contract": erc20.contract.address, "owner": erc20.owner.address}
+    with open('./loadtesting/k6/data/erc20.json', 'w', encoding='utf-8') as f:
+        json.dump(erc20_info, f)
+    return erc20
 
-def k6_set_envs(network, users_number=None, initial_balance=None, bank_account=None, erc20_contract=None, erc20_owner=None):
+def k6_set_envs(network, users_number=None, initial_balance=None, bank_account=None):
     os.environ["K6_NETWORK"] = network
     os.environ["K6_USERS_NUMBER"] = users_number
     os.environ["K6_INITIAL_BALANCE"] = initial_balance
-    os.environ["K6_ERC20_ADDRESS"] = erc20_contract
-    os.environ["K6_ERC20_OWNER"] = erc20_owner.address
-    os.environ["K6_ERC20_OWNER_KEY"] = erc20_owner.key.hex()[2:]
     
     if bank_account is not None:
         os.environ["K6_BANK_ACCOUNT"] = bank_account
+    
+    erc20_info_file = './loadtesting/k6/data/erc20.json'
+    if os.path.isfile(erc20_info_file):
+        with open(erc20_info_file) as f:
+            erc20_data = json.load(f)
+
+        os.environ["K6_ERC20_ADDRESS"] = erc20_data["contract"]
+        os.environ["K6_ERC20_OWNER"] = erc20_data["owner"]

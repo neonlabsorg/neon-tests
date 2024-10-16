@@ -8,9 +8,9 @@ export PATH=$PATH:$(go env GOPATH)/bin
 ```
 
 ### Compile contracts
-Make sure you have solc installed and run
+Make sure you have solc installed and run to generate an abi file for erc20 contract:
 ```bash
-solc --abi ./contracts/EIPs/ERC20/ERC20.sol -o ./loadtesting/k6/contracts/ERC20 --combined-json abi,bin --pretty-json
+solc --abi ./contracts/EIPs/ERC20/ERC20.sol -o ./loadtesting/k6/contracts/ERC20
 ```
 
 ### Run performance test using clickfile:
@@ -33,11 +33,27 @@ Install xk6 and build an executable file, tag is a neonlabsorg forked xk6-ethere
 ```
 
 Run load scenario:
+
+To run Send Neon scenario we need to prepare accounts and run load script:
 ```bash
+./clickfile.py k6 prepare-accounts --network local --users 100 --balance 200
+
 ./clickfile.py k6 run --network local --script ./loadtesting/k6/tests/sendNeon.test.js --users 100 --balance 200
 ```
 
-It is mandatory either set up `K6_USERS_NUMBER` and `K6_INITIAL_BALANCE` envs or pass `--users` and `--balance` flags to run the command. We need these values to prepare test accounts for further transfers transactions. 
+To run Send ERC20 scenario we need to deploy the contract first and then run load script:
+```bash
+./clickfile.py k6 deploy-erc20 --network local --balance 200 
+
+./clickfile.py k6 run --network local --script ./loadtesting/k6/tests/sendNeon.test.js --users 100 --balance 200
+```
+
+It is mandatory either set up `K6_USERS_NUMBER` and `K6_INITIAL_BALANCE` envs or pass `--users` and `--balance` flags to run the command. We need these values to set up options for k6 load scenario.
+
+To get more information about run parameters and its values:
+```bash
+./clickfile.py k6 --help
+```
 
 To monitor test metrics you should go to the default grafana host/port ```localhost:3000```. Default login/password: admin/admin. Open dashboard: ``` Neonlabs performance test```.
 
@@ -73,16 +89,16 @@ Use an executable file builded with command above to run test scenario (see 'Run
 ## Scenario options
 Send Neon scenario settings:
 ```js
-export const sendNeonOptions = {
+export const sendTokenOptions = {
     scenarios: {
-        sendNeon: {
+        sendToken: {
             executor: 'ramping-vus',
             startVUs: 0,
             stages: [
                 { duration: '30s', target: usersNumber },
                 { duration: '1200s', target: usersNumber },
             ],
-            gracefulRampDown: '30s',
+            gracefulRampDown: '60s',
         },
     },
     noConnectionReuse: true,
@@ -94,6 +110,6 @@ export const sendNeonOptions = {
 
 ```stages``` - an array of objects that specify the target number of VUs to ramp up or down to, in our case: number of VUs is increased from 0 to `usersNumber` value during 30 seconds, then `usersNumber` VUs execute the scenario during 1200 seconds
 
-```gracefulRampDown: '30s'``` - time to wait for an already started iteration to finish before stopping it during a ramp down 
+```gracefulRampDown: '60s'``` - time to wait for an already started iteration to finish before stopping it during a ramp down 
 
 ```noConnectionReuse: true``` - determines whether a connection is reused throughout different actions of the same virtual user and in the same iteration

@@ -1248,7 +1248,7 @@ def k6(ctx):
     """Commands for k6 load tests."""
 
 
-@k6.command("build", help="Prepare k6 performance test")
+@k6.command("build", help="Build k6 executable file.")
 @click.option("-t", "--tag", default="05e0ce5", help="Eth plugin tag or commit sha to use")
 @catch_traceback
 def build(tag):
@@ -1265,25 +1265,45 @@ def build(tag):
         sys.exit(command_build.returncode)
 
 
-@k6.command("run", help="Run k6 performance test")
+@k6.command("prepare-accounts", help="Generates users and fund its account balances.")
 @click.option("-n", "--network",required=True, default="local", help="Which network to use for envs assignment")
-@click.option("-s", "--script", required=True, default="./loadtesting/k6/tests/sendNeon.test.js", help="Path to k6 script")
-@click.option("-u", "--users", default=None, required=True, help="Number of users (will be generated before load test run)")
+@click.option("-u", "--users", default=None, required=True, help="Number of users to generate before test run")
 @click.option("-b", "--balance", default=None, required=True, help="Initial balance of each user in Neon")
-@click.option("-a", "--bank_account", default=None, required=False, help="Bank account address")
+@click.option("-a", "--bank_account", default=None, required=False, help="Bank account address if needed")
 @catch_traceback
-def run(network, script, users, balance, bank_account):
+def prepare_accounts(network, users, balance, bank_account):
     network_object = network_manager.get_network_object(network)
     web3_client = NeonChainWeb3Client(proxy_url=network_object["proxy_url"])
     faucet = Faucet(faucet_url=network_object['faucet_url'], web3_client=web3_client)
-    account_manager = EthAccounts(web3_client, faucet, None)
+    account_manager = EthAccounts(web3_client, faucet, bank_account)
+    k6_prepare_accounts(account_manager, users, balance)
+
+
+@k6.command("deploy-erc20", help="Deploy erc20 contract.")
+@click.option("-n", "--network",required=True, default="local", help="Which network to use for envs assignment")
+@click.option("-b", "--balance", default=None, required=True, help="Initial balance of erc20 owner")
+@click.option("-a", "--bank_account", default=None, required=False, help="Bank account address if needed")
+@catch_traceback
+def deploy_erc20(network, balance, bank_account):
+    network_object = network_manager.get_network_object(network)
+    web3_client = NeonChainWeb3Client(proxy_url=network_object["proxy_url"])
+    faucet = Faucet(faucet_url=network_object['faucet_url'], web3_client=web3_client)
+    account_manager = EthAccounts(web3_client, faucet, bank_account)
     
     owner = account_manager.create_account(balance=int(balance))
     erc20 = deploy_erc20_contract(web3_client, faucet, owner)
-    print(str(erc20.contract.address))
-    k6_set_envs(network, users, balance, bank_account, erc20.contract.address, owner)
-    k6_prepare_accounts(web3_client, faucet, account_manager, users, balance)
-    print("Running load test scenario...")
+    print(f"ERC20 contract deployed at {erc20.contract.address} with owner {erc20.owner.address}")
+
+
+@k6.command("run", help="Run k6 performance test.")
+@click.option("-n", "--network",required=True, default="local", help="Which network to use for envs assignment")
+@click.option("-s", "--script", required=True, default="./loadtesting/k6/tests/sendNeon.test.js", help="Path to k6 script")
+@click.option("-u", "--users", default=None, required=True, help="Number of users (have to be generated before load test run)")
+@click.option("-b", "--balance", default=None, required=True, help="Initial balance of accounts in Neon")
+@click.option("-a", "--bank_account", default=None, required=False, help="Bank account address")
+@catch_traceback
+def run(network, script, users, balance, bank_account):    
+    k6_set_envs(network, users, balance, bank_account)
     command = f"./k6 run {script} -o 'prometheus=namespace=k6'"
     command_run = subprocess.run(command, shell=True)
     if command_run.returncode != 0:
