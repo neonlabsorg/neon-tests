@@ -3,8 +3,6 @@ import { createAccount, fundAccountFromFaucet } from './utils/accountManager.js'
 import { initialAccountBalance, erc20Address, erc20Owner } from './utils/consts.js';
 import { sendTokenOptions } from '../options/options.js';
 import { Trend, Counter } from 'k6/metrics';
-import { SharedArray } from 'k6/data';
-import exec from 'k6/execution';
 import { check } from 'k6';
 
 const sendErc20Requests = new Counter('send_erc20_requests');
@@ -22,7 +20,7 @@ export default function sendErc20Test() {
     // Reason: k6 doesn't support shared state between VUs
     const signerAccount = createAccount();
     const client = ethClient(signerAccount.privateKey);
-    fundAccountFromFaucet(client, signerAccount.address, 10);
+    fundAccountFromFaucet(client, signerAccount.address, initialAccountBalance / 10);
 
     const erc20 = client.newContract(erc20Address, JSON.stringify(abi), signerAccount.privateKey)
 
