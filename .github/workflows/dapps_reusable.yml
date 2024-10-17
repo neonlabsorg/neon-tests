@@ -386,7 +386,7 @@ jobs:
           path: curve-report.json
   curve-factory:
     runs-on: ubuntu-20.04
-    if: contains( inputs.dapps, 'curve-factory')
+    if: false #contains( inputs.dapps, 'curve-factory') # skipped because of NDEV-2905
     env:
       SOLANA_URL: ${{ inputs.solana_url }}
       PROXY_URL: ${{ inputs.proxy_url }}

@@ -26,8 +26,6 @@ runs:
       - name: Destroy stand with terraform
         shell: bash
         id: destroy
-        env:
-          TF_VAR_ci_pp_solana_url: ${{inputs.devnet_solana_url}}
         if: always()
         run: |
           python3 ./clickfile.py infra destroy
