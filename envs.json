@@ -74,16 +74,16 @@
   },
   "local": {
     "evm_loader": "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io",
-    "proxy_url": "http://127.0.0.1:9090/solana",
+    "proxy_url": "http://159.69.19.127:8018/solana",
     "network_ids": {
       "neon": 111,
       "sol": 112,
       "usdt": 113,
       "eth": 114
     },
-    "solana_url": "http://127.0.0.1:8899/",
-    "faucet_url": "http://127.0.0.1:3333/",
-    "tracer_url": "http://127.0.0.1:9091",
+    "solana_url": "http://159.69.19.127:8899/",
+    "faucet_url": "http://159.69.19.127:3333/",
+    "tracer_url": "http://159.69.19.127:9091",
     "spl_neon_mint": "HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU",
     "neon_erc20wrapper_address": "0x053e3d1b12726f648B2e45CEAbDF9078B742576D"
   },
