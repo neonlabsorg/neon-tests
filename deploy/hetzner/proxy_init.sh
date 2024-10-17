@@ -56,8 +56,6 @@ services:
     container_name: proxy
     environment:
       SOLANA_URL: $SOLANA_URL
-      PYTH_MAPPING_ACCOUNT: "BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2"
-      PP_SOLANA_URL: $CI_PP_SOLANA_URL
       EXTRA_ARGS: "--num-workers 16"
     ports:
       - "9090:9090"
@@ -90,10 +88,6 @@ echo "CONST GAS PRICE VARIABLE IS: $USE_REAL_GAS_PRICE"
 if [[ -n $USE_REAL_GAS_PRICE ]] && [[ $USE_REAL_GAS_PRICE -eq "1" ]]; then
   # remove some variables for economy (test)
   sed -i '/CONST_GAS_PRICE/d' docker-compose-ci.yml
-else
-  # proxy tries to connect to solana devnet even if CONST_GAS_PRICE is set
-  sed -i '/PYTH_MAPPING_ACCOUNT/d' docker-compose-ci.override.yml
-  sed -i '/PP_SOLANA_URL/d' docker-compose-ci.override.yml
 fi
 
 
