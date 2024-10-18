@@ -27,12 +27,17 @@ Install xk6 and build an executable file, tag is a neonlabsorg forked xk6-ethere
 ./clickfile.py k6 build --tag 05e0ce5
 ```
 
-Run load scenario:
+To run load scenario:
 ```bash
-./clickfile.py k6 run --network local --script ./loadtesting/k6/tests/sendNeon.test.js --users 100 --balance 200
+./clickfile.py k6 run --network devnet --script ./loadtesting/k6/tests/sendNeon.test.js --users 100 --balance 200
 ```
+Inside this command we compile and deploy contracts, prepare accounts with balances and then run load script.
 
-It is mandatory either set up `K6_USERS_NUMBER` and `K6_INITIAL_BALANCE` envs or pass `--users` and `--balance` flags to run the command. We need these values to prepare test accounts for further transfers transactions. 
+
+To get more information about run parameters and its values:
+```bash
+./clickfile.py k6 --help
+```
 
 To monitor test metrics you should go to the default grafana host/port ```localhost:3000```. Default login/password: admin/admin. Open dashboard: ``` Neonlabs performance test```.
 
@@ -53,7 +58,7 @@ where:
 
 Run test scenario:
 ```bash
-./k6 run -o 'prometheus=namespace=k6 -e K6_USERS_NUMBER=100 -e K6_INITIAL_BALANCE=200 ./loadtesting/k6/tests/sendNeon.test.js
+./k6 run -o 'prometheus=namespace=k6' -e K6_USERS_NUMBER=100 -e K6_INITIAL_BALANCE=200 ./loadtesting/k6/tests/sendNeon.test.js
 ```
 
 ### Local test run with local version of the xk6-ethereum plugin
@@ -63,21 +68,23 @@ Pass the xk6-ethereum plugin repository path (on your local machine) as a parame
 xk6 build --with github.com/szkiba/xk6-prometheus --with github.com/neonlabsorg/xk6-ethereum="<path_to_xk6_ethereum_plugin_repository>" 
 ```
 Use an executable file builded with command above to run test scenario (see 'Run performance test using clickfile' or 'Native commands to build and run k6' sections).
-
+```bash
+./clickfile.py k6 run --network local --script ./loadtesting/k6/tests/sendErc20.test.js --users 10 --balance 200
+```
 
 ## Scenario options
 Send Neon scenario settings:
 ```js
-export const sendNeonOptions = {
+export const sendTokenOptions = {
     scenarios: {
-        sendNeon: {
+        sendToken: {
             executor: 'ramping-vus',
             startVUs: 0,
             stages: [
                 { duration: '30s', target: usersNumber },
                 { duration: '1200s', target: usersNumber },
             ],
-            gracefulRampDown: '30s',
+            gracefulRampDown: '60s',
         },
     },
     noConnectionReuse: true,
@@ -89,6 +96,6 @@ export const sendNeonOptions = {
 
 ```stages``` - an array of objects that specify the target number of VUs to ramp up or down to, in our case: number of VUs is increased from 0 to `usersNumber` value during 30 seconds, then `usersNumber` VUs execute the scenario during 1200 seconds
 
-```gracefulRampDown: '30s'``` - time to wait for an already started iteration to finish before stopping it during a ramp down 
+```gracefulRampDown: '60s'``` - time to wait for an already started iteration to finish before stopping it during a ramp down 
 
 ```noConnectionReuse: true``` - determines whether a connection is reused throughout different actions of the same virtual user and in the same iteration
