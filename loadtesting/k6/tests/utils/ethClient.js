@@ -11,45 +11,26 @@ export function ethClient(privateKey) {
     return client;
 }
 
-export function sendNeon(client, from, to, amount, gas, gasPrice, nonce) {
-    return sendTokens(client, from, to, amount, null, gas, gasPrice, nonce)
+export function sendNeon(client, from, to, amount) {
+    return sendTokens(client, from, to, amount, null);
 }
 
-export function sendErc20ViaTransferFunction(client, erc20, owner, abi, signerAddress, receiverAddress, amount) {
-    const input = erc20.fillInput(abi, "transfer");
-    const nonce = client.getNonce(signerAddress);
-    return sendTokens(client, owner, receiverAddress, amount, input, null, null, nonce)
+export function sendErc20ViaTransferFunction(client, erc20, from, to, abi, receiverAddress, amount) {
+    let input = erc20.fillInput(abi, "transfer", receiverAddress, amount);
+    return sendTokens(client, from, to, 0, input);
 }
 
-export function sendTokens(client, from, to, value, input, gas, gasPrice, nonce) {
-    if (nonce == null) {
-        nonce = client.getNonce(from);
-    }
-
-    if (gasPrice == null) {
-        gasPrice = client.gasPrice();
-    }
-
+export function sendTokens(client, from, to, value, input) {
     let transaction = {
         "from": from,
         "to": to,
-        "value": value,
-        "gas_price": gasPrice,
-        "gas": gas,
-        "nonce": nonce,
-        "chain_id": client.chainID,
+        "value": value
     };
 
     if (input != null) {
         transaction["input"] = input;
     }
 
-    if (gas == null) {
-        transaction["gas"] = client.estimateGas(transaction);
-    }
-
     const txh = client.sendRawTransaction(transaction);
-    const receipt = client.waitForTransactionReceipt(txh);
-
-    return receipt;
+    return client.waitForTransactionReceipt(txh, 120);
 }

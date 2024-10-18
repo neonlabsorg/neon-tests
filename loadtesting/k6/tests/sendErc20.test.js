@@ -1,12 +1,15 @@
 import { ethClient, sendErc20ViaTransferFunction } from './utils/ethClient.js';
-import { createAccount, fundAccountFromFaucet } from './utils/accountManager.js';
-import { initialAccountBalance, erc20Address, erc20Owner } from './utils/consts.js';
+import { randomItem } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
+import { erc20Address, transferAmountRange } from './utils/consts.js';
 import { sendTokenOptions } from '../options/options.js';
 import { Trend, Counter } from 'k6/metrics';
 import { check } from 'k6';
+import { SharedArray } from 'k6/data';
+import exec from 'k6/execution';
 
 const sendErc20Requests = new Counter('send_erc20_requests');
 const sendErc20ErrorCounter = new Counter('send_erc20_errors');
+const sendErc20ErrorReceiptStatusCounter = new Counter('send_erc20_errors_in_receipt');
 const sendErc20RequestTime = new Trend('send_erc20_request_time', true);
 
 export const options = sendTokenOptions;
@@ -14,32 +17,45 @@ export const options = sendTokenOptions;
 const pathToContractData = '../contracts/ERC20/ERC20';
 const abi = JSON.parse(open(pathToContractData + '.abi'));
 
-export default function sendErc20Test() {
-    // We need to have a unique signer account for each VU
-    // We can't use the same account for all VUs because of nonce
-    // Reason: k6 doesn't support shared state between VUs
-    const signerAccount = createAccount();
-    const client = ethClient(signerAccount.privateKey);
-    fundAccountFromFaucet(client, signerAccount.address, initialAccountBalance / 10);
+const usersArray = new SharedArray('Users accounts', function () {
+    const accounts = JSON.parse(open("../data/accounts.json"));
+    let data = [];
+    for (let i = 0; i < Object.keys(accounts).length; i++) {
+        data[i] = accounts[i];
+    }
+    return data;
+});
 
-    const erc20 = client.newContract(erc20Address, JSON.stringify(abi), signerAccount.privateKey)
+export default function sendErc20Test() {
+    const vuID = exec.vu.idInTest
+    const index = vuID % usersArray.length;
+
+    const accountSenderAddress = usersArray[index].sender_address;
+    const accountSenderPrivateKey = usersArray[index].sender_key;
+    const accountReceiverAddress = usersArray[index].receiver_address;
+    const client = ethClient(accountSenderPrivateKey);
+    const erc20 = client.newContract(erc20Address, JSON.stringify(abi), accountSenderPrivateKey)
 
     const startTime = new Date();
 
     try {
-        const receiver = createAccount();
         const receipt = sendErc20ViaTransferFunction(
             client,
             erc20,
-            erc20Owner,
+            accountSenderAddress,
+            erc20Address,
             JSON.stringify(abi),
-            signerAccount.privateKey,
-            receiver.address,
-            1
+            accountReceiverAddress,
+            randomItem(transferAmountRange)
         );
-        check(receipt, {
+        console.log('Receipt: ' + JSON.stringify(receipt));
+        const checkResult = check(receipt, {
             'receipt status is 1': (r) => r.status === 1,
         });
+        if (!checkResult) {
+            console.log('Error sendErc20 in receipt: ' + receipt);
+            sendErc20ErrorReceiptStatusCounter.add(1);
+        }
     } catch (e) {
         console.log('Error sendErc20: ' + e);
         sendErc20ErrorCounter.add(1);

@@ -7,11 +7,6 @@ Make sure you have Golang bin path in PATH, otherwise
 export PATH=$PATH:$(go env GOPATH)/bin
 ```
 
-### Compile contracts
-Make sure you have solc installed and run to generate an abi file for erc20 contract:
-```bash
-solc --abi ./contracts/EIPs/ERC20/ERC20.sol -o ./loadtesting/k6/contracts/ERC20
-```
 
 ### Run performance test using clickfile:
 First of all you need to run infra for monitoring:
@@ -32,23 +27,12 @@ Install xk6 and build an executable file, tag is a neonlabsorg forked xk6-ethere
 ./clickfile.py k6 build --tag 05e0ce5
 ```
 
-Run load scenario:
-
-To run Send Neon scenario we need to prepare accounts and run load script:
+To run load scenario:
 ```bash
-./clickfile.py k6 prepare-accounts --network local --users 100 --balance 200
-
-./clickfile.py k6 run --network local --script ./loadtesting/k6/tests/sendNeon.test.js --users 100 --balance 200
+./clickfile.py k6 run --network devnet --script ./loadtesting/k6/tests/sendNeon.test.js --users 100 --balance 200
 ```
+Inside this command we compile and deploy contracts, prepare accounts with balances and then run load script.
 
-To run Send ERC20 scenario we need to deploy the contract first and then run load script:
-```bash
-./clickfile.py k6 deploy-erc20 --network local --balance 200 
-
-./clickfile.py k6 run --network local --script ./loadtesting/k6/tests/sendNeon.test.js --users 100 --balance 200
-```
-
-It is mandatory either set up `K6_USERS_NUMBER` and `K6_INITIAL_BALANCE` envs or pass `--users` and `--balance` flags to run the command. We need these values to set up options for k6 load scenario.
 
 To get more information about run parameters and its values:
 ```bash
@@ -74,7 +58,7 @@ where:
 
 Run test scenario:
 ```bash
-./k6 run -o 'prometheus=namespace=k6 -e K6_USERS_NUMBER=100 -e K6_INITIAL_BALANCE=200 ./loadtesting/k6/tests/sendNeon.test.js
+./k6 run -o 'prometheus=namespace=k6' -e K6_USERS_NUMBER=100 -e K6_INITIAL_BALANCE=200 ./loadtesting/k6/tests/sendNeon.test.js
 ```
 
 ### Local test run with local version of the xk6-ethereum plugin
@@ -84,7 +68,9 @@ Pass the xk6-ethereum plugin repository path (on your local machine) as a parame
 xk6 build --with github.com/szkiba/xk6-prometheus --with github.com/neonlabsorg/xk6-ethereum="<path_to_xk6_ethereum_plugin_repository>" 
 ```
 Use an executable file builded with command above to run test scenario (see 'Run performance test using clickfile' or 'Native commands to build and run k6' sections).
-
+```bash
+./clickfile.py k6 run --network local --script ./loadtesting/k6/tests/sendErc20.test.js --users 10 --balance 200
+```
 
 ## Scenario options
 Send Neon scenario settings:

@@ -1265,36 +1265,6 @@ def build(tag):
         sys.exit(command_build.returncode)
 
 
-@k6.command("prepare-accounts", help="Generates users and fund its account balances.")
-@click.option("-n", "--network",required=True, default="local", help="Which network to use for envs assignment")
-@click.option("-u", "--users", default=None, required=True, help="Number of users to generate before test run")
-@click.option("-b", "--balance", default=None, required=True, help="Initial balance of each user in Neon")
-@click.option("-a", "--bank_account", default=None, required=False, help="Bank account address if needed")
-@catch_traceback
-def prepare_accounts(network, users, balance, bank_account):
-    network_object = network_manager.get_network_object(network)
-    web3_client = NeonChainWeb3Client(proxy_url=network_object["proxy_url"])
-    faucet = Faucet(faucet_url=network_object['faucet_url'], web3_client=web3_client)
-    account_manager = EthAccounts(web3_client, faucet, bank_account)
-    k6_prepare_accounts(account_manager, users, balance)
-
-
-@k6.command("deploy-erc20", help="Deploy erc20 contract.")
-@click.option("-n", "--network",required=True, default="local", help="Which network to use for envs assignment")
-@click.option("-b", "--balance", default=None, required=True, help="Initial balance of erc20 owner")
-@click.option("-a", "--bank_account", default=None, required=False, help="Bank account address if needed")
-@catch_traceback
-def deploy_erc20(network, balance, bank_account):
-    network_object = network_manager.get_network_object(network)
-    web3_client = NeonChainWeb3Client(proxy_url=network_object["proxy_url"])
-    faucet = Faucet(faucet_url=network_object['faucet_url'], web3_client=web3_client)
-    account_manager = EthAccounts(web3_client, faucet, bank_account)
-    
-    owner = account_manager.create_account(balance=int(balance))
-    erc20 = deploy_erc20_contract(web3_client, faucet, owner)
-    print(f"ERC20 contract deployed at {erc20.contract.address} with owner {erc20.owner.address}")
-
-
 @k6.command("run", help="Run k6 performance test.")
 @click.option("-n", "--network",required=True, default="local", help="Which network to use for envs assignment")
 @click.option("-s", "--script", required=True, default="./loadtesting/k6/tests/sendNeon.test.js", help="Path to k6 script")
@@ -1302,8 +1272,25 @@ def deploy_erc20(network, balance, bank_account):
 @click.option("-b", "--balance", default=None, required=True, help="Initial balance of accounts in Neon")
 @click.option("-a", "--bank_account", default=None, required=False, help="Bank account address")
 @catch_traceback
-def run(network, script, users, balance, bank_account):    
-    k6_set_envs(network, users, balance, bank_account)
+def run(network, script, users, balance, bank_account):
+    network_object = network_manager.get_network_object(network)
+    web3_client = NeonChainWeb3Client(proxy_url=network_object["proxy_url"])
+    faucet = Faucet(faucet_url=network_object['faucet_url'], web3_client=web3_client)
+    account_manager = EthAccounts(web3_client, faucet, bank_account)
+
+    print("Compiling ERC20 contract...")
+    command_erc20 = f"solc --abi ./contracts/EIPs/ERC20/ERC20.sol -o ./loadtesting/k6/contracts/ERC20 --overwrite"
+    command_erc20_run = subprocess.run(command_erc20, shell=True)
+    if command_erc20_run.returncode != 0:
+        sys.exit(command_erc20_run.returncode)
+
+    print("Deploying ERC20 contract...")
+    erc20 = deploy_erc20_contract(web3_client, faucet, account_manager.create_account(balance=int(balance)))
+    print(f"ERC20 contract deployed at {erc20.contract.address} with owner {erc20.owner.address}")
+
+    k6_prepare_accounts(erc20, account_manager, users, balance, 100)
+    k6_set_envs(network, erc20, users, balance, bank_account)
+
     command = f"./k6 run {script} -o 'prometheus=namespace=k6'"
     command_run = subprocess.run(command, shell=True)
     if command_run.returncode != 0:

@@ -41,3 +41,6 @@ export const usersNumber = parseInt(__ENV.K6_USERS_NUMBER);
 // ERC20 contract data
 export const erc20Address = __ENV.K6_ERC20_ADDRESS;
 export const erc20Owner = __ENV.K6_ERC20_OWNER;
+
+// Transfer amount range
+export const transferAmountRange = [0.01, 0.02, 0.03, 0.04, 0.05];
