@@ -257,11 +257,11 @@ class Web3Client:
         account: eth_account.signers.local.LocalAccount,
         transaction: tp.Dict,
         gas_multiplier: tp.Optional[float] = None,  # fix for some event depends transactions
-        timeout: int = 120,
+        timeout: int = 180,
     ) -> web3.types.TxReceipt:
         instruction_tx = self._web3.eth.account.sign_transaction(transaction, account.key)
         signature = self._web3.eth.send_raw_transaction(instruction_tx.rawTransaction)
-        return self._web3.eth.wait_for_transaction_receipt(signature, timeout=timeout)
+        return self._web3.eth.wait_for_transaction_receipt(signature, timeout=timeout, poll_latency=0.5)
 
     @allure.step("Create raw transaction EIP-1559")
     def make_raw_tx_eip_1559(
