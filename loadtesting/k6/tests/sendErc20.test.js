@@ -1,6 +1,6 @@
 import { ethClient, sendErc20ViaTransferFunction } from './utils/ethClient.js';
 import { randomItem } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
-import { erc20Address, transferAmountRange } from './utils/consts.js';
+import { transferAmountRange } from './utils/consts.js';
 import { sendTokenOptions } from '../options/options.js';
 import { Trend, Counter } from 'k6/metrics';
 import { check } from 'k6';
@@ -13,7 +13,6 @@ const sendErc20ErrorReceiptStatusCounter = new Counter('send_erc20_errors_in_rec
 const sendErc20RequestTime = new Trend('send_erc20_request_time', true);
 
 export const options = sendTokenOptions;
-
 const pathToContractData = '../contracts/ERC20/ERC20';
 const abi = JSON.parse(open(pathToContractData + '.abi'));
 
@@ -34,21 +33,17 @@ export default function sendErc20Test() {
     const accountSenderPrivateKey = usersArray[index].sender_key;
     const accountReceiverAddress = usersArray[index].receiver_address;
     const client = ethClient(accountSenderPrivateKey);
-    const erc20 = client.newContract(erc20Address, JSON.stringify(abi), accountSenderPrivateKey)
 
     const startTime = new Date();
 
     try {
         const receipt = sendErc20ViaTransferFunction(
             client,
-            erc20,
-            accountSenderAddress,
-            erc20Address,
             JSON.stringify(abi),
+            { "address": accountSenderAddress, "key": accountSenderPrivateKey },
             accountReceiverAddress,
             randomItem(transferAmountRange)
         );
-        console.log('Receipt: ' + JSON.stringify(receipt));
         const checkResult = check(receipt, {
             'receipt status is 1': (r) => r.status === 1,
         });
