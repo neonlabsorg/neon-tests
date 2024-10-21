@@ -524,13 +524,11 @@ def update_contracts(branch):
     download_evm_contracts(branch)
     update_contracts_from_git(HOODIES_CHAINLINK_GITHUB_URL, "hoodies_chainlink", "main")
 
-    contracts_branch = "main"
-    if is_branch_exist(NEON_CONTRACTS_GITHUB_URL, branch) and branch != "develop":
-        contracts_branch = branch
-    update_contracts_from_git(
-        NEON_CONTRACTS_REPO_URL, "neon-contracts", contracts_branch, update_npm=False
-    )
-    subprocess.check_call(f'npm ci --prefix {EXTERNAL_CONTRACT_PATH / "neon-contracts" / "ERC20ForSPL"}', shell=True)
+    # uncomment for new version of erc20ForSpl
+    # update_contracts_from_git(
+    #     f"https://github.com/{DOCKER_HUB_ORG_NAME}/neon-contracts.git", "neon-contracts", "main", update_npm=False
+    # )
+    # subprocess.check_call(f'npm ci --prefix {EXTERNAL_CONTRACT_PATH / "neon-contracts" / "ERC20ForSPL"}', shell=True)
 
 
 @cli.command(help="Run any type of tests")

@@ -3,7 +3,6 @@ import pathlib
 
 import eth_abi
 import pytest
-from eth_utils import abi
 from solders.keypair import Keypair
 from eth_keys import keys as eth_keys
 from solders.pubkey import Pubkey
@@ -176,43 +175,18 @@ def calculator_caller_contract(
 
 
 @pytest.fixture(scope="session")
-def erc20_for_spl_proxy_contract(
+def erc20_for_spl_factory_contract(
     operator_keypair, evm_loader, sender_with_tokens, treasury_pool, neon_api_client, holder_acc
 ):
-    contracts_path = "external/neon-contracts/ERC20ForSPL/contracts/"
-    beacon_erc20 = deploy_contract(
+    return deploy_contract(
         operator_keypair,
         sender_with_tokens,
-        f"{contracts_path}ERC20ForSPLMintable",
+        "external/neon-evm/erc20_for_spl_factory",
         evm_loader,
         treasury_pool,
-        contract_name="ERC20ForSPLMintable",
+        contract_name="ERC20ForSplFactory",
         version="0.8.24",
     )
-
-    erc20_factory = deploy_contract(
-        operator_keypair,
-        sender_with_tokens,
-        f"{contracts_path}ERC20ForSPLMintableFactory",
-        evm_loader,
-        treasury_pool,
-        contract_name="ERC20ForSPLMintableFactory",
-        version="0.8.24",
-    )
-    data = abi.function_signature_to_4byte_selector("initialize(address)") + eth_abi.encode(
-        ["address"], [f"0x{beacon_erc20.eth_address.hex()}"]
-    )
-    proxy_contract = deploy_contract(
-        operator_keypair,
-        sender_with_tokens,
-        f"{contracts_path}openzeppelin-fork/contracts/proxy/ERC1967/ERC1967Proxy",
-        evm_loader,
-        treasury_pool,
-        contract_name="ERC1967Proxy",
-        version="0.8.24",
-        encoded_args=eth_abi.encode(["address", "bytes"], [f"0x{erc20_factory.eth_address.hex()}", data]),
-    )
-    return proxy_contract
 
 
 @pytest.fixture(scope="session")

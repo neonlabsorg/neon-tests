@@ -101,7 +101,7 @@ class TestERC20SPL:
     ):
         with pytest.raises(
             web3.exceptions.ContractLogicError,
-            match="0x96ab19c8",  # AmountExceedsBalance error
+            match="burn amount exceeds balance",
         ):
             erc20_contract.burn(self.accounts[2], 1000)
 
@@ -109,7 +109,7 @@ class TestERC20SPL:
         total = erc20_contract.contract.functions.totalSupply().call()
         with pytest.raises(
             web3.exceptions.ContractLogicError,
-            match="0x96ab19c8",  # AmountExceedsBalance error
+            match="burn amount exceeds balance",
         ):
             erc20_contract.burn(erc20_contract.account, total + 1)
 
@@ -136,7 +136,7 @@ class TestERC20SPL:
         new_account = self.accounts.create_account()
         with pytest.raises(
             web3.exceptions.ContractLogicError,
-            match="0x65ba6fc3",  # InvalidAllowance error
+            match="insufficient allowance",
         ):
             erc20_contract.burn_from(new_account, erc20_contract.account.address, 10)
 
@@ -146,7 +146,7 @@ class TestERC20SPL:
         erc20_contract.approve(erc20_contract.account, new_account.address, amount)
         with pytest.raises(
             web3.exceptions.ContractLogicError,
-            match="0x65ba6fc3",  # InvalidAllowance error
+            match="insufficient allowance",
         ):
             erc20_contract.burn_from(new_account, erc20_contract.account.address, amount + 1)
 
@@ -173,7 +173,7 @@ class TestERC20SPL:
             (
                 ZERO_ADDRESS,
                 web3.exceptions.ContractLogicError,
-                "0x7138356f",  # EmptyAddress error
+                "approve to the zero address",
             ),
         ],
     )
@@ -219,7 +219,7 @@ class TestERC20SPL:
             (
                 ZERO_ADDRESS,
                 web3.exceptions.ContractLogicError,
-                "0x7138356f",  # EmptyAddress error
+                "transfer to the zero address",
             ),
         ],
     )
@@ -232,7 +232,7 @@ class TestERC20SPL:
         balance = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         with pytest.raises(
             web3.exceptions.ContractLogicError,
-            match="0x96ab19c8",  # AmountExceedsBalance error
+            match="transfer amount exceeds balance",
         ):
             erc20_contract.transfer(erc20_contract.account, erc20_contract.account.address, balance + 1)
 
@@ -260,7 +260,7 @@ class TestERC20SPL:
         new_account = self.accounts.create_account()
         with pytest.raises(
             web3.exceptions.ContractLogicError,
-            match="0x65ba6fc3",  # InvalidAllowance error
+            match="insufficient allowance",  # InvalidAllowance error insufficient allowance
         ):
             erc20_contract.transfer_from(
                 signer=new_account,
@@ -275,7 +275,7 @@ class TestERC20SPL:
         erc20_contract.approve(erc20_contract.account, new_account.address, amount)
         with pytest.raises(
             web3.exceptions.ContractLogicError,
-            match="0x65ba6fc3",  # InvalidAllowance error
+            match="insufficient allowance",
         ):
             erc20_contract.transfer_from(
                 signer=new_account,
@@ -299,7 +299,7 @@ class TestERC20SPL:
         erc20_contract.approve(erc20_contract.account, new_account.address, amount)
         with pytest.raises(
             web3.exceptions.ContractLogicError,
-            match="0x96ab19c8",  # AmountExceedsBalance error
+            match="transfer amount exceeds balance",
         ):
             erc20_contract.transfer_from(
                 signer=new_account,
@@ -473,6 +473,7 @@ class TestERC20SPLMintable:
                 default_value - current_balance,
             )
 
+    @pytest.mark.skip(reason="This test is not actual for erc20ForSpl 1.0.0")
     def test_owner(self, erc20_contract):
         owner = erc20_contract.contract.functions.owner().call()
         assert owner == erc20_contract.account.address
@@ -482,6 +483,7 @@ class TestERC20SPLMintable:
         yield
         erc20_contract.transfer_ownership(accounts[2], erc20_contract.account.address)
 
+    @pytest.mark.skip(reason="This test is not actual for erc20ForSpl 1.0.0")
     def test_transferOwnership(self, erc20_contract, accounts, return_ownership):
         erc20_contract.transfer_ownership(erc20_contract.account, accounts[2].address)
         owner = erc20_contract.contract.functions.owner().call()
@@ -493,7 +495,6 @@ class TestERC20SPLMintable:
         metadata = metaplex.get_metadata(self.sol_client, mint_key)
         assert metadata["data"]["name"] == erc20_contract.name
         assert metadata["data"]["symbol"] == erc20_contract.symbol
-        assert metadata["data"]["uri"] == "http://uri.com"
         assert metadata["is_mutable"] is True
 
     def test_mint_to_self(self, erc20_contract, restore_balance):
@@ -513,12 +514,8 @@ class TestERC20SPLMintable:
 
     def test_mint_by_no_minter_role(self, erc20_contract):
         recipient_account = self.accounts[1]
-        try:
+        with pytest.raises(web3.exceptions.ContractLogicError, match="must have minter role to mint"):
             erc20_contract.mint_tokens(recipient_account, recipient_account.address, 0)
-        except web3.exceptions.ContractLogicError as e:
-            assert "0x118cdaa7" in str(e)
-        else:
-            assert False, "No exception raised"
 
     @pytest.mark.parametrize(
         "address_to, expected_exception, msg",
@@ -526,7 +523,7 @@ class TestERC20SPLMintable:
             (
                 ZERO_ADDRESS,
                 web3.exceptions.ContractLogicError,
-                "0x7138356f",  # EmptyAddress error
+                "mint to the zero address",
             ),
         ],
     )
@@ -538,7 +535,7 @@ class TestERC20SPLMintable:
     def test_mint_with_too_big_amount(self, erc20_contract):
         with pytest.raises(
             web3.exceptions.ContractLogicError,
-            match="0x679346bc",  # AmountExceedsUint64 error
+            match="total mint amount exceeds uint64 max",
         ):
             erc20_contract.mint_tokens(
                 erc20_contract.account,
@@ -1008,6 +1005,7 @@ def new_token_contract(web3_client, erc20_spl_mintable):
 @allure.story("ERC20SPL: Tests for factory update")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
 @pytest.mark.neon_only
+@pytest.mark.skip(reason="This test is not actual for erc20ForSpl 1.0.0")
 class TestERC20FactoryUpdate:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
