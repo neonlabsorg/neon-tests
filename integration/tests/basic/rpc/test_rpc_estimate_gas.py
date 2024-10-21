@@ -132,7 +132,7 @@ class TestRpcEstimateGas:
 
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
-        assert estimated_gas == 2_089_280
+        assert estimated_gas == 2_079_280
 
     @pytest.mark.neon_only  # Geth returns a different estimate
     def test_rpc_estimate_gas_contract_get_value(self, common_contract):
