@@ -45,7 +45,7 @@ env:
   NETWORK: ${{ inputs.network || 'terraform' }}
   BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
   DUMP_ENVS: True
-  ALL_DAPPS: "aave-v2,aave-v3,curve,uniswap-v2,uniswap-v3,saddle,yearn,robonomics,compound,curve-factory,pancake"
+  ALL_DAPPS: "aave-v2,aave-v3,curve,uniswap-v2,uniswap-v3,uniswap-v4,saddle,yearn,robonomics,compound,curve-factory,pancake"
 
 jobs:
   prepare:

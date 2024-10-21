@@ -188,6 +188,38 @@ jobs:
         with:
           name: uniswap-v3-report
           path: uniswap-v3-report.json
+    
+  uniswap-v4:
+    runs-on: ubuntu-20.04
+    if: contains( inputs.dapps, 'uniswap-v4')
+    env:
+      PROXY_URL: ${{ inputs.proxy_url }}
+      NETWORK: ${{ inputs.network }}
+      SOLANA_URL: ${{ inputs.solana_url }}
+      FAUCET_URL: ${{ inputs.faucet_url }}
+      SOLANA_IP: ${{ inputs.solana_ip }}
+      PROXY_IP: ${{ inputs.proxy_ip }}
+    steps:
+      - name: Launch uniswap v4 tests
+        id: uniswap-v4
+        timeout-minutes: 20
+        env:
+          IMAGE: neonlabsorg/uniswap-v4:add-to-ci
+        run: |
+          docker pull ${{ env.IMAGE }}
+          docker run -i -d --name=uniswap-v4-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
+          docker exec -i -e PROXY_IP=${{ env.PROXY_IP }} uniswap-v4-${{ github.run_number }} \
+            bash -c " \
+              pytest test_v4_router.py -vvv -s"
+          echo "exit_code=$?" >> $GITHUB_ENV
+      - name: Delete the uniswap-v4 container
+        if: always() && steps.uniswap-v4.result != 'skipped'
+        run: docker rm -f uniswap-v4-${{ github.run_number }}
+      - name: Check exit code
+        if: always() && env.exit_code != 0
+        run: |
+          echo "Uniswap v4 tests failed"
+          exit 1
 
   saddle:
     runs-on: ubuntu-22.04
@@ -622,7 +654,7 @@ jobs:
 
   swap-report:
     runs-on: ubuntu-20.04
-    needs: [uniswap-v2, uniswap-v3, saddle, aave-v2, aave-v3, curve, robonomics, yearn, compound, curve-factory, pancake]
+    needs: [uniswap-v2, uniswap-v3, uniswap-v4, saddle, aave-v2, aave-v3, curve, robonomics, yearn, compound, curve-factory, pancake]
     if: always()
     env:
       SOLANA_URL: ${{ inputs.solana_url }}
