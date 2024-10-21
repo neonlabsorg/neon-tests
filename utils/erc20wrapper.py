@@ -8,6 +8,7 @@ from solders.pubkey import Pubkey
 from web3.types import TxReceipt
 
 from . import web3client, stats_collector
+from .consts import ERC20_FOR_SPL_SOLC_VERSION
 from .metaplex import create_metadata_instruction_data, create_metadata_instruction
 
 INIT_TOKEN_AMOUNT = 1000000000000000
@@ -76,7 +77,7 @@ class ERC20Wrapper:
     def _deploy_mintable_wrapper(self):
         beacon_erc20_impl, tx = self.web3_client.deploy_and_get_contract(
             "external/neon-contracts/ERC20ForSPL/contracts/ERC20ForSPLMintable",
-            "0.8.24",
+            ERC20_FOR_SPL_SOLC_VERSION,
             self.account,
             contract_name="ERC20ForSPLMintable",
         )
@@ -84,7 +85,7 @@ class ERC20Wrapper:
 
         factory_contract, tx = self.web3_client.deploy_and_get_contract(
             "external/neon-contracts/ERC20ForSPL/contracts/ERC20ForSPLMintableFactory",
-            "0.8.24",
+            ERC20_FOR_SPL_SOLC_VERSION,
             self.account,
             contract_name="ERC20ForSPLMintableFactory",
         )
@@ -92,7 +93,7 @@ class ERC20Wrapper:
 
         proxy_contract, tx = self.web3_client.deploy_and_get_contract(
             "external/neon-contracts/ERC20ForSPL/contracts/openzeppelin-fork/contracts/proxy/ERC1967/ERC1967Proxy",
-            "0.8.24",
+            ERC20_FOR_SPL_SOLC_VERSION,
             self.account,
             contract_name="ERC1967Proxy",
             constructor_args=[
@@ -109,7 +110,7 @@ class ERC20Wrapper:
     def _deploy_not_mintable_wrapper(self):
         beacon_erc20_impl, tx = self.web3_client.deploy_and_get_contract(
             "external/neon-contracts/ERC20ForSPL/contracts/ERC20ForSPL",
-            "0.8.24",
+            ERC20_FOR_SPL_SOLC_VERSION,
             self.account,
             contract_name="ERC20ForSPL",
         )
@@ -117,7 +118,7 @@ class ERC20Wrapper:
 
         factory_contract, tx = self.web3_client.deploy_and_get_contract(
             "external/neon-contracts/ERC20ForSPL/contracts/ERC20ForSPLFactory",
-            "0.8.24",
+            ERC20_FOR_SPL_SOLC_VERSION,
             self.account,
             contract_name="ERC20ForSPLFactory",
         )
@@ -125,7 +126,7 @@ class ERC20Wrapper:
 
         proxy_contract, tx = self.web3_client.deploy_and_get_contract(
             "external/neon-contracts/ERC20ForSPL/contracts/openzeppelin-fork/contracts/proxy/ERC1967/ERC1967Proxy",
-            "0.8.24",
+            ERC20_FOR_SPL_SOLC_VERSION,
             self.account,
             contract_name="ERC1967Proxy",
             constructor_args=[
