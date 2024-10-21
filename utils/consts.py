@@ -2,7 +2,6 @@ from enum import Enum
 
 from solders.pubkey import Pubkey
 
-ERC20_FOR_SPL_SOLC_VERSION = "0.8.28"
 OPERATOR_KEYPAIR_PATH = "deploy/operator-keypairs"
 LAMPORT_PER_SOL = 1_000_000_000
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"

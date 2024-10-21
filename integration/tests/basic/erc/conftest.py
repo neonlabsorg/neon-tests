@@ -66,7 +66,7 @@ def multiple_actions_erc20(web3_client_session, accounts, erc20_spl_mintable):
         "0.8.24",
         accounts[0],
         contract_name="MultipleActionsERC20",
-        constructor_args=[erc20_spl_mintable.address],
+        constructor_args=[f"Test TTT", "TTT", 18],
     )
-    erc20_spl_mintable.transfer_ownership(erc20_spl_mintable.account, contract.address)
     return accounts[0], contract
+

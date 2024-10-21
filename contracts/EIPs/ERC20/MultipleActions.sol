@@ -1,17 +1,23 @@
 pragma solidity >=0.7.0;
 pragma abicoder v2;
 
-import "../../external/neon-contracts/ERC20ForSPL/contracts/ERC20ForSPLMintable.sol";
-import "../../external/neon-contracts/ERC20ForSPL/contracts/ERC20ForSPLMintableFactory.sol";
+import "../../external/neon-evm/erc20_for_spl.sol";
 
 contract MultipleActionsERC20 {
     uint256 data;
-    ERC20ForSPLMintable erc20;
+    ERC20ForSplMintable erc20;
 
     constructor(
-        address _token
+        string memory _name,
+        string memory _symbol,
+        uint8 _decimals
     ) {
-        erc20 = ERC20ForSPLMintable(_token);
+        erc20 = new ERC20ForSplMintable(
+            _name,
+            _symbol,
+            _decimals,
+            address(this)
+        );
     }
 
     function balance(address who) public view returns (uint256) {
