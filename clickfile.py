@@ -76,6 +76,8 @@ OZ_BALANCES = "./compatibility/results/oz_balance.json"
 DOCKER_HUB_ORG_NAME = os.environ.get("DOCKER_HUB_ORG_NAME")
 NEON_EVM_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-evm"
 HOODIES_CHAINLINK_GITHUB_URL = "https://github.com/hoodieshq/chainlink-neon"
+NEON_CONTRACTS_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-contracts"
+NEON_CONTRACTS_REPO_URL = f"https://github.com/{DOCKER_HUB_ORG_NAME}/neon-contracts.git"
 PROXY_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-proxy.py"
 FAUCET_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-faucet"
 EXTERNAL_CONTRACT_PATH = Path.cwd() / "contracts" / "external"
@@ -522,8 +524,11 @@ def update_contracts(branch):
     download_evm_contracts(branch)
     update_contracts_from_git(HOODIES_CHAINLINK_GITHUB_URL, "hoodies_chainlink", "main")
 
+    contracts_branch = "main"
+    if is_branch_exist(NEON_CONTRACTS_GITHUB_URL, branch) and branch != "develop":
+        contracts_branch = branch
     update_contracts_from_git(
-        f"https://github.com/{DOCKER_HUB_ORG_NAME}/neon-contracts.git", "neon-contracts", "main", update_npm=False
+        NEON_CONTRACTS_REPO_URL, "neon-contracts", contracts_branch, update_npm=False
     )
     subprocess.check_call(f'npm ci --prefix {EXTERNAL_CONTRACT_PATH / "neon-contracts" / "ERC20ForSPL"}', shell=True)
 
