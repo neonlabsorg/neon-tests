@@ -389,12 +389,12 @@ class TestTransactionStepFromAccount:
                 ],
             )
 
-    def test_operator_is_not_in_white_list(
+    def test_holder_invalid_owner_trx_execution(
         self, sender_with_tokens, operator_keypair, evm_loader, treasury_pool, session_user, holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
-        with pytest.raises(SolanaRPCException, match=InstructionAsserts.NOT_AUTHORIZED_OPERATOR):
+        with pytest.raises(SolanaRPCException, match=InstructionAsserts.INVALID_HOLDER_OWNER):
             evm_loader.execute_transaction_steps_from_account(
                 sender_with_tokens.solana_account,
                 treasury_pool,
