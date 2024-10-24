@@ -372,6 +372,58 @@ def make_OperatorBalanceAccount(operator_keypair, operator_balance_pubkey, ether
     return trx
 
 
+def make_ScheduledTransactionCreate(signer,
+                                    balance_pubkey,
+                                    treasury,
+                                    tree_account,
+                                    pool,
+                                    msg,
+                                    evm_loader_id):
+    trx = Transaction()
+    trx.add(Instruction(
+        accounts=[
+            AccountMeta(pubkey=signer.pubkey(), is_signer=True, is_writable=True),
+            AccountMeta(pubkey=balance_pubkey, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=pool, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
+
+        ],
+        program_id=evm_loader_id,
+        data=bytes.fromhex("4A") + treasury.buffer + msg
+    ))
+    return trx
+
+
+def make_ScheduledTransactionStartFromAccount(
+    step_count: int,
+    operator: Keypair,
+    operator_balance: Pubkey,
+    evm_loader_id: Pubkey,
+    holder_address: Pubkey,
+    tree_account: Pubkey,
+    additional_accounts: tp.List[Pubkey],
+):
+    tag = 0x46
+    data = tag.to_bytes(1, "little") + step_count.to_bytes(4, "little")
+    accounts = [
+        AccountMeta(pubkey=holder_address, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
+        AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
+    ]
+
+    for acc in additional_accounts:
+        print("Additional acc ", acc)
+        accounts.append(
+            AccountMeta(acc, is_signer=False, is_writable=True),
+        )
+
+    return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
+
+
+
 def get_compute_unit_price_eip_1559(
         gas_price: int,
         max_priority_fee_per_gas: int,

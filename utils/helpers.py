@@ -18,7 +18,6 @@ from solcx import link_code
 import polling2
 from semantic_version import Version
 
-
 T = tp.TypeVar('T')
 
 
@@ -31,11 +30,11 @@ def get_contract_abi(name, compiled):
 
 @allure.step("Get contract interface")
 def get_contract_interface(
-    contract: str,
-    version: str,
-    contract_name: tp.Optional[str] = None,
-    import_remapping: tp.Optional[dict] = None,
-    libraries: tp.Optional[dict] = None,
+        contract: str,
+        version: str,
+        contract_name: tp.Optional[str] = None,
+        import_remapping: tp.Optional[dict] = None,
+        libraries: tp.Optional[dict] = None,
 ):
     if not contract.endswith(".sol"):
         contract += ".sol"
@@ -192,6 +191,11 @@ def bytes32_to_solana_pubkey(bytes32_data: str) -> Pubkey:
 def solana_pubkey_to_bytes32(solana_pubkey):
     byte_data = base58.b58decode(str(solana_pubkey))
     return byte_data
+
+
+def pubkey2neon_address(pubkey: Pubkey) -> bytes:
+    bytes_part = keccak(primitive=bytes(pubkey))[12:32]
+    return bytes_part
 
 
 def serialize_instruction(program_id: Pubkey, instruction) -> bytes:

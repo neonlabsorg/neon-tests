@@ -84,6 +84,7 @@ def treasury_pool(evm_loader) -> TreasuryPool:
     index = 2
     address = evm_loader.create_treasury_pool_address(index)
     index_buf = index.to_bytes(4, "little")
+    evm_loader.request_airdrop(address, 1000 * 10**9, commitment=Confirmed)
     return TreasuryPool(index, address, index_buf)
 
 
@@ -107,6 +108,13 @@ def sender_with_tokens(evm_loader, operator_keypair) -> Caller:
     user = evm_loader.make_new_user(operator_keypair)
     evm_loader.deposit_neon(operator_keypair, user.eth_address, 100000)
     return user
+
+
+@pytest.fixture(scope="session")
+def solana_keypair(evm_loader) -> Keypair:
+    key = Keypair()
+    evm_loader.request_airdrop(key.pubkey(), 1000 * 10 ** 9, commitment=Confirmed)
+    return key
 
 
 @pytest.fixture(scope="session")
@@ -149,6 +157,15 @@ def string_setter_contract(
     evm_loader: EvmLoader, operator_keypair: Keypair, session_user: Caller, treasury_pool
 ) -> Contract:
     return deploy_contract(operator_keypair, session_user, "string_setter", evm_loader, treasury_pool)
+
+
+@pytest.fixture(scope="function")
+def basic_contract(
+    evm_loader: EvmLoader, operator_keypair: Keypair, session_user: Caller, treasury_pool
+) -> Contract:
+    return deploy_contract(operator_keypair, session_user,
+                           "common/Common", evm_loader, treasury_pool,
+                           version="0.8.12")
 
 
 @pytest.fixture(scope="session")
