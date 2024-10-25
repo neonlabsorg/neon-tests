@@ -8,7 +8,7 @@ from utils.helpers import pubkey2neon_address
 
 
 class TestScheduledTrx:
-    def test_create_tree_account(
+    def test_execute_scheduled_trx_from_account(
         self,
         evm_loader,
         solana_keypair: Keypair,
