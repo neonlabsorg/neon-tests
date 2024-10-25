@@ -198,6 +198,10 @@ def pubkey2neon_address(pubkey: Pubkey) -> bytes:
     return bytes_part
 
 
+def to_little_endian_byte(value: int) -> bytes:
+    return value.to_bytes(1, "little")
+
+
 def serialize_instruction(program_id: Pubkey, instruction) -> bytes:
     program_id_bytes = solana_pubkey_to_bytes32(program_id)
     serialized = program_id_bytes + len(instruction.accounts).to_bytes(8, "little")
