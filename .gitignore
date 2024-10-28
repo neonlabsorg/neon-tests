@@ -250,3 +250,4 @@ uniswap_contracts.json
 *.lock
 node_modules
 loadtesting/k6/data
+loadtesting/k6/contracts

@@ -905,19 +905,19 @@ class TestStepFromAccountChangingOperatorsDuringTrxRun:
         treasury_pool,
         holder_acc,
         neon_api_client,
-        erc20_for_spl_proxy_contract,
+        erc20_for_spl_factory_contract,
     ):
-        func_signature = "deploy(string,string,string,uint8)"
-        func_args = ["Test", "TTT", "http://uri.com", 9]
+        func_signature = "createErc20ForSplMintable(string,string,uint8,address)"
+        func_args = ["Test", "TTT", 9, sender_with_tokens.eth_address.hex()]
         emulate_result = neon_api_client.emulate_contract_call(
             sender_with_tokens.eth_address.hex(),
-            erc20_for_spl_proxy_contract.eth_address.hex(),
+            erc20_for_spl_factory_contract.eth_address.hex(),
             func_signature,
             func_args,
         )
         additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
         signed_tx = make_contract_call_trx(
-            evm_loader, sender_with_tokens, erc20_for_spl_proxy_contract, func_signature, func_args
+            evm_loader, sender_with_tokens, erc20_for_spl_factory_contract, func_signature, func_args
         )
 
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
@@ -925,7 +925,6 @@ class TestStepFromAccountChangingOperatorsDuringTrxRun:
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
         second_operator_balance = evm_loader.get_operator_balance_pubkey(second_operator_keypair)
 
-        # 1
         evm_loader.send_transaction_step_from_account(
             operator_keypair,
             operator_balance_pubkey,
@@ -942,7 +941,7 @@ class TestStepFromAccountChangingOperatorsDuringTrxRun:
             treasury_pool,
             holder_acc,
             additional_accounts,
-            5000,
+            emulate_result["steps_executed"],
             operator_keypair,
         )
 
