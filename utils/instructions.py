@@ -124,7 +124,7 @@ def make_ExecuteTrxFromAccount(
     additional_accounts: tp.List[Pubkey],
     additional_signers: tp.List[Keypair] = None,
     system_program=sp.ID,
-    tag=0x33
+    tag=0x33,
 ):
     data = bytes([tag]) + treasury_buffer
     print("make_ExecuteTrxFromInstruction accounts")
@@ -136,7 +136,7 @@ def make_ExecuteTrxFromAccount(
         AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
         AccountMeta(pubkey=treasury_address, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
-        AccountMeta(system_program, is_signer=False, is_writable=True)
+        AccountMeta(system_program, is_signer=False, is_writable=True),
     ]
     for acc in additional_accounts:
         print("Additional acc ", acc)
@@ -161,7 +161,7 @@ def make_ExecuteTrxFromAccountDataIterativeOrContinue(
     treasury,
     additional_accounts: tp.List[Pubkey],
     sys_program_id=sp.ID,
-    tag=0x35
+    tag=0x35,
 ):
     # 0x35 - TransactionStepFromAccount
     # 0x36 - TransactionStepFromAccountNoChainId
@@ -176,7 +176,7 @@ def make_ExecuteTrxFromAccountDataIterativeOrContinue(
         AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
         AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
-        AccountMeta(sys_program_id, is_signer=False, is_writable=True)
+        AccountMeta(sys_program_id, is_signer=False, is_writable=True),
     ]
 
     for acc in additional_accounts:
@@ -199,7 +199,7 @@ def make_PartialCallOrContinueFromRawEthereumTX(
     treasury: TreasuryPool,
     additional_accounts: tp.List[Pubkey],
     system_program=sp.ID,
-    tag=0x34  # TransactionStepFromInstruction
+    tag=0x34,  # TransactionStepFromInstruction
 ):
     data = bytes([tag]) + treasury.buffer + step_count.to_bytes(4, "little") + index.to_bytes(4, "little") + instruction
 
@@ -208,7 +208,7 @@ def make_PartialCallOrContinueFromRawEthereumTX(
         AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
         AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
-        AccountMeta(system_program, is_signer=False, is_writable=True)
+        AccountMeta(system_program, is_signer=False, is_writable=True),
     ]
     for acc in additional_accounts:
         accounts.append(
@@ -286,7 +286,7 @@ def make_CreateAssociatedTokenIdempotent(payer: Pubkey, owner: Pubkey, mint: Pub
             AccountMeta(pubkey=mint, is_signer=False, is_writable=False),
             AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
             AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-            AccountMeta(pubkey=SYSVAR_RENT_PUBKEY, is_signer=False, is_writable=False)
+            AccountMeta(pubkey=SYSVAR_RENT_PUBKEY, is_signer=False, is_writable=False),
         ],
         program_id=ASSOCIATED_TOKEN_PROGRAM_ID,
     )
@@ -310,7 +310,7 @@ def make_CreateBalanceAccount(
             AccountMeta(pubkey=sender_pubkey, is_signer=True, is_writable=True),
             AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
             AccountMeta(pubkey=account_pubkey, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=contract_pubkey, is_signer=False, is_writable=True)
+            AccountMeta(pubkey=contract_pubkey, is_signer=False, is_writable=True),
         ],
     )
 
@@ -438,13 +438,37 @@ def make_ScheduledTransactionStartFromAccount(
 
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
+def make_ScheduledTransactionStartFromInstruction(index,
+                                                  neon_trx,
+                                                  holder_address,
+                                                  tree_account,
+                                                  evm_loader_id,
+                                                  operator,
+                                                  operator_balance,
+                                                  additional_accounts):
+    tag = InstructionTags.SCHEDULED_TRANSACTION_START_FROM_INSTRUCTION
+    data = tag + index.to_bytes(4, "little") + neon_trx
+    accounts = [
+        AccountMeta(pubkey=holder_address, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
+        AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
+    ]
+
+    for acc in additional_accounts:
+        print("Additional acc ", acc)
+        accounts.append(
+            AccountMeta(acc, is_signer=False, is_writable=True),
+        )
+
+    return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
 def make_ScheduledTransactionDestroy(signer, balance_account, treasury, tree_account, evm_loader_id):
     data = InstructionTags.SCHEDULED_TRANSACTION_DESTROY + treasury.buffer
     accounts = [
         AccountMeta(pubkey=balance_account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
-        AccountMeta(pubkey=tree_account, is_signer=True, is_writable=True),
+        AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=signer.pubkey(), is_signer=True, is_writable=True),
 
     ]
