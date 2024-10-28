@@ -125,7 +125,7 @@ class SolanaClient(solana.rpc.api.Client):
 
     def account_exists(self, account_address: Pubkey) -> bool:
         try:
-            account_info = self.get_account_info(account_address)
+            account_info = self.get_account_info(account_address, commitment=Confirmed)
             if account_info.value is not None:
                 return True
             else:

@@ -95,7 +95,6 @@ class EvmLoader(SolanaClient):
         if self.account_exists(solana_address):
             info: bytes = self.get_solana_account_data(solana_address, BALANCE_ACCOUNT_LAYOUT.sizeof())
             layout = BALANCE_ACCOUNT_LAYOUT.parse(info)
-
             return layout.trx_count
         else:
             return 0
@@ -543,7 +542,7 @@ class EvmLoader(SolanaClient):
         caller_token = get_associated_token_address(caller_balance, NEON_TOKEN_MINT_ID)
 
         if self.get_solana_balance(caller_balance) == 0:
-            print(f"Create Neon account {caller_ether} for user {caller_balance}")
+            print(f"Create Neon account {caller_ether.hex()} for user {caller_balance}")
             self.create_balance_account(caller_ether, sender)
 
         print("Account solana address:", key.pubkey())

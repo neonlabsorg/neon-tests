@@ -168,7 +168,7 @@ def test_write_to_finalized_holder(
     evm_loader.write_transaction_to_holder_account(signed_tx2, new_holder_acc, operator_keypair)
     assert signed_tx2.rawTransaction == transaction_from_holder(
         evm_loader, new_holder_acc
-    ).hex(), "Account data is not correct"
+    ), "Account data is not correct"
 
 
 def test_holder_write_integer_overflow(operator_keypair, holder_acc, evm_loader):

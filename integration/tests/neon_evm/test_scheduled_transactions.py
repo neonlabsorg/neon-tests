@@ -20,8 +20,9 @@ class TestScheduledTrx:
         basic_contract,
         neon_api_client,
         operator_keypair,
-        holder_acc,
+        #holder_acc,
     ):
+        holder_acc = create_holder(operator_keypair, evm_loader)
         nonce = evm_loader.get_neon_nonce(neon_user.neon_address, SOL_CHAIN_ID)
         contract_data = 18
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
