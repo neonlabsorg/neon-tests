@@ -844,12 +844,13 @@ class TestTransactionStepFromAccountParallelRuns:
         check_holder_account_tag(holder_acc, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
 
     @pytest.mark.parametrize("name", ["BlockTimestamp", "BlockNumber"])
-    def test_1_user_2_parallel_trx_with_number_timestamp(
-        self, name, operator_keypair, treasury_pool, neon_api_client, evm_loader,
-            sender_with_tokens
+    def test_trx_steps_with_number_timestamp(
+        self, name, operator_keypair, treasury_pool, neon_api_client, evm_loader, sender_with_tokens
     ):
-        holder1 = create_holder(operator_keypair, evm_loader)
-        holder2 = create_holder(operator_keypair, evm_loader)
+        """
+        This test repeats the proxy's logic of reemulation with account info overrides and block overrides.
+        """
+        holder = create_holder(operator_keypair, evm_loader)
         contract = deploy_contract(
             operator_keypair,
             sender_with_tokens,
@@ -863,47 +864,69 @@ class TestTransactionStepFromAccountParallelRuns:
         func_signature = "addDataToMapping(uint256,uint256)"
 
         emulate_result = neon_api_client.emulate_contract_call(
-            sender_with_tokens.eth_address.hex(), contract.eth_address.hex(), func_signature,
-            params=params
+            sender_with_tokens.eth_address.hex(), contract.eth_address.hex(), func_signature, params=params
         )
-        additional_accounts = [PublicKey(item["pubkey"]) for item in emulate_result["solana_accounts"]]
-        signed_tx = make_contract_call_trx(evm_loader, sender_with_tokens, contract,
-                                           func_signature, params=params)
+        # Accounts to execute the first iteration.
+        initial_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+        signed_tx = make_contract_call_trx(evm_loader, sender_with_tokens, contract, func_signature, params=params)
 
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
-        evm_loader.write_transaction_to_holder_account(signed_tx, holder1, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx, holder, operator_keypair)
 
-        def send_transaction_steps_for_holder1():
+        def send_transaction_steps_for_holder(accounts):
             resp = evm_loader.send_transaction_step_from_account(
                 operator_keypair,
                 operator_balance_pubkey,
                 treasury_pool,
-                holder1,
-                additional_accounts,
+                holder,
+                accounts,
                 EVM_STEPS,
                 operator_keypair,
             )
             return resp
 
+        def get_account_override(eth_account):
+            sender_address = eth_account.eth_address.hex()
+            sender_account_info = neon_api_client.get_balance(sender_address)["value"][0]
 
-        send_transaction_steps_for_holder1()
-        send_transaction_steps_for_holder1()
+            return {
+                sender_address: {"nonce": sender_account_info["trx_count"], "balance": sender_account_info["balance"]}
+            }
 
-        # run trx2 between iterations of trx1 to make trx1 rerun
-        signed_tx2 = make_contract_call_trx(evm_loader, sender_with_tokens, contract,
-                                            func_signature, params=params)
+        def get_block_params():
+            block_params = neon_api_client.get_holder(holder)["value"]["block_params"]
+            block_timestamp, block_number = int(block_params[0], 16), int(block_params[1], 16)
 
-        evm_loader.write_transaction_to_holder_account(signed_tx2, holder2, operator_keypair)
-        evm_loader.execute_transaction_steps_from_account(operator_keypair,
-                                                          treasury_pool,
-                                                          holder2,
-                                                          additional_accounts)
+            return {"number": block_number, "time": block_timestamp}
 
-        send_transaction_steps_for_holder1()
-        send_transaction_steps_for_holder1()
-        send_transaction_steps_for_holder1()
+        def make_trace_config(block_params, overrides):
+            return {"blockOverrides": block_params, "stateOverrides": overrides}
 
-        check_holder_account_tag(holder1, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
+        # State of the sender account should be fetched before the first iteration.
+        sender_overrides = get_account_override(sender_with_tokens)
+        send_transaction_steps_for_holder(initial_accounts)
+
+        # Fetch block params after the first iteration as stored in the holder.
+        block_params = get_block_params()
+
+        # Reemulate after the first iteration
+        emulate_result = neon_api_client.emulate_contract_call(
+            sender_with_tokens.eth_address.hex(),
+            contract.eth_address.hex(),
+            func_signature,
+            params=params,
+            trace_config=make_trace_config(block_params, sender_overrides),
+        )
+
+        # Fetch new account list that depends on the re-emulation.
+        new_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+
+        # Run the rest of iterations with the new account list.
+        send_transaction_steps_for_holder(new_accounts)
+        send_transaction_steps_for_holder(new_accounts)
+        send_transaction_steps_for_holder(new_accounts)
+
+        check_holder_account_tag(holder, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
 
 
 class TestStepFromAccountChangingOperatorsDuringTrxRun:
