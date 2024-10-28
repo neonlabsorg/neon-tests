@@ -202,6 +202,14 @@ def to_little_endian_byte(value: int) -> bytes:
     return value.to_bytes(1, "little")
 
 
+def ether2bytes(ether: typing.Union[str, bytes]):
+    if isinstance(ether, str):
+        if ether.startswith("0x"):
+            return bytes.fromhex(ether[2:])
+        return bytes.fromhex(ether)
+    return ether
+
+
 def serialize_instruction(program_id: Pubkey, instruction) -> bytes:
     program_id_bytes = solana_pubkey_to_bytes32(program_id)
     serialized = program_id_bytes + len(instruction.accounts).to_bytes(8, "little")

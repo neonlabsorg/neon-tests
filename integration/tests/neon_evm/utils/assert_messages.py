@@ -15,3 +15,5 @@ class InstructionAsserts:
     INVALID_OPERATOR_KEY = "operator.key != storage.operator"
     HOLDER_OVERFLOW = "Checked Integer Math Overflow"
     HOLDER_INSUFFICIENT_SIZE = "Holder Account - insufficient size"
+    TRANSACTION_TREE_INVALID_DATA = "Transaction Tree - invalid transaction data"
+

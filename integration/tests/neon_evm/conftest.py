@@ -12,6 +12,7 @@ from solana.rpc.commitment import Confirmed
 from utils.consts import OPERATOR_KEYPAIR_PATH
 from utils.evm_loader import EvmLoader
 from utils.types import Contract, Caller, TreasuryPool
+from utils.neon_user import NeonUser
 from .utils.constants import NEON_CORE_API_URL, NEON_CORE_API_RPC_URL, SOLANA_URL, EVM_LOADER
 from .utils.contract import deploy_contract, make_contract_call_trx
 from .utils.neon_api_rpc_client import NeonApiRpcClient
@@ -111,10 +112,10 @@ def sender_with_tokens(evm_loader, operator_keypair) -> Caller:
 
 
 @pytest.fixture(scope="session")
-def solana_keypair(evm_loader) -> Keypair:
-    key = Keypair()
-    evm_loader.request_airdrop(key.pubkey(), 1000 * 10 ** 9, commitment=Confirmed)
-    return key
+def neon_user(evm_loader) -> NeonUser:
+    user = NeonUser()
+    evm_loader.request_airdrop(user.solana_account.pubkey(), 1000 * 10 ** 9, commitment=Confirmed)
+    return user
 
 
 @pytest.fixture(scope="session")
