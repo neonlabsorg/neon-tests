@@ -18,6 +18,7 @@ from solders.rpc.responses import SendTransactionResp, GetTransactionResp
 from spl.token.instructions import get_associated_token_address, MintToParams, ApproveParams, approve
 from spl.token.constants import TOKEN_PROGRAM_ID
 
+from integration.tests.neon_evm.utils.scheduled_trx import ScheduledTransaction
 from utils.neon_user import NeonUser
 from integration.tests.neon_evm.utils.constants import (
     TREASURY_POOL_SEED,
@@ -43,7 +44,7 @@ from utils.instructions import (
     make_ScheduledTransactionStartFromAccount,
     make_ScheduledTransactionFinish,
     make_ScheduledTransactionDestroy,
-    make_ScheduledTransactionStartFromInstruction,
+    make_ScheduledTransactionStartFromInstruction, make_ScheduledTransactionCreateMultiple,
 )
 from utils.layouts import BALANCE_ACCOUNT_LAYOUT, CONTRACT_ACCOUNT_LAYOUT, STORAGE_CELL_LAYOUT
 from utils.solana_client import SolanaClient
@@ -652,6 +653,28 @@ class EvmLoader(SolanaClient):
         self.send_tx(trx, neon_user.solana_account)
         return tree_account
 
+    def create_tree_account_multiple(self, neon_user, treasury, tree_account_create_data, mint, chain_id=SOL_CHAIN_ID):
+        payer_nonce = self.get_neon_nonce(neon_user.neon_address, chain_id).to_bytes(8, "little")
+        authority_pool = self.create_get_authority_address()
+        tree_account = self.create_tree_account_address(neon_user.neon_address, payer_nonce)
+        pool = get_associated_token_address(authority_pool, mint)
+        print("pool", pool)
+        print("treasury", treasury)
+        print("tree_account", tree_account)
+        print("authority_pool", authority_pool)
+        print("neon_address_solana_tree", pubkey2neon_address(tree_account).hex())
+
+        trx = Transaction()
+        balance_account = self.create_balance_account(neon_user.neon_address, neon_user.solana_account, chain_id)
+        print("balance_account!", balance_account)
+        trx.add(
+            make_ScheduledTransactionCreateMultiple(
+                neon_user.solana_account, balance_account, treasury, tree_account, pool, tree_account_create_data, self.loader_id
+            )
+        )
+        self.send_tx(trx, neon_user.solana_account)
+        return tree_account
+
     def start_scheduled_trx_from_account(
         self, index, operator, holder, tree_account, additional_accounts, chain_id=SOL_CHAIN_ID
     ):
@@ -665,13 +688,13 @@ class EvmLoader(SolanaClient):
         self.send_tx(trx, operator)
 
     def start_scheduled_trx_from_instruction(
-        self, index, neon_trx, operator, holder, tree_account, additional_accounts, chain_id=SOL_CHAIN_ID
+        self, neon_trx: ScheduledTransaction, operator, holder, tree_account, additional_accounts, chain_id=SOL_CHAIN_ID
     ):
         operator_balance = self.get_operator_balance_pubkey(operator, chain_id)
         trx = TransactionWithComputeBudget(operator, compute_unit_price=1000000)
         trx.add(
             make_ScheduledTransactionStartFromInstruction(
-                index, neon_trx, holder, tree_account, self.loader_id, operator, operator_balance, additional_accounts
+                neon_trx.index, neon_trx.encode(), holder, tree_account, self.loader_id, operator, operator_balance, additional_accounts
             )
         )
         self.send_tx(trx, operator)
@@ -683,11 +706,11 @@ class EvmLoader(SolanaClient):
         self.execute_transaction_steps_from_account(operator, treasury, holder, additional_accounts, chain_id=chain_id)
 
     def execute_scheduled_trx_from_instruction(
-        self, index, trx, operator, holder, tree_account, treasury, additional_accounts, chain_id=SOL_CHAIN_ID
+        self, trx: ScheduledTransaction, operator, holder, tree_account, treasury, additional_accounts, chain_id=SOL_CHAIN_ID
     ):
-        self.start_scheduled_trx_from_instruction(index, trx, operator, holder, tree_account, additional_accounts, chain_id)
+        self.start_scheduled_trx_from_instruction(trx, operator, holder, tree_account, additional_accounts, chain_id)
         self.execute_transaction_steps_from_instruction(
-            operator, treasury, holder, trx, additional_accounts, chain_id=chain_id
+            operator, treasury, holder, trx.encode(), additional_accounts, chain_id=chain_id
         )
 
     def finish_scheduled_trx(self, operator, tree_account, holder_account, chain_id=SOL_CHAIN_ID):

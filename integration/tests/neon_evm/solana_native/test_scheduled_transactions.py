@@ -8,7 +8,7 @@ from integration.tests.neon_evm.utils.assert_messages import InstructionAsserts
 from integration.tests.neon_evm.utils.storage import create_holder
 from utils.neon_user import NeonUser
 from integration.tests.neon_evm.utils.constants import SOL_CHAIN_ID, SOL_MINT_ID
-from integration.tests.neon_evm.utils.scheduled_trx import encode_scheduled_trx
+from integration.tests.neon_evm.utils.scheduled_trx import ScheduledTransaction
 
 
 class TestScheduledTrx:
@@ -28,23 +28,23 @@ class TestScheduledTrx:
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
         )
-        tx = encode_scheduled_trx(
+        tx = ScheduledTransaction(
             neon_user.neon_address,
             None,
             nonce,
             0,
-            basic_contract.eth_address,
+            target=basic_contract.eth_address,
             value=0,
             call_data=data,
         )
 
-        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx, SOL_MINT_ID)
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), SOL_MINT_ID)
 
         assert (
             len(neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce)["value"]["transactions"]) == 1
         )
 
-        evm_loader.write_transaction_to_holder_account(tx, holder_acc, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(tx.encode(), holder_acc, operator_keypair)
         additional_accounts = [basic_contract.solana_address, neon_user.get_balance_account(SOL_CHAIN_ID)]
         evm_loader.execute_scheduled_trx_from_account(
             0, operator_keypair, holder_acc, tree_account, treasury_pool, additional_accounts
@@ -65,24 +65,24 @@ class TestScheduledTrx:
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
         )
-        tx = encode_scheduled_trx(
+        tx = ScheduledTransaction(
             neon_user.neon_address,
             None,
             nonce,
             0,
-            basic_contract.eth_address,
+            target=basic_contract.eth_address,
             value=0,
             call_data=data,
         )
 
-        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx, SOL_MINT_ID)
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), SOL_MINT_ID)
         assert (
             len(neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce)["value"]["transactions"]) == 1
         )
 
         additional_accounts = [basic_contract.solana_address, neon_user.get_balance_account(SOL_CHAIN_ID)]
         evm_loader.execute_scheduled_trx_from_instruction(
-            0, tx, operator_keypair, holder_acc, tree_account, treasury_pool, additional_accounts
+            tx, operator_keypair, holder_acc, tree_account, treasury_pool, additional_accounts
         )
 
         data = abi.function_signature_to_4byte_selector("getNumber()")
@@ -108,15 +108,14 @@ class TestScheduledTrx:
         nonce = evm_loader.get_neon_nonce(neon_user.neon_address, SOL_CHAIN_ID)
 
         index = 1
-        tx = encode_scheduled_trx(
+        tx = ScheduledTransaction(
             neon_user.neon_address,
             None,
             nonce,
             index,
-            basic_contract.eth_address,
+            target=basic_contract.eth_address,
             value=0,
         )
 
         with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.TRANSACTION_TREE_INVALID_DATA):
-            evm_loader.create_tree_account(neon_user, treasury_pool, tx, SOL_MINT_ID)
-
+            evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), SOL_MINT_ID)
