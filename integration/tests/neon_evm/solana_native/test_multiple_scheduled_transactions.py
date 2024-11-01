@@ -71,7 +71,7 @@ class TestMultipleScheduledTrx:
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
         )
-        trxs = []/юхъ=-
+        trxs = []
         for i in range(5):
             print(i)
             trxs.append(ScheduledTransaction(
