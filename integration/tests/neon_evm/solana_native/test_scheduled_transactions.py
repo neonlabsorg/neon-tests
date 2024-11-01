@@ -94,7 +94,6 @@ class TestScheduledTrx:
         evm_loader.finish_scheduled_trx(operator_keypair, tree_account, holder_acc)
         evm_loader.destroy_tree_account(neon_user, treasury_pool, tree_account)
 
-
     def test_scheduled_trx_wrong_index(
         self,
         evm_loader,
