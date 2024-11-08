@@ -49,13 +49,9 @@ env:
 
 jobs:
   prepare:
-    runs-on: ["self-hosted", "k8s-prod"]
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 16
       - name: Define dapps to run
         id: dapps
         run: |
@@ -124,7 +120,7 @@ jobs:
       repo: "tests"
 
   notify:
-    runs-on: ["self-hosted", "k8s-prod"]
+    runs-on: ubuntu-20.04
     needs: [ prepare, dapps-tests ]
     if: failure() && github.ref_name == 'develop'
     steps:
@@ -142,15 +138,11 @@ jobs:
           --test-group dapps
 
   destroy:
-    runs-on: ["self-hosted", "k8s-prod"]
+    runs-on: ubuntu-20.04
     needs: [ prepare, dapps-tests ]
     if: always() && needs.prepare.outputs.network == 'terraform'
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 16
       - name: "Destroy stand"
         env:
           AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
