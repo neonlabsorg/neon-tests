@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from utils.logger import create_logger
 
-QUERY_LIMIT = 50000
+QUERY_SLOT_RANGE_LIMIT = 500000
 
 
 class IndexerPostgresClient:
@@ -90,23 +90,29 @@ class IndexerPostgresClient:
             ) AS distinct_rows;
         """
 
+        total_rows = 0
         with self.conn.cursor() as cursor:
-            self.logger.info(f"Fetch operator {operator_name} transaction count")
-            cursor.execute(count_query, (keys, from_slot, to_slot))
-            total_rows = cursor.fetchone()[0]
+            start = from_slot
+            step = QUERY_SLOT_RANGE_LIMIT
+            while start < to_slot:
+                end = min(start + step, to_slot)
+                self.logger.info(f"Fetch operator {operator_name} transaction count in slot range {start} to {end}")
+                cursor.execute(count_query, (keys, start, end))
+                total_rows += cursor.fetchone()[0]
+                start = end + 1
 
         rows = []
 
-        with self.conn.cursor(name="fetch_solana_sigs", cursor_factory=DictCursor) as cursor:
-            cursor.execute(select_query, (keys, from_slot, to_slot))
-
+        with self.conn.cursor(cursor_factory=DictCursor) as cursor:
             with tqdm(total=total_rows, desc=f"Fetching Operator {operator_name} gas data") as pbar:
-                while True:
-                    batch = cursor.fetchmany(QUERY_LIMIT)
+                start = from_slot
+                step = QUERY_SLOT_RANGE_LIMIT
+                while start < to_slot:
+                    end = min(start + step, to_slot)
+                    cursor.execute(select_query, (keys, start, end))
+                    batch = cursor.fetchall()
                     rows.extend(batch)
                     pbar.update(len(batch))
-
-                    if len(batch) < QUERY_LIMIT:
-                        break
+                    start = end + 1
 
         return rows

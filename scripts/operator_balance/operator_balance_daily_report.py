@@ -19,7 +19,7 @@ from .resources.cli_validators import existing_dir
 from .resources.common_cli_arg_parser import get_common_cli_arg_parser
 
 
-logger: Logger
+logger: Logger = logging.getLogger(f"{parent_logger.name}.{Path(__file__).name}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -106,8 +106,6 @@ def main():
     parent_logger.setLevel(log_level)
     coingecko.logger.setLevel(log_level)
 
-    global logger
-    logger = logging.getLogger(f"{parent_logger.name}.{Path(__file__).name}")
     logger.debug(f"Args: {str(args.__dict__)}")
 
     # Start fetching and caching coin prices in the background
