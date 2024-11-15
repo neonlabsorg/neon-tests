@@ -23,7 +23,7 @@ env:
 jobs:
   dockerize:
     if: ${{ github.ref_name != 'develop'}}
-    runs-on: ubuntu-20.04
+    runs-on: ["self-hosted", "k8s-prod"]
     steps:
       - uses: actions/checkout@v4
       - name: "Dockerize neon tests"
@@ -36,10 +36,14 @@ jobs:
           image_name: ${{ env.IMAGE }}
           docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
   prepare-env:
-    runs-on: ubuntu-20.04
+    runs-on: ["self-hosted", "k8s-prod"]
     if: always()
     steps:
       - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 16
       - name: "Prepare terraform stand"
         id: prepare_terraform
         if: ${{ env.NETWORK == 'terraform' }}
@@ -51,7 +55,6 @@ jobs:
           TFSTATE_BUCKET: ${{vars.TFSTATE_BUCKET}}
           TFSTATE_KEY: ${{vars.TFSTATE_KEY_PREFIX}}-${{ github.run_number }}
           TFSTATE_REGION: ${{vars.TFSTATE_REGION}}
-          TF_VAR_ci_pp_solana_url: ${{ secrets.CI_PP_SOLANA_URL }}
         uses: ./.github/actions/create-tf-stand
         with:
           ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
@@ -68,7 +71,7 @@ jobs:
     needs:
       - prepare-env
       - dockerize
-    runs-on: neon-hosted
+    runs-on: ["self-hosted", "k8s-prod"]
     env:
       NETWORK: ${{ needs.prepare-env.outputs.network }}
       SOLANA_IP: ${{ needs.prepare-env.outputs.solana_ip }}
@@ -111,11 +114,15 @@ jobs:
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}
   destroy:
-    runs-on: ubuntu-20.04
+    runs-on: ["self-hosted", "k8s-prod"]
     needs: [ prepare-env, tests ]
     if: always() && needs.prepare-env.outputs.network == 'terraform'
     steps:
       - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 16
       - name: Destroy stand
         env:
           AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
