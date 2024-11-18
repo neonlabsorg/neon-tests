@@ -4,14 +4,10 @@ variable "server_type" {
 
 variable "location" {
   type    = string
-  default = "nbg1"
+  default = "hel1"
 }
 
 variable "run_number" {
-  type = string
-}
-
-variable "ci_pp_solana_url" {
   type = string
 }
 

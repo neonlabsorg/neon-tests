@@ -61,7 +61,6 @@ class TestOpCodes:
         with pytest.raises(web3.exceptions.ContractLogicError, match="execution reverted"):
             opcodes_checker.functions.test_revert().build_transaction(tx)
 
-    @pytest.mark.proxy_version("v1.12.0")
     @pytest.mark.parametrize(
         "dst, src, length, expected_result",
         [
@@ -78,7 +77,6 @@ class TestOpCodes:
         result = mcopy_checker.functions.copy(initial_data, dst, src, length).call(tx)
         assert result == self.web3_client.text_to_bytes32(expected_result)
 
-    @pytest.mark.proxy_version("v1.12.0")
     def test_tstore(self, accounts):
         sender_account = self.accounts[0]
 
@@ -142,7 +140,7 @@ class TestOpCodes:
     ):
         tx = web3_client.make_raw_tx(accounts[0], tx_type=TransactionType.EIP_1559)
         instruction_tx = basefee_checker.functions.baseFeeTrx().build_transaction(tx)
-        instruction_tx["maxFeePerGas"] = 2000000000
+        instruction_tx["maxFeePerGas"] = 3000000000
         instruction_tx["maxPriorityFeePerGas"] = 2000000
         resp = web3_client.send_transaction(accounts[0], instruction_tx)
         base_fee_from_log = basefee_checker.events.Log().process_receipt(resp)[0]['args']['baseFee']

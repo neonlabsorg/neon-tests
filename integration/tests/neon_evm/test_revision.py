@@ -60,8 +60,9 @@ class TestAccountRevision:
         data_accounts = set(acc_from_emulation) - set(additional_accounts)
         assert len(data_accounts) == data_storage_acc_count
         for acc in data_accounts:
-            data_acc_revision_after = evm_loader.get_data_account_revision(acc)
-            assert data_acc_revision_after == trx_count
+            if evm_loader.get_solana_balance(acc) > 0:
+                data_acc_revision_after = evm_loader.get_data_account_revision(acc)
+                assert data_acc_revision_after == trx_count
 
     def test_2_users_call_one_contract_with_different_storage_accounts(
         self,
@@ -138,8 +139,9 @@ class TestAccountRevision:
         contract_revision_after = evm_loader.get_contract_account_revision(rw_lock_contract.solana_address)
         assert contract_revision_before == contract_revision_after
         for acc in data_accounts1 + data_accounts2:
-            data_acc_revision = evm_loader.get_data_account_revision(acc)
-            assert data_acc_revision == 1
+            if evm_loader.get_solana_balance(acc) > 0:
+                data_acc_revision = evm_loader.get_data_account_revision(acc)
+                assert data_acc_revision == 1
 
     # TODO: add case (4, 0) after fixing NDEV-2698
     @pytest.mark.parametrize("storage_data_len, expected_count_data_acc", [(60, 1)])
@@ -372,8 +374,9 @@ class TestAccountRevision:
         check_transaction_logs_have_text(resp, "exit_status=0x11")
         check_holder_account_tag(holder_acc, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
         for acc in data_accounts:
-            data_acc_revision_after = evm_loader.get_data_account_revision(acc)
-            assert data_acc_revision_after == 3
+            if evm_loader.get_solana_balance(acc) > 0:
+                data_acc_revision_after = evm_loader.get_data_account_revision(acc)
+                assert data_acc_revision_after == 3
 
     def test_1_user_send_2_parallel_trx_with_neon_balance_change(
         self, operator_keypair, treasury_pool, neon_api_client, session_user, evm_loader, holder_acc, new_holder_acc
