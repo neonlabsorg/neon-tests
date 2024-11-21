@@ -7,6 +7,12 @@ import "../external/neon-evm/call_solana.sol";
 contract CallSolanaCaller {
 
     CallSolana constant _callSolana = CallSolana(0xFF00000000000000000000000000000000000006);
+    struct Data {
+        uint256 value1;
+        uint256 value2;
+    }
+    mapping(uint256 => Data) public dataMap;
+
     struct ExecuteArgs {
         uint64 lamports;
         bytes instruction;
@@ -28,11 +34,37 @@ contract CallSolanaCaller {
     }
 
     function execute(uint64 lamports, bytes calldata instruction) public {
-        bytes32 returnData = bytes32(_callSolana.execute(lamports, instruction));
-        emit LogBytes(returnData);
+       bytes32 returnData = bytes32(_callSolana.execute(lamports, instruction));
+       emit LogBytes(returnData);
+    }
+
+    function executeInIterativeMode(uint64 lamports, bytes calldata instruction) public {
+        // some actions to make the call iterative
+        for (uint256 i = 0; i < 40; i++) {
+            Data memory newData = Data({
+                value1: 1,
+                value2: 2
+            });
+            dataMap[i] = newData;
+
+        }
+
+        execute(lamports, instruction);
 
     }
 
+    function executeAndDoSomeIterativeActions(uint64 lamports, bytes calldata instruction) public {
+        execute(lamports, instruction);
+        // some actions to make the call iterative
+        for (uint256 i = 0; i < 40; i++) {
+            Data memory newData = Data({
+                value1: 1,
+                value2: 2
+            });
+            dataMap[i] = newData;
+        }
+
+    }
     function execute_with_get_return_data(uint64 lamports, bytes calldata instruction) public {
         _callSolana.execute(lamports, instruction);
         (bytes32 program, bytes memory returnData) = _callSolana.getReturnData();
