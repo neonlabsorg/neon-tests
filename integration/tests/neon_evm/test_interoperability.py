@@ -64,6 +64,18 @@ def _create_mint_and_accounts(evm_loader, from_wallet, to_wallet, amount) -> tup
     return mint, from_token_account, to_token_account
 
 
+@pytest.fixture(scope="class")
+def call_solana_test_contract(operator_keypair, sender_with_tokens, evm_loader, treasury_pool):
+    return deploy_contract(
+        operator_keypair,
+        sender_with_tokens,
+        "precompiled/call_solana_test",
+        evm_loader,
+        treasury_pool,
+        contract_name="Test",
+    )
+
+
 class TestInteroperability:
     @pytest.fixture(scope="function")
     def solana_caller(
@@ -106,19 +118,18 @@ class TestInteroperability:
         check_transaction_logs_have_text(resp, "exit_status=0x11")
 
     def test_execute_from_instruction_for_call_memo(
-        self, sender_with_tokens, neon_api_client, operator_keypair, evm_loader, treasury_pool, sol_client, holder_acc
+        self,
+        sender_with_tokens,
+        neon_api_client,
+        operator_keypair,
+        evm_loader,
+        treasury_pool,
+        sol_client,
+        holder_acc,
+        call_solana_test_contract,
     ):
-        contract = deploy_contract(
-            operator_keypair,
-            sender_with_tokens,
-            "precompiled/call_solana_test",
-            evm_loader,
-            treasury_pool,
-            contract_name="Test",
-        )
-
         data = abi.function_signature_to_4byte_selector("call_memo()")
-        signed_tx = make_eth_transaction(evm_loader, contract.eth_address, data, sender_with_tokens)
+        signed_tx = make_eth_transaction(evm_loader, call_solana_test_contract.eth_address, data, sender_with_tokens)
 
         resp = evm_loader.execute_trx_from_instruction_with_solana_call(
             operator_keypair,
@@ -130,8 +141,8 @@ class TestInteroperability:
                 sender_with_tokens.balance_account_address,
                 SOLANA_CALL_PRECOMPILED_ID,
                 MEMO_PROGRAM_ID,
-                contract.balance_account_address,
-                contract.solana_address,
+                call_solana_test_contract.balance_account_address,
+                call_solana_test_contract.solana_address,
             ],
         )
         check_transaction_logs_have_text(resp, "exit_status=0x11")
@@ -418,3 +429,59 @@ class TestInteroperability:
             assert "Program not allowed to call itself" in decode_logs(err.args[0].data.logs)
         else:
             assert False, f"Expected error but got {resp}"
+
+    def test_step_from_account_for_call_memo(
+        self,
+        sender_with_tokens,
+        neon_api_client,
+        operator_keypair,
+        evm_loader,
+        treasury_pool,
+        sol_client,
+        holder_acc,
+        call_solana_test_contract,
+    ):
+        data = abi.function_signature_to_4byte_selector("call_memo()")
+        signed_tx = make_eth_transaction(evm_loader, call_solana_test_contract.eth_address, data, sender_with_tokens)
+        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
+        resp = evm_loader.execute_transaction_steps_from_account(
+            operator_keypair,
+            treasury_pool,
+            holder_acc,
+            [
+                sender_with_tokens.balance_account_address,
+                SOLANA_CALL_PRECOMPILED_ID,
+                MEMO_PROGRAM_ID,
+                call_solana_test_contract.balance_account_address,
+                call_solana_test_contract.solana_address,
+            ],
+        )
+        check_transaction_logs_have_text(resp, "exit_status=0x11")
+
+    def test_step_from_instruction_for_call_memo(
+        self,
+        sender_with_tokens,
+        neon_api_client,
+        operator_keypair,
+        evm_loader,
+        treasury_pool,
+        sol_client,
+        holder_acc,
+        call_solana_test_contract,
+    ):
+        data = abi.function_signature_to_4byte_selector("call_memo()")
+        signed_tx = make_eth_transaction(evm_loader, call_solana_test_contract.eth_address, data, sender_with_tokens)
+        resp = evm_loader.execute_transaction_steps_from_instruction(
+            operator_keypair,
+            treasury_pool,
+            holder_acc,
+            signed_tx,
+            [
+                sender_with_tokens.balance_account_address,
+                SOLANA_CALL_PRECOMPILED_ID,
+                MEMO_PROGRAM_ID,
+                call_solana_test_contract.balance_account_address,
+                call_solana_test_contract.solana_address,
+            ],
+        )
+        check_transaction_logs_have_text(resp, "exit_status=0x11")
