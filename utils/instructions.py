@@ -428,6 +428,7 @@ def make_ScheduledTransactionStartFromAccount(
         AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
         AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
     ]
 
     for acc in additional_accounts:
@@ -453,6 +454,8 @@ def make_ScheduledTransactionStartFromInstruction(index,
         AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
         AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
+
     ]
 
     for acc in additional_accounts:
