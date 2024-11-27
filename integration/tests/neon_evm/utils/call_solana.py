@@ -83,6 +83,31 @@ class SolanaCaller:
         )
         return resp
 
+    def execute_iterative(self, program_id, instruction, lamports=0, holder_acc=None, sender=None, additional_accounts=None):
+        sender = self.owner if sender is None else sender
+        holder_acc = self.holder_acc if holder_acc is None else holder_acc
+        serialized_instructions = serialize_instruction(program_id, instruction)
+        signed_tx = make_contract_call_trx(self.evm_loader,
+            sender, self.contract, "executeInIterativeMode(uint64,bytes)", [lamports, serialized_instructions]
+        )
+        self.evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, self.operator_keypair)
+        resp = self.evm_loader.execute_transaction_steps_from_account(
+            self.operator_keypair,
+            self.treasury_pool,
+            holder_acc,
+            [
+                sender.balance_account_address,
+                sender.solana_account_address,
+                SOLANA_CALL_PRECOMPILED_ID,
+                self.contract.balance_account_address,
+                self.contract.solana_address,
+                program_id,
+            ]
+            + (additional_accounts or [])
+            + self._get_all_pubkeys_from_instructions([instruction]),
+        )
+        return resp
+
     def execute_with_seed(self, program_id, instruction, seed, lamports=0, holder_acc=None, sender=None, additional_accounts=None):
         sender = self.owner if sender is None else sender
         holder_acc = self.holder_acc if holder_acc is None else holder_acc

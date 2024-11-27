@@ -485,3 +485,21 @@ class TestInteroperability:
             ],
         )
         check_transaction_logs_have_text(resp, "exit_status=0x11")
+
+
+    def test_step_from_instruction_for_counter(self, sender_with_tokens, solana_caller, evm_loader, holder_acc):
+        resource_addr = solana_caller.create_resource(sender_with_tokens, b"123", 8, 1000000000, COUNTER_ID)
+
+        instruction = Instruction(
+            program_id=COUNTER_ID,
+            accounts=[
+                AccountMeta(resource_addr, is_signer=False, is_writable=True),
+            ],
+            data=bytes([0x1]),
+        )
+        resp = solana_caller.execute_iterative(COUNTER_ID, instruction, 0, holder_acc, sender_with_tokens)
+
+        check_transaction_logs_have_text(resp, "exit_status=0x11")
+        info: bytes = evm_loader.get_solana_account_data(resource_addr, COUNTER_ACCOUNT_LAYOUT.sizeof())
+        layout = COUNTER_ACCOUNT_LAYOUT.parse(info)
+        assert layout.count == 1
