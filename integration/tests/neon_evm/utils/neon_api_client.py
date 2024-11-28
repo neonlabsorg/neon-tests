@@ -82,14 +82,11 @@ class NeonApiClient:
         )
         return result["steps_executed"]
 
-    def get_transaction_tree(self, origin, nonce, slot=None, id=None):
+    def get_transaction_tree(self, origin, nonce):
         if isinstance(origin, Pubkey):
             origin = bytes(origin).hex()
         body = {
             "origin": origin,
             "nonce": nonce
-       #     "slot": slot,
-       #     "id": id
         }
-        print(body)
         return requests.post(url=f"{self.url}/transaction_tree", json=body, headers=self.headers).json()

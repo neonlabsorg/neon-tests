@@ -12,7 +12,7 @@ from utils.consts import OPERATOR_KEYPAIR_PATH
 from utils.evm_loader import EvmLoader
 from utils.types import Contract, Caller, TreasuryPool
 from utils.neon_user import NeonUser
-from .utils.constants import NEON_CORE_API_URL, NEON_CORE_API_RPC_URL, SOLANA_URL, EVM_LOADER
+from .utils.constants import NEON_CORE_API_URL, NEON_CORE_API_RPC_URL, SOLANA_URL, EVM_LOADER, SOL_CHAIN_ID, CHAIN_ID
 from .utils.contract import deploy_contract, make_contract_call_trx
 from .utils.neon_api_rpc_client import NeonApiRpcClient
 from .utils.storage import create_holder
@@ -111,9 +111,21 @@ def sender_with_tokens(evm_loader, operator_keypair) -> Caller:
 
 
 @pytest.fixture(scope="session")
+def sender_with_wsol(evm_loader, operator_keypair) -> Caller:
+    user = evm_loader.make_new_user(operator_keypair)
+    evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+        user.solana_account, "0x" + user.eth_address.hex(), SOL_CHAIN_ID, 100000
+    )
+    return user
+
+
+@pytest.fixture(scope="session")
 def neon_user(evm_loader) -> NeonUser:
     user = NeonUser()
-    evm_loader.request_airdrop(user.solana_account.pubkey(), 1000 * 10 ** 9, commitment=Confirmed)
+    evm_loader.request_airdrop(user.solana_account.pubkey(), 1000 * 10**9, commitment=Confirmed)
+    evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+        user.solana_account, "0x" + user.neon_address.hex(), SOL_CHAIN_ID, 100000
+    )
     return user
 
 
@@ -160,12 +172,15 @@ def string_setter_contract(
 
 
 @pytest.fixture(scope="function")
-def basic_contract(
-    evm_loader: EvmLoader, operator_keypair: Keypair, session_user: Caller, treasury_pool
-) -> Contract:
-    return deploy_contract(operator_keypair, session_user,
-                           "common/Common", evm_loader, treasury_pool,
-                           version="0.8.12")
+def basic_contract(evm_loader: EvmLoader, operator_keypair: Keypair, session_user: Caller, treasury_pool) -> Contract:
+    return deploy_contract(operator_keypair, session_user, "common/Common", evm_loader, treasury_pool, version="0.8.12")
+
+
+@pytest.fixture(scope="function")
+def spl_token_caller(operator_keypair, evm_loader, session_user, treasury_pool):
+    return deploy_contract(operator_keypair,
+                           session_user, "precompiled/SplTokenCaller",
+                           evm_loader, treasury_pool, chain_id=CHAIN_ID, version="0.8.12")
 
 
 @pytest.fixture(scope="session")
