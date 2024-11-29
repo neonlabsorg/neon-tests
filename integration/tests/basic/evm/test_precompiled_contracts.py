@@ -5,6 +5,7 @@ import random
 
 import pytest
 
+from integration.tests.basic.helpers.rpc_checks import is_hex
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 
@@ -170,3 +171,14 @@ class TestPrecompiledContracts:
         pytestconfig.getoption("--network")
         if pytestconfig.getoption("--network") not in ["devnet", "night-stand"]:
             assert self.web3_client.get_balance(address) - balance_before == amount
+
+    @pytest.mark.parametrize("contract", PRECOMPILED_FIXTURES)
+    def test_eth_get_code(self, json_rpc_client, contract):
+        address = PRECOMPILED_FIXTURES[contract]["address"]
+
+        response = json_rpc_client.send_rpc(
+            "eth_getCode",
+            params=[address, "latest"],
+        )
+        assert response["result"] != "0x"
+        assert is_hex(response["result"])
