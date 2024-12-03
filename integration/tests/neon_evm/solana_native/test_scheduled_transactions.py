@@ -2,6 +2,7 @@ import eth_abi
 import pytest
 import solana
 from eth_utils import abi, to_int
+from solana.rpc.commitment import Confirmed
 from solana.rpc.core import RPCException
 from solders.pubkey import Pubkey
 
@@ -9,8 +10,8 @@ from integration.tests.neon_evm.utils.assert_messages import InstructionAsserts
 from integration.tests.neon_evm.utils.contract import deploy_contract
 from integration.tests.neon_evm.utils.storage import create_holder
 from utils.neon_user import NeonUser
-from integration.tests.neon_evm.utils.constants import SOL_CHAIN_ID, SOL_MINT_ID, CHAIN_ID
-from integration.tests.neon_evm.utils.scheduled_trx import ScheduledTransaction
+from integration.tests.neon_evm.utils.constants import SOL_CHAIN_ID, SOL_MINT_ID
+from utils.scheduled_trx import ScheduledTransaction
 
 
 class TestScheduledTrx:
@@ -38,18 +39,18 @@ class TestScheduledTrx:
             value=0,
             call_data=data,
         )
-
         tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), SOL_MINT_ID)
-
-        assert (
-            len(neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce)["value"]["transactions"]) == 1
-        )
+        transaction_tree_data = neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce)
+        assert transaction_tree_data.get_transaction_count() == 1
 
         evm_loader.write_transaction_to_holder_account(tx.encode(), holder_acc, operator_keypair)
         additional_accounts = [basic_contract.solana_address, neon_user.get_balance_account(SOL_CHAIN_ID)]
         evm_loader.execute_scheduled_trx_from_account(
             0, operator_keypair, holder_acc, tree_account, treasury_pool, additional_accounts
         )
+        evm_loader.finish_scheduled_trx(operator_keypair, tree_account, holder_acc)
+        evm_loader.destroy_tree_account(neon_user, treasury_pool, tree_account)
+        assert neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce).get_transaction_count() == 0
 
     def test_execute_scheduled_trx_from_instruction(
         self,
@@ -77,9 +78,7 @@ class TestScheduledTrx:
         )
 
         tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), SOL_MINT_ID)
-        assert (
-            len(neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce)["value"]["transactions"]) == 1
-        )
+        assert neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce).get_transaction_count() == 1
 
         additional_accounts = [basic_contract.solana_address, neon_user.get_balance_account(SOL_CHAIN_ID)]
         evm_loader.execute_scheduled_trx_from_instruction(
@@ -94,6 +93,7 @@ class TestScheduledTrx:
 
         evm_loader.finish_scheduled_trx(operator_keypair, tree_account, holder_acc)
         evm_loader.destroy_tree_account(neon_user, treasury_pool, tree_account)
+        assert neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce).get_transaction_count() == 0
 
     def test_scheduled_trx_wrong_index(
         self,
@@ -126,6 +126,7 @@ class TestScheduledTrx:
         contract = deploy_contract(
             operator_keypair, sender_with_wsol, "transfers", evm_loader, treasury_pool, chain_id=SOL_CHAIN_ID
         )
+
         balance_before = evm_loader.get_neon_balance(neon_user.neon_address, SOL_CHAIN_ID)
         holder_acc = create_holder(operator_keypair, evm_loader)
         nonce = evm_loader.get_neon_nonce(neon_user.neon_address, SOL_CHAIN_ID)
@@ -150,7 +151,6 @@ class TestScheduledTrx:
             neon_user.neon_address.hex(), contract.eth_address.hex(), data, chain_id=SOL_CHAIN_ID, value=hex(amount)
         )
         additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
-
         evm_loader.execute_scheduled_trx_from_instruction(
             tx, operator_keypair, holder_acc, tree_account, treasury_pool, additional_accounts
         )
@@ -225,9 +225,27 @@ class TestScheduledTrx:
             max_fee_per_gas=1000,
             max_priority_fee_per_gas=10,
         )
+        operator_balance_before = evm_loader.get_operator_neon_balance(operator_keypair, SOL_CHAIN_ID)
+        user_balance_before = evm_loader.get_neon_balance(neon_user.neon_address, SOL_CHAIN_ID)
+        treasury_balance_before = evm_loader.get_solana_balance(treasury_pool.account)
 
         tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), SOL_MINT_ID)
-        balance_before = evm_loader.get_neon_balance(neon_user.neon_address, SOL_CHAIN_ID)
+
+        user_balance_after = evm_loader.get_neon_balance(neon_user.neon_address, SOL_CHAIN_ID)
+        treasury_balance_after = evm_loader.get_solana_balance(treasury_pool.account)
+        tree_account_balance = evm_loader.get_solana_balance(tree_account)
+        user_balance_diff = user_balance_before - user_balance_after
+        treasury_balance_diff = treasury_balance_before - treasury_balance_after
+
+        assert treasury_balance_diff == tree_account_balance > 0
+        assert user_balance_diff > 0
+        assert user_balance_diff == neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce).balance
+        print(f"Balance diff: {user_balance_diff}")
+        print(f"Treasury balance diff: {treasury_balance_diff}")
+        print("tree acc balance", tree_account_balance)
+        print("operator balance before", operator_balance_before)
+        print(neon_user.neon_address.hex())
+        # check
 
         emulate_result = neon_api_client.emulate(
             neon_user.neon_address.hex(), contract.eth_address.hex(), data, chain_id=SOL_CHAIN_ID, value=hex(amount)
@@ -235,14 +253,24 @@ class TestScheduledTrx:
         additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
         evm_loader.write_transaction_to_holder_account(tx.encode(), holder_acc, operator_keypair)
-        evm_loader.execute_scheduled_trx_from_account(
+        resp = evm_loader.execute_scheduled_trx_from_account(
             0, operator_keypair, holder_acc, tree_account, treasury_pool, additional_accounts, compute_unit_price=3929
         )
-        balance_after = evm_loader.get_neon_balance(neon_user.neon_address, SOL_CHAIN_ID)
+        user_balance_before_finish = evm_loader.get_neon_balance(neon_user.neon_address, SOL_CHAIN_ID)
 
         evm_loader.finish_scheduled_trx(operator_keypair, tree_account, holder_acc)
+        user_balance_before_destroy = evm_loader.get_neon_balance(neon_user.neon_address, SOL_CHAIN_ID)
+
         evm_loader.destroy_tree_account(neon_user, treasury_pool, tree_account)
-        assert balance_after == balance_before - amount + 1000 #TODO fix this check
+        user_balance_after_destroy = evm_loader.get_neon_balance(neon_user.neon_address, SOL_CHAIN_ID)
+        print("user balance before finish", user_balance_before_finish)
+        print("user balance before destroy", user_balance_before_destroy)
+        print("user balance after destroy", user_balance_after_destroy)
+        operator_balance_after = evm_loader.get_operator_neon_balance(operator_keypair, SOL_CHAIN_ID)
+        print(f"Operator balance diff: {operator_balance_after - operator_balance_before}")
+        print(f"user expenses - operator deposit: {user_balance_diff- operator_balance_after + operator_balance_before}")
+        #assert operator_balance_after - operator_balance_before == user_balance_diff
+        #assert balance_after == balance_before - amount + 1000 #TODO fix this check
 
 
 

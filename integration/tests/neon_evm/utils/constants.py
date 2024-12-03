@@ -25,4 +25,3 @@ SOL_MINT_ID: Pubkey = Pubkey.from_string("So111111111111111111111111111111111111
 
 CHAIN_ID = int(os.environ.get("NEON_CHAIN_ID", 111))
 SOL_CHAIN_ID = int(os.environ.get("SOL_CHAIN_ID", 112))
-SOL_CHAIN_ID = int(os.environ.get("SOL_CHAIN_ID", 112))

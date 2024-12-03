@@ -261,7 +261,7 @@ def class_account_sol_chain(
     return account
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def evm_loader(pytestconfig):
     return EvmLoader(pytestconfig.environment.evm_loader, pytestconfig.environment.solana_url)
 
@@ -281,7 +281,7 @@ def account_with_all_tokens(
     operator_keypair,
     evm_loader_keypair,
     bank_account,
-):
+) -> LocalAccount:
     neon_account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account, amount=500)
     if web3_client_sol:
         if pytestconfig.environment.use_bank:
@@ -327,12 +327,23 @@ def withdraw_contract(web3_client, faucet, accounts) -> Contract:
 
 
 @pytest.fixture(scope="class")
-def common_contract(web3_client, accounts):
-    contract, _ = web3_client.deploy_and_get_contract(
+def common_contract(web3_client, accounts)-> Contract:
+    contract, tx = web3_client.deploy_and_get_contract(
         contract="common/Common",
         version="0.8.12",
         contract_name="Common",
         account=accounts[0],
+    )
+    yield contract
+
+
+@pytest.fixture(scope="class")
+def common_contract_sol(web3_client_sol, account_with_all_tokens) -> Contract:
+    contract, _ = web3_client_sol.deploy_and_get_contract(
+        contract="common/Common",
+        version="0.8.12",
+        contract_name="Common",
+        account=account_with_all_tokens,
     )
     yield contract
 

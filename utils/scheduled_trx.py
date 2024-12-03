@@ -1,6 +1,8 @@
 import rlp
-from eth_utils import keccak
+from eth_utils import keccak, to_bytes
 from rlp.sedes import big_endian_int, binary, Binary
+import typing as tp
+
 
 class ScheduledTxRLP(rlp.Serializable):
     fields = [
@@ -24,13 +26,12 @@ class ScheduledTransaction:
     DEFAULTS = {
         "intent": b"",
         "intent_call_data": b"",
-        "target": b"",
         "call_data": b"",
         "value": 0,
         "chain_id": 112,
-        "gas_limit": 9999999999,
-        "max_fee_per_gas": 100,
-        "max_priority_fee_per_gas": 10,
+        "gas_limit": 3000000,
+        "max_fee_per_gas": 3000000000,
+        "max_priority_fee_per_gas": 15,
     }
 
     FIELD_NAMES = [
@@ -38,11 +39,16 @@ class ScheduledTransaction:
         "call_data", "value", "chain_id", "gas_limit", "max_fee_per_gas", "max_priority_fee_per_gas"
     ]
 
-    def __init__(self, payer, sender, nonce, index, **kwargs):
-        self.payer = payer
+    def __init__(self, payer: tp.Union[bytes, str], sender, nonce, index, target: tp.Union[bytes, str, None], **kwargs):
+        self.payer = payer if isinstance(payer, bytes) else to_bytes(hexstr=payer[2:])
+
         self.sender = sender or b""
         self.nonce = nonce
         self.index = index
+        if target:
+            self.target = target if isinstance(target, bytes) else to_bytes(hexstr=target[2:])
+        else:
+            self.target = b""
         for field, default_value in self.DEFAULTS.items():
             setattr(self, field, kwargs.get(field, default_value))
 

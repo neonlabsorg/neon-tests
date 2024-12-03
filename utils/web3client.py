@@ -263,6 +263,21 @@ class Web3Client:
         signature = self._web3.eth.send_raw_transaction(instruction_tx.rawTransaction)
         return self._web3.eth.wait_for_transaction_receipt(signature, timeout=timeout)
 
+    def send_scheduled_transaction(
+        self,
+        raw_transaction: bytes
+    ):
+        resp = requests.post(
+            self._proxy_url,
+            json={
+                "jsonrpc": "2.0",
+                "method": "neon_sendRawScheduledTransaction",
+                "params": [raw_transaction.hex()],
+                "id": 0,
+            },
+        ).json()
+        return resp
+
     @allure.step("Create raw transaction EIP-1559")
     def make_raw_tx_eip_1559(
             self,
