@@ -69,3 +69,6 @@ class TreeAccount:
 
     def get_transaction_count(self) -> int:
         return len(self.transactions)
+
+    def get_transaction_statuses(self) -> Dict[str, str]:
+        return {tx.transaction_hash: tx.status for tx in self.transactions}

@@ -259,7 +259,7 @@ def accounts_session(pytestconfig: Config, web3_client_session, faucet, eth_bank
     return accounts
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def neon_user(evm_loader, pytestconfig) -> NeonUser:
     user = NeonUser()
     evm_loader.request_airdrop(user.solana_account.pubkey(), 1000 * 10**9, commitment=Confirmed)

@@ -90,7 +90,6 @@ class CreateTreeAccMultipleData:
 
     def add_trx(self, trx, child_index, success_limit):
         self.data += trx.get_serialized_node(child_index, success_limit)
-        print(self.data)
 
     def get_data(self):
         return self.data

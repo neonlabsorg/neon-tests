@@ -276,7 +276,8 @@ class Web3Client:
                 "id": 0,
             },
         ).json()
-        return resp
+        assert "error" not in resp, resp
+        return resp["result"]
 
     @allure.step("Create raw transaction EIP-1559")
     def make_raw_tx_eip_1559(
