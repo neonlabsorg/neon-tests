@@ -15,6 +15,7 @@ from eth_abi import abi
 from eth_typing import BlockIdentifier
 from web3.exceptions import TransactionNotFound
 
+from utils.scheduled_trx import ScheduledTransaction
 from utils.types import TransactionType
 from utils import helpers
 from utils.consts import InputTestConstants, Unit
@@ -265,19 +266,23 @@ class Web3Client:
 
     def send_scheduled_transaction(
         self,
-        raw_transaction: bytes
+        trx: ScheduledTransaction
     ):
         resp = requests.post(
             self._proxy_url,
             json={
                 "jsonrpc": "2.0",
                 "method": "neon_sendRawScheduledTransaction",
-                "params": [raw_transaction.hex()],
+                "params": [trx.encode().hex()],
                 "id": 0,
             },
         ).json()
         assert "error" not in resp, resp
         return resp["result"]
+
+    def send_all_scheduled_transactions(self, raw_transactions: tp.List[ScheduledTransaction]):
+        for trx in raw_transactions:
+            self.send_scheduled_transaction(trx)
 
     @allure.step("Create raw transaction EIP-1559")
     def make_raw_tx_eip_1559(
