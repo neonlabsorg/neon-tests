@@ -659,8 +659,12 @@ class EvmLoader(SolanaClient):
         create_tree_account_resp = self.send_tx(trx, neon_user.solana_account)
         return tree_account
 
-    def create_tree_account_multiple(self, neon_user, treasury, tree_account_create_data, mint, chain_id=SOL_CHAIN_ID):
-        payer_nonce = self.get_neon_nonce(neon_user.neon_address, chain_id).to_bytes(8, "little")
+    def create_tree_account_multiple(self, neon_user, treasury, tree_account_create_data, mint, payer_nonce=None,
+                                     chain_id=SOL_CHAIN_ID):
+        if not payer_nonce:
+            payer_nonce = self.get_neon_nonce(neon_user.neon_address, chain_id).to_bytes(8, "little")
+        else:
+            payer_nonce = payer_nonce.to_bytes(8, "little")
         authority_pool = self.create_get_authority_address()
         tree_account = self.create_tree_account_address(neon_user.neon_address, payer_nonce)
         pool = get_associated_token_address(authority_pool, mint)

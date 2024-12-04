@@ -82,7 +82,7 @@ class ScheduledTransaction:
 
 
 class CreateTreeAccMultipleData:
-    def __init__(self, nonce, max_fee_per_gas=100, max_priority_fee_per_gas=10):
+    def __init__(self, nonce, max_fee_per_gas=3000000000, max_priority_fee_per_gas=15):
         self.nonce = nonce.to_bytes(8, byteorder="big")
         self.max_fee_per_gas = max_fee_per_gas.to_bytes(32, byteorder="big")
         self.max_priority_fee_per_gas = max_priority_fee_per_gas.to_bytes(32, byteorder="big")

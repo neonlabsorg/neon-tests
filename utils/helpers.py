@@ -154,6 +154,15 @@ def get_selectors(abi_):
     return selectors
 
 
+def get_event_signatures(abi: tp.List[tp.Dict]) -> tp.List[str]:
+    """Get topics as keccak256 from abi Events"""
+    topics = []
+    for event in filter(lambda item: item["type"] == "event", abi):
+        input_types = ",".join(i["type"] for i in event["inputs"])
+        signature = f"{event['name']}({input_types})"
+        topics.append(f"0x{keccak(signature.encode()).hex()}")
+    return topics
+
 @allure.step("Create non-existing account address")
 def create_invalid_address(length=20) -> str:
     """Create non-existing account address"""

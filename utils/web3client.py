@@ -266,7 +266,8 @@ class Web3Client:
 
     def send_scheduled_transaction(
         self,
-        trx: ScheduledTransaction
+        trx: ScheduledTransaction,
+        check_result: bool = True,
     ):
         resp = requests.post(
             self._proxy_url,
@@ -277,8 +278,9 @@ class Web3Client:
                 "id": 0,
             },
         ).json()
-        assert "error" not in resp, resp
-        return resp["result"]
+        if check_result:
+            assert "result" in resp, f"Failed to send scheduled transaction: {resp}"
+        return resp
 
     def send_all_scheduled_transactions(self, raw_transactions: tp.List[ScheduledTransaction]):
         for trx in raw_transactions:
