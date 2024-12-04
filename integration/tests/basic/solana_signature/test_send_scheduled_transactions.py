@@ -81,7 +81,7 @@ class TestScheduledTrx:
             neon_user.neon_address,
             None,
             nonce,
-            index=0,
+            index=1,
             target=revert_contract_caller.address,
             call_data=call_data,
             max_fee_per_gas=max_fee_per_gas,
@@ -92,7 +92,7 @@ class TestScheduledTrx:
             neon_user.neon_address,
             None,
             nonce,
-            index=1,
+            index=0,
             target=revert_contract_caller.address,
             call_data=call_data,
             max_fee_per_gas=max_fee_per_gas,
@@ -101,8 +101,8 @@ class TestScheduledTrx:
         tree_acc_data = CreateTreeAccMultipleData(
             nonce=nonce, max_fee_per_gas=max_fee_per_gas, max_priority_fee_per_gas=max_priority_fee_per_gas
         )
+        tree_acc_data.add_trx(tx1, 1, 0)
         tree_acc_data.add_trx(tx0, 0xFFFF, 1)
-        tree_acc_data.add_trx(tx1, 0, 0)
         evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
 
         web3_client_sol.send_all_scheduled_transactions([tx0, tx1])
