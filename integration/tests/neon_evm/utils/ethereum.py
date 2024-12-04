@@ -38,9 +38,11 @@ def make_eth_transaction(
     max_fee_per_gas=None,
     access_list=None,
     type_=None,
+    gas_price=0
 ):
-    nonce = evm_loader.get_neon_nonce(caller.eth_address, chain_id)
-    tx = {"to": to_addr, "value": value, "gas": gas, "gasPrice": 0, "nonce": nonce}
+
+    nonce = evm_loader.get_neon_nonce(caller.eth_address)
+    tx = {"to": to_addr, "value": value, "gas": gas, "gasPrice": gas_price, "nonce": nonce}
 
     if chain_id is not None:
         tx["chainId"] = chain_id

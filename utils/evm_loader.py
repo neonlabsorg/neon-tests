@@ -16,6 +16,7 @@ from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
 from solders.rpc.responses import SendTransactionResp, GetTransactionResp
+from solders.transaction_status import EncodedConfirmedTransactionWithStatusMeta
 from spl.token.instructions import get_associated_token_address, MintToParams, ApproveParams, approve
 from spl.token.constants import TOKEN_PROGRAM_ID
 
@@ -446,7 +447,7 @@ class EvmLoader(SolanaClient):
             index += 1
 
             if receipt.value.transaction.meta.err:
-                raise AssertionError(f"Can't deploy contract: {receipt.value.transaction.meta.err}")
+                raise AssertionError(f"Error in sol trx: {receipt}")
             for log in receipt.value.transaction.meta.log_messages:
                 if "exit_status" in log:
                     done = True
@@ -656,7 +657,7 @@ class EvmLoader(SolanaClient):
                 neon_user.solana_account, balance_account, treasury, tree_account, pool, transaction, self.loader_id
             )
         )
-        create_tree_account_resp = self.send_tx(trx, neon_user.solana_account)
+        self.send_tx(trx, neon_user.solana_account)
         return tree_account
 
     def create_tree_account_multiple(self, neon_user, treasury, tree_account_create_data, mint, payer_nonce=None,
@@ -768,3 +769,7 @@ class EvmLoader(SolanaClient):
             )
         )
         return self.send_tx(trx, neon_user.solana_account)
+
+    def was_called_in_tx(self, tx: EncodedConfirmedTransactionWithStatusMeta) -> bool:
+        return self.transaction_contains_call_to_program(tx=tx, program_id=self.loader_id)
+
