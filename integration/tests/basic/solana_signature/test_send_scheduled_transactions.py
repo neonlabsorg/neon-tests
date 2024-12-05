@@ -1,21 +1,24 @@
 import random
+import time
 
 import allure
 import eth_abi
 import pytest
 from eth_utils import abi
 from solana.rpc.core import RPCException
-
 from utils.consts import wSOL
 from utils.models.result import EthGetBlockByHashResult
 from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData
+from utils.helpers import wait_condition
 
 
 @allure.feature("Solana native")
 @allure.story("Test sending scheduled transaction")
 @pytest.mark.usefixtures("accounts", "web3_client")
 class TestScheduledTrx:
-    def test_send_simple_single_trx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
+    def test_send_simple_single_trx(
+        self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, json_rpc_client
+    ):
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         contract_data = 18
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
@@ -26,9 +29,14 @@ class TestScheduledTrx:
         )
         evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), wSOL["address_spl"])
         web3_client_sol.wait_for_transaction_receipt(tx.hash())
+        pending_trx = json_rpc_client.get_pending_transactions(neon_user.checksum_address)
+        assert len(pending_trx) == 1
+        assert pending_trx["0x0"][0]["status"] == "Done"
         assert common_contract.functions.getNumber().call() == contract_data
 
-    def test_multiple_scheduled_trx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
+    def test_multiple_scheduled_trx(
+        self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, json_rpc_client
+    ):
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         contract_data = 18
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
@@ -64,14 +72,26 @@ class TestScheduledTrx:
         for trx in trxs:
             resp = web3_client_sol.wait_for_transaction_receipt(trx.hash())
             assert resp["status"] == 1
+        pending_trx = json_rpc_client.get_pending_transactions(neon_user.checksum_address)
+        assert len(pending_trx) == 1
+        assert pending_trx["0x0"][0]["status"] == "Done"
+        assert pending_trx["0x0"][0]["hash"][2:] == trxs[0].hash().hex()
 
     def test_multiple_scheduled_trx_with_failed_trx(
-        self, web3_client_sol, neon_user, treasury_pool, revert_contract_caller, event_caller_contract, evm_loader
+        self,
+        web3_client_sol,
+        neon_user,
+        treasury_pool,
+        revert_contract_caller,
+        event_caller_contract,
+        evm_loader,
+        json_rpc_client,
     ):
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         call_data = abi.function_signature_to_4byte_selector("doAssert()")
         max_fee_per_gas = 3000000000
         max_priority_fee_per_gas = 15
+        gas_price = 1000000000
 
         tx0 = ScheduledTransaction(
             neon_user.neon_address,
@@ -82,6 +102,7 @@ class TestScheduledTrx:
             call_data=call_data,
             max_fee_per_gas=max_fee_per_gas,
             max_priority_fee_per_gas=max_priority_fee_per_gas,
+            gas_price=gas_price
         )
         call_data = abi.function_signature_to_4byte_selector("indexedArgs()")
         tx1 = ScheduledTransaction(
@@ -93,6 +114,7 @@ class TestScheduledTrx:
             call_data=call_data,
             max_fee_per_gas=max_fee_per_gas,
             max_priority_fee_per_gas=max_priority_fee_per_gas,
+            gas_price=gas_price
         )
         tree_acc_data = CreateTreeAccMultipleData(
             nonce=nonce, max_fee_per_gas=max_fee_per_gas, max_priority_fee_per_gas=max_priority_fee_per_gas
@@ -106,6 +128,10 @@ class TestScheduledTrx:
         assert resp1["status"] == 0
         resp2 = web3_client_sol.wait_for_transaction_receipt(tx1.hash())
         assert resp2["status"] == 0
+        pending_trx = json_rpc_client.get_pending_transactions(neon_user.checksum_address)
+        assert len(pending_trx) == 1
+        assert pending_trx["0x0"][0]["status"] == "Done"
+        assert pending_trx["0x0"][0]["hash"][2:] == tx0.hash().hex()
 
     def test_create_2_tree_accounts_with_the_same_nonce(
         self, web3_client_sol, evm_loader, neon_user, treasury_pool, common_contract
@@ -126,7 +152,7 @@ class TestScheduledTrx:
                 neon_user, treasury_pool, tree_acc.data, wSOL["address_spl"], payer_nonce=nonce
             )
 
-    @pytest.mark.skip("NDEV-???")
+    @pytest.mark.skip("NDEV-3453")
     def test_scheduled_trx_send_tokens_to_neon_chain_contract(
         self, neon_user, evm_loader, event_caller_contract, web3_client_sol, treasury_pool
     ):
@@ -182,15 +208,8 @@ class TestScheduledTrx:
         assert event_logs[0].event == "IndexedArgs"
 
     def test_scheduled_trx_with_timestamp(
-        self,
-        block_timestamp_contract,
-        web3_client_sol,
-        neon_user,
-        treasury_pool,
-        evm_loader,
-        json_rpc_client
+        self, block_timestamp_contract, web3_client_sol, neon_user, treasury_pool, evm_loader, json_rpc_client
     ):
-
         contract, _ = block_timestamp_contract
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         trx_count = 6
@@ -227,12 +246,12 @@ class TestScheduledTrx:
         )
         tree_acc_data.add_trx(trxs[0], 1, 0)
         if trx_count > 2:
-            for i in range(1, trx_count-1):
-                tree_acc_data.add_trx(trxs[i], i+1, 1)
-        tree_acc_data.add_trx(trxs[trx_count-1], 0xFFFF, 1)
+            for i in range(1, trx_count - 1):
+                tree_acc_data.add_trx(trxs[i], i + 1, 1)
+        tree_acc_data.add_trx(trxs[trx_count - 1], 0xFFFF, 1)
         evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
         web3_client_sol.send_all_scheduled_transactions(trxs)
-        receipt = web3_client_sol.wait_for_transaction_receipt(trxs[trx_count-1].hash())
+        receipt = web3_client_sol.wait_for_transaction_receipt(trxs[trx_count - 1].hash())
         assert receipt["status"] == 1
         response = json_rpc_client.send_rpc(method="eth_getBlockByHash", params=[receipt["blockHash"].hex(), False])
         tx_block_timestamp = EthGetBlockByHashResult(**response).result.timestamp
@@ -282,5 +301,5 @@ class TestScheduledTrx:
         evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
         web3_client_sol.send_scheduled_transaction(tx0)
         receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
-        # for now it is no possible to see error through the proxy
+        # for now it is not possible to see error through the proxy
         assert receipt["status"] == 0
