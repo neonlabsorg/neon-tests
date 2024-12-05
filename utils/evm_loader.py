@@ -325,9 +325,11 @@ class EvmLoader(SolanaClient):
         signer: Keypair,
         system_program=sp.ID,
         index=0,
+        compute_unit_price=None,
         tag=0x34,
+
     ) -> GetTransactionResp:
-        trx = TransactionWithComputeBudget(operator, compute_unit_price=15)
+        trx = TransactionWithComputeBudget(operator, compute_unit_price=compute_unit_price)
         if isinstance(instruction, SignedTransaction):
             raw_trx = instruction.rawTransaction
         else:
@@ -358,6 +360,7 @@ class EvmLoader(SolanaClient):
         instruction: SignedTransaction,
         additional_accounts,
         signer: Keypair = None,
+        compute_unit_price=None,
         chain_id=CHAIN_ID,
     ) -> GetTransactionResp:
         signer = operator if signer is None else signer
@@ -375,6 +378,7 @@ class EvmLoader(SolanaClient):
                 additional_accounts,
                 EVM_STEPS,
                 signer,
+                compute_unit_price=compute_unit_price,
                 index=index,
             )
             index += 1
@@ -750,7 +754,7 @@ class EvmLoader(SolanaClient):
     ):
         self.start_scheduled_trx_from_instruction(trx, operator, holder, tree_account, additional_accounts, chain_id)
         self.execute_transaction_steps_from_instruction(
-            operator, treasury, holder, trx.encode(), additional_accounts, chain_id=chain_id
+            operator, treasury, holder, trx.encode(), additional_accounts, compute_unit_price=15, chain_id=chain_id
         )
 
     def finish_scheduled_trx(self, operator, tree_account, holder_account, chain_id=SOL_CHAIN_ID):
