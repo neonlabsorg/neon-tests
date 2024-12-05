@@ -595,6 +595,18 @@ class Web3Client:
         ).json()
         return len(resp["result"]) > 1
 
+    def get_pending_transactions(self, user_address: str) -> str:
+        resp = requests.post(
+            self._proxy_url,
+            json={
+                "jsonrpc": "2.0",
+                "method": "neon_getPendingTransactions",
+                "params": [user_address],
+                "id": 0,
+            },
+        ).json()
+        return resp["result"]
+
 
 class NeonChainWeb3Client(Web3Client):
     def __init__(

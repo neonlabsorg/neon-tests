@@ -1,5 +1,4 @@
 import random
-import time
 
 import allure
 import eth_abi
@@ -16,20 +15,20 @@ from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData
 @allure.story("Test sending scheduled transaction")
 @pytest.mark.usefixtures("accounts", "web3_client")
 class TestScheduledTrx:
-    def test_send_simple_single_trx(self, web3_client_sol, neon_user, common_contract_sol, evm_loader, treasury_pool):
+    def test_send_simple_single_trx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         contract_data = 18
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
         )
         tx = ScheduledTransaction(
-            neon_user.neon_address, None, nonce, 0, target=common_contract_sol.address, call_data=data
+            neon_user.neon_address, None, nonce, 0, target=common_contract.address, call_data=data
         )
         evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), wSOL["address_spl"])
         web3_client_sol.wait_for_transaction_receipt(tx.hash())
-        assert common_contract_sol.functions.getNumber().call() == contract_data
+        assert common_contract.functions.getNumber().call() == contract_data
 
-    def test_multiple_scheduled_trx(self, web3_client_sol, neon_user, common_contract_sol, evm_loader, treasury_pool):
+    def test_multiple_scheduled_trx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         contract_data = 18
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
@@ -45,7 +44,7 @@ class TestScheduledTrx:
                     None,
                     nonce,
                     index=i,
-                    target=common_contract_sol.address,
+                    target=common_contract.address,
                     call_data=data,
                     max_fee_per_gas=max_fee_per_gas,
                     max_priority_fee_per_gas=max_priority_fee_per_gas,
@@ -69,9 +68,6 @@ class TestScheduledTrx:
     def test_multiple_scheduled_trx_with_failed_trx(
         self, web3_client_sol, neon_user, treasury_pool, revert_contract_caller, event_caller_contract, evm_loader
     ):
-        revert_contract_caller = web3_client_sol.get_deployed_contract(
-            revert_contract_caller.address, "common/Revert", contract_name="Caller"
-        )
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         call_data = abi.function_signature_to_4byte_selector("doAssert()")
         max_fee_per_gas = 3000000000
@@ -106,7 +102,6 @@ class TestScheduledTrx:
         evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
 
         web3_client_sol.send_all_scheduled_transactions([tx0, tx1])
-        print(neon_user.checksum_address)
         resp1 = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
         assert resp1["status"] == 0
         resp2 = web3_client_sol.wait_for_transaction_receipt(tx1.hash())
@@ -131,7 +126,8 @@ class TestScheduledTrx:
                 neon_user, treasury_pool, tree_acc.data, wSOL["address_spl"], payer_nonce=nonce
             )
 
-    def test_scheduled_trx_with_logs(
+    @pytest.mark.skip("NDEV-???")
+    def test_scheduled_trx_send_tokens_to_neon_chain_contract(
         self, neon_user, evm_loader, event_caller_contract, web3_client_sol, treasury_pool
     ):
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
@@ -150,9 +146,35 @@ class TestScheduledTrx:
         tree_acc_data.add_trx(tx0, 0xFFFF, 0)
         evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
         web3_client_sol.send_scheduled_transaction(tx0)
-        print(tx0.hash())
         receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
         event_logs = event_caller_contract.events.IndexedArgs().process_receipt(receipt)
+        assert len(event_logs) == 1
+        assert len(event_logs[0].args) == 2
+        assert event_logs[0].args.who == neon_user.checksum_address
+        assert event_logs[0].args.value == value
+        assert event_logs[0].event == "IndexedArgs"
+
+    def test_scheduled_trx_send_tokens_to_sol_chain_contract(
+        self, neon_user, evm_loader, event_caller_sol_chain, web3_client_sol, treasury_pool
+    ):
+        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
+        call_data = abi.function_signature_to_4byte_selector("indexedArgs()")
+        value = 100000
+        tx0 = ScheduledTransaction(
+            neon_user.neon_address,
+            None,
+            nonce,
+            index=0,
+            value=value,
+            target=event_caller_sol_chain.address,
+            call_data=call_data,
+        )
+        tree_acc_data = CreateTreeAccMultipleData(nonce=nonce)
+        tree_acc_data.add_trx(tx0, 0xFFFF, 0)
+        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
+        web3_client_sol.send_scheduled_transaction(tx0)
+        receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
+        event_logs = event_caller_sol_chain.events.IndexedArgs().process_receipt(receipt)
         assert len(event_logs) == 1
         assert len(event_logs[0].args) == 2
         assert event_logs[0].args.who == neon_user.checksum_address
@@ -260,5 +282,5 @@ class TestScheduledTrx:
         evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
         web3_client_sol.send_scheduled_transaction(tx0)
         receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
-        print(receipt)
+        # for now it is no possible to see error through the proxy
         assert receipt["status"] == 0

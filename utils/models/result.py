@@ -234,6 +234,9 @@ class ReceiptDetails(ForbidExtra):
     type: HexString
     status: tp.Optional[HexString] = None
     root: tp.Optional[HexString] = None
+    scheduledParentTransactionHashes: tp.Optional[List[HexString]] = None
+    scheduledChildTransactionHashes: tp.Optional[List[HexString]] = None
+
 
     @model_validator(mode="before")
     @classmethod
