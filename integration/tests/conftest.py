@@ -550,6 +550,22 @@ def counter_resource_address(call_solana_caller, accounts, web3_client) -> bytes
 
 
 @pytest.fixture(scope="class")
+def block_number_contract(web3_client, accounts):
+    block_number_contract, receipt = web3_client.deploy_and_get_contract(
+        "common/Block.sol", "0.8.10", accounts[0], contract_name="BlockNumber"
+    )
+    return block_number_contract, receipt
+
+
+@pytest.fixture(scope="class")
+def block_timestamp_contract(web3_client, accounts):
+    block_timestamp_contract, receipt = web3_client.deploy_and_get_contract(
+        "common/Block.sol", "0.8.10", accounts[0], contract_name="BlockTimestamp"
+    )
+    return block_timestamp_contract, receipt
+
+
+@pytest.fixture(scope="class")
 def eip1559_setup(
         request: pytest.FixtureRequest,
         pytestconfig: Config,
