@@ -76,11 +76,14 @@ def make_deployment_transaction(
     data = get_contract_bin(contract_file_name, contract_name, version)
     if encoded_args is not None:
         data = data + encoded_args.hex()
-
-    nonce = evm_loader.get_neon_nonce(user.eth_address, chain_id)
+    if chain_id:
+        nonce = evm_loader.get_neon_nonce(user.eth_address, chain_id)
+    else:
+        nonce = evm_loader.get_neon_nonce(user.eth_address)
     tx = {"to": None, "value": 0, "gas": gas, "gasPrice": 0, "nonce": nonce, "data": data}
     if chain_id:
         tx["chainId"] = chain_id
+
     if access_list:
         tx["accessList"] = access_list
         tx["type"] = 1
