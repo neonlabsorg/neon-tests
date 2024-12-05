@@ -16,7 +16,6 @@ from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
 from solders.rpc.responses import SendTransactionResp, GetTransactionResp
-from solders.transaction_status import EncodedConfirmedTransactionWithStatusMeta
 from spl.token.instructions import get_associated_token_address, MintToParams, ApproveParams, approve
 from spl.token.constants import TOKEN_PROGRAM_ID
 
@@ -48,9 +47,14 @@ from utils.instructions import (
     make_ScheduledTransactionDestroy,
     make_ScheduledTransactionStartFromInstruction,
     make_ScheduledTransactionCreateMultiple,
+    make_ScheduledTransactionSkipFromInstruction,
 )
-from utils.layouts import BALANCE_ACCOUNT_LAYOUT, CONTRACT_ACCOUNT_LAYOUT, STORAGE_CELL_LAYOUT, \
-    OPERATOR_BALANCE_ACCOUNT_LAYOUT
+from utils.layouts import (
+    BALANCE_ACCOUNT_LAYOUT,
+    CONTRACT_ACCOUNT_LAYOUT,
+    STORAGE_CELL_LAYOUT,
+    OPERATOR_BALANCE_ACCOUNT_LAYOUT,
+)
 from utils.solana_client import SolanaClient
 from utils.types import Caller
 
@@ -323,7 +327,7 @@ class EvmLoader(SolanaClient):
         index=0,
         tag=0x34,
     ) -> GetTransactionResp:
-        trx = TransactionWithComputeBudget(operator)
+        trx = TransactionWithComputeBudget(operator, compute_unit_price=15)
         if isinstance(instruction, SignedTransaction):
             raw_trx = instruction.rawTransaction
         else:
@@ -660,8 +664,9 @@ class EvmLoader(SolanaClient):
         self.send_tx(trx, neon_user.solana_account)
         return tree_account
 
-    def create_tree_account_multiple(self, neon_user, treasury, tree_account_create_data, mint, payer_nonce=None,
-                                     chain_id=SOL_CHAIN_ID):
+    def create_tree_account_multiple(
+        self, neon_user, treasury, tree_account_create_data, mint, payer_nonce=None, chain_id=SOL_CHAIN_ID
+    ):
         if not payer_nonce:
             payer_nonce = self.get_neon_nonce(neon_user.neon_address, chain_id).to_bytes(8, "little")
         else:
@@ -749,18 +754,37 @@ class EvmLoader(SolanaClient):
         )
 
     def finish_scheduled_trx(self, operator, tree_account, holder_account, chain_id=SOL_CHAIN_ID):
-        trx = Transaction()
+        trx = TransactionWithComputeBudget(operator, compute_unit_price=1000000)
         operator_balance = self.get_operator_balance_pubkey(operator, chain_id)
         trx.add(
             make_ScheduledTransactionFinish(operator, operator_balance, self.loader_id, holder_account, tree_account)
         )
         return self.send_tx(trx, operator)
 
-    def destroy_tree_account(self, neon_user: NeonUser, treasury, tree_account, chain_id=SOL_CHAIN_ID):
+    def skip_scheduled_trx_from_instruction(
+        self, neon_trx, operator, tree_account, holder_account, chain_id=SOL_CHAIN_ID
+    ):
+        operator_balance_pubkey = self.get_operator_balance_pubkey(operator, chain_id)
+        trx = TransactionWithComputeBudget(operator, compute_unit_price=1000000)
+        trx.add(
+            make_ScheduledTransactionSkipFromInstruction(
+                neon_trx.index,
+                neon_trx.encode(),
+                operator,
+                operator_balance_pubkey,
+                holder_account,
+                tree_account,
+                self.loader_id,
+            )
+        )
+        return self.send_tx(trx, operator)
+
+    def destroy_tree_account(self, operator, neon_user: NeonUser, treasury, tree_account, chain_id=SOL_CHAIN_ID):
         trx = Transaction()
 
         trx.add(
             make_ScheduledTransactionDestroy(
+                operator,
                 neon_user.solana_account,
                 neon_user.get_balance_account(chain_id),
                 treasury,
@@ -768,8 +792,4 @@ class EvmLoader(SolanaClient):
                 self.loader_id,
             )
         )
-        return self.send_tx(trx, neon_user.solana_account)
-
-    def was_called_in_tx(self, tx: EncodedConfirmedTransactionWithStatusMeta) -> bool:
-        return self.transaction_contains_call_to_program(tx=tx, program_id=self.loader_id)
-
+        return self.send_tx(trx, operator)

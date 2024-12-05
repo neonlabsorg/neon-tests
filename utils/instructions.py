@@ -392,6 +392,7 @@ def make_ScheduledTransactionCreate(signer, balance_pubkey, treasury, tree_accou
     )
     return trx
 
+
 def make_ScheduledTransactionCreateMultiple(signer, balance_pubkey, treasury, tree_account, pool, msg, evm_loader_id):
     tag = InstructionTags.SCHEDULED_TRANSACTION_CREATE_MULTIPLE
     data = tag + treasury.buffer + msg
@@ -411,6 +412,7 @@ def make_ScheduledTransactionCreateMultiple(signer, balance_pubkey, treasury, tr
         )
     )
     return trx
+
 
 def make_ScheduledTransactionStartFromAccount(
     index: int,
@@ -439,14 +441,10 @@ def make_ScheduledTransactionStartFromAccount(
 
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
-def make_ScheduledTransactionStartFromInstruction(index,
-                                                  neon_trx,
-                                                  holder_address,
-                                                  tree_account,
-                                                  evm_loader_id,
-                                                  operator,
-                                                  operator_balance,
-                                                  additional_accounts):
+
+def make_ScheduledTransactionStartFromInstruction(
+    index, neon_trx, holder_address, tree_account, evm_loader_id, operator, operator_balance, additional_accounts
+):
     tag = InstructionTags.SCHEDULED_TRANSACTION_START_FROM_INSTRUCTION
     data = tag + index.to_bytes(4, "little") + neon_trx
     accounts = [
@@ -455,7 +453,6 @@ def make_ScheduledTransactionStartFromInstruction(index,
         AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
         AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
         AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
-
     ]
 
     for acc in additional_accounts:
@@ -466,14 +463,15 @@ def make_ScheduledTransactionStartFromInstruction(index,
 
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
-def make_ScheduledTransactionDestroy(signer, balance_account, treasury, tree_account, evm_loader_id):
+
+def make_ScheduledTransactionDestroy(operator, signer, balance_account, treasury, tree_account, evm_loader_id):
     data = InstructionTags.SCHEDULED_TRANSACTION_DESTROY + treasury.buffer
     accounts = [
+        AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
         AccountMeta(pubkey=balance_account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
-        AccountMeta(pubkey=signer.pubkey(), is_signer=True, is_writable=True),
-
+        AccountMeta(pubkey=signer.pubkey(), is_signer=False, is_writable=True),
     ]
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
@@ -487,6 +485,20 @@ def make_ScheduledTransactionFinish(
         AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
         AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
+    ]
+    return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
+
+
+def make_ScheduledTransactionSkipFromInstruction(
+    index: int, neon_trx: bytes, operator: Keypair, operator_balance: Pubkey, holder_address: Pubkey, tree_account: Pubkey, evm_loader_id: Pubkey
+):
+    data = InstructionTags.SCHEDULED_TRANSACTION_SKIP_FROM_INSTRUCTION
+    data += index.to_bytes(4, "little") + neon_trx
+    accounts = [
+        AccountMeta(pubkey=holder_address, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
+        AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True)
     ]
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 

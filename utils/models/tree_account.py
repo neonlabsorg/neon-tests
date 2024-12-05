@@ -32,6 +32,9 @@ class TreeAccountTransaction:
     def is_failed(self) -> bool:
         return self.status == 'Failed'
 
+    def is_skipped(self) -> bool:
+        return self.status == 'Skipped'
+
 @dataclass
 class TreeAccount:
     result: str
