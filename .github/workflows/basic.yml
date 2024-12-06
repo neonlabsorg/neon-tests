@@ -196,7 +196,7 @@ jobs:
   destroy:
     runs-on: ["self-hosted", "k8s-prod"]
     needs: [ prepare-env, tests]
-    if: always() && needs.prepare-env.outputs.network == 'terraform'
+    if: false
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
