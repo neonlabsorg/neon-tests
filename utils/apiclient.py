@@ -49,12 +49,6 @@ class JsonRPCSession(Session):
     def get_solana_trx_by_neon(self, trx_hash: str) -> tp.Dict:
         return self.send_rpc("neon_getSolanaTransactionByNeonTransaction", params=[trx_hash.hex()])
 
-    def get_pending_transactions(self, user_address: str) -> str:
-        resp = self.send_rpc("neon_getPendingTransactions", params=[user_address])
-        assert "result" in resp, f"Failed to get pending transactions: {resp}"
-        return resp["result"]
-
-
 
 def wait_finalized_block(rpc_client: JsonRPCSession, block_num: int):
     fin_block_num = block_num - 32

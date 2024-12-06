@@ -84,8 +84,10 @@ class EvmLoader(SolanaClient):
             [bytes(TREASURY_POOL_SEED, "utf8"), pool_index.to_bytes(4, "little")], self.loader_id
         )[0]
 
-    def create_tree_account_address(self, neon_address, nonce):
-        seeds = [self.account_seed_version, b"TREE", neon_address, nonce]
+    def create_tree_account_address(self, neon_address, nonce, chain_id=SOL_CHAIN_ID):
+        chain_id_bytes = chain_id.to_bytes(8, "little")
+        seeds = [self.account_seed_version, b"TREE", neon_address, chain_id_bytes, nonce]
+        print(seeds)
         return Pubkey.find_program_address(seeds, self.loader_id)[0]
 
     def create_get_authority_address(self):
@@ -655,7 +657,7 @@ class EvmLoader(SolanaClient):
     def create_tree_account(self, neon_user: NeonUser, treasury, transaction, mint, chain_id=SOL_CHAIN_ID):
         payer_nonce = self.get_neon_nonce(neon_user.neon_address, chain_id).to_bytes(8, "little")
         authority_pool = self.create_get_authority_address()
-        tree_account = self.create_tree_account_address(neon_user.neon_address, payer_nonce)
+        tree_account = self.create_tree_account_address(neon_user.neon_address, payer_nonce, chain_id)
         pool = get_associated_token_address(authority_pool, mint)
 
         trx = Transaction()
@@ -676,7 +678,7 @@ class EvmLoader(SolanaClient):
         else:
             payer_nonce = payer_nonce.to_bytes(8, "little")
         authority_pool = self.create_get_authority_address()
-        tree_account = self.create_tree_account_address(neon_user.neon_address, payer_nonce)
+        tree_account = self.create_tree_account_address(neon_user.neon_address, payer_nonce, chain_id)
         pool = get_associated_token_address(authority_pool, mint)
 
         trx = Transaction()

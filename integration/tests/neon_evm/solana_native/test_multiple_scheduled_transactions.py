@@ -15,10 +15,6 @@ from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData
 from utils.types import Contract
 
 
-@pytest.mark.skipif(
-    os.getenv("PROXY_URL") is not None,
-    reason="Skipped because the environment has a proxy, which causes the test to fail"
-)
 class TestMultipleScheduledTrx:
     # ┌───────┐  ┌──────┐
     # │ t0 ✓  ├─>┤ t1 ✓ │
@@ -41,11 +37,13 @@ class TestMultipleScheduledTrx:
         tree_acc_data = CreateTreeAccMultipleData(nonce=nonce)
         tree_acc_data.add_trx(tx0, 1, 0)
         tree_acc_data.add_trx(tx1, 0xFFFF, 1)
+        print(tree_acc_data.data)
 
         tree_account = evm_loader.create_tree_account_multiple(
             neon_user, treasury_pool, tree_acc_data.data, SOL_MINT_ID
         )
         additional_accounts = [basic_contract.solana_address, neon_user.get_balance_account(SOL_CHAIN_ID)]
+        print(tree_account)
         evm_loader.execute_scheduled_trx_from_instruction(
             tx0, operator_keypair, holder_acc, tree_account, treasury_pool, additional_accounts
         )
