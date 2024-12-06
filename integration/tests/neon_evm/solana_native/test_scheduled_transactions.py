@@ -1,3 +1,5 @@
+import os
+
 import eth_abi
 import pytest
 import solana
@@ -14,6 +16,10 @@ from integration.tests.neon_evm.utils.constants import SOL_CHAIN_ID, SOL_MINT_ID
 from utils.scheduled_trx import ScheduledTransaction
 
 
+@pytest.mark.skipif(
+    os.getenv("PROXY_URL") is not None,
+    reason="Skipped because the environment has a proxy, which causes the test to fail"
+)
 class TestScheduledTrx:
     def test_execute_scheduled_trx_from_account(
         self,

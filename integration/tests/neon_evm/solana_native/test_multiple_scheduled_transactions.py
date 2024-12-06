@@ -1,3 +1,5 @@
+import os
+
 import eth_abi
 import pytest
 import solana
@@ -13,6 +15,10 @@ from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData
 from utils.types import Contract
 
 
+@pytest.mark.skipif(
+    os.getenv("PROXY_URL") is not None,
+    reason="Skipped because the environment has a proxy, which causes the test to fail"
+)
 class TestMultipleScheduledTrx:
     # ┌───────┐  ┌──────┐
     # │ t0 ✓  ├─>┤ t1 ✓ │
