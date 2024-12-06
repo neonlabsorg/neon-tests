@@ -276,3 +276,11 @@ def treasury_pool(evm_loader) -> TreasuryPool:
     index_buf = index.to_bytes(4, "little")
     evm_loader.request_airdrop(address, 10000 * 10**9, commitment=Confirmed)
     return TreasuryPool(index, address, index_buf)
+
+@pytest.fixture(scope="session")
+def treasury_pool_new(evm_loader) -> TreasuryPool:
+    index = 3
+    address = evm_loader.create_treasury_pool_address(index)
+    index_buf = index.to_bytes(4, "little")
+    evm_loader.request_airdrop(address, 10000 * 10**9, commitment=Confirmed)
+    return TreasuryPool(index, address, index_buf)
