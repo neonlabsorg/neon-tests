@@ -313,6 +313,8 @@ class NeonReceiptDetails(ForbidExtra):
     neonIsCanceled: bool
     solanaTransactions: List[SolanaTransaction]
     neonCosts: List[NeonCostsDetails]
+    scheduledParentTransactionHashes: List[HexString]
+    scheduledChildTransactionHashes: List[HexString]
 
 
 class NeonGetTransactionResult(EthResult):
