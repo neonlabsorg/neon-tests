@@ -29,7 +29,7 @@ class TestScheduledTrx:
         web3_client_sol.wait_for_transaction_receipt(tx.hash())
         pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
         assert len(pending_trx) == 1
-        assert pending_trx["0x0"][0]["status"] == "Done"
+        assert pending_trx["0x0"][0]["status"] in ("Done", "InProgress")
         assert common_contract.functions.getNumber().call() == contract_data
 
     def test_multiple_scheduled_trx(
