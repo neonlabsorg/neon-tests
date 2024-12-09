@@ -123,13 +123,13 @@ jobs:
       - name: Set evm image tag
         id: share
         run: |
-          env_tag=$(python3 ./clickfile.py get-stand-param \
+          env_tag=$(python3 ./clickfile.py infra get-stand-param \
             --current_branch "${{ github.ref_name }}" \
             --head_branch "${{ github.head_ref }}" \
             --base_branch "${{ github.base_ref }}" \
             --param "evm_tag")
       
-          evm_branch=$(python3 ./clickfile.py get-stand-param \
+          evm_branch=$(python3 ./clickfile.py infra get-stand-param \
             --current_branch "${{ github.ref_name }}" \
             --head_branch "${{ github.head_ref }}" \
             --base_branch "${{ github.base_ref }}" \
