@@ -233,12 +233,23 @@ jobs:
       - name: Set evm image tag
         id: share
         run: |
-          env_tag=$(python3 ./clickfile.py get-stand-param --current_branch ${{ github.ref_name }} --head_branch ${{ github.head_ref }} --base_branch ${{ github.base_ref }} --param "evm_tag")
-          evm_branch=$(python3 ./clickfile.py get-stand-param --current_branch ${{ github.ref_name }} --head_branch ${{ github.head_ref }} --base_branch ${{ github.base_ref }} --param "evm_branch")
-          echo "evm_tag=$evm_tag"
-          echo "evm_tag=$evm_tag" >> $GITHUB_OUTPUT
+          env_tag=$(python3 ./clickfile.py get-stand-param \
+            --current_branch "${{ github.ref_name }}" \
+            --head_branch "${{ github.head_ref }}" \
+            --base_branch "${{ github.base_ref }}" \
+            --param "evm_tag")
+      
+          evm_branch=$(python3 ./clickfile.py get-stand-param \
+            --current_branch "${{ github.ref_name }}" \
+            --head_branch "${{ github.head_ref }}" \
+            --base_branch "${{ github.base_ref }}" \
+            --param "evm_branch")
+      
+          echo "evm_tag=$env_tag"
+          echo "evm_tag=$env_tag" >> $GITHUB_OUTPUT
           echo "evm_branch=$evm_branch"
           echo "evm_branch=$evm_branch" >> $GITHUB_OUTPUT
+
       - name: Run tests
         env:
           NEON_TESTS_IMAGE: ${{ env.IMAGE }}:${{ needs.dockerize.outputs.tag }}
