@@ -148,8 +148,11 @@ jobs:
           curl -O https://raw.githubusercontent.com/${{ github.repository_owner }}/neon-evm/${{ steps.share.outputs.evm_branch }}/ci/docker-compose-ci.yml
           docker-compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml pull
           docker-compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml up -d
-          docker exec -i -p ${{env.DOCKER_PROJECT_NAME}}_tests bash -c "python3 clickfile.py run evm --numprocesses 8 --network docker_net"
+          docker exec -i ${{env.DOCKER_PROJECT_NAME}}_tests bash -c "python3 clickfile.py run evm --numprocesses 8 --network docker_net"
       - name: Stop and remove containers
+        env:
+          NEON_TESTS_IMAGE: ${{ env.IMAGE }}:${{ needs.dockerize.outputs.tag }}
+          EVM_LOADER_IMAGE: ${{ github.repository_owner }}/evm_loader:${{ steps.share.outputs.evm_tag }}
         if: always()
         run: |
           docker-compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml down
