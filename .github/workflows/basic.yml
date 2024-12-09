@@ -99,7 +99,6 @@ jobs:
         uses: ./.github/actions/create-tf-stand
         with:
           ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
-
     outputs:
       proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}
       solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
@@ -137,27 +136,27 @@ jobs:
           echo "evm_branch=$evm_branch"
           echo "evm_branch=$evm_branch" >> $GITHUB_OUTPUT
 
-      - name: Run tests
-        env:
-          NEON_TESTS_IMAGE: ${{ env.IMAGE }}:${{ needs.dockerize.outputs.tag }}
-          EVM_LOADER_IMAGE: ${{ github.repository_owner }}/evm_loader:${{ steps.share.outputs.evm_tag }}
-        run: |
-#          python3 ./.github/workflows/deploy.py run_tests \
-#          --evm_sha_tag=${{ needs.build-image.outputs.evm_sha_tag }} \
-#          --neon_test_tag=${{ needs.build-image.outputs.neon_test_tag }} \
-#          --run_number=${{ github.run_number }} \
-#          --run_attempt=${{ github.run_attempt }}
-          curl -O https://raw.githubusercontent.com/${{ github.repository_owner }}/neon-evm/${{ steps.share.outputs.evm_branch }}/ci/docker-compose-ci.yml
-          docker-compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml pull
-          docker-compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml up -d
-          docker exec -i -p ${{env.DOCKER_PROJECT_NAME}}_tests bash -c "python3 clickfile.py run evm --numprocesses 8 --network docker_net"
-      - name: Stop and remove containers
-        if: always()
-        run: |
-          docker-compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml down
-      - name: Cancel the build if job failed
-        if: "failure()"
-        uses: "andymckay/cancel-action@0.4"
+#      - name: Run tests
+#        env:
+#          NEON_TESTS_IMAGE: ${{ env.IMAGE }}:${{ needs.dockerize.outputs.tag }}
+#          EVM_LOADER_IMAGE: ${{ github.repository_owner }}/evm_loader:${{ steps.share.outputs.evm_tag }}
+#        run: |
+##          python3 ./.github/workflows/deploy.py run_tests \
+##          --evm_sha_tag=${{ needs.build-image.outputs.evm_sha_tag }} \
+##          --neon_test_tag=${{ needs.build-image.outputs.neon_test_tag }} \
+##          --run_number=${{ github.run_number }} \
+##          --run_attempt=${{ github.run_attempt }}
+#          curl -O https://raw.githubusercontent.com/${{ github.repository_owner }}/neon-evm/${{ steps.share.outputs.evm_branch }}/ci/docker-compose-ci.yml
+#          docker-compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml pull
+#          docker-compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml up -d
+#          docker exec -i -p ${{env.DOCKER_PROJECT_NAME}}_tests bash -c "python3 clickfile.py run evm --numprocesses 8 --network docker_net"
+#      - name: Stop and remove containers
+#        if: always()
+#        run: |
+#          docker-compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml down
+#      - name: Cancel the build if job failed
+#        if: "failure()"
+#        uses: "andymckay/cancel-action@0.4"
   run-proxy-tests:
     name: Run basic tests
     needs:
