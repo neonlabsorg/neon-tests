@@ -222,7 +222,7 @@ jobs:
     needs:
       - dockerize
     env:
-      DOCKER_PROJECT_NAME: "evm-tests-${{ github.run_number }}-${{github.run_attempt}}"
+      DOCKER_PROJECT_NAME: "evm-tests-${{ github.run_number }}-${{ github.run_attempt }}"
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -233,8 +233,8 @@ jobs:
       - name: Set evm image tag
         id: share
         run: |
-          env_tag=`python3 ./clickfile.py get-stand-param --current_branch ${{ github.ref_name}} --head_branch ${{ github.head_ref }} --base_branch ${{ github.base_ref }} --param "evm_tag"`
-          evm_branch=`python3 ./clickfile.py get-stand-param --current_branch ${{ github.ref_name}} --head_branch ${{ github.head_ref }} --base_branch ${{ github.base_ref }} --param "evm_branch"`
+          env_tag=$(python3 ./clickfile.py get-stand-param --current_branch ${{ github.ref_name }} --head_branch ${{ github.head_ref }} --base_branch ${{ github.base_ref }} --param "evm_tag")
+          evm_branch=$(python3 ./clickfile.py get-stand-param --current_branch ${{ github.ref_name }} --head_branch ${{ github.head_ref }} --base_branch ${{ github.base_ref }} --param "evm_branch")
           echo "evm_tag=$evm_tag"
           echo "evm_tag=$evm_tag" >> $GITHUB_OUTPUT
           echo "evm_branch=$evm_branch"
