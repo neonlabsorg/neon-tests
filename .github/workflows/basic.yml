@@ -136,11 +136,12 @@ jobs:
           echo "evm_branch=$evm_branch"
           echo "evm_branch=$evm_branch" >> $GITHUB_OUTPUT
 
-#      - name: Run tests
-#        env:
-#          NEON_TESTS_IMAGE: ${{ env.IMAGE }}:${{ needs.dockerize.outputs.tag }}
-#          EVM_LOADER_IMAGE: ${{ github.repository_owner }}/evm_loader:${{ steps.share.outputs.evm_tag }}
-#        run: |
+      - name: Run tests
+        env:
+          NEON_TESTS_IMAGE: ${{ env.IMAGE }}:${{ needs.dockerize.outputs.tag }}
+          EVM_LOADER_IMAGE: ${{ github.repository_owner }}/evm_loader:${{ steps.share.outputs.evm_tag }}
+        run: |
+            echo "test"
 ##          python3 ./.github/workflows/deploy.py run_tests \
 ##          --evm_sha_tag=${{ needs.build-image.outputs.evm_sha_tag }} \
 ##          --neon_test_tag=${{ needs.build-image.outputs.neon_test_tag }} \
