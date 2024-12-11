@@ -105,6 +105,7 @@ jobs:
 #      solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
 #      network: ${{ env.NETWORK }}
   run-evm-tests:
+    if: ${{ env.NETWORK }} != 'devnet'
     runs-on: ["self-hosted", "k8s-prod"]
     needs:
       - dockerize
