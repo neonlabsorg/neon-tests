@@ -268,7 +268,7 @@ jobs:
     name: Run basic tests
     needs:
       - run-proxy-tests
-      - run-env-tests
+      - run-evm-tests
     runs-on: ["self-hosted", "k8s-prod"]
     steps:
       - name: "Notify on failure."
