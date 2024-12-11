@@ -48,6 +48,7 @@ env:
   GENERATE_COST_REPORT: ${{ github.event.inputs.generate_cost_report || 'false' }}
 jobs:
   dockerize:
+    name: Dockerize neon tests
     if: ${{ github.ref_name != 'develop'}}
     runs-on: ["self-hosted", "k8s-prod"]
     steps:
@@ -66,6 +67,7 @@ jobs:
     outputs:
       tag: ${{ steps.image_tag.outputs.tag }}
   prepare-env-proxy:
+    name: Prepare environment for proxy tests
     runs-on: ["self-hosted", "k8s-prod"]
     if: always()
     steps:
@@ -104,6 +106,7 @@ jobs:
       solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
       network: ${{ env.NETWORK }}
   run-evm-tests:
+    name: Run EVM tests
     runs-on: ["self-hosted", "k8s-prod"]
     needs:
       - dockerize
@@ -199,7 +202,6 @@ jobs:
             --name=${{ env.CONTAINER }} ${{ env.IMAGE }}:${{ needs.dockerize.outputs.tag }} /bin/bash
       - name: Run basic proxy tests
         timeout-minutes: 60
-        id: basic
         run: |
           CMD="python3 ./clickfile.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }}"
       
@@ -243,6 +245,7 @@ jobs:
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}
   destroy:
+    name: Destroy stand
     runs-on: ["self-hosted", "k8s-prod"]
     needs: [ prepare-env-proxy, run-proxy-tests]
     if: always() && needs.prepare-env-proxy.outputs.network == 'terraform'
