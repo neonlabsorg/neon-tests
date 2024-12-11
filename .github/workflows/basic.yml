@@ -111,9 +111,6 @@ jobs:
     env:
       DOCKER_PROJECT_NAME: "evm-tests-${{ github.run_number }}-${{ github.run_attempt }}"
     steps:
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v3
-#      - uses: actions/setup-python@v5
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -149,6 +146,18 @@ jobs:
           docker-compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml pull
           docker-compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml up -d
           docker exec -i ${{env.DOCKER_PROJECT_NAME}}-tests-1 bash -c "python3 clickfile.py run evm --numprocesses 8 --network docker_net"
+      - name: Set failed test group to evm
+        if: failure()
+        run: echo "FAILED_TEST_GROUP=evm" >> $GITHUB_ENV
+      - name: "Generate allure report"
+        if: always()
+        uses: ./.github/actions/generate-allure-report
+        with:
+          container: ${{env.DOCKER_PROJECT_NAME}}-tests-1
+          network: docker_net
+          aws_access_key_id:  ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key:  ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          tests_name: evm
       - name: Stop and remove containers
         env:
           NEON_TESTS_IMAGE: ${{ env.IMAGE }}:${{ needs.dockerize.outputs.tag }}
@@ -186,18 +195,6 @@ jobs:
             -e SOLANA_URL \
             -e SOLANA_IP -e PROXY_IP \
             --name=${{ env.CONTAINER }} ${{ env.IMAGE }}:${{ needs.dockerize.outputs.tag }} /bin/bash
-#      - name: Run evm tests
-#        if: needs.prepare-env.outputs.network == 'terraform'
-#        timeout-minutes: 10
-#        run: |
-#          docker exec -i ${{ env.CONTAINER }} \
-#            /bin/bash -c "export SOLANA_URL=http://${{ env.SOLANA_IP }}:8899 \
-#            && export NEON_CORE_API_URL=http://${{ env.SOLANA_IP }}:8085/api \
-#            && export NEON_CORE_API_RPC_URL=http://${{ env.SOLANA_IP }}:3100 \
-#            && python3 ./clickfile.py run evm --numprocesses 8 --network terraform --keep-error-log"
-#      - name: Set failed test group to evm
-#        if: failure()
-#        run: echo "FAILED_TEST_GROUP=evm" >> $GITHUB_ENV
       - name: Run basic proxy tests
         timeout-minutes: 60
         id: basic
@@ -240,12 +237,6 @@ jobs:
           aws_access_key_id:  ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key:  ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           tests_name: basic
-      - name: "Notify on failure."
-        if: failure() && github.ref_name == 'develop'
-        run: |
-          docker exec -i ${{ env.CONTAINER }} \
-            python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
-          -b ${{ env.BUILD_URL }} --network ${{ env.NETWORK }} --test-group ${{ env.FAILED_TEST_GROUP }}
       - name: Remove docker container
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}
@@ -273,3 +264,16 @@ jobs:
         uses: ./.github/actions/destroy-tf-stand
         with:
           ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
+  send-notification:
+    name: Run basic tests
+    needs:
+      - run-proxy-tests
+      - run-env-tests
+    runs-on: ["self-hosted", "k8s-prod"]
+    steps:
+      - name: "Notify on failure."
+        if: failure() && github.ref_name == 'develop'
+        run: |
+          docker exec -i ${{ env.CONTAINER }} \
+            python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
+          -b ${{ env.BUILD_URL }} --network ${{ env.NETWORK }} --test-group ${{ env.FAILED_TEST_GROUP }}
