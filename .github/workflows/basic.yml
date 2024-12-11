@@ -52,20 +52,19 @@ jobs:
     runs-on: ["self-hosted", "k8s-prod"]
     steps:
       - uses: actions/checkout@v4
-#      - name: Dockerize neon tests TODO: uncomment after debugging
-#        uses: ./.github/actions/dockerize-neon-tests
-#        with:
-#          image_tag: ${{ github.sha }}
-#          docker_username: ${{ secrets.DOCKER_USERNAME }}
-#          docker_password: ${{ secrets.DOCKER_PASSWORD }}
-#          image_name: ${{ env.IMAGE }}
-#          docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
-#      - name: "Define image tag"
-#        id: image_tag
-#        uses: ./.github/actions/define-image-tag
+      - name: Dockerize neon tests
+        uses: ./.github/actions/dockerize-neon-tests
+        with:
+          image_tag: ${{ github.sha }}
+          docker_username: ${{ secrets.DOCKER_USERNAME }}
+          docker_password: ${{ secrets.DOCKER_PASSWORD }}
+          image_name: ${{ env.IMAGE }}
+          docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
+      - name: "Define image tag"
+        id: image_tag
+        uses: ./.github/actions/define-image-tag
     outputs:
-      #tag: ${{ steps.image_tag.outputs.tag }}
-      tag: "latest"
+      tag: ${{ steps.image_tag.outputs.tag }}
   prepare-env-proxy:
     runs-on: ["self-hosted", "k8s-prod"]
     if: always()
@@ -83,27 +82,27 @@ jobs:
         if: github.event.schedule=='0 2 * * 0,1,2,3,4'
         run: |
           echo "NETWORK=devnet" >> $GITHUB_ENV
-#      - uses: actions/checkout@v4 TODO: uncomment after debugging
-#
-#      - name: "Prepare terraform stand"
-#        id: prepare_terraform
-#        if: ${{ env.NETWORK == 'terraform' }}
-#        timeout-minutes: 15
-#        env:
-#          AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
-#          AWS_DEFAULT_REGION: ${{secrets.AWS_DEFAULT_REGION}}
-#          AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
-#          HCLOUD_TOKEN: ${{secrets.HCLOUD_TOKEN}}
-#          TFSTATE_BUCKET: ${{vars.TFSTATE_BUCKET}}
-#          TFSTATE_KEY: ${{vars.TFSTATE_KEY_PREFIX}}-${{ github.run_number }}
-#          TFSTATE_REGION: ${{vars.TFSTATE_REGION}}
-#        uses: ./.github/actions/create-tf-stand
-#        with:
-#          ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
-#    outputs:
-#      proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}
-#      solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
-#      network: ${{ env.NETWORK }}
+      - uses: actions/checkout@v4
+
+      - name: "Prepare terraform stand"
+        id: prepare_terraform
+        if: ${{ env.NETWORK == 'terraform' }}
+        timeout-minutes: 15
+        env:
+          AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
+          AWS_DEFAULT_REGION: ${{secrets.AWS_DEFAULT_REGION}}
+          AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+          HCLOUD_TOKEN: ${{secrets.HCLOUD_TOKEN}}
+          TFSTATE_BUCKET: ${{vars.TFSTATE_BUCKET}}
+          TFSTATE_KEY: ${{vars.TFSTATE_KEY_PREFIX}}-${{ github.run_number }}
+          TFSTATE_REGION: ${{vars.TFSTATE_REGION}}
+        uses: ./.github/actions/create-tf-stand
+        with:
+          ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
+    outputs:
+      proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}
+      solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
+      network: ${{ env.NETWORK }}
   run-evm-tests:
     if: ${{ env.NETWORK }} != 'devnet'
     runs-on: ["self-hosted", "k8s-prod"]
