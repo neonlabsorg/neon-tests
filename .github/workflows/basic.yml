@@ -104,7 +104,6 @@ jobs:
       solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
       network: ${{ env.NETWORK }}
   run-evm-tests:
-    if: ${{ env.NETWORK != 'terraform' }}
     runs-on: ["self-hosted", "k8s-prod"]
     needs:
       - dockerize
@@ -112,12 +111,14 @@ jobs:
       DOCKER_PROJECT_NAME: "evm-tests-${{ github.run_number }}-${{ github.run_attempt }}"
     steps:
       - uses: actions/checkout@v4
+        if: ${{ env.NETWORK != 'devnet' }}
         with:
           fetch-depth: 0
       - name: Install python requirements
-        id: requirements
+        if: ${{ env.NETWORK != 'devnet' }}
         uses: ./.github/actions/python-requirements
       - name: Set evm image tag
+        if: ${{ env.NETWORK != 'devnet' }}
         id: share
         run: |
           env_tag=$(python3 ./clickfile.py infra get-stand-param \
@@ -138,6 +139,7 @@ jobs:
           echo "evm_branch=$evm_branch" >> $GITHUB_OUTPUT
 
       - name: Run tests
+        if: ${{ env.NETWORK != 'devnet' }}
         env:
           NEON_TESTS_IMAGE: ${{ env.IMAGE }}:${{ needs.dockerize.outputs.tag }}
           EVM_LOADER_IMAGE: ${{ github.repository_owner }}/evm_loader:${{ steps.share.outputs.evm_tag }}
@@ -150,7 +152,7 @@ jobs:
         if: failure()
         run: echo "FAILED_TEST_GROUP=evm" >> $GITHUB_ENV
       - name: "Generate allure report"
-        if: always()
+        if: always() && ${{ env.NETWORK != 'devnet' }}
         uses: ./.github/actions/generate-allure-report
         with:
           container: ${{env.DOCKER_PROJECT_NAME}}-tests-1
@@ -162,7 +164,7 @@ jobs:
         env:
           NEON_TESTS_IMAGE: ${{ env.IMAGE }}:${{ needs.dockerize.outputs.tag }}
           EVM_LOADER_IMAGE: ${{ github.repository_owner }}/evm_loader:${{ steps.share.outputs.evm_tag }}
-        if: always()
+        if: always() && env.NETWORK != 'devnet'
         run: |
           docker-compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml down
       - name: Cancel the build if job failed
