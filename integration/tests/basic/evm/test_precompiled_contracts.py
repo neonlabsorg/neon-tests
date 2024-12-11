@@ -5,7 +5,6 @@ import random
 
 import pytest
 
-from integration.tests.basic.helpers.rpc_checks import is_hex
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 
@@ -47,6 +46,14 @@ PRECOMPILED_FIXTURES = {
         "files": ["blake2f.json"],
     },
 }
+
+NEON_PRECOMPILED = ["0xFF00000000000000000000000000000000000001",
+                    "0xFF00000000000000000000000000000000000002",
+                    "0xFF00000000000000000000000000000000000003",
+                    "0xFF00000000000000000000000000000000000004",
+                    "0xFF00000000000000000000000000000000000005",
+                    "0xFF00000000000000000000000000000000000006"
+                    ]
 
 
 def load_parametrized_data():
@@ -173,12 +180,20 @@ class TestPrecompiledContracts:
             assert self.web3_client.get_balance(address) - balance_before == amount
 
     @pytest.mark.parametrize("contract", PRECOMPILED_FIXTURES)
-    def test_eth_get_code(self, json_rpc_client, contract):
+    def test_eth_get_code_ethereum_precompiled(self, json_rpc_client, contract):
         address = PRECOMPILED_FIXTURES[contract]["address"]
 
         response = json_rpc_client.send_rpc(
             "eth_getCode",
             params=[address, "latest"],
         )
-        assert response["result"] != "0x"
-        assert is_hex(response["result"])
+        assert response["result"] == "0x"
+
+    @pytest.mark.parametrize("address", NEON_PRECOMPILED)
+    def test_eth_get_code_neon_precompiled(self, json_rpc_client, address):
+
+        response = json_rpc_client.send_rpc(
+            "eth_getCode",
+            params=[address, "latest"],
+        )
+        assert response["result"] == "0xfe"
