@@ -438,16 +438,16 @@ class TestInteroperability:
         evm_loader,
         treasury_pool,
         sol_client,
-        holder_acc,
+        new_holder_acc,
         call_solana_test_contract,
     ):
         data = abi.function_signature_to_4byte_selector("call_memo()")
         signed_tx = make_eth_transaction(evm_loader, call_solana_test_contract.eth_address, data, sender_with_tokens)
-        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc, operator_keypair)
         resp = evm_loader.execute_transaction_steps_from_account(
             operator_keypair,
             treasury_pool,
-            holder_acc,
+            new_holder_acc,
             [
                 sender_with_tokens.balance_account_address,
                 SOLANA_CALL_PRECOMPILED_ID,
@@ -466,7 +466,7 @@ class TestInteroperability:
         evm_loader,
         treasury_pool,
         sol_client,
-        holder_acc,
+        new_holder_acc,
         call_solana_test_contract,
     ):
         data = abi.function_signature_to_4byte_selector("call_memo()")
@@ -474,7 +474,7 @@ class TestInteroperability:
         resp = evm_loader.execute_transaction_steps_from_instruction(
             operator_keypair,
             treasury_pool,
-            holder_acc,
+            new_holder_acc,
             signed_tx,
             [
                 sender_with_tokens.balance_account_address,
