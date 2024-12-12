@@ -38,9 +38,9 @@ contract CallSolanaCaller {
        emit LogBytes(returnData);
     }
 
-    function executeInIterativeMode(uint64 lamports, bytes calldata instruction) public {
+    function executeInIterativeMode(uint256 iterations, uint64 lamports, bytes calldata instruction) public {
         // some actions to make the call iterative
-        for (uint256 i = 0; i < 40; i++) {
+        for (uint256 i = 0; i < iterations; i++) {
             Data memory newData = Data({
                 value1: 1,
                 value2: 2
@@ -53,7 +53,7 @@ contract CallSolanaCaller {
 
     }
 
-    function executeAndDoSomeIterativeActions(uint64 lamports, bytes calldata instruction) public {
+    function executeAndDoSomeIterativeActions(uint256 iterations, uint64 lamports, bytes calldata instruction) public {
         execute(lamports, instruction);
         // some actions to make the call iterative
         for (uint256 i = 0; i < 40; i++) {
