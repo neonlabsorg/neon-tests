@@ -290,7 +290,7 @@ class TestSolanaInteroperability:
 
         for _ in range(24):
             instruction = Instruction(
-                program_id=COUNTER_ID,
+                program_id=COUNTER_ID, 
                 accounts=[
                     AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
                 ],
@@ -318,11 +318,31 @@ class TestSolanaInteroperability:
         serialized = serialize_instruction(COUNTER_ID, instruction)
 
         tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.executeInIterativeMode(lamports, serialized).build_transaction(tx)
+        instruction_tx = call_solana_caller.functions.executeInIterativeMode(29, lamports, serialized).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
         event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
+
+        
+    def test_iterative_transaction_exceed_instruction_trace_length (self, counter_resource_address, call_solana_caller, get_counter_value):
+        sender = self.accounts[0]
+        lamports = 0
+
+        instruction = Instruction(
+            program_id=COUNTER_ID,
+            accounts=[
+                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
+            ],
+            data=bytes([0x1]),
+        )
+        serialized = serialize_instruction(COUNTER_ID, instruction)
+
+        tx = self.web3_client.make_raw_tx(sender.address)
+        instruction_tx = call_solana_caller.functions.executeInIterativeMode(40, lamports, serialized).build_transaction(tx)
+        resp = self.web3_client.send_transaction(sender, instruction_tx)
+        assert resp["status"] == 0
+
 
     def test_iterative_actions_after_solana_call(self, counter_resource_address, call_solana_caller, get_counter_value):
         sender = self.accounts[0]
@@ -338,7 +358,7 @@ class TestSolanaInteroperability:
         serialized = serialize_instruction(COUNTER_ID, instruction)
 
         tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.executeAndDoSomeIterativeActions(lamports, serialized).build_transaction(tx)
+        instruction_tx = call_solana_caller.functions.executeAndDoSomeIterativeActions(29, lamports, serialized).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
         event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
