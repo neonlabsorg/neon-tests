@@ -350,7 +350,7 @@ class TestSolanaInteroperability:
 
  
     @pytest.mark.parametrize("iterations_number", [29, 52])
-    def test_iterative_actions_before_solana_call(self, iterations_number, counter_resource_address, call_solana_caller, get_counter_value):
+    def test_solana_call_before_iterative_actions(self, iterations_number, counter_resource_address, call_solana_caller, get_counter_value):
         sender = self.accounts[0]
         lamports = 0
 
