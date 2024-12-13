@@ -2,14 +2,8 @@ pragma solidity >=0.7.0 <0.9.0;
 pragma abicoder v2;
 
 import "../external/neon-evm/call_solana.sol";
+import "../common/StorageSoliditySource.sol";
 
-
-contract CallMessage {
-  string message;
-  constructor(string memory _message){
-     message = _message;
-  }
-}
 
 contract CallSolanaCaller {
 
@@ -78,8 +72,8 @@ contract CallSolanaCaller {
         }
     }
 
-    function deployCallMessageAndCallSolana(string memory message, uint64 lamports, bytes calldata instruction) public {
-        CallMessage contractCallMessage = new CallMessage(message);
+    function deployStorageAndCallSolana(string memory message, uint64 lamports, bytes calldata instruction) public {
+        Storage storageContract = new Storage();
         execute(lamports, instruction);
         emit LogStr(message);
     }

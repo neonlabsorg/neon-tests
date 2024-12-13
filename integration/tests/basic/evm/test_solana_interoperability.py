@@ -478,7 +478,7 @@ class TestSolanaInteroperability:
         serialized = serialize_instruction(COUNTER_ID, instruction)
 
         tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.deployCallMessageAndCallSolana("deploy contracts status: done",
+        instruction_tx = call_solana_caller.functions.deployStorageAndCallSolana("deploy contracts status: done",
                                                                                      lamports,
                                                                                      serialized).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
