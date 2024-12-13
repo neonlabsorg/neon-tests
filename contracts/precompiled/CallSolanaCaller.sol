@@ -4,6 +4,13 @@ pragma abicoder v2;
 import "../external/neon-evm/call_solana.sol";
 
 
+contract CallMessage {
+  string message;
+  constructor(string memory _message){
+     message = _message;
+  }
+}
+
 contract CallSolanaCaller {
 
     CallSolana constant _callSolana = CallSolana(0xFF00000000000000000000000000000000000006);
@@ -23,7 +30,6 @@ contract CallSolanaCaller {
         bytes instruction;
     }
 
-
     event LogBytes(bytes32 value);
     event LogStr(string value);
     event LogData(bytes32 program, bytes value);
@@ -39,6 +45,29 @@ contract CallSolanaCaller {
     }
 
     function executeInIterativeMode(uint256 iterations, uint64 lamports, bytes calldata instruction) public {
+        doIterativeActions(iterations);
+        execute(lamports, instruction);
+    }
+
+    function executeAndDoSomeIterativeActions(uint256 iterations, uint64 lamports, bytes calldata instruction) public {
+        execute(lamports, instruction);
+        doIterativeActions(iterations);
+    }
+
+    function executeMultipleCallsAndDoIterativeActions(uint256 calls, uint256 iterations, uint64 lamports, bytes calldata instruction) public {
+        for (uint256 i = 0; i < calls; i++) {
+            execute(lamports, instruction);
+        }
+
+        doIterativeActions(iterations);
+    }
+
+    function doSomeIterativeActions(uint256 iterations) public {
+        doIterativeActions(iterations);
+        emit LogStr("iterative actions status: done");
+    }
+
+    function doIterativeActions(uint iterations) public {
         // some actions to make the call iterative
         for (uint256 i = 0; i < iterations; i++) {
             Data memory newData = Data({
@@ -46,25 +75,15 @@ contract CallSolanaCaller {
                 value2: 2
             });
             dataMap[i] = newData;
-
         }
-
-        execute(lamports, instruction);
-
     }
 
-    function executeAndDoSomeIterativeActions(uint256 iterations, uint64 lamports, bytes calldata instruction) public {
+    function deployCallMessageAndCallSolana(string memory message, uint64 lamports, bytes calldata instruction) public {
+        CallMessage contractCallMessage = new CallMessage(message);
         execute(lamports, instruction);
-        // some actions to make the call iterative
-        for (uint256 i = 0; i < 40; i++) {
-            Data memory newData = Data({
-                value1: 1,
-                value2: 2
-            });
-            dataMap[i] = newData;
-        }
-
+        emit LogStr(message);
     }
+
     function execute_with_get_return_data(uint64 lamports, bytes calldata instruction) public {
         _callSolana.execute(lamports, instruction);
         (bytes32 program, bytes memory returnData) = _callSolana.getReturnData();
