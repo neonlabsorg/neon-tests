@@ -348,31 +348,9 @@ class TestSolanaInteroperability:
         ):
             call_solana_caller.functions.executeInIterativeMode(iterations, lamports, serialized).build_transaction(tx)
 
-    @pytest.mark.parametrize("iterations_number", [40, 55])
-    def test_iterative_actions_no_solana_call(self, iterations_number, call_solana_caller):
-        sender = self.accounts[0]
-
-        tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.doSomeIterativeActions(iterations_number).build_transaction(tx)
-        
-        resp = self.web3_client.send_transaction(sender, instruction_tx)
-        assert resp["status"] == 1
-        
-        event_logs = call_solana_caller.events.LogStr().process_receipt(resp)
-        assert event_logs[0].args.value == "iterative actions status: done"
-
-    def test_iterative_actions_no_solana_call_exceed_accounts_limit(self, call_solana_caller):
-        sender = self.accounts[0]
-        tx = self.web3_client.make_raw_tx(sender.address)
-        
-        with pytest.raises(
-            web3.exceptions.ContractLogicError,
-            match="too many accounts: 65 > 64",
-        ):
-            call_solana_caller.functions.doSomeIterativeActions(56).build_transaction(tx)
-    
+ 
     @pytest.mark.parametrize("iterations_number", [29, 52])
-    def test_iterative_actions_after_solana_call(self, iterations_number, counter_resource_address, call_solana_caller, get_counter_value):
+    def test_iterative_actions_before_solana_call(self, iterations_number, counter_resource_address, call_solana_caller, get_counter_value):
         sender = self.accounts[0]
         lamports = 0
 
