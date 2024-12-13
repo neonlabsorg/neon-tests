@@ -15,6 +15,9 @@ from spl.token.client import Token
 from solders.system_program import ID as SYS_PROGRAM_ID
 from solana.transaction import Instruction, AccountMeta
 from spl.token.instructions import create_associated_token_account, TransferParams, transfer
+from utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
+from .utils.constants import TAG_FINALIZED_STATE
+from .utils.transaction_checks import check_holder_account_tag
 
 
 from integration.tests.neon_evm.utils.call_solana import SolanaCaller
@@ -438,16 +441,16 @@ class TestInteroperability:
         evm_loader,
         treasury_pool,
         sol_client,
-        new_holder_acc,
+        holder_acc,
         call_solana_test_contract,
     ):
         data = abi.function_signature_to_4byte_selector("call_memo()")
         signed_tx = make_eth_transaction(evm_loader, call_solana_test_contract.eth_address, data, sender_with_tokens)
-        evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
         resp = evm_loader.execute_transaction_steps_from_account(
             operator_keypair,
             treasury_pool,
-            new_holder_acc,
+            holder_acc,
             [
                 sender_with_tokens.balance_account_address,
                 SOLANA_CALL_PRECOMPILED_ID,
@@ -457,6 +460,7 @@ class TestInteroperability:
             ],
         )
         check_transaction_logs_have_text(resp, "exit_status=0x11")
+        check_holder_account_tag(holder_acc, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
 
     def test_step_from_instruction_for_call_memo(
         self,
@@ -466,7 +470,7 @@ class TestInteroperability:
         evm_loader,
         treasury_pool,
         sol_client,
-        new_holder_acc,
+        holder_acc,
         call_solana_test_contract,
     ):
         data = abi.function_signature_to_4byte_selector("call_memo()")
@@ -474,7 +478,7 @@ class TestInteroperability:
         resp = evm_loader.execute_transaction_steps_from_instruction(
             operator_keypair,
             treasury_pool,
-            new_holder_acc,
+            holder_acc,
             signed_tx,
             [
                 sender_with_tokens.balance_account_address,
@@ -485,9 +489,10 @@ class TestInteroperability:
             ],
         )
         check_transaction_logs_have_text(resp, "exit_status=0x11")
+        check_holder_account_tag(holder_acc, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
 
 
-    def test_step_from_instruction_for_counter(self, neon_api_client, sender_with_tokens, solana_caller, evm_loader, new_holder_acc):
+    def test_step_from_instruction_for_counter(self, neon_api_client, sender_with_tokens, solana_caller, evm_loader, holder_acc):
         iterations = 21
         resource_addr = solana_caller.create_resource(sender_with_tokens, b"123", 8, 1000000000, COUNTER_ID)
 
@@ -510,9 +515,11 @@ class TestInteroperability:
         additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
         print(additional_accounts)
         
-        resp = solana_caller.execute_iterative(COUNTER_ID, instruction, iterations, 0, new_holder_acc, sender_with_tokens, additional_accounts)
-
+        resp = solana_caller.execute_iterative(COUNTER_ID, instruction, iterations, 0, holder_acc, sender_with_tokens, additional_accounts)
+        print(resp)
+        
         check_transaction_logs_have_text(resp, "exit_status=0x11")
         info: bytes = evm_loader.get_solana_account_data(resource_addr, COUNTER_ACCOUNT_LAYOUT.sizeof())
         layout = COUNTER_ACCOUNT_LAYOUT.parse(info)
         assert layout.count == 1
+        check_holder_account_tag(holder_acc, FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT, TAG_FINALIZED_STATE)
