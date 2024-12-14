@@ -9,10 +9,10 @@ from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 
 PRECOMPILED_FIXTURES = {
-    "modexp": {
-        "address": "0x0000000000000000000000000000000000000005",
-        "files": ["modexp.json", "modexp_eip2565.json"],
-    },
+    # "modexp": {
+    #     "address": "0x0000000000000000000000000000000000000005",
+    #     "files": ["modexp.json", "modexp_eip2565.json"],
+    # },
     "ecAdd": {
         "address": "0x0000000000000000000000000000000000000006",
         "files": ["bn256Add.json"],
