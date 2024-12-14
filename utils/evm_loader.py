@@ -673,6 +673,7 @@ class EvmLoader(SolanaClient):
     def create_tree_account_multiple(
         self, neon_user, treasury, tree_account_create_data, mint, payer_nonce=None, chain_id=SOL_CHAIN_ID
     ):
+        print("chain_id", chain_id)
         if not payer_nonce:
             payer_nonce = self.get_neon_nonce(neon_user.neon_address, chain_id).to_bytes(8, "little")
         else:
@@ -694,7 +695,7 @@ class EvmLoader(SolanaClient):
                 self.loader_id,
             )
         )
-        self.send_tx(trx, neon_user.solana_account)
+        self.send_tx_and_check_status_ok(trx, neon_user.solana_account)
         return tree_account
 
     def start_scheduled_trx_from_account(

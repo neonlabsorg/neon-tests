@@ -17,6 +17,7 @@ from web3.middleware import geth_poa_middleware
 
 from clickfile import TEST_GROUPS, EnvName
 from utils.consts import LAMPORT_PER_SOL
+from utils.evm_loader import EvmLoader
 from utils.neon_user import NeonUser
 from utils.types import TestGroup, TreasuryPool
 from utils.error_log import error_log
@@ -54,7 +55,7 @@ def pytest_addoption(parser: Parser):
         "--network",
         action="store",
         choices=[env.value for env in EnvName],  # noqa
-        default="night-stand",
+        default="devnet",
         help="Which stand use",
     )
     parser.addoption(
@@ -154,6 +155,8 @@ def pytest_configure(config: Config):
         os.environ["NEON_TOKEN_MINT"] = env["spl_neon_mint"]
     if "CHAIN_ID" not in os.environ or not os.environ["CHAIN_ID"]:
         os.environ["CHAIN_ID"] = str(env["network_ids"]["neon"])
+    if "SOL_CHAIN_ID" not in os.environ or not os.environ["SOL_CHAIN_ID"]:
+        os.environ["SOL_CHAIN_ID"] = str(env["network_ids"]["sol"])
 
     if network_name == "terraform":
         env["solana_url"] = env["solana_url"].replace("<solana_ip>", os.environ.get("SOLANA_IP"))
@@ -260,12 +263,15 @@ def accounts_session(pytestconfig: Config, web3_client_session, faucet, eth_bank
 
 
 @pytest.fixture(scope="function")
-def neon_user(evm_loader, pytestconfig) -> NeonUser:
-    user = NeonUser()
-    evm_loader.request_airdrop(user.solana_account.pubkey(), 1000 * 10**9, commitment=Confirmed)
-    evm_loader.deposit_wrapped_sol_from_solana_to_neon(
-        user.solana_account, "0x" + user.neon_address.hex(), pytestconfig.environment.network_ids["sol"], int(1 * LAMPORT_PER_SOL)
-    )
+def neon_user(evm_loader:EvmLoader, pytestconfig, bank_account, web3_client_sol) -> NeonUser:
+    user = NeonUser(bank_account)
+    balance = web3_client_sol.get_balance(user.checksum_address)
+    if balance < 1 * LAMPORT_PER_SOL//10:
+        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+            user.solana_account, "0x" + user.neon_address.hex(), pytestconfig.environment.network_ids["sol"], int(1 * LAMPORT_PER_SOL)//10
+        )
+    print("Neon account balance sol chain", balance)
+    print("Neon account sol balance", evm_loader.get_solana_balance(user.solana_account.pubkey()))
     return user
 
 
@@ -273,8 +279,9 @@ def neon_user(evm_loader, pytestconfig) -> NeonUser:
 def treasury_pool(evm_loader) -> TreasuryPool:
     index = 2
     address = evm_loader.create_treasury_pool_address(index)
+    print("treasury_pool address", address)
     index_buf = index.to_bytes(4, "little")
-    evm_loader.request_airdrop(address, 10000 * 10**9, commitment=Confirmed)
+   # evm_loader.request_airdrop(address, 10000 * 10**9, commitment=Confirmed)
     return TreasuryPool(index, address, index_buf)
 
 @pytest.fixture(scope="session")
