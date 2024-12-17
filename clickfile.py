@@ -392,6 +392,7 @@ def install_python_requirements():
         "-r deploy/requirements/click.txt "
         "-r deploy/requirements/prod.txt  "
         "-r deploy/requirements/devel.txt"
+        "-r deploy/requirements/ui.txt"
     )
     subprocess.check_call(command, shell=True)
 
