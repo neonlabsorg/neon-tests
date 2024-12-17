@@ -48,12 +48,11 @@ contract CallSolanaCaller {
         doIterativeActions(iterations);
     }
 
-    function executeMultipleCallsAndDoIterativeActions(uint256 calls, uint256 iterations, uint64 lamports, bytes calldata instruction) public {
+    function executeMultipleInIterativeMode(uint256 calls, uint256 iterations, uint64 lamports, bytes calldata instruction) public {
+        doIterativeActions(iterations);
         for (uint256 i = 0; i < calls; i++) {
             execute(lamports, instruction);
         }
-
-        doIterativeActions(iterations);
     }
 
     function doSomeIterativeActions(uint256 iterations) public {
