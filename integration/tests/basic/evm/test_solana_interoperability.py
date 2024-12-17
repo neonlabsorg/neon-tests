@@ -22,7 +22,7 @@ from utils.accounts import EthAccounts
 from utils.consts import COUNTER_ID, TRANSFER_TOKENS_ID, wSOL
 from utils.helpers import bytes32_to_solana_pubkey, serialize_instruction, wait_condition
 from utils.instructions import make_wSOL
-from utils.web3client import NeonChainWeb3Client
+from utils.web3client import NeonChainWeb3Client, Web3Client
 
 
 @pytest.fixture(scope="session")
@@ -42,6 +42,20 @@ def get_counter_value() -> tp.Iterator[int]:
 class TestSolanaInteroperability:
     accounts: EthAccounts
     web3_client: NeonChainWeb3Client
+    
+    @pytest.fixture(scope="class")
+    def account_sol_network(self, class_account_sol_chain):
+        return class_account_sol_chain
+    
+    @pytest.fixture(scope="class")
+    def call_solana_caller_sol_network(self, account_sol_network, web3_client_sol):
+        contract, _ = web3_client_sol.deploy_and_get_contract(
+            contract="precompiled/CallSolanaCaller.sol",
+            version="0.8.10",
+            contract_name="CallSolanaCaller",
+            account=account_sol_network,
+        )
+        return contract
 
     def test_counter_execute_with_get_return_data(
         self, call_solana_caller, counter_resource_address: bytes, get_counter_value
@@ -306,6 +320,31 @@ class TestSolanaInteroperability:
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 0
 
+    def test_solana_call_after_iterative_actions_sol_network(self, web3_client_sol,
+                                                             counter_resource_address,
+                                                             call_solana_caller_sol_network,
+                                                             get_counter_value,
+                                                             account_sol_network):
+        iterations = 29
+        sender = account_sol_network
+        lamports = 0
+
+        instruction = Instruction(
+            program_id=COUNTER_ID,
+            accounts=[
+                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
+            ],
+            data=bytes([0x1]),
+        )
+        serialized = serialize_instruction(COUNTER_ID, instruction)
+
+        tx = web3_client_sol.make_raw_tx(sender.address)
+        instruction_tx = call_solana_caller_sol_network.functions.executeInIterativeMode(iterations, lamports, serialized).build_transaction(tx)
+        resp = web3_client_sol.send_transaction(sender, instruction_tx)
+        assert resp["status"] == 1
+        event_logs = call_solana_caller_sol_network.events.LogBytes().process_receipt(resp)
+        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
+        
     def test_solana_call_after_iterative_actions(self, counter_resource_address, call_solana_caller, get_counter_value):
         iterations = 29
         sender = self.accounts[0]
