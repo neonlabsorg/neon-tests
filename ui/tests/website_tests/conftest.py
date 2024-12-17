@@ -8,6 +8,7 @@ from ui.pages.main_page import MainPage
 from ui.pages.menu import Menu
 from ui.pages.quick_start_page import QuickStartPage
 from utils.base_page import BasePage
+from selenium.webdriver.chrome.options import Options
 
 website_url = "https://neonevm.org/"
 
@@ -17,7 +18,17 @@ def allure_environment():
 
 @pytest.fixture(scope="function")
 def driver(request):
+
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--remote-debugging-port=9222")
+
+    chrome_options.binary_location = "/usr/bin/google-chrome"
     driver = webdriver.Chrome()
+
     driver.implicitly_wait(10)
     driver.get(website_url)
     driver.maximize_window()
