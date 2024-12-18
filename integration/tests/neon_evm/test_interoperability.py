@@ -513,10 +513,8 @@ class TestInteroperability:
             [iterations, 0, serialized_instructions],
         )
         additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
-        print(additional_accounts)
         
         resp = solana_caller.execute_iterative(COUNTER_ID, instruction, iterations, 0, holder_acc, sender_with_tokens, additional_accounts)
-        print(resp)
         
         check_transaction_logs_have_text(resp, "exit_status=0x11")
         info: bytes = evm_loader.get_solana_account_data(resource_addr, COUNTER_ACCOUNT_LAYOUT.sizeof())
