@@ -69,14 +69,16 @@ class EvmLoader(SolanaClient):
 
     def create_balance_account(self, ether: Union[str, bytes], sender, chain_id=CHAIN_ID) -> Pubkey:
         account_pubkey = self.ether2balance(ether, chain_id)
-        contract_pubkey = Pubkey.from_string(self.ether2program(ether)[0])
-        trx = Transaction()
-        trx.add(
-            make_CreateBalanceAccount(
-                self.loader_id, sender.pubkey(), ether2bytes(ether), account_pubkey, contract_pubkey, chain_id
+        if not self.account_exists(account_pubkey):
+            contract_pubkey = Pubkey.from_string(self.ether2program(ether)[0])
+            trx = Transaction()
+            trx.add(
+                make_CreateBalanceAccount(
+                    self.loader_id, sender.pubkey(), ether2bytes(ether), account_pubkey, contract_pubkey, chain_id
+                )
             )
-        )
-        self.send_tx(trx, sender)
+            self.send_tx_and_check_status_ok(trx, sender)
+            print(f"Create balance account {account_pubkey} for {ether}")
         return account_pubkey
 
     def create_treasury_pool_address(self, pool_index):
@@ -87,7 +89,6 @@ class EvmLoader(SolanaClient):
     def create_tree_account_address(self, neon_address, nonce, chain_id=SOL_CHAIN_ID):
         chain_id_bytes = chain_id.to_bytes(8, "little")
         seeds = [self.account_seed_version, b"TREE", neon_address, chain_id_bytes, nonce]
-        print(seeds)
         return Pubkey.find_program_address(seeds, self.loader_id)[0]
 
     def create_get_authority_address(self):
@@ -667,7 +668,7 @@ class EvmLoader(SolanaClient):
                 neon_user.solana_account, balance_account, treasury, tree_account, pool, transaction, self.loader_id
             )
         )
-        self.send_tx(trx, neon_user.solana_account)
+        self.send_tx_and_check_status_ok(trx, neon_user.solana_account)
         return tree_account
 
     def create_tree_account_multiple(
@@ -786,17 +787,23 @@ class EvmLoader(SolanaClient):
         )
         return self.send_tx(trx, operator)
 
-    def destroy_tree_account(self, operator, neon_user: NeonUser, treasury, tree_account, chain_id=SOL_CHAIN_ID):
+    def destroy_tree_account(self, neon_user: NeonUser, treasury, tree_account, chain_id=SOL_CHAIN_ID):
         trx = Transaction()
 
         trx.add(
             make_ScheduledTransactionDestroy(
-                operator,
-                neon_user.solana_account,
+                neon_user.solana_account.pubkey(),
                 neon_user.get_balance_account(chain_id),
                 treasury,
                 tree_account,
                 self.loader_id,
             )
         )
-        return self.send_tx(trx, operator)
+        return self.send_tx(trx, neon_user.solana_account)
+
+    def destroy_tree_account_if_exists(self, neon_user: NeonUser, treasury, nonce, chain_id=SOL_CHAIN_ID):
+        nonce_bytes = nonce.to_bytes(8, "little")
+        tree_account = self.create_tree_account_address(neon_user.neon_address, nonce_bytes, chain_id)
+        if self.account_exists(tree_account):
+            return self.destroy_tree_account(neon_user, treasury, tree_account, chain_id)
+        return None

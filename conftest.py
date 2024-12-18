@@ -6,6 +6,9 @@ import pathlib
 import sys
 from dataclasses import dataclass
 
+from solders.pubkey import Pubkey
+
+import allure
 import pytest
 from _pytest.config import Config
 from _pytest.config.argparsing import Parser
@@ -263,26 +266,27 @@ def accounts_session(pytestconfig: Config, web3_client_session, faucet, eth_bank
 
 
 @pytest.fixture(scope="function")
-def neon_user(evm_loader:EvmLoader, pytestconfig, bank_account, web3_client_sol) -> NeonUser:
+def neon_user(evm_loader: EvmLoader, pytestconfig, bank_account, faucet) -> NeonUser:
     user = NeonUser(bank_account)
-    balance = web3_client_sol.get_balance(user.checksum_address)
+    balance = evm_loader.get_solana_balance(user.solana_account.pubkey())
     if balance < 1 * LAMPORT_PER_SOL//10:
-        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
-            user.solana_account, "0x" + user.neon_address.hex(), pytestconfig.environment.network_ids["sol"], int(1 * LAMPORT_PER_SOL)//10
-        )
-    print("Neon account balance sol chain", balance)
-    print("Neon account sol balance", evm_loader.get_solana_balance(user.solana_account.pubkey()))
+        evm_loader.request_airdrop(user.solana_account.pubkey(), 3 * LAMPORT_PER_SOL, commitment=Confirmed)
     return user
 
 
 @pytest.fixture(scope="session")
-def treasury_pool(evm_loader) -> TreasuryPool:
+def treasury_pool(evm_loader, bank_account, pytestconfig) -> TreasuryPool:
     index = 2
     address = evm_loader.create_treasury_pool_address(index)
-    print("treasury_pool address", address)
+    if pytestconfig.getoption("--network") == "mainnet":
+        address = Pubkey.from_string(os.environ.get("MAINNET_TREASURY_POOL_ADDRESS"))
+    else:
+        address = evm_loader.create_treasury_pool_address(index)
     index_buf = index.to_bytes(4, "little")
-   # evm_loader.request_airdrop(address, 10000 * 10**9, commitment=Confirmed)
+    if evm_loader.get_solana_balance(address) < 3 * 10**9 and pytestconfig.getoption("--network") != "mainnet":
+        evm_loader.request_airdrop(address, 3 * 10**9, commitment=Confirmed)
     return TreasuryPool(index, address, index_buf)
+
 
 @pytest.fixture(scope="session")
 def treasury_pool_new(evm_loader) -> TreasuryPool:

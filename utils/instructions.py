@@ -464,14 +464,14 @@ def make_ScheduledTransactionStartFromInstruction(
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
 
-def make_ScheduledTransactionDestroy(operator, signer, balance_account, treasury, tree_account, evm_loader_id):
+def make_ScheduledTransactionDestroy(signer, balance_account, treasury, tree_account, evm_loader_id):
     data = InstructionTags.SCHEDULED_TRANSACTION_DESTROY + treasury.buffer
     accounts = [
-        AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
+        AccountMeta(pubkey=signer.pubkey(), is_signer=True, is_writable=True),
         AccountMeta(pubkey=balance_account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
-        AccountMeta(pubkey=signer.pubkey(), is_signer=False, is_writable=True),
+     #   AccountMeta(pubkey=signer.pubkey(), is_signer=False, is_writable=True),
     ]
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 

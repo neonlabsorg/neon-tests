@@ -124,6 +124,12 @@ class Web3Client:
         base_fee = latest_block.baseFeePerGas  # noqa
         return base_fee
 
+    def max_fee_per_gas(self) -> int:
+        max_priority_fee = self._web3.eth._max_priority_fee() # noqa
+        return (3 * self.base_fee_per_gas()) + max_priority_fee
+
+    def max_priority_fee_per_gas(self) -> int:
+        return self._web3.eth._max_priority_fee() # noqa
     @allure.step("Create account")
     def create_account(self) -> eth_account.signers.local.LocalAccount:
         return self._web3.eth.account.create()
@@ -625,6 +631,8 @@ class NeonChainWeb3Client(Web3Client):
     ) -> eth_account.signers.local.LocalAccount:
         """Creates a new account with balance"""
         account = self.create_account()
+        print("Created accounts private keys:", account.key)
+
         if bank_account is not None:
             self.send_neon(bank_account, account, amount)
         else:

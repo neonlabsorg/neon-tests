@@ -322,13 +322,17 @@ def withdraw_contract(web3_client, faucet, accounts) -> Contract:
 
 
 @pytest.fixture(scope="class")
-def common_contract(web3_client, accounts) -> Contract:
-    contract, tx = web3_client.deploy_and_get_contract(
-        contract="common/Common",
-        version="0.8.12",
-        contract_name="Common",
-        account=accounts[0],
-    )
+def common_contract(web3_client, accounts, pytestconfig) -> Contract:
+    if pytestconfig.getoption("--network") == "mainnet":
+        address = os.environ.get("MAINNET_COMMON_CONTRACT_ADDRESS")
+        contract = web3_client.get_deployed_contract(address, "common/Common", contract_name="Common")
+    else:
+        contract, tx = web3_client.deploy_and_get_contract(
+            contract="common/Common",
+            version="0.8.12",
+            contract_name="Common",
+            account=accounts[0],
+        )
     yield contract
 
 

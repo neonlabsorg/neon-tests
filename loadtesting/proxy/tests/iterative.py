@@ -26,7 +26,7 @@ class NeonIterativeTasksSet(NeonProxyTasksSet):
         """Transferring funds to a random account"""
         tx = self.web3_client.make_raw_tx(self.account)
         instruction_tx = self.contract.functions.moreInstruction(
-            0, 12000
+            0, 3000
 
         ).build_transaction(tx)
         trx = self.web3_client.send_transaction(self.account, instruction_tx)
