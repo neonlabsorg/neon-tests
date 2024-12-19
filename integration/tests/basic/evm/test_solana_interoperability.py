@@ -592,3 +592,32 @@ class TestSolanaInteroperability:
             lambda: self.web3_client.is_trx_iterative(resp["transactionHash"].hex()) is True,
             timeout_sec=60,
         )
+
+    def test_iterative_tx_with_send_tokens(self, counter_resource_address, call_solana_caller, get_counter_value):
+        iterations = 29
+        sender = self.accounts[0]
+        lamports = 0
+        balance_before = self.web3_client.get_balance(call_solana_caller.address)
+
+        instruction = Instruction(
+            program_id=COUNTER_ID,
+            accounts=[
+                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
+            ],
+            data=bytes([0x1]),
+        )
+        serialized = serialize_instruction(COUNTER_ID, instruction)
+
+        tx = self.web3_client.make_raw_tx(from_=sender.address, amount=10)
+
+        instruction_tx = call_solana_caller.functions.sendTokensAndExecuteInIterativeMode(iterations,
+                                                                                          lamports,
+                                                                                          serialized).build_transaction(tx)
+        resp = self.web3_client.send_transaction(sender, instruction_tx)
+        assert resp["status"] == 1
+        
+        event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
+        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
+        
+        balance_after = self.web3_client.get_balance(call_solana_caller.address)
+        assert balance_after == balance_before + 10

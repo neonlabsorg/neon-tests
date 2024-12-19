@@ -55,6 +55,14 @@ contract CallSolanaCaller {
         }
     }
 
+    function sendTokensAndExecuteInIterativeMode(
+        uint256 iterations,
+        uint64 lamports,
+        bytes calldata instruction
+    ) public payable {
+        executeInIterativeMode(iterations, lamports, instruction);
+    }
+
     function doSomeIterativeActions(uint256 iterations) public {
         doIterativeActions(iterations);
         emit LogStr("iterative actions status: done");
