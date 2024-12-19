@@ -364,7 +364,7 @@ jobs:
         timeout-minutes: 60
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: ${{ github.repository_owner }}/curve_tests:4427d70805e0548a66cf5590538417ff8e8d5eb1
+          IMAGE: ${{ github.repository_owner }}/curve_tests:9e9eb61c02fb2bf406f327b380f0d27fedd774ca
         run: |
           docker pull ${{ env.IMAGE }}
           docker run -i -d --name curve-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
