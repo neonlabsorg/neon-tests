@@ -497,12 +497,11 @@ class TestSolanaInteroperability:
         ):
             call_solana_caller.functions.executeAndDoSomeIterativeActions(iterations, lamports, serialized).build_transaction(tx)
 
-    def test_iterative_actions_and_multiple_solana_calls(self, counter_resource_address, call_solana_caller, get_counter_value):
+    def test_iterative_actions_and_multiple_solana_calls(self, counter_resource_address, call_solana_caller):
         solana_calls = 5
         iterations = 20
         sender = self.accounts[0]
         lamports = 0
-
         instruction = Instruction(
             program_id=COUNTER_ID,
             accounts=[
@@ -519,8 +518,7 @@ class TestSolanaInteroperability:
                                                                                      serialized).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
-        event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
-        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
+        assert len(call_solana_caller.events.LogBytes().process_receipt(resp)) == solana_calls
     
     def test_iterative_actions_and_multiple_solana_calls_instructions_limit(self, counter_resource_address, call_solana_caller):
         solana_calls = 15
@@ -565,8 +563,8 @@ class TestSolanaInteroperability:
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
         
-        event_logs = call_solana_caller.events.LogStr().process_receipt(resp)
-        assert event_logs[0].args.value == "deploy contracts status: done"
+        event_logs = call_solana_caller.events.LogAddress().process_receipt(resp)
+        assert event_logs[0].args.value is not None
 
     def test_transfer_with_pda_signature_iterative_tx_eip_1559(self, call_solana_caller, sol_client, solana_account, pytestconfig, bank_account):
         iterations = 20

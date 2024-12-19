@@ -25,6 +25,7 @@ contract CallSolanaCaller {
 
     event LogBytes(bytes32 value);
     event LogStr(string value);
+    event LogAddress(address value);
     event LogData(bytes32 program, bytes value);
 
     function getNeonAddress(address addr) public returns (bytes32) {
@@ -40,59 +41,59 @@ contract CallSolanaCaller {
     }
 
     function executeInIterativeMode(
-        uint256 iterations,
+        uint256 actionsNumber,
         uint64 lamports,
         bytes calldata instruction
     ) public {
-        doIterativeActions(iterations);
+        doIterativeActions(actionsNumber);
         execute(lamports, instruction);
     }
 
     function executeAndDoSomeIterativeActions(
-        uint256 iterations,
+        uint256 actionsNumber,
         uint64 lamports,
         bytes calldata instruction
     ) public {
         execute(lamports, instruction);
-        doIterativeActions(iterations);
+        doIterativeActions(actionsNumber);
     }
 
     function executeMultipleInIterativeMode(
         uint256 calls,
-        uint256 iterations,
+        uint256 actionsNumber,
         uint64 lamports,
         bytes calldata instruction
     ) public {
-        doIterativeActions(iterations);
+        doIterativeActions(actionsNumber);
         for (uint256 i = 0; i < calls; i++) {
             execute(lamports, instruction);
         }
     }
 
     function batchExecuteInIterativeMode(
-        uint256 iterations,
+        uint256 actionsNumber,
         ExecuteArgs[] memory _args
     ) public {
-        doIterativeActions(iterations);
+        doIterativeActions(actionsNumber);
         batchExecute(_args);
     }
 
     function sendTokensAndExecuteInIterativeMode(
-        uint256 iterations,
+        uint256 actionsNumber,
         uint64 lamports,
         bytes calldata instruction
     ) public payable {
-        executeInIterativeMode(iterations, lamports, instruction);
+        executeInIterativeMode(actionsNumber, lamports, instruction);
     }
 
-    function doSomeIterativeActions(uint256 iterations) public {
-        doIterativeActions(iterations);
+    function doSomeIterativeActions(uint256 actionsNumber) public {
+        doIterativeActions(actionsNumber);
         emit LogStr("iterative actions status: done");
     }
 
-    function doIterativeActions(uint iterations) public {
+    function doIterativeActions(uint actionsNumber) public {
         // some actions to make the call iterative
-        for (uint256 i = 0; i < iterations; i++) {
+        for (uint256 i = 0; i < actionsNumber; i++) {
             Data memory newData = Data({value1: 1, value2: 2});
             dataMap[i] = newData;
         }
@@ -104,8 +105,10 @@ contract CallSolanaCaller {
         bytes calldata instruction
     ) public {
         Storage storageContract = new Storage();
+        storageContract.store(10);
+        require(storageContract.retrieve() == 10);
         execute(lamports, instruction);
-        emit LogStr(message);
+        emit LogAddress(address(storageContract));
     }
 
     function execute_with_get_return_data(
