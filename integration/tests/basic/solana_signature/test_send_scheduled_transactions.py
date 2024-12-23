@@ -149,7 +149,6 @@ class TestScheduledTrx:
                 neon_user, treasury_pool, tree_acc.data, wSOL["address_spl"], payer_nonce=nonce
             )
 
-    @pytest.mark.skip("NDEV-3453")
     def test_scheduled_trx_send_tokens_to_neon_chain_contract(
         self, neon_user, evm_loader, event_caller_contract, web3_client_sol, treasury_pool
     ):
