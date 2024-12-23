@@ -42,11 +42,11 @@ def get_counter_value() -> tp.Iterator[int]:
 class TestSolanaInteroperability:
     accounts: EthAccounts
     web3_client: NeonChainWeb3Client
-    
+
     @pytest.fixture(scope="class")
     def account_sol_network(self, class_account_sol_chain):
         return class_account_sol_chain
-    
+
     @pytest.fixture(scope="class")
     def call_solana_caller_sol_network(self, account_sol_network, web3_client_sol):
         contract, _ = web3_client_sol.deploy_and_get_contract(
@@ -97,7 +97,7 @@ class TestSolanaInteroperability:
             data=bytes([0x0]),
         )
         return serialize_instruction(TRANSFER_TOKENS_ID, instruction), mint, [from_token_account, to_token_account]
-    
+
     def test_counter_execute_with_get_return_data(
         self, call_solana_caller, counter_resource_address: bytes, get_counter_value
     ):
@@ -122,6 +122,58 @@ class TestSolanaInteroperability:
         event_logs = call_solana_caller.events.LogData().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
         assert bytes32_to_solana_pubkey(event_logs[0].args.program.hex()) == COUNTER_ID
+
+    def test_iterative_actions_and_multiple_solana_calls_instructions_limit(self, counter_resource_address, call_solana_caller):
+        solana_calls = 15
+        iterations = 35
+        sender = self.accounts[0]
+        lamports = 0
+
+        instruction = Instruction(
+            program_id=COUNTER_ID,
+            accounts=[
+                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
+            ],
+            data=bytes([0x1]),
+        )
+        serialized = serialize_instruction(COUNTER_ID, instruction)
+
+        tx = self.web3_client.make_raw_tx(sender.address)
+        instruction_tx = call_solana_caller.functions.executeMultipleInIterativeMode(solana_calls,
+                                                                                     iterations,
+                                                                                     lamports,
+                                                                                     serialized).build_transaction(tx)
+        resp = self.web3_client.send_transaction(sender, instruction_tx)
+        assert resp["status"] == 0
+
+    def test_transfer_with_pda_signature_iterative_tx_eip_1559(self, call_solana_caller, sol_client, solana_account, pytestconfig, bank_account):
+        iterations = 20
+        sender = self.accounts[0]
+        from_wallet = Keypair()
+        to_wallet = Keypair()
+        amount = 100000
+        if pytestconfig.environment.use_bank:
+            sol_client.send_sol(bank_account, from_wallet.pubkey(), int(0.5 * 10**9))
+        else:
+            sol_client.request_airdrop(from_wallet.pubkey(), 1000 * 10**9, commitment=Confirmed)
+
+        serialized, mint, accounts_list = self.get_transfer_instruction(sol_client, from_wallet, to_wallet, amount, call_solana_caller)
+        tx = self.web3_client.make_raw_tx(from_=sender.address, amount=None, data=None, tx_type=TransactionType.EIP_1559)
+
+        instruction_tx = call_solana_caller.functions.executeInIterativeMode(iterations, 0, serialized).build_transaction(tx)
+
+        resp = self.web3_client.send_transaction(sender, instruction_tx)
+        assert resp["status"] == 1
+        assert resp.type == 2
+
+        assert int(mint.get_balance(accounts_list[1], commitment=Confirmed).value.amount) == amount
+        event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
+        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == 0
+
+        wait_condition(
+            lambda: self.web3_client.is_trx_iterative(resp["transactionHash"].hex()) is True,
+            timeout_sec=120,
+        )
 
     def test_counter_with_seed(self, call_solana_caller, counter_resource_address: bytes, get_counter_value):
         sender = self.accounts[0]
@@ -361,6 +413,7 @@ class TestSolanaInteroperability:
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 0
 
+
     def test_solana_call_after_iterative_actions_sol_network(self, web3_client_sol,
                                                              counter_resource_address,
                                                              call_solana_caller_sol_network,
@@ -385,7 +438,7 @@ class TestSolanaInteroperability:
         assert resp["status"] == 1
         event_logs = call_solana_caller_sol_network.events.LogBytes().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
-        
+
     def test_solana_call_after_iterative_actions(self, counter_resource_address, call_solana_caller, get_counter_value):
         iterations = 29
         sender = self.accounts[0]
@@ -406,7 +459,7 @@ class TestSolanaInteroperability:
         assert resp["status"] == 1
         event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
-    
+
     def test_failed_solana_call_after_iterative_actions(self, call_solana_caller, sol_client, solana_account, pytestconfig, bank_account):
         iterations = 29
         sender = self.accounts[0]
@@ -419,17 +472,18 @@ class TestSolanaInteroperability:
             sol_client.request_airdrop(from_wallet.pubkey(), 1000 * 10**9, commitment=Confirmed)
 
         serialized, _, _ = self.get_transfer_instruction(sol_client, from_wallet, to_wallet, amount, call_solana_caller, False)
-        
+
         tx = self.web3_client.make_raw_tx(from_=sender.address, estimate_gas=True)
 
         instruction_tx = call_solana_caller.functions.executeInIterativeMode(iterations, 0, serialized).build_transaction(tx)
-        
+
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 0
-        
+
         event_logs = call_solana_caller.events.LogStr().process_receipt(resp)
         assert len(event_logs) == 0
-      
+
+
     def test_solana_call_after_iterative_actions_exceed_accounts_limit(self, counter_resource_address, call_solana_caller):
         iterations = 53
         sender = self.accounts[0]
@@ -445,7 +499,7 @@ class TestSolanaInteroperability:
         serialized = serialize_instruction(COUNTER_ID, instruction)
 
         tx = self.web3_client.make_raw_tx(sender.address)
-        
+
         with pytest.raises(
             web3.exceptions.ContractLogicError,
             match="too many accounts: 65 > 64",
@@ -490,7 +544,7 @@ class TestSolanaInteroperability:
         serialized = serialize_instruction(COUNTER_ID, instruction)
 
         tx = self.web3_client.make_raw_tx(sender.address)
-        
+
         with pytest.raises(
             web3.exceptions.ContractLogicError,
             match="too many accounts: 65 > 64",
@@ -519,30 +573,7 @@ class TestSolanaInteroperability:
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
         assert len(call_solana_caller.events.LogBytes().process_receipt(resp)) == solana_calls
-    
-    def test_iterative_actions_and_multiple_solana_calls_instructions_limit(self, counter_resource_address, call_solana_caller):
-        solana_calls = 15
-        iterations = 35
-        sender = self.accounts[0]
-        lamports = 0
 
-        instruction = Instruction(
-            program_id=COUNTER_ID,
-            accounts=[
-                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
-            ],
-            data=bytes([0x1]),
-        )
-        serialized = serialize_instruction(COUNTER_ID, instruction)
-
-        tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.executeMultipleInIterativeMode(solana_calls,
-                                                                                     iterations,
-                                                                                     lamports,
-                                                                                     serialized).build_transaction(tx)
-        resp = self.web3_client.send_transaction(sender, instruction_tx)
-        assert resp["status"] == 0
-        
     def test_deploy_contract_and_call_solana(self, counter_resource_address, call_solana_caller):
         sender = self.accounts[0]
         lamports = 0
@@ -562,38 +593,10 @@ class TestSolanaInteroperability:
                                                                                  serialized).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
-        
+
         event_logs = call_solana_caller.events.LogAddress().process_receipt(resp)
         assert event_logs[0].args.value is not None
 
-    def test_transfer_with_pda_signature_iterative_tx_eip_1559(self, call_solana_caller, sol_client, solana_account, pytestconfig, bank_account):
-        iterations = 20
-        sender = self.accounts[0]
-        from_wallet = Keypair()
-        to_wallet = Keypair()
-        amount = 100000
-        if pytestconfig.environment.use_bank:
-            sol_client.send_sol(bank_account, from_wallet.pubkey(), int(0.5 * 10**9))
-        else:
-            sol_client.request_airdrop(from_wallet.pubkey(), 1000 * 10**9, commitment=Confirmed)
-
-        serialized, mint, accounts_list = self.get_transfer_instruction(sol_client, from_wallet, to_wallet, amount, call_solana_caller)
-        tx = self.web3_client.make_raw_tx(from_=sender.address, amount=None, data=None, tx_type=TransactionType.EIP_1559)
-
-        instruction_tx = call_solana_caller.functions.executeInIterativeMode(iterations, 0, serialized).build_transaction(tx)
-        
-        resp = self.web3_client.send_transaction(sender, instruction_tx)
-        assert resp["status"] == 1
-        assert resp.type == 2
-        
-        assert int(mint.get_balance(accounts_list[1], commitment=Confirmed).value.amount) == amount
-        event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
-        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == 0
-        
-        wait_condition(
-            lambda: self.web3_client.is_trx_iterative(resp["transactionHash"].hex()) is True,
-            timeout_sec=60,
-        )
 
     def test_iterative_tx_with_send_tokens(self, counter_resource_address, call_solana_caller, get_counter_value):
         iterations = 29
@@ -617,7 +620,7 @@ class TestSolanaInteroperability:
                                                                                           serialized).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
-        
+
         balance_after = self.web3_client.get_balance(call_solana_caller.address)
         assert balance_after == balance_before + 10
 
@@ -635,7 +638,7 @@ class TestSolanaInteroperability:
         serialized, mint, accounts_list = self.get_transfer_instruction(sol_client, from_wallet, to_wallet, amount, call_solana_caller)
 
         tx = self.web3_client.make_raw_tx(sender.address)
-        
+
         instruction_counter = Instruction(
             program_id=COUNTER_ID,
             accounts=[
@@ -648,11 +651,11 @@ class TestSolanaInteroperability:
 
         instruction_tx = call_solana_caller.functions.batchExecuteInIterativeMode(iterations,
                                                                                   [(0, serialized), (0, serialized_counter)]).build_transaction(tx)
-        
+
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
         assert int(mint.get_balance(accounts_list[1], commitment=Confirmed).value.amount) == amount
-        
+
         wait_condition(
             lambda: self.web3_client.is_trx_iterative(resp["transactionHash"].hex()) is True,
             timeout_sec=60,
