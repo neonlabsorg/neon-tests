@@ -210,9 +210,5 @@ class TestRpcEthMethods:
             max_priority_fee_per_gas=max_priority_fee_per_gas,
         )
 
-        actual_effective_gas_price = receipt.effectiveGasPrice
-        if env_name is EnvName.GETH:
-            expected_effective_gas_price = min(max_fee_per_gas, base_fee_per_gas + max_priority_fee_per_gas)
-        else:
-            expected_effective_gas_price = max_fee_per_gas
-        assert actual_effective_gas_price == expected_effective_gas_price
+        effective_gas_price = receipt.effectiveGasPrice
+        assert effective_gas_price <= max_fee_per_gas

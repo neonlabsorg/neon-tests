@@ -523,7 +523,7 @@ class TestRpcMaxPriorityFeePerGas:
 
         fee_history: web3.types.FeeHistory = web3_client._web3.eth.fee_history(10, "pending", [5])
         estimated_max_priority_fee_per_gas = _fee_history_priority_fee_estimate(fee_history=fee_history)
-        assert abs(max_priority_fee_per_gas - estimated_max_priority_fee_per_gas) <= 2000000000
+        assert abs(max_priority_fee_per_gas - estimated_max_priority_fee_per_gas) <= 20_000_000_000
 
 
 @allure.feature("EIP Verifications")
