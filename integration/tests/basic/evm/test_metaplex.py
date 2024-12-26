@@ -1,3 +1,6 @@
+from asyncio import sleep
+import time
+
 import allure
 import pytest
 from solders.keypair import Keypair
@@ -37,10 +40,12 @@ class TestPrecompiledMetaplex:
         sender_account = self.accounts[0]
         mint = Keypair()
         tx = self.web3_client.make_raw_tx(sender_account)
+        time.sleep(2)
         instruction_tx = metaplex.functions.createMetadata(bytes(mint.pubkey()), NAME, SYMBOL, URI).build_transaction(
             tx
         )
 
+        time.sleep(2)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
@@ -48,8 +53,10 @@ class TestPrecompiledMetaplex:
         sender_account = self.accounts[0]
         mint = Keypair()
         tx = self.web3_client.make_raw_tx(sender_account)
+        time.sleep(2)
         instruction_tx = metaplex.functions.createMasterEdition(bytes(mint.pubkey()), 0).build_transaction(tx)
 
+        time.sleep(2)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
