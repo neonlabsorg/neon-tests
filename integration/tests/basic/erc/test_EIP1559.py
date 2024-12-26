@@ -425,6 +425,7 @@ class TestEIP1559:
         with pytest.raises(expected_exception=ValueError, match=error_msg_regex):
             self.web3_client.send_transaction(account=sender, transaction=tx_params)
 
+    # @pytest.mark.skip("maxPriorityFeePerGas is included in baseFeePerGas")
     def test_too_low_fee(
             self,
             faucet: Faucet,
@@ -433,6 +434,8 @@ class TestEIP1559:
         recipient = self.web3_client.create_account()
 
         base_fee_per_gas = self.web3_client.base_fee_per_gas()
+        max_priority_fee_per_gas = self.web3_client.max_priority_fee_per_gas()
+        base_fee_per_gas -= max_priority_fee_per_gas
 
         tx_params = self.web3_client.make_raw_tx_eip_1559(
             chain_id="auto",
