@@ -88,7 +88,7 @@ def make_eth_transaction(
     access_list=None,
     type_=None,
     gas_price=0,
-):
+) -> SignedTransaction:
     if chain_id == "":
         chain_id = evm_loader.chain_id
 

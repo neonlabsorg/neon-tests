@@ -279,6 +279,21 @@ def neon_api_client(environment: EnvironmentConfig) -> NeonApiClient:
 
 
 @pytest.fixture(scope="session")
+def query_account_caller_contract(
+    operator_keypair, evm_loader, sender_with_tokens, treasury_pool, neon_api_client, holder_acc
+):
+    return evm_loader.deploy_contract(
+        operator=operator_keypair,
+        user=sender_with_tokens,
+        contract_file_name="precompiled/QueryAccountCaller.sol",
+        neon_api_client=neon_api_client,
+        treasury_pool=treasury_pool,
+        contract_name="QueryAccountCaller",
+        version="0.8.10",
+    )
+
+
+@pytest.fixture(scope="session")
 def erc20_for_spl(
     evm_loader,
     operator_keypair,
