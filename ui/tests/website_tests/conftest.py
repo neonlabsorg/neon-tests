@@ -1,5 +1,6 @@
 import pytest
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from ui.pages.developer_page import DeveloperPage
 from ui.pages.ecosystem_page import EcosystemPage
 from ui.pages.google_forms_page import GoogleFormsPage
@@ -17,7 +18,20 @@ def allure_environment():
 
 @pytest.fixture(scope="function")
 def driver(request):
-    driver = webdriver.Chrome()
+
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--remote-debugging-port=9222")
+    chrome_options.add_argument("--disable-dev-tools")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-dev-tools")
+
+    chrome_options.binary_location = "/usr/bin/google-chrome"
+    driver = webdriver.Chrome(options=chrome_options)
+
     driver.implicitly_wait(10)
     driver.get(website_url)
     driver.maximize_window()
