@@ -30,7 +30,7 @@ def driver(request):
     chrome_options.add_argument("--disable-dev-tools")
 
     chrome_options.binary_location = "/usr/bin/google-chrome"
-    driver = webdriver.Chrome()
+    driver = webdriver.Chrome(options=chrome_options)
 
     driver.implicitly_wait(10)
     driver.get(website_url)
