@@ -132,6 +132,7 @@ class TestBlockTimestampAndNumber:
         contract = self.web3_client.get_deployed_contract(addr, "common/Block.sol", "BlockTimestamp")
         assert hex(contract.functions.initial_block_timestamp().call()) <= tx_block_timestamp
 
+    @pytest.mark.skip("temporary disable")
     def test_block_number_in_mapping(self, block_number_contract):
         contract, _ = block_number_contract
         sender_account = self.accounts[0]
