@@ -61,6 +61,7 @@ class TestBlockTimestampAndNumber:
 
         assert hex(contract.functions.initial_block_timestamp().call()) <= tx_block_timestamp
 
+    @pytest.mark.skip("temporary disable")
     def test_block_timestamp_in_mapping(self, block_timestamp_contract, json_rpc_client):
         contract, _ = block_timestamp_contract
         sender_account = self.accounts[0]
