@@ -51,8 +51,8 @@ cat > docker-compose-ci.override.yml<<EOF
 version: "3"
 services:
   solana:
-    env:
-      - DEVNET_SOLANA_URL=${DEVNET_SOLANA_URL}
+    environment:
+      DEVNET_SOLANA_URL: $DEVNET_SOLANA_URL
     ports:
       - "8899:8899"
       - "8900:8900"

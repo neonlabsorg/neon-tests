@@ -28,6 +28,9 @@ variable "neon_evm_commit" {
   type = string
 }
 
+variable "devnet_solana_url" {
+  type = string
+}
 
 variable "faucet_model_commit" {
   type = string
