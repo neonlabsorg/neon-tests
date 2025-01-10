@@ -43,6 +43,7 @@ data "template_file" "solana_init" {
     neon_evm_commit     = var.neon_evm_commit
     faucet_model_commit = var.faucet_model_commit
     dockerhub_org_name  = var.dockerhub_org_name
+    devnet_solana_url   = var.devnet_solana_url
   }
 }
 
