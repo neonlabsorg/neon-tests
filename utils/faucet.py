@@ -35,7 +35,7 @@ class Faucet:
                     continue
                 response.raise_for_status()
                 break
-            except (ConnectionError, requests.HTTPError) as e:
+            except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError) as e:
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay)
                 else:
