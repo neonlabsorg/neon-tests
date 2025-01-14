@@ -1,3 +1,4 @@
+import itertools
 import time
 
 import requests
@@ -21,18 +22,23 @@ class Faucet:
 
     def request_neon(self, address: str, amount: int = 100) -> requests.Response:
         assert address.startswith("0x")
-        url = urllib.parse.urljoin(self._url, "request_neon")
-        balance_before = self.web3_client.get_balance(address)
-        response = self._session.post(url, json={"amount": amount, "wallet": address})
-        counter = 0
-        while "Blockhash not found" in response.text and counter < 3:
-            time.sleep(3)
-            response = self._session.post(url, json={"amount": amount, "wallet": address})
-            counter += 1
-        assert (
-            response.ok
-        ), "Faucet returned error: {}, status code: {}, url: {}".format(
-            response.text, response.status_code, response.url
-        )
-        wait_condition(lambda: self.web3_client.get_balance(address) > balance_before)
-        return response
+        for retry in itertools.count():
+            try:
+                url = urllib.parse.urljoin(self._url, "request_neon")
+                balance_before = self.web3_client.get_balance(address)
+                response = self._session.post(url, json={"amount": amount, "wallet": address})
+                counter = 0
+                while "Blockhash not found" in response.text and counter < 3:
+                    time.sleep(3)
+                    response = self._session.post(url, json={"amount": amount, "wallet": address})
+                    counter += 1
+                assert (
+                    response.ok
+                ), "Faucet returned error: {}, status code: {}, url: {}".format(
+                    response.text, response.status_code, response.url
+                )
+                wait_condition(lambda: self.web3_client.get_balance(address) > balance_before)
+                return response
+            except BaseException as exc:
+                if retry >= 5:
+                    raise exc
