@@ -50,7 +50,6 @@ services:
     container_name: neon_test_invoke_program_loader
     command: bash -c "echo done"
 
-services:
   proxy:
     container_name: proxy
     environment:
@@ -58,6 +57,9 @@ services:
       EXTRA_ARGS: "--num-workers 16"
     ports:
       - "9090:9090"
+    depends_on:
+        solana:
+          condition: service_completed_successfully
 
   faucet:
     container_name: faucet
@@ -70,6 +72,9 @@ services:
     container_name: indexer
     environment:
       SOLANA_URL: $SOLANA_URL
+    depends_on:
+        solana:
+          condition: service_completed_successfully
 
   postgres:
     container_name: postgres
@@ -137,4 +142,4 @@ PROXY_RESULT='"result"'
 wait_service "proxy" $PROXY_URL $PROXY_DATA $PROXY_RESULT
 
 
-docker rm -f opt_solana_1
+docker rm -f solana
