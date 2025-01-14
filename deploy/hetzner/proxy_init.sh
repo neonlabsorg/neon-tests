@@ -42,14 +42,6 @@ services:
       test: [ CMD-SHELL, "/echo done" ]
     entrypoint: "/usr/bin/sleep 10000"
 
-  gas_tank:
-    container_name: gas_tank
-    entrypoint: "/usr/bin/sleep 10000"
-
-  neon_test_invoke_program_loader:
-    container_name: neon_test_invoke_program_loader
-    command: bash -c "echo done"
-
   proxy:
     container_name: proxy
     environment:
@@ -84,10 +76,6 @@ services:
 EOF
 
 
-
-# Get list of services
-SERVICES=$(docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml config --services | grep -vP "solana|gas_tank|neon_test_invoke_program_loader")
-
 echo "CONST GAS PRICE VARIABLE IS: $USE_REAL_GAS_PRICE"
 if [[ -n $USE_REAL_GAS_PRICE ]] && [[ $USE_REAL_GAS_PRICE -eq "1" ]]; then
   # remove some variables for economy (test)
@@ -96,7 +84,7 @@ fi
 
 
 # Pull latest versions
-docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml pull $SERVICES
+docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml pull
 
 
 function wait_service() {
@@ -132,7 +120,7 @@ SOLANA_RESULT='"ok"'
 wait_service "solana" $SOLANA_URL $SOLANA_DATA $SOLANA_RESULT
 
 # Up all services
-docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml up -d $SERVICES
+docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml up -d
 
 
 # Check if Proxy is available
