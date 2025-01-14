@@ -33,8 +33,6 @@ export PROXY_IMAGE_NAME="neon-proxy.py"
 
 # Generate docker-compose override file
 cat > docker-compose-ci.override.yml <<EOF
-version: "3"
-
 services:
   solana:
     container_name: solana
@@ -50,8 +48,8 @@ services:
     ports:
       - "9090:9090"
     depends_on:
-        solana:
-          condition: service_completed_successfully
+      solana:
+        condition: service_completed_successfully
 
   faucet:
     container_name: faucet
@@ -59,15 +57,18 @@ services:
       SOLANA_URL: $SOLANA_URL
     ports:
       - "3333:3333"
-
+    depends_on:
+      solana:
+        condition: service_completed_successfully
   indexer:
     container_name: indexer
     environment:
       SOLANA_URL: $SOLANA_URL
     depends_on:
-        solana:
-          condition: service_completed_successfully
-
+      solana:
+        condition: service_completed_successfully
+      dbcreation:
+        condition: service_completed_successfully
   postgres:
     container_name: postgres
 
