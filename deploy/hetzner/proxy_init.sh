@@ -49,7 +49,7 @@ services:
       - "9090:9090"
     depends_on:
       solana:
-        condition: service_completed_successfully
+        condition: service_started
 
   faucet:
     container_name: faucet
@@ -59,14 +59,14 @@ services:
       - "3333:3333"
     depends_on:
       solana:
-        condition: service_completed_successfully
+        condition: service_started
   indexer:
     container_name: indexer
     environment:
       SOLANA_URL: $SOLANA_URL
     depends_on:
       solana:
-        condition: service_completed_successfully
+        condition: service_started
       dbcreation:
         condition: service_completed_successfully
   postgres:
