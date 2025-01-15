@@ -55,11 +55,11 @@ class TestScheduledTrx:
             ["uint256"], [contract_data]
         )
         trxs = []
-
         max_priority_fee_per_gas = web3_client_sol.max_priority_fee_per_gas()
         max_fee_per_gas = web3_client_sol.max_fee_per_gas()
         print("max_fee_per_gas", max_fee_per_gas)
         print("max_priority_fee_per_gas", max_priority_fee_per_gas)
+
 
         for i in range(4):
             trxs.append(
@@ -118,6 +118,7 @@ class TestScheduledTrx:
         print("max_fee_per_gas", max_fee_per_gas)
         print("max_priority_fee_per_gas", max_priority_fee_per_gas)
         gas_limit = 30000000
+
 
         tx0 = ScheduledTransaction(
             neon_user.neon_address,
@@ -326,7 +327,7 @@ class TestScheduledTrx:
         )
         gas_limit = 3000000
         max_fee_per_gas = 3000000000
-        max_priority_fee_per_gas = 15
+        max_priority_fee_per_gas = 2500000000
 
         tx0 = ScheduledTransaction(
             neon_user.neon_address,
