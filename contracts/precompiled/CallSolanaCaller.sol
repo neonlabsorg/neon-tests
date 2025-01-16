@@ -25,6 +25,7 @@ contract CallSolanaCaller {
 
     event LogBytes(bytes32 value);
     event LogStr(string value);
+    event LogInt(uint value);
     event LogAddress(address value);
     event LogData(bytes32 program, bytes value);
 
@@ -49,13 +50,25 @@ contract CallSolanaCaller {
         execute(lamports, instruction);
     }
 
-    function executeAndDoSomeIterativeActions(
-        uint256 actionsNumber,
+    function solanaCallBeforeActionWithMatrix(
+        uint[][] memory a,
         uint64 lamports,
         bytes calldata instruction
     ) public {
+        // Matrix matrixContract = new Matrix();
         execute(lamports, instruction);
-        doIterativeActions(actionsNumber);
+        uint sum = sumMatrixElements(a);
+        emit LogInt(sum);
+    }
+
+    function solanaCallAfterActionWithMatrix(
+        uint[][] memory a,
+        uint64 lamports,
+        bytes calldata instruction
+    ) public {
+        uint sum = sumMatrixElements(a);
+        execute(lamports, instruction);
+        emit LogInt(sum);
     }
 
     function executeMultipleInIterativeMode(
@@ -100,7 +113,6 @@ contract CallSolanaCaller {
     }
 
     function deployStorageAndCallSolana(
-        string memory message,
         uint64 lamports,
         bytes calldata instruction
     ) public {
@@ -191,5 +203,15 @@ contract CallSolanaCaller {
                 _args[i].instruction
             );
         }
+    }
+
+    function sumMatrixElements(uint[][] memory a) public pure returns (uint) {
+        uint sum = 0;
+        for (uint i = 0; i < a.length; i++) {
+            for (uint j = 0; j < a[i].length; j++) {
+                sum += a[i][j];
+            }
+        }
+        return sum;
     }
 }
