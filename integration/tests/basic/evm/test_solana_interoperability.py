@@ -608,7 +608,7 @@ class TestSolanaInteroperability:
         assert resp["status"] == 1
         assert len(call_solana_caller.events.LogBytes().process_receipt(resp)) == solana_calls
 
-    def test_deploy_contract_and_call_solana(self, counter_resource_address, call_solana_caller):
+    def test_deploy_contract_and_call_solana(self, counter_resource_address, call_solana_caller, get_counter_value):
         sender = self.accounts[0]
         lamports = 0
 
@@ -626,9 +626,11 @@ class TestSolanaInteroperability:
                                                                                  serialized).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
+        event_logs_bytes = call_solana_caller.events.LogBytes().process_receipt(resp)
+        assert int.from_bytes(event_logs_bytes[0].args.value, byteorder="little") == next(get_counter_value)
 
-        event_logs = call_solana_caller.events.LogAddress().process_receipt(resp)
-        assert event_logs[0].args.value is not None
+        event_logs_address = call_solana_caller.events.LogAddress().process_receipt(resp)
+        assert event_logs_address[0].args.value is not None
 
     def test_iterative_tx_with_send_tokens(self, counter_resource_address, call_solana_caller, get_counter_value):
         iterations = 29
@@ -652,6 +654,8 @@ class TestSolanaInteroperability:
                                                                                           serialized).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
+        event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
+        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
 
         balance_after = self.web3_client.get_balance(call_solana_caller.address)
         assert balance_after == balance_before + 10
@@ -678,12 +682,12 @@ class TestSolanaInteroperability:
 
 
         instruction_tx = call_solana_caller.functions.batchExecuteInIterativeMode(iterations,
-                                                                                  [(0, serialized), (0, serialized_counter)]).build_transaction(tx)
+                                                                                  [(0, serialized_counter), (0, serialized)]).build_transaction(tx)
 
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
         assert int(mint.get_balance(accounts_list[1], commitment=Confirmed).value.amount) == amount
-
+        
         wait_condition(
             lambda: self.web3_client.is_trx_iterative(resp["transactionHash"].hex()) is True,
             timeout_sec=60,
