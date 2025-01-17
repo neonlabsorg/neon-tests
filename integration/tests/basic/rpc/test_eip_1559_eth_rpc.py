@@ -10,6 +10,7 @@ from utils.web3client import NeonChainWeb3Client
 @allure.feature("EIP Verifications")
 @allure.story("EIP-1559: Verify new fields in eth_ JSON-RPC methods")
 @pytest.mark.neon_only
+@pytest.mark.eip_1559
 class TestRpcEthMethods:
     def test_get_transaction_by_hash(
         self,
@@ -22,7 +23,7 @@ class TestRpcEthMethods:
 
         base_fee_per_gas = web3_client.base_fee_per_gas()
         max_priority_fee_per_gas = web3_client._web3.eth._max_priority_fee()  # noqa
-        max_fee_per_gas = (5 * base_fee_per_gas) + max_priority_fee_per_gas
+        max_fee_per_gas = (2 * base_fee_per_gas) + max_priority_fee_per_gas
 
         receipt = web3_client.send_tokens_eip_1559(
             from_=sender,
