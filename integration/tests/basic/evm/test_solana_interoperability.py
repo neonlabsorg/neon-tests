@@ -682,11 +682,16 @@ class TestSolanaInteroperability:
 
 
         instruction_tx = call_solana_caller.functions.batchExecuteInIterativeMode(iterations,
-                                                                                  [(0, serialized_counter), (0, serialized)]).build_transaction(tx)
+                                                                                  [(0, serialized), (0, serialized_counter)]).build_transaction(tx)
 
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
         assert int(mint.get_balance(accounts_list[1], commitment=Confirmed).value.amount) == amount
+        
+        event_logs_data = call_solana_caller.events.LogData().process_receipt(resp)
+        print(event_logs_data)
+        assert int.from_bytes(event_logs_data[0].args.value, byteorder="little") == next(get_counter_value)
+        assert bytes32_to_solana_pubkey(event_logs_data[0].args.program.hex()) == COUNTER_ID
         
         wait_condition(
             lambda: self.web3_client.is_trx_iterative(resp["transactionHash"].hex()) is True,
