@@ -158,12 +158,7 @@ def accounts(request, accounts_session, web3_client_session, pytestconfig: Confi
     if inspect.isclass(request.cls):
         request.cls.accounts = accounts_session
     yield accounts_session
-    if pytestconfig.getoption("--network") == "mainnet":
-        if len(accounts_session.accounts_collector) > 0:
-            for item in accounts_session.accounts_collector:
-                with allure.step(f"Restoring eth account balance from {item.key.hex()} account"):
-                    web3_client_session.send_all_neons(item, eth_bank_account)
-    accounts_session._accounts = []
+
 
 
 @pytest.fixture(scope="session")
@@ -336,6 +331,16 @@ def common_contract(web3_client, accounts, pytestconfig) -> Contract:
         )
     yield contract
 
+@pytest.fixture(scope="class")
+def common_caller_contract(web3_client, accounts, common_contract) -> Contract:
+    contract, tx = web3_client.deploy_and_get_contract(
+        contract="common/Common",
+        version="0.8.12",
+        contract_name="CommonCaller",
+        account=accounts[0],
+        constructor_args=[common_contract.address],
+    )
+    yield contract
 
 @pytest.fixture(scope="class")
 def meta_proxy_contract(web3_client, accounts):
