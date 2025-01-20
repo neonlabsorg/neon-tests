@@ -155,7 +155,7 @@ jobs:
         if: failure()
         run: echo "FAILED_TEST_GROUP=evm" >> $GITHUB_ENV
       - name: "Generate allure report"
-        if: always() && ${{ env.NETWORK != 'devnet' }}
+        if: always() && env.NETWORK != 'devnet'
         uses: ./.github/actions/generate-allure-report
         with:
           container: ${{env.DOCKER_PROJECT_NAME}}-tests-1

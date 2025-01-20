@@ -43,7 +43,7 @@ class TestScheduledTrx:
             0, operator_keypair, holder_acc, tree_account, treasury_pool, additional_accounts, compute_unit_price=3929
         )
         evm_loader.finish_scheduled_trx(operator_keypair, tree_account, holder_acc)
-        evm_loader.destroy_tree_account(operator_keypair, neon_user, treasury_pool, tree_account)
+        evm_loader.destroy_tree_account(neon_user, treasury_pool, tree_account)
         assert neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce).get_transaction_count() == 0
 
     def test_execute_scheduled_trx_from_instruction(
@@ -86,7 +86,7 @@ class TestScheduledTrx:
         assert to_int(hexstr=result["result"]) == contract_data
 
         evm_loader.finish_scheduled_trx(operator_keypair, tree_account, holder_acc)
-        evm_loader.destroy_tree_account(operator_keypair, neon_user, treasury_pool, tree_account)
+        evm_loader.destroy_tree_account(neon_user, treasury_pool, tree_account)
         assert neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce).get_transaction_count() == 0
 
     def test_scheduled_trx_wrong_index(
@@ -220,7 +220,7 @@ class TestScheduledTrx:
         evm_loader.finish_scheduled_trx(second_operator_keypair, tree_account, holder_acc)
         user_balance_before_destroy = evm_loader.get_neon_balance(neon_user.neon_address, SOL_CHAIN_ID)
 
-        evm_loader.destroy_tree_account(second_operator_keypair, neon_user, treasury_pool_new, tree_account)
+        evm_loader.destroy_tree_account(neon_user, treasury_pool_new, tree_account)
         user_balance_after_destroy = evm_loader.get_neon_balance(neon_user.neon_address, SOL_CHAIN_ID)
         assert user_balance_after_destroy > user_balance_before_destroy
         operator_balance_after = evm_loader.get_operator_neon_balance(second_operator_keypair, SOL_CHAIN_ID)
