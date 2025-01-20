@@ -44,12 +44,16 @@ from spl.token.constants import WRAPPED_SOL_MINT
 class EnvironmentConfig:
     name: EnvName
     evm_loader: str
+    neon_core_api_url: str
+    neon_core_api_rpc_url: str
     proxy_url: str
     tracer_url: str
     solana_url: str
     faucet_url: str
     network_ids: dict
     spl_neon_mint: str
+    sol_mint_id_string: str
+    neon_mint_id_string: str
     neon_erc20wrapper_address: str
     use_bank: bool
     eth_bank_account: str
@@ -59,6 +63,7 @@ class EnvironmentConfig:
     neon_core_api_url: Optional[str] = None
     neon_core_api_rpc_url: Optional[str] = None
     sol_mint_id: Pubkey = field(default=WRAPPED_SOL_MINT)
+
 
 
 

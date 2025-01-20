@@ -21,7 +21,7 @@ from .utils.contract import deploy_contract, make_contract_call_trx
 from .utils.neon_api_rpc_client import NeonApiRpcClient
 from .utils.storage import create_holder
 from .utils.transaction_checks import check_transaction_logs_have_text
-from ..conftest import environment
+
 
 def prepare_operator(key_file: pathlib.Path | str, evm_loader: EvmLoader) -> Keypair:
     chain_ids = (evm_loader.sol_chain_id, evm_loader.chain_id)
