@@ -267,29 +267,38 @@ def faucet(pytestconfig: Config, web3_client_session) -> Faucet:
 @pytest.fixture(scope="session")
 def accounts_session(pytestconfig: Config, web3_client_session, faucet, eth_bank_account):
     accounts = EthAccounts(web3_client_session, faucet, eth_bank_account)
-    return accounts
+    yield accounts
+    if pytestconfig.getoption("--network") == "mainnet":
+        if len(accounts.accounts_collector) > 0:
+            for item in accounts.accounts_collector:
+                with allure.step(f"Restoring eth account balance from {item.key.hex()} account"):
+                    web3_client_session.send_all_neons(item, eth_bank_account)
+    accounts_session._accounts = []
 
 
 @pytest.fixture(scope="function")
 def neon_user(evm_loader: EvmLoader, pytestconfig, bank_account, faucet) -> NeonUser:
     user = NeonUser(bank_account)
     balance = evm_loader.get_solana_balance(user.solana_account.pubkey())
-    if balance < 1 * LAMPORT_PER_SOL//10:
-        evm_loader.request_airdrop(user.solana_account.pubkey(), 3 * LAMPORT_PER_SOL, commitment=Confirmed)
+    if pytestconfig.getoption("--network") != "mainnet":
+        if balance < 5 * LAMPORT_PER_SOL:
+            evm_loader.request_airdrop(user.solana_account.pubkey(), 5 * LAMPORT_PER_SOL, commitment=Confirmed)
     return user
 
 
 @pytest.fixture(scope="session")
-def treasury_pool(evm_loader, bank_account, pytestconfig) -> TreasuryPool:
+def treasury_pool(evm_loader, pytestconfig) -> TreasuryPool:
     index = 2
-    address = evm_loader.create_treasury_pool_address(index)
+    evm_loader.create_treasury_pool_address(index)
     if pytestconfig.getoption("--network") == "mainnet":
         address = Pubkey.from_string(os.environ.get("MAINNET_TREASURY_POOL_ADDRESS"))
     else:
         address = evm_loader.create_treasury_pool_address(index)
     index_buf = index.to_bytes(4, "little")
-    if evm_loader.get_solana_balance(address) < 3 * 10**9 and pytestconfig.getoption("--network") != "mainnet":
-        evm_loader.request_airdrop(address, 3 * 10**9, commitment=Confirmed)
+    balance = evm_loader.get_solana_balance(address)
+    if pytestconfig.getoption("--network") != "mainnet":
+        if balance < 5 * LAMPORT_PER_SOL:
+            evm_loader.request_airdrop(address, 5 * LAMPORT_PER_SOL, commitment=Confirmed)
     return TreasuryPool(index, address, index_buf)
 
 
