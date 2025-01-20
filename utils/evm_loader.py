@@ -110,7 +110,6 @@ class EvmLoader(SolanaClient):
     ) -> Pubkey:
 
         chain_id = chain_id or self.chain_id
-        print(f"ether2operator {chain_id}")
 
         address_bytes = ether2bytes(ether_address)
         key = bytes(keypair.pubkey())
@@ -217,7 +216,6 @@ class EvmLoader(SolanaClient):
 
     def get_operator_balance_pubkey(self, operator: Keypair, chain_id: int | None = None) -> Pubkey:
         chain_id = chain_id or self.chain_id
-        print(f"chain_id: {chain_id=}")
 
         operator_ether = eth_keys.PrivateKey(operator.secret()[:32]).public_key.to_canonical_address()
         return self.ether2operator_balance(operator, operator_ether, chain_id)
@@ -453,16 +451,16 @@ class EvmLoader(SolanaClient):
         trx = TransactionWithComputeBudget(operator, compute_unit_price=compute_unit_price)
         trx.add(
             make_ExecuteTrxFromAccountDataIterativeOrContinue(
-                index,
-                steps_count,
-                operator,
-                operator_balance_pubkey,
-                self.loader_id,
-                storage_account,
-                treasury,
-                additional_accounts,
-                system_program,
-                tag,
+                index=index,
+                step_count=steps_count,
+                operator=operator,
+                operator_balance=operator_balance_pubkey,
+                evm_loader_id=self.loader_id,
+                holder_address=storage_account,
+                treasury=treasury,
+                additional_accounts=additional_accounts,
+                sys_program_id=system_program,
+                tag=tag,
             )
         )
         return self.send_tx(trx, signer)

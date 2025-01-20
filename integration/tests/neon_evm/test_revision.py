@@ -182,8 +182,7 @@ class TestAccountRevision:
                 holder_account,
                 accounts,
                 EVM_STEPS,
-                operator_keypair,
-                environment,
+                operator_keypair
             )
 
         emulate_result1 = neon_api_client.emulate_contract_call(

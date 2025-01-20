@@ -23,9 +23,8 @@ from .utils.storage import create_holder
 from .utils.transaction_checks import check_transaction_logs_have_text
 from ..conftest import environment
 
-
-def prepare_operator(key_file: pathlib.Path | str, evm_loader: EvmLoader, environment: EnvironmentConfig) -> Keypair:
-    chain_ids = (environment.network_ids['sol'], environment.network_ids['neon'])
+def prepare_operator(key_file: pathlib.Path | str, evm_loader: EvmLoader) -> Keypair:
+    chain_ids = (evm_loader.sol_chain_id, evm_loader.chain_id)
     with open(key_file, "r") as key:
         secret_key = json.load(key)
         account = Keypair.from_bytes(secret_key)
@@ -43,12 +42,12 @@ def prepare_operator(key_file: pathlib.Path | str, evm_loader: EvmLoader, enviro
 
 
 @pytest.fixture(scope="session")
-def default_operator_keypair(evm_loader: EvmLoader, environment: EnvironmentConfig) -> Keypair:
+def default_operator_keypair(evm_loader: EvmLoader) -> Keypair:
     """
     Initialized solana keypair with balance. Get private keys from ci/operator-keypairs/id.json
     """
     key_file = pathlib.Path(OPERATOR_KEYPAIR_PATH / "id.json")
-    return prepare_operator(key_file, evm_loader, environment)
+    return prepare_operator(key_file, evm_loader)
 
 
 
@@ -59,7 +58,7 @@ def solana_client(environment: EnvironmentConfig):
 
 # following two keypair could be parametrized
 @pytest.fixture(scope="session")
-def operator_keypair(worker_id: str, evm_loader: EvmLoader, environment: EnvironmentConfig) -> Keypair:
+def operator_keypair(worker_id: str, evm_loader: EvmLoader) -> Keypair:
     """
     Initialized solana keypair with balance. Get private keys from ci/operator-keypairs
     """
@@ -68,11 +67,11 @@ def operator_keypair(worker_id: str, evm_loader: EvmLoader, environment: Environ
     else:
         file_id = int(worker_id[-1]) + 2
         key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
-    return prepare_operator(key_file, evm_loader, environment)
+    return prepare_operator(key_file, evm_loader)
 
 
 @pytest.fixture(scope="session")
-def second_operator_keypair(worker_id: str, evm_loader: EvmLoader,  environment: EnvironmentConfig) -> Keypair:
+def second_operator_keypair(worker_id: str, evm_loader: EvmLoader) -> Keypair:
     """
     Initialized solana keypair with balance. Get private key from cli or ./ci/operator-keypairs
     """
@@ -82,7 +81,7 @@ def second_operator_keypair(worker_id: str, evm_loader: EvmLoader,  environment:
         file_id = 20 + int(worker_id[-1]) + 2
         key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
 
-    return prepare_operator(key_file, evm_loader, environment)
+    return prepare_operator(key_file, evm_loader)
 
 
 @pytest.fixture(scope="function")
@@ -108,11 +107,11 @@ def sender_with_tokens(evm_loader: EvmLoader, operator_keypair: Keypair) -> Call
 
 
 @pytest.fixture(scope="session")
-def sender_with_wsol(evm_loader: EvmLoader, operator_keypair: Keypair, environment: EnvironmentConfig) -> Caller:
+def sender_with_wsol(evm_loader: EvmLoader, operator_keypair: Keypair) -> Caller:
     user = evm_loader.make_new_user(operator_keypair)
     evm_loader.deposit_wrapped_sol_from_solana_to_neon(
         user.solana_account, "0x" + user.eth_address.hex(),
-        environment.network_ids["sol"],
+        evm_loader.sol_chain_id,
         100000
     )
     return user
@@ -148,6 +147,30 @@ def rw_lock_contract(
         environment,
         solana_client
     )
+
+
+@pytest.fixture(scope="function")
+def store_zeros_contract(
+    evm_loader: EvmLoader,
+    operator_keypair: Keypair,
+    session_user: Caller,
+    treasury_pool: TreasuryPool,
+    rw_lock_contract: Contract,
+    neon_api_client: NeonApiClient,
+    environment: EnvironmentConfig,
+    sol_client: SolanaClient
+) -> Contract:
+    return deploy_contract(
+        operator_keypair,
+        session_user,
+        "store_zeros",
+        evm_loader,
+        neon_api_client,
+        treasury_pool,
+        environment,
+        sol_client
+    )
+
 
 
 @pytest.fixture(scope="function")

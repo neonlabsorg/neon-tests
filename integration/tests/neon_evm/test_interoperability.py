@@ -175,7 +175,7 @@ class TestInteroperability:
     ):
         payer = solana_caller.get_payer()
         instruction = make_CreateAssociatedTokenIdempotent(
-            payer, sender_with_tokens.solana_account_address, Pubkey.from_string(environment.neon_mint_id_string)
+            payer, sender_with_tokens.solana_account_address, Pubkey.from_string(environment.spl_neon_mint)
         )
         resp = solana_caller.batch_execute(
             [(ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID, 2039280, instruction)], environment, sender_with_tokens

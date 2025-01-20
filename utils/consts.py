@@ -2,8 +2,6 @@ from enum import Enum
 
 from solders.pubkey import Pubkey
 
-from utils.helpers import to_little_endian_byte
-
 OPERATOR_KEYPAIR_PATH = "deploy/operator-keypairs"
 LAMPORT_PER_SOL = 1_000_000_000
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"

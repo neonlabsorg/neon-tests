@@ -19,7 +19,7 @@ class TestScheduledTrx:
         self, evm_loader, neon_user: NeonUser, treasury_pool, basic_contract, neon_api_client, operator_keypair, environment
     ):
         holder_acc = create_holder(operator_keypair, evm_loader)
-        nonce = evm_loader.get_neon_nonce(neon_user.neon_address, environment.network_ids['sol'])
+        nonce = evm_loader.get_neon_nonce(neon_user.neon_address, evm_loader.sol_chain_id)
         contract_data = 18
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
@@ -34,13 +34,14 @@ class TestScheduledTrx:
             call_data=data,
         )
         tree_account = evm_loader.create_tree_account(
-            neon_user, treasury_pool, tx.encode(), Pubkey.from_string(environment.sol_mint_id_string)
+            neon_user, treasury_pool, tx.encode(), environment.sol_mint_id
         )
         transaction_tree_data = neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce)
         assert transaction_tree_data.get_transaction_count() == 1
 
         evm_loader.write_transaction_to_holder_account(tx.encode(), holder_acc, operator_keypair)
-        additional_accounts = [basic_contract.solana_address, neon_user.get_balance_account(environment.network_ids['sol'])]
+        additional_accounts = [basic_contract.solana_address, neon_user.get_balance_account(evm_loader.sol_chain_id)]
+        print("Additional accounts: ", additional_accounts)
         evm_loader.execute_scheduled_trx_from_account(
             0, operator_keypair, holder_acc, tree_account, treasury_pool, additional_accounts, compute_unit_price=3929
         )
@@ -75,7 +76,7 @@ class TestScheduledTrx:
         )
 
         tree_account = evm_loader.create_tree_account(
-            neon_user, treasury_pool, tx.encode(), Pubkey.from_string(environment.sol_mint_id_string)
+            neon_user, treasury_pool, tx.encode(), environment.sol_mint_id
         )
         assert neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce).get_transaction_count() == 1
 
@@ -118,7 +119,7 @@ class TestScheduledTrx:
 
         with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.TRANSACTION_TREE_INVALID_DATA):
             evm_loader.create_tree_account(
-                neon_user, treasury_pool, tx.encode(), Pubkey.from_string(environment.sol_mint_id_string)
+                neon_user, treasury_pool, tx.encode(), environment.sol_mint_id
             )
 
     def test_send_sol_with_zero_fee(
@@ -151,10 +152,10 @@ class TestScheduledTrx:
             max_priority_fee_per_gas=0,
         )
         with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.TRANSACTION_TREE_NO_FEE):
-            evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), Pubkey.from_string(environment.sol_mint_id_string))
+            evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), environment.sol_mint_id)
 
     def test_out_of_gas(
-        self, evm_loader, neon_user: NeonUser, treasury_pool, operator_keypair, sender_with_wsol, environment, solana_client, neon_api_client
+        self, evm_loader, neon_user: NeonUser, treasury_pool, operator_keypair, sender_with_wsol, environment, sol_client, neon_api_client
     ):
         contract = deploy_contract_sol(
             operator_keypair,
@@ -164,7 +165,7 @@ class TestScheduledTrx:
             neon_api_client,
             treasury_pool,
             environment,
-            solana_client
+            sol_client
         )
         nonce = evm_loader.get_neon_nonce(neon_user.neon_address, environment.network_ids['sol'])
         data = abi.function_signature_to_4byte_selector("donate1000()")
@@ -181,7 +182,7 @@ class TestScheduledTrx:
         )
 
         with pytest.raises(solana.rpc.core.RPCException, match="transaction requires at least 25'000 gas limit"):
-            evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), Pubkey.from_string(environment.sol_mint_id_string))
+            evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), environment.sol_mint_id)
 
     def test_send_sol_with_priority_fee(
         self,
@@ -192,7 +193,7 @@ class TestScheduledTrx:
         second_operator_keypair,
         sender_with_wsol,
         environment,
-        solana_client
+        sol_client
     ):
         contract = deploy_contract_sol(
             second_operator_keypair,
@@ -202,7 +203,7 @@ class TestScheduledTrx:
             neon_api_client,
             treasury_pool_new,
             environment,
-            solana_client,
+            sol_client,
         )
         holder_acc = create_holder(second_operator_keypair, evm_loader)
         nonce = evm_loader.get_neon_nonce(neon_user.neon_address, environment.network_ids['sol'])
@@ -222,7 +223,7 @@ class TestScheduledTrx:
         treasury_balance_before = evm_loader.get_solana_balance(treasury_pool_new.account)
 
         tree_account = evm_loader.create_tree_account(
-            neon_user, treasury_pool_new, tx.encode(), Pubkey.from_string(environment.sol_mint_id_string)
+            neon_user, treasury_pool_new, tx.encode(), environment.sol_mint_id
         )
 
         user_balance_after = evm_loader.get_neon_balance(neon_user.neon_address, environment.network_ids['sol'])

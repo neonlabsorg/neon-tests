@@ -46,7 +46,7 @@ class TestMultipleScheduledTrx:
         print(tree_acc_data.data)
 
         tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, Pubkey.from_string(environment.sol_mint_id_string)
+            neon_user, treasury_pool, tree_acc_data.data, environment.sol_mint_id
         )
         additional_accounts = [basic_contract.solana_address, neon_user.get_balance_account(environment.network_ids["sol"])]
         print(tree_account)
@@ -79,7 +79,7 @@ class TestMultipleScheduledTrx:
         neon_api_client,
         environment
     ):
-        sol_mint_id = Pubkey.from_string(environment.sol_mint_id_string)
+        sol_mint_id = environment.sol_mint_id
         nonce = evm_loader.get_neon_nonce(neon_user.neon_address, environment.network_ids["sol"])
         contract_data = 18
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
@@ -160,7 +160,7 @@ class TestMultipleScheduledTrx:
         tree_acc_data.add_trx(trxs[2], 3, 0)
         tree_acc_data.add_trx(trxs[3], 0xFFFF, 3)
         tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, Pubkey.from_string(environment.sol_mint_id_string)
+            neon_user, treasury_pool, tree_acc_data.data, environment.sol_mint_id
         )
 
         additional_accounts = [basic_contract.solana_address, neon_user.get_balance_account(environment.network_ids['sol'])]
@@ -205,7 +205,7 @@ class TestMultipleScheduledTrx:
         tree_acc_data.add_trx(tx1, 0xFFFF, 1)
 
         tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, Pubkey.from_string(environment.sol_mint_id_string)
+            neon_user, treasury_pool, tree_acc_data.data, environment.sol_mint_id
         )
         additional_accounts_call = [
             caller_contract.solana_address,
@@ -250,7 +250,7 @@ class TestMultipleScheduledTrx:
         tree_acc_data.add_trx(tx0, 0xFFFF, 0)
 
         tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, Pubkey.from_string(environment.sol_mint_id_string)
+            neon_user, treasury_pool, tree_acc_data.data, environment.sol_mint_id
         )
         evm_loader.execute_scheduled_trx_from_instruction(
             tx0, operator_keypair, holder_acc, tree_account, treasury_pool, additional_accounts

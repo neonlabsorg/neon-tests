@@ -212,13 +212,16 @@ def deploy_contract_sol(
     treasury_pool: TreasuryPool,
     environment: EnvironmentConfig,
     solana_client: SolanaClient,
+    chain_id: int | None = None,
     value: int = 0,
     encoded_args=None,
     contract_name: tp.Optional[str] = None,
     version: str = "0.7.6",
 ) -> Contract:
 
-    chain_id = environment.network_ids['sol']
+    if chain_id is None:
+        chain_id = evm_loader.sol_chain_id
+
 
     contract_code = get_contract_bin(contract_file_name, contract_name=contract_name, version=version)
     if encoded_args is None:

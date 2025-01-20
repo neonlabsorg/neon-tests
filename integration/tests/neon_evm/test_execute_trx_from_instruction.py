@@ -403,7 +403,7 @@ class TestExecuteTrxFromInstruction:
         key = Keypair()
         caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
         caller, caller_nonce = evm_loader.ether2program(caller_ether)
-        caller_token = get_associated_token_address(Pubkey.from_string(caller), Pubkey.from_string(environment.neon_mint_id_string))
+        caller_token = get_associated_token_address(Pubkey.from_string(caller), Pubkey.from_string(environment.spl_neon_mint))
 
         operator_without_money = Caller(key, Pubkey.from_string(caller), caller_ether, caller_nonce, caller_token)
 

@@ -275,7 +275,7 @@ def evm_loader(environment: EnvironmentConfig) -> EvmLoader:
         endpoint=environment.solana_url,
         neon_chain_id=environment.network_ids["neon"],
         sol_chain_id=environment.network_ids["sol"],
-        neon_token_mint_str=environment.neon_mint_id_string
+        neon_token_mint_str=environment.spl_neon_mint
     )
 
 

@@ -4,7 +4,10 @@ import json
 import shutil
 import pathlib
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from pygments.lexer import default
+from solders.pubkey import Pubkey
 
 import allure
 import pytest
@@ -33,6 +36,9 @@ pytest_plugins = ["ui.plugins.browser"]
 COST_REPORT_DIR: pathlib.Path = pathlib.Path()
 
 
+from spl.token.constants import WRAPPED_SOL_MINT
+
+
 @dataclass
 class EnvironmentConfig:
     name: EnvName
@@ -45,14 +51,13 @@ class EnvironmentConfig:
     faucet_url: str
     network_ids: dict
     spl_neon_mint: str
-    sol_mint_id_string: str
-    neon_mint_id_string: str
     neon_erc20wrapper_address: str
     use_bank: bool
     eth_bank_account: str
     neonpass_url: str = ""
-    ws_subscriber_url: str = ""
+    ws_subscriber_url:  str = ""
     account_seed_version: str = "\3"
+    sol_mint_id: Pubkey = field(default=WRAPPED_SOL_MINT)
 
 
 
