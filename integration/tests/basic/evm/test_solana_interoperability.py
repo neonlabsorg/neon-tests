@@ -689,7 +689,6 @@ class TestSolanaInteroperability:
         assert int(mint.get_balance(accounts_list[1], commitment=Confirmed).value.amount) == amount
         
         event_logs_data = call_solana_caller.events.LogData().process_receipt(resp)
-        print(event_logs_data)
         assert int.from_bytes(event_logs_data[0].args.value, byteorder="little") == next(get_counter_value)
         assert bytes32_to_solana_pubkey(event_logs_data[0].args.program.hex()) == COUNTER_ID
         
