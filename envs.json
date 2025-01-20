@@ -1,8 +1,6 @@
 {
   "night-stand": {
     "evm_loader": "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io",
-    "neon_core_api_url": "",
-    "neon_core_api_rpc_url": "",
     "proxy_url": "http://proxy.night.stand.neontest.xyz/solana",
     "network_ids": {
       "neon": 111,
@@ -18,8 +16,6 @@
   },
   "release-stand": {
     "evm_loader": "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io",
-    "neon_core_api_url": "",
-    "neon_core_api_rpc_url": "",
     "proxy_url": "http://proxy.release.stand.neontest.xyz/solana",
     "network_ids": {
       "neon": 111
@@ -32,8 +28,6 @@
   },
   "mainnet": {
     "evm_loader": "NeonVMyRX5GbCrsAHnUwx1nYYoJAtskU1bWUo6JGNyG",
-    "neon_core_api_url": "",
-    "neon_core_api_rpc_url": "",
     "proxy_url": "https://mainnet-proxy.neonevm.org",
     "solana_url": "https://api.mainnet-beta.solana.com",
     "faucet_url": "",
@@ -51,8 +45,6 @@
   "devnet": {
     "evm_loader": "eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU",
     "proxy_url": "http://proxy-svc.neon-proxy-devnet.svc.cluster.local.:9090",
-    "neon_core_api_url": "",
-    "neon_core_api_rpc_url": "",
     "network_ids": {
       "neon": 245022926,
       "sol": 245022927,
@@ -118,8 +110,6 @@
   },
   "geth": {
     "evm_loader": "",
-    "neon_core_api_url": "",
-    "neon_core_api_rpc_url": "",
     "proxy_url": "http://3.67.164.222:8545",
     "network_ids": {
       "neon": 22222

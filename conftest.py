@@ -5,6 +5,7 @@ import shutil
 import pathlib
 import sys
 from dataclasses import dataclass, field
+from typing import Optional
 
 from pygments.lexer import default
 from solders.pubkey import Pubkey
@@ -43,8 +44,6 @@ from spl.token.constants import WRAPPED_SOL_MINT
 class EnvironmentConfig:
     name: EnvName
     evm_loader: str
-    neon_core_api_url: str
-    neon_core_api_rpc_url: str
     proxy_url: str
     tracer_url: str
     solana_url: str
@@ -57,6 +56,8 @@ class EnvironmentConfig:
     neonpass_url: str = ""
     ws_subscriber_url:  str = ""
     account_seed_version: str = "\3"
+    neon_core_api_url: Optional[str] = None
+    neon_core_api_rpc_url: Optional[str] = None
     sol_mint_id: Pubkey = field(default=WRAPPED_SOL_MINT)
 
 
