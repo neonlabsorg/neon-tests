@@ -78,7 +78,6 @@ class EvmLoader(SolanaClient):
                 )
             )
             self.send_tx_and_check_status_ok(trx, sender)
-            print(f"Create balance account {account_pubkey} for {ether}")
         return account_pubkey
 
     def create_treasury_pool_address(self, pool_index):

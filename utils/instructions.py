@@ -471,7 +471,6 @@ def make_ScheduledTransactionDestroy(signer, balance_account, treasury, tree_acc
         AccountMeta(pubkey=balance_account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
-     #   AccountMeta(pubkey=signer.pubkey(), is_signer=False, is_writable=True),
     ]
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 

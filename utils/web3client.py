@@ -659,7 +659,6 @@ class NeonChainWeb3Client(Web3Client):
     ) -> eth_account.signers.local.LocalAccount:
         """Creates a new account with balance"""
         account = self.create_account()
-        print("Created accounts private keys:", account.key)
 
         if bank_account is not None:
             self.send_neon(bank_account, account, amount)
