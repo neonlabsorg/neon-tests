@@ -651,7 +651,7 @@ class EvmLoader(SolanaClient):
         )
         self.send_tx_and_check_status_ok(tx, solana_account)
 
-    def deposit_wrapped_sol_from_solana_to_neon(self, solana_account, neon_account, chain_id, full_amount=None):
+    def deposit_wrapped_sol_from_solana_to_neon(self, solana_account, neon_account, full_amount=None):
         if not full_amount:
             full_amount = int(0.1 * LAMPORT_PER_SOL)
         mint_pubkey = wSOL["address_spl"]
@@ -663,7 +663,8 @@ class EvmLoader(SolanaClient):
         wrap_sol_tx = make_wSOL(full_amount, solana_account.pubkey(), ata_address)
         self.send_tx_and_check_status_ok(wrap_sol_tx, solana_account)
 
-        self.sent_token_from_solana_to_neon(solana_account, wSOL["address_spl"], neon_account, full_amount, chain_id)
+        self.sent_token_from_solana_to_neon(solana_account, wSOL["address_spl"], neon_account, full_amount,
+                                            self.sol_chain_id)
 
     def deposit_neon_like_tokens_from_solana_to_neon(
         self,
@@ -710,7 +711,7 @@ class EvmLoader(SolanaClient):
                 neon_user.solana_account, balance_account, treasury, tree_account, pool, transaction, self.loader_id
             )
         )
-        self.send_tx_and_check_status_ok(trx, neon_user.solana_account)
+        self.send_tx(trx, neon_user.solana_account)
         return tree_account
 
     def create_tree_account_multiple(
@@ -829,7 +830,7 @@ class EvmLoader(SolanaClient):
         trx = TransactionWithComputeBudget(operator, compute_unit_price=1000000)
         operator_balance = self.get_operator_balance_pubkey(operator, chain_id)
         trx.add(
-            make_ScheduledTransactionFinish(operator, operator_balance, self.loader_id, holder_account, tree_account)
+            make_ScheduledTransactionFinish(operator.pubkey(), operator_balance, self.loader_id, holder_account, tree_account)
         )
         return self.send_tx(trx, operator)
 

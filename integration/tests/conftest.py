@@ -248,7 +248,6 @@ def class_account_sol_chain(
     evm_loader,
     solana_account,
     web3_client,
-    web3_client_sol,
     faucet,
     eth_bank_account,
     bank_account,
@@ -263,7 +262,6 @@ def class_account_sol_chain(
     evm_loader.deposit_wrapped_sol_from_solana_to_neon(
         solana_account,
         account,
-        web3_client_sol.eth.chain_id,
         int(1 * LAMPORT_PER_SOL),
     )
     return account
@@ -306,7 +304,6 @@ def account_with_all_tokens(
         evm_loader.deposit_wrapped_sol_from_solana_to_neon(
             solana_account,
             neon_account,
-            web3_client_sol.eth.chain_id,
             lamports,
         )
     for client in [web3_client_usdt, web3_client_eth]:

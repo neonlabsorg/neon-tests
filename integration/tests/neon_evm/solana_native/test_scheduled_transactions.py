@@ -10,11 +10,13 @@ from integration.tests.neon_evm.utils.assert_messages import InstructionAsserts
 from integration.tests.neon_evm.utils.contract import deploy_contract
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
 from integration.tests.neon_evm.utils.storage import create_holder
+from utils.consts import LAMPORT_PER_SOL
 from utils.neon_user import NeonUser
 from utils.scheduled_trx import ScheduledTransaction
 
 
 class TestScheduledTrx:
+    # This tests can be run only with environment WITHOUT proxy service
     def test_execute_scheduled_trx_from_account(
         self,
         evm_loader,
@@ -218,6 +220,12 @@ class TestScheduledTrx:
             treasury_pool_new,
             sol_client,
             chain_id=evm_loader.sol_chain_id,
+        )
+
+        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+            neon_user.solana_account,
+            "0x" + neon_user.neon_address.hex(),
+            int(1 * LAMPORT_PER_SOL),
         )
         holder_acc = create_holder(second_operator_keypair, evm_loader)
         nonce = evm_loader.get_neon_nonce(account=neon_user.neon_address, chain_id=evm_loader.sol_chain_id)
