@@ -23,10 +23,10 @@ from utils.accounts import EthAccounts
 from utils.consts import COUNTER_ID, TRANSFER_TOKENS_ID, wSOL
 from utils.helpers import bytes32_to_solana_pubkey, serialize_instruction, wait_condition
 from utils.instructions import make_wSOL
-from utils.web3client import NeonChainWeb3Client, Web3Client
+from utils.web3client import NeonChainWeb3Client
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def get_counter_value() -> tp.Iterator[int]:
     def gen_increment_counter():
         count = 0
