@@ -54,13 +54,11 @@ class EnvironmentConfig:
     use_bank: bool
     eth_bank_account: str
     neonpass_url: str = ""
-    ws_subscriber_url:  str = ""
+    ws_subscriber_url: str = ""
     account_seed_version: str = "\3"
     neon_core_api_url: Optional[str] = None
     neon_core_api_rpc_url: Optional[str] = None
     sol_mint_id: Pubkey = field(default=WRAPPED_SOL_MINT)
-
-
 
 
 def pytest_addoption(parser: Parser):
@@ -128,10 +126,7 @@ def pytest_runtest_protocol(item: Item, nextitem):
 
                 if test_group == "ui":
                     driver = request.getfixturevalue("driver")
-                    allure.attach(
-                        driver.get_screenshot_as_png(),
-                        attachment_type=AttachmentType.PNG
-                    )
+                    allure.attach(driver.get_screenshot_as_png(), attachment_type=AttachmentType.PNG)
 
     return True
 
@@ -236,8 +231,8 @@ def allure_environment(pytestconfig: Config, web3_client_session: NeonChainWeb3C
 
 @pytest.fixture(scope="session")
 def web3_client_session(
-        environment: EnvironmentConfig,
-        env_name: EnvName,
+    environment: EnvironmentConfig,
+    env_name: EnvName,
 ) -> NeonChainWeb3Client:
     client = NeonChainWeb3Client(
         environment.proxy_url,

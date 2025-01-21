@@ -122,7 +122,9 @@ def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Generator[
 
 
 @pytest.fixture(scope="session")
-def solana_account(bank_account, environment: EnvironmentConfig, sol_client_session) -> tp.Generator[Keypair, tp.Any, tp.Any]:
+def solana_account(
+    bank_account, environment: EnvironmentConfig, sol_client_session
+) -> tp.Generator[Keypair, tp.Any, tp.Any]:
     account = Keypair()
 
     if environment.use_bank:
@@ -140,7 +142,9 @@ def solana_account(bank_account, environment: EnvironmentConfig, sol_client_sess
 
 
 @pytest.fixture(scope="function")
-def new_solana_account(bank_account, environment: EnvironmentConfig, sol_client_session) -> tp.Generator[Keypair, tp.Any, tp.Any]:
+def new_solana_account(
+    bank_account, environment: EnvironmentConfig, sol_client_session
+) -> tp.Generator[Keypair, tp.Any, tp.Any]:
     account = Keypair()
     if environment.use_bank:
         sol_client_session.send_sol(bank_account, account.pubkey(), int(0.01 * LAMPORT_PER_SOL))
@@ -210,7 +214,9 @@ def erc20_spl(
 
 
 @pytest.fixture(scope="session")
-def erc20_simple(web3_client_session, faucet, accounts_session, eth_bank_account) -> tp.Generator[ERC20, tp.Any, tp.Any]:
+def erc20_simple(
+    web3_client_session, faucet, accounts_session, eth_bank_account
+) -> tp.Generator[ERC20, tp.Any, tp.Any]:
     erc20 = ERC20(
         web3_client=web3_client_session, faucet=faucet, bank_account=eth_bank_account, owner=accounts_session[0]
     )
@@ -251,7 +257,7 @@ def class_account_sol_chain(
     faucet,
     eth_bank_account,
     bank_account,
-    environment: EnvironmentConfig
+    environment: EnvironmentConfig,
 ) -> LocalAccount:
     account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account)
     if environment.use_bank:
@@ -275,7 +281,7 @@ def evm_loader(environment: EnvironmentConfig) -> EvmLoader:
         endpoint=environment.solana_url,
         neon_chain_id=environment.network_ids["neon"],
         sol_chain_id=environment.network_ids["sol"],
-        neon_token_mint_str=environment.spl_neon_mint
+        neon_token_mint_str=environment.spl_neon_mint,
     )
 
 
@@ -364,9 +370,7 @@ def event_caller_contract(web3_client, accounts) -> tp.Any:
 
 @pytest.fixture(scope="class")
 def event_caller_sol_chain(web3_client_sol, account_with_all_tokens) -> tp.Any:
-    event_caller, _ = web3_client_sol.deploy_and_get_contract(
-        "common/EventCaller", "0.8.12", account_with_all_tokens
-    )
+    event_caller, _ = web3_client_sol.deploy_and_get_contract("common/EventCaller", "0.8.12", account_with_all_tokens)
     yield event_caller
 
 

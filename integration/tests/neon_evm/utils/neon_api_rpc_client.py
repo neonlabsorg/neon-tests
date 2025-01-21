@@ -4,7 +4,7 @@ from solders.pubkey import Pubkey
 
 
 class NeonApiRpcClient:
-    def __init__(self, url: str, chain_id: int) -> None :
+    def __init__(self, url: str, chain_id: int) -> None:
         self.url = url
         self.headers = {"Content-Type": "application/json"}
         self.chain_id = chain_id
@@ -18,8 +18,8 @@ class NeonApiRpcClient:
         }
         resp = requests.post(url=f"{self.url}", json=body, headers=self.headers).json()
         if "result" in resp:
-            return resp['result']
-        return resp['error']
+            return resp["result"]
+        return resp["error"]
 
     def get_storage_at(self, contract, index="0x0"):
         params = {"contract": contract, "index": index}
@@ -32,13 +32,7 @@ class NeonApiRpcClient:
         return self.post("balance", params)
 
     def emulate(
-        self,
-        sender,
-        contract,
-        data=bytes(),
-        chain_id: str | None = None,
-        value='0x0',
-        max_steps_to_execute=500000
+        self, sender, contract, data=bytes(), chain_id: str | None = None, value="0x0", max_steps_to_execute=500000
     ) -> Response:
         if not chain_id:
             chain_id = self.chain_id
@@ -47,14 +41,8 @@ class NeonApiRpcClient:
             data = data.hex()
         params = {
             "step_limit": max_steps_to_execute,
-            "tx": {
-                "from": sender,
-                "to": contract,
-                "data": data,
-                "chain_id": chain_id,
-                "value": value
-            },
-            "accounts": []
+            "tx": {"from": sender, "to": contract, "data": data, "chain_id": chain_id, "value": value},
+            "accounts": [],
         }
         return self.post("emulate", params)
 

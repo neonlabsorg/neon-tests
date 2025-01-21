@@ -28,7 +28,6 @@ class NeonApiClient:
         provide_account_info=None,
         trace_config=None,
     ):
-
         chain_id = chain_id or self.chain_id
 
         if isinstance(data, bytes):
@@ -56,44 +55,31 @@ class NeonApiClient:
         return self.emulate(sender, contract, data, value=value, trace_config=trace_config)
 
     def get_storage_at(self, contract_id, index="0x0") -> Dict:
-        body = {
-            "contract": contract_id,
-            "index": index
-        }
+        body = {"contract": contract_id, "index": index}
         return requests.post(url=f"{self.url}/storage", json=body, headers=self.headers).json()
-
 
     def get_holder(self, public_key) -> Dict:
         body = {"pubkey": f"{public_key}"}
         return requests.post(url=f"{self.url}/holder", json=body, headers=self.headers).json()
 
-
     def get_balance(self, ether, chain_id: int | None = None) -> Dict:
         if not chain_id:
             chain_id = self.chain_id
 
-        body = {
-            "account": [
-                { "address": ether, "chain_id": chain_id }
-            ]
-        }
+        body = {"account": [{"address": ether, "chain_id": chain_id}]}
         return requests.post(url=f"{self.url}/balance", json=body, headers=self.headers).json()
 
     def call_contract_get_function(self, sender, contract, function_signature: str, args=None):
         data = abi.function_signature_to_4byte_selector(function_signature)
         if args is not None:
             data += args
-        result = self.emulate(sender.eth_address.hex(),  contract.eth_address.hex(), data)
+        result = self.emulate(sender.eth_address.hex(), contract.eth_address.hex(), data)
         return result["result"]
 
     def get_steps_count(self, from_acc, to, data):
         if isinstance(to, (Caller, Contract)):
             to = to.eth_address.hex()
-        result = self.emulate(
-            from_acc.eth_address.hex(),
-            to,
-            data
-        )
+        result = self.emulate(from_acc.eth_address.hex(), to, data)
         return result["steps_executed"]
 
     def get_transaction_tree(self, address, nonce, chain_id: int | None = None) -> TreeAccount:
@@ -102,10 +88,6 @@ class NeonApiClient:
 
         if isinstance(address, Pubkey):
             address = bytes(address).hex()
-        body = {
-            "origin": {"address": address, "chain_id": chain_id},
-            "nonce": nonce
-        }
+        body = {"origin": {"address": address, "chain_id": chain_id}, "nonce": nonce}
         response = requests.post(url=f"{self.url}/transaction_tree", json=body, headers=self.headers).json()
         return TreeAccount.from_dict(response)
-

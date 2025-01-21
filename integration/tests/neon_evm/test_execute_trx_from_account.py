@@ -1,8 +1,10 @@
 from integration.tests.neon_evm.utils.constants import TAG_HOLDER
 from integration.tests.neon_evm.utils.contract import make_deployment_transaction
 from integration.tests.neon_evm.utils.ethereum import make_eth_transaction, create_contract_address
-from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text, \
-    check_holder_account_tag
+from integration.tests.neon_evm.utils.transaction_checks import (
+    check_transaction_logs_have_text,
+    check_holder_account_tag,
+)
 from utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
 from utils.types import Caller
 
@@ -12,7 +14,11 @@ class TestExecuteTrxFromAccount:
         self,
         operator_keypair,
         treasury_pool,
-        sender_with_tokens: Caller, session_user: Caller, holder_acc, evm_loader, sol_client
+        sender_with_tokens: Caller,
+        session_user: Caller,
+        holder_acc,
+        evm_loader,
+        sol_client,
     ):
         amount = 10
         sender_balance_before = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
@@ -39,7 +45,7 @@ class TestExecuteTrxFromAccount:
         recipient_balance_after = evm_loader.get_neon_balance(session_user.eth_address)
         assert sender_balance_before - amount == sender_balance_after
         assert recipient_balance_before + amount == recipient_balance_after
-        check_transaction_logs_have_text(solana_client=sol_client,trx=resp, text="exit_status=0x11")
+        check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x11")
 
     def test_deploy_contract(
         self,
@@ -49,8 +55,7 @@ class TestExecuteTrxFromAccount:
         treasury_pool,
         evm_loader,
         sender_with_tokens,
-        neon_api_client,
-        environment
+        neon_api_client
     ):
         contract = create_contract_address(sender_with_tokens, evm_loader)
 
@@ -74,6 +79,6 @@ class TestExecuteTrxFromAccount:
             solana_client=sol_client,
             storage_account=new_holder_acc,
             layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
-            expected_tag=TAG_HOLDER
+            expected_tag=TAG_HOLDER,
         )
         check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x12")

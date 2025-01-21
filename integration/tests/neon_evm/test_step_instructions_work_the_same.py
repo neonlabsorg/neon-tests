@@ -5,7 +5,7 @@ from .utils.storage import create_holder
 
 class TestTransactionStepFromAccount:
     def test_simple_transfer_transaction(
-        self, operator_keypair, treasury_pool, evm_loader, sender_with_tokens, session_user, holder_acc, environment
+        self, operator_keypair, treasury_pool, evm_loader, sender_with_tokens, session_user, holder_acc
     ):
         amount = 10
 
@@ -49,7 +49,7 @@ class TestTransactionStepFromAccount:
             )
 
     def test_deploy_contract(
-        self, operator_keypair, holder_acc, treasury_pool, evm_loader, sender_with_tokens, environment
+        self, operator_keypair, holder_acc, treasury_pool, evm_loader, sender_with_tokens
     ):
         contract_filename = "small"
         contract = create_contract_address(sender_with_tokens, evm_loader)

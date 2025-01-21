@@ -73,7 +73,6 @@ class EvmLoader(SolanaClient):
         self.neon_token_mint_id = Pubkey.from_string(neon_token_mint_str)
 
     def create_balance_account(self, ether: Union[str, bytes], sender, chain_id: int | None = None) -> Pubkey:
-
         chain_id = chain_id or self.chain_id
 
         account_pubkey = self.ether2balance(ether, chain_id)
@@ -108,7 +107,6 @@ class EvmLoader(SolanaClient):
         ether_address: Union[str, bytes],
         chain_id: int | None = None,
     ) -> Pubkey:
-
         chain_id = chain_id or self.chain_id
 
         address_bytes = ether2bytes(ether_address)
@@ -141,7 +139,6 @@ class EvmLoader(SolanaClient):
         return info.data
 
     def get_neon_balance(self, account: Union[str, bytes], chain_id: int | None = None) -> int:
-
         chain_id = chain_id or self.chain_id
 
         balance_address = self.ether2balance(account, chain_id)
@@ -270,8 +267,6 @@ class EvmLoader(SolanaClient):
         print(f"treasury_address: {treasury_address=}")
         print(f"treasury_buffer: {treasury_buffer=}")
         print(f"additional_accounts: {additional_accounts=}")
-        print(f"system_program: {system_program=}")
-        print(f"signer: {signer=}")
 
         trx = TransactionWithComputeBudget(operator)
         trx.add(
@@ -365,7 +360,6 @@ class EvmLoader(SolanaClient):
         index=0,
         compute_unit_price=None,
         tag=0x34,
-
     ) -> GetTransactionResp:
         trx = TransactionWithComputeBudget(operator, compute_unit_price=compute_unit_price)
         if isinstance(instruction, SignedTransaction):
@@ -399,9 +393,8 @@ class EvmLoader(SolanaClient):
         additional_accounts,
         signer: Keypair = None,
         compute_unit_price=None,
-        chain_id: int | None=None,
+        chain_id: int | None = None,
     ) -> GetTransactionResp:
-
         chain_id = chain_id or self.chain_id
 
         signer = operator if signer is None else signer
@@ -475,7 +468,6 @@ class EvmLoader(SolanaClient):
         compute_unit_price=None,
         chain_id: int | None = None,
     ) -> GetTransactionResp:
-
         chain_id = chain_id or self.chain_id
 
         signer = operator if signer is None else signer
@@ -543,10 +535,7 @@ class EvmLoader(SolanaClient):
         return receipt
 
     def deposit_neon(
-        self,
-        operator_keypair: Keypair,
-        ether_address: Union[str, bytes],
-        amount: int
+        self, operator_keypair: Keypair, ether_address: Union[str, bytes], amount: int
     ) -> GetTransactionResp:
         balance_pubkey = self.ether2balance(ether_address)
         contract_pubkey = Pubkey.from_string(self.ether2program(ether_address)[0])
@@ -694,8 +683,8 @@ class EvmLoader(SolanaClient):
             chain_id,
         )
 
-    def create_operator_balance_account(self, operator_keypair, operator_ether, chain_id: int | str | None = ''):
-        if chain_id == '':
+    def create_operator_balance_account(self, operator_keypair, operator_ether, chain_id: int | str | None = ""):
+        if chain_id == "":
             chain_id = self.chain_id
 
         account = self.ether2operator_balance(operator_keypair, operator_ether, chain_id)
@@ -704,8 +693,8 @@ class EvmLoader(SolanaClient):
         )
         self.send_tx(trx, operator_keypair)
 
-    def create_tree_account(self, neon_user: NeonUser, treasury, transaction, mint, chain_id: int | str | None = ''):
-        if chain_id == '':
+    def create_tree_account(self, neon_user: NeonUser, treasury, transaction, mint, chain_id: int | str | None = ""):
+        if chain_id == "":
             chain_id = self.sol_chain_id
 
         payer_nonce = self.get_neon_nonce(neon_user.neon_address, chain_id).to_bytes(8, "little")
@@ -724,9 +713,9 @@ class EvmLoader(SolanaClient):
         return tree_account
 
     def create_tree_account_multiple(
-        self, neon_user, treasury, tree_account_create_data, mint: Pubkey, payer_nonce=None, chain_id: int | None = ''
+        self, neon_user, treasury, tree_account_create_data, mint: Pubkey, payer_nonce=None, chain_id: int | None = ""
     ):
-        if chain_id == '':
+        if chain_id == "":
             chain_id = self.sol_chain_id
 
         if not payer_nonce:
@@ -754,9 +743,9 @@ class EvmLoader(SolanaClient):
         return tree_account
 
     def start_scheduled_trx_from_account(
-        self, index, operator, holder, tree_account, additional_accounts, chain_id: int | None = ''
+        self, index, operator, holder, tree_account, additional_accounts, chain_id: int | None = ""
     ):
-        if chain_id == '':
+        if chain_id == "":
             chain_id = self.sol_chain_id
 
         operator_balance = self.get_operator_balance_pubkey(operator, chain_id)
@@ -769,9 +758,15 @@ class EvmLoader(SolanaClient):
         return self.send_tx(trx, operator)
 
     def start_scheduled_trx_from_instruction(
-        self, neon_trx: ScheduledTransaction, operator, holder, tree_account, additional_accounts, chain_id: int | str | None = ''
+        self,
+        neon_trx: ScheduledTransaction,
+        operator,
+        holder,
+        tree_account,
+        additional_accounts,
+        chain_id: int | str | None = "",
     ):
-        if chain_id == '':
+        if chain_id == "":
             chain_id = self.sol_chain_id
 
         operator_balance = self.get_operator_balance_pubkey(operator, chain_id)
@@ -798,10 +793,10 @@ class EvmLoader(SolanaClient):
         tree_account,
         treasury,
         additional_accounts,
-        chain_id: int | str | None = '',
+        chain_id: int | str | None = "",
         compute_unit_price=None,
     ):
-        if chain_id == '':
+        if chain_id == "":
             chain_id = self.sol_chain_id
 
         self.start_scheduled_trx_from_account(index, operator, holder, tree_account, additional_accounts, chain_id)
@@ -819,7 +814,7 @@ class EvmLoader(SolanaClient):
         additional_accounts,
         chain_id: int | str | None = "",
     ):
-        if chain_id == '':
+        if chain_id == "":
             chain_id = self.sol_chain_id
 
         self.start_scheduled_trx_from_instruction(trx, operator, holder, tree_account, additional_accounts, chain_id)
@@ -828,7 +823,7 @@ class EvmLoader(SolanaClient):
         )
 
     def finish_scheduled_trx(self, operator, tree_account, holder_account, chain_id: int | str | None = ""):
-        if chain_id == '':
+        if chain_id == "":
             chain_id = self.sol_chain_id
 
         trx = TransactionWithComputeBudget(operator, compute_unit_price=1000000)
@@ -841,7 +836,7 @@ class EvmLoader(SolanaClient):
     def skip_scheduled_trx_from_instruction(
         self, neon_trx, operator, tree_account, holder_account, chain_id: int | str | None = ""
     ):
-        if chain_id == '':
+        if chain_id == "":
             chain_id = self.sol_chain_id
 
         operator_balance_pubkey = self.get_operator_balance_pubkey(operator, chain_id)
@@ -860,10 +855,9 @@ class EvmLoader(SolanaClient):
         return self.send_tx(trx, operator)
 
     def destroy_tree_account(
-        self, operator, neon_user: NeonUser, treasury, tree_account, chain_id: int | None = ''
+        self, operator, neon_user: NeonUser, treasury, tree_account, chain_id: int | None = ""
     ) -> SignedTransaction:
-
-        if chain_id == '':
+        if chain_id == "":
             chain_id = self.sol_chain_id
 
         trx = Transaction()

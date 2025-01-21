@@ -22,8 +22,7 @@ class TestEIP1559Transactions:
         evm_loader,
         calculator_contract,
         calculator_caller_contract,
-        environment,
-        sol_client
+        sol_client,
     ):
         signed_tx = make_contract_call_trx(
             evm_loader,
@@ -52,13 +51,12 @@ class TestEIP1559Transactions:
             solana_client=sol_client,
             storage_account=holder_acc,
             layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
-            expected_tag=TAG_FINALIZED_STATE
+            expected_tag=TAG_FINALIZED_STATE,
         )
         check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x12")
 
-
     def test_contract_deploy_iterative_transaction(
-            self, operator_keypair, holder_acc, treasury_pool, sender_with_tokens, evm_loader, sol_client, environment
+        self, operator_keypair, holder_acc, treasury_pool, sender_with_tokens, evm_loader, sol_client
     ):
         contract_filename = "hello_world"
         contract = create_contract_address(sender_with_tokens, evm_loader)
@@ -84,7 +82,7 @@ class TestEIP1559Transactions:
             solana_client=sol_client,
             storage_account=holder_acc,
             layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
-            expected_tag=TAG_FINALIZED_STATE
+            expected_tag=TAG_FINALIZED_STATE,
         )
         check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x12")
 
@@ -96,8 +94,7 @@ class TestEIP1559Transactions:
         sender_with_tokens,
         evm_loader,
         calculator_contract,
-        calculator_caller_contract,
-        environment
+        calculator_caller_contract
     ):
         signed_tx = make_contract_call_trx(
             evm_loader,
@@ -124,15 +121,14 @@ class TestEIP1559Transactions:
             )
 
     def test_simple_transfer_non_iterative_transaction(
-            self,
-            operator_keypair,
-            treasury_pool,
-            sender_with_tokens: Caller,
-            session_user: Caller,
-            evm_loader,
-            holder_acc,
-            environment,
-            sol_client
+        self,
+        operator_keypair,
+        treasury_pool,
+        sender_with_tokens: Caller,
+        session_user: Caller,
+        evm_loader,
+        holder_acc,
+        sol_client,
     ):
         amount = 10
         max_fee_per_gas = 50000
@@ -141,9 +137,16 @@ class TestEIP1559Transactions:
         sender_balance_before = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
         recipient_balance_before = evm_loader.get_neon_balance(session_user.eth_address)
 
-        signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, amount,
-                                         gas=10000, max_priority_fee_per_gas=max_priority_fee_per_gas,
-                                         max_fee_per_gas=max_fee_per_gas)
+        signed_tx = make_eth_transaction(
+            evm_loader,
+            session_user.eth_address,
+            None,
+            sender_with_tokens,
+            amount,
+            gas=10000,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            max_fee_per_gas=max_fee_per_gas,
+        )
 
         resp = evm_loader.execute_trx_from_instruction(
             operator_keypair,

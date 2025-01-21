@@ -19,7 +19,7 @@ class TestExternalCall:
     web3_client: NeonChainWeb3Client
 
     def test_execute_from_instruction(
-        self, operator_keypair, evm_loader, treasury_pool, sender_with_tokens, session_user, holder_acc, environment
+        self, operator_keypair, evm_loader, treasury_pool, sender_with_tokens, session_user, holder_acc
     ):
         operator_balance = evm_loader.get_operator_balance_pubkey(operator_keypair)
         amount = 1
@@ -59,7 +59,7 @@ class TestExternalCall:
         assert receiver_initial_balance == evm_loader.get_neon_balance(session_user.eth_address) - amount
 
     def test_execute_from_instruction_eip_1559(
-        self, operator_keypair, evm_loader, treasury_pool, sender_with_tokens, session_user, holder_acc, environment
+        self, operator_keypair, evm_loader, treasury_pool, sender_with_tokens, session_user, holder_acc
     ):
         operator_balance = evm_loader.get_operator_balance_pubkey(operator_keypair)
         amount = 1
@@ -67,8 +67,15 @@ class TestExternalCall:
         max_fee_per_gas = 100
         max_priority_fee_per_gas = 10
 
-        msg = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, amount,
-                                   max_priority_fee_per_gas=max_priority_fee_per_gas, max_fee_per_gas=max_fee_per_gas)
+        msg = make_eth_transaction(
+            evm_loader,
+            session_user.eth_address,
+            None,
+            sender_with_tokens,
+            amount,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            max_fee_per_gas=max_fee_per_gas,
+        )
 
         accounts = [
             sender_with_tokens.solana_account_address,

@@ -105,7 +105,7 @@ def make_contract_call_trx(
     function_signature,
     params=None,
     value=0,
-    chain_id: int | str | None = '',
+    chain_id: int | str | None = "",
     access_list=None,
     gas=999999999,
     gas_price=0,
@@ -113,7 +113,7 @@ def make_contract_call_trx(
     max_fee_per_gas=None,
     trx_type=None,
 ) -> SignedTransaction:
-    if chain_id == '':
+    if chain_id == "":
         chain_id = evm_loader.chain_id
 
     # does not work for tuple in params
@@ -127,9 +127,20 @@ def make_contract_call_trx(
         contract_addr = contract.eth_address
     else:
         contract_addr = contract
-    signed_tx = make_eth_transaction(evm_loader, contract_addr, data, user, value=value, chain_id=chain_id, gas=gas,
-                                     max_priority_fee_per_gas=max_priority_fee_per_gas, max_fee_per_gas=max_fee_per_gas,
-                                     access_list=access_list, type_=trx_type, gas_price=gas_price)
+    signed_tx = make_eth_transaction(
+        evm_loader,
+        contract_addr,
+        data,
+        user,
+        value=value,
+        chain_id=chain_id,
+        gas=gas,
+        max_priority_fee_per_gas=max_priority_fee_per_gas,
+        max_fee_per_gas=max_fee_per_gas,
+        access_list=access_list,
+        type_=trx_type,
+        gas_price=gas_price,
+    )
 
     return signed_tx
 
@@ -143,14 +154,13 @@ def deploy_contract(
     neon_api_client: NeonApiClient,
     treasury_pool: TreasuryPool,
     solana_client: SolanaClient,
-    chain_id: int | str = '',
+    chain_id: int | str | None = "",
     value: int = 0,
     encoded_args=None,
     contract_name: tp.Optional[str] = None,
     version: str = "0.7.6",
 ) -> Contract:
-
-    if chain_id == '':
+    if chain_id == "":
         chain_id = evm_loader.chain_id
 
     contract_code = get_contract_bin(contract_file_name, contract_name=contract_name, version=version)
@@ -183,67 +193,5 @@ def deploy_contract(
     resp = evm_loader.execute_transaction_steps_from_account(
         operator, treasury_pool, holder_acc, additional_accounts, chain_id=chain_id
     )
-    check_transaction_logs_have_text(
-        solana_client=solana_client,
-        trx=resp,
-        text="exit_status=0x12"
-    )
-    return contract
-
-# TODO Move deploy_contract methods to EVMLoader class
-def deploy_contract_sol(
-    operator: Keypair,
-    user: Caller,
-    contract_file_name: tp.Union[pathlib.Path, str],
-    evm_loader: EvmLoader,
-    neon_api_client: NeonApiClient,
-    treasury_pool: TreasuryPool,
-    environment: EnvironmentConfig,
-    solana_client: SolanaClient,
-    chain_id: int | None = None,
-    value: int = 0,
-    encoded_args=None,
-    contract_name: tp.Optional[str] = None,
-    version: str = "0.7.6",
-) -> Contract:
-
-    if chain_id is None:
-        chain_id = evm_loader.sol_chain_id
-
-
-    contract_code = get_contract_bin(contract_file_name, contract_name=contract_name, version=version)
-    if encoded_args is None:
-        encoded_args = b""
-
-    emulate_result = neon_api_client.emulate(
-        user.eth_address.hex(),
-        contract=None,
-        data=contract_code + encoded_args.hex(),
-        chain_id=chain_id,
-        value=hex(value),
-    )
-    additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
-
-    contract: Contract = create_contract_address(user, evm_loader, chain_id)
-    holder_acc = create_holder(operator, evm_loader)
-    signed_tx = make_deployment_transaction(
-        evm_loader,
-        user,
-        contract_file_name,
-        contract_name,
-        encoded_args=encoded_args,
-        value=value,
-        version=version,
-        chain_id=chain_id,
-    )
-    evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator)
-
-    resp = evm_loader.execute_transaction_steps_from_account(
-        operator, treasury_pool, holder_acc, additional_accounts, chain_id=chain_id
-    )
-    check_transaction_logs_have_text(
-        solana_client=solana_client,
-        trx=resp,
-        text="exit_status=0x12"
-    )
+    check_transaction_logs_have_text(solana_client=solana_client, trx=resp, text="exit_status=0x12")
     return contract

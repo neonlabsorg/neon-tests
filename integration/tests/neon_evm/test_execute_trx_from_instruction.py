@@ -25,13 +25,12 @@ class TestExecuteTrxFromInstruction:
     def test_simple_transfer_transaction(
         self,
         operator_keypair,
-        environment,
         treasury_pool,
         sender_with_tokens: Caller,
         session_user: Caller,
         evm_loader,
         holder_acc,
-        sol_client
+        sol_client,
     ):
         amount = 10
 
@@ -58,7 +57,13 @@ class TestExecuteTrxFromInstruction:
         check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x11")
 
     def test_transfer_transaction_with_non_existing_recipient(
-        self, operator_keypair, treasury_pool, sender_with_tokens: Caller, evm_loader, holder_acc, solana_client, environment
+        self,
+        operator_keypair,
+        treasury_pool,
+        sender_with_tokens: Caller,
+        evm_loader,
+        holder_acc,
+        solana_client
     ):
         # recipient account should be created
         recipient = Keypair()
@@ -95,12 +100,11 @@ class TestExecuteTrxFromInstruction:
         evm_loader,
         neon_api_client,
         holder_acc,
-        solana_client,
-        environment
+        solana_client
     ):
         text = "".join(random.choice(string.ascii_letters) for _ in range(10))
         signed_tx = make_contract_call_trx(
-            evm_loader, sender_with_tokens, string_setter_contract, "set(string)",[text]
+            evm_loader, sender_with_tokens, string_setter_contract, "set(string)", [text]
         )
 
         resp = evm_loader.execute_trx_from_instruction(
@@ -126,8 +130,7 @@ class TestExecuteTrxFromInstruction:
         neon_api_client,
         string_setter_contract,
         holder_acc,
-        solana_client,
-        environment
+        solana_client
     ):
         transfer_amount = random.randint(1, 1000)
         sender_balance_before = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
@@ -136,8 +139,9 @@ class TestExecuteTrxFromInstruction:
         text = "".join(random.choice(string.ascii_letters) for _ in range(10))
         func_name = abi.function_signature_to_4byte_selector("set(string)")
         data = func_name + eth_abi.encode(["string"], [text])
-        signed_tx = make_eth_transaction(evm_loader, string_setter_contract.eth_address, data, sender_with_tokens,
-                                         transfer_amount)
+        signed_tx = make_eth_transaction(
+            evm_loader, string_setter_contract.eth_address, data, sender_with_tokens, transfer_amount
+        )
         resp = evm_loader.execute_trx_from_instruction(
             operator_keypair,
             holder_acc,
@@ -163,11 +167,18 @@ class TestExecuteTrxFromInstruction:
         assert contract_balance_before + transfer_amount == contract_balance_after
 
     def test_incorrect_chain_id(
-        self, operator_keypair, treasury_pool, sender_with_tokens: Caller, session_user: Caller, evm_loader, holder_acc, environment
+        self,
+        operator_keypair,
+        treasury_pool,
+        sender_with_tokens: Caller,
+        session_user: Caller,
+        evm_loader,
+        holder_acc
     ):
         amount = 1
-        signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, amount,
-                                         chain_id=1)
+        signed_tx = make_eth_transaction(
+            evm_loader, session_user.eth_address, None, sender_with_tokens, amount, chain_id=1
+        )
         with pytest.raises(SolanaRPCException, match=InstructionAsserts.INVALID_CHAIN_ID):
             evm_loader.execute_trx_from_instruction(
                 operator_keypair,
@@ -183,7 +194,13 @@ class TestExecuteTrxFromInstruction:
             )
 
     def test_incorrect_nonce(
-        self, operator_keypair, treasury_pool, sender_with_tokens: Caller, session_user: Caller, evm_loader, holder_acc, environment
+        self,
+        operator_keypair,
+        treasury_pool,
+        sender_with_tokens: Caller,
+        session_user: Caller,
+        evm_loader,
+        holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
 
@@ -214,12 +231,19 @@ class TestExecuteTrxFromInstruction:
             )
 
     def test_insufficient_funds(
-        self, operator_keypair, treasury_pool, evm_loader, sender_with_tokens: Caller, session_user: Caller, holder_acc, environment
+        self,
+        operator_keypair,
+        treasury_pool,
+        evm_loader,
+        sender_with_tokens: Caller,
+        session_user: Caller,
+        holder_acc
     ):
         user_balance = evm_loader.get_neon_balance(session_user.eth_address)
 
-        signed_tx = make_eth_transaction(evm_loader, sender_with_tokens.eth_address, None, session_user,
-                                         user_balance + 1)
+        signed_tx = make_eth_transaction(
+            evm_loader, sender_with_tokens.eth_address, None, session_user, user_balance + 1
+        )
 
         with pytest.raises(SolanaRPCException, match=InstructionAsserts.INSUFFICIENT_FUNDS):
             evm_loader.execute_trx_from_instruction(
@@ -237,7 +261,13 @@ class TestExecuteTrxFromInstruction:
             )
 
     def test_gas_limit_reached(
-        self, operator_keypair, treasury_pool, session_user: Caller, sender_with_tokens: Caller, evm_loader, holder_acc, environment
+        self,
+        operator_keypair,
+        treasury_pool,
+        session_user: Caller,
+        sender_with_tokens: Caller,
+        evm_loader,
+        holder_acc
     ):
         amount = 10
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, amount, gas=1)
@@ -257,7 +287,13 @@ class TestExecuteTrxFromInstruction:
             )
 
     def test_sender_missed_in_remaining_accounts(
-        self, operator_keypair, treasury_pool, session_user: Caller, sender_with_tokens: Caller, evm_loader, holder_acc, environment
+        self,
+        operator_keypair,
+        treasury_pool,
+        session_user: Caller,
+        sender_with_tokens: Caller,
+        evm_loader,
+        holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         with pytest.raises(SolanaRPCException, match=InstructionAsserts.ADDRESS_MUST_BE_PRESENT):
@@ -271,7 +307,13 @@ class TestExecuteTrxFromInstruction:
             )
 
     def test_recipient_missed_in_remaining_accounts(
-        self, operator_keypair, treasury_pool, sender_with_tokens: Caller, session_user: Caller, evm_loader, holder_acc, environment
+        self,
+        operator_keypair,
+        treasury_pool,
+        sender_with_tokens: Caller,
+        session_user: Caller,
+        evm_loader,
+        holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         with pytest.raises(SolanaRPCException, match=InstructionAsserts.ADDRESS_MUST_BE_PRESENT):
@@ -285,7 +327,7 @@ class TestExecuteTrxFromInstruction:
             )
 
     def test_incorrect_treasure_pool(
-        self, operator_keypair, sender_with_tokens: Caller, session_user: Caller, evm_loader, holder_acc, environment
+        self, operator_keypair, sender_with_tokens: Caller, session_user: Caller, evm_loader, holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
 
@@ -294,10 +336,18 @@ class TestExecuteTrxFromInstruction:
 
         error = str.format(InstructionAsserts.INVALID_ACCOUNT, treasury_pool)
         with pytest.raises(SolanaRPCException, match=error):
-            evm_loader.execute_trx_from_instruction(operator_keypair, holder_acc, treasury_pool, treasury_buffer, signed_tx, [])
+            evm_loader.execute_trx_from_instruction(
+                operator_keypair, holder_acc, treasury_pool, treasury_buffer, signed_tx, []
+            )
 
     def test_incorrect_treasure_index(
-        self, operator_keypair, treasury_pool, sender_with_tokens: Caller, session_user: Caller, evm_loader, holder_acc, environment
+        self,
+        operator_keypair,
+        treasury_pool,
+        sender_with_tokens: Caller,
+        session_user: Caller,
+        evm_loader,
+        holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         treasury_buffer = b"\x03\x00\x00\x00"
@@ -309,7 +359,7 @@ class TestExecuteTrxFromInstruction:
             )
 
     def test_incorrect_operator_account(
-        self, evm_loader, treasury_pool, session_user: Caller, sender_with_tokens: Caller, holder_acc, environment
+        self, evm_loader, treasury_pool, session_user: Caller, sender_with_tokens: Caller, holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         fake_operator = Keypair()
@@ -328,7 +378,7 @@ class TestExecuteTrxFromInstruction:
             )
 
     def test_operator_is_not_in_white_list(
-        self, sender_with_tokens, evm_loader, treasury_pool, session_user, holder_acc, sol_client, environment
+        self, sender_with_tokens, evm_loader, treasury_pool, session_user, holder_acc, sol_client
     ):
         # check any user can send transactions through "execute transaction from instruction" instruction with own holder
 
@@ -351,7 +401,7 @@ class TestExecuteTrxFromInstruction:
         check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x11")
 
     def test_incorrect_system_program(
-        self, sender_with_tokens, operator_keypair, evm_loader, treasury_pool, session_user, holder_acc, environment
+        self, sender_with_tokens, operator_keypair, evm_loader, treasury_pool, session_user, holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         fake_sys_program_id = Keypair().pubkey()
@@ -370,12 +420,21 @@ class TestExecuteTrxFromInstruction:
             )
 
     def test_operator_does_not_have_enough_founds(
-        self, evm_loader, treasury_pool, session_user: Caller, sender_with_tokens: Caller, operator_keypair, holder_acc, environment
+        self,
+        evm_loader,
+        treasury_pool,
+        session_user: Caller,
+        sender_with_tokens: Caller,
+        operator_keypair,
+        holder_acc,
+        environment
     ):
         key = Keypair()
         caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
         caller, caller_nonce = evm_loader.ether2program(caller_ether)
-        caller_token = get_associated_token_address(Pubkey.from_string(caller), Pubkey.from_string(environment.spl_neon_mint))
+        caller_token = get_associated_token_address(
+            Pubkey.from_string(caller), Pubkey.from_string(environment.spl_neon_mint)
+        )
 
         operator_without_money = Caller(key, Pubkey.from_string(caller), caller_ether, caller_nonce, caller_token)
 
@@ -406,8 +465,7 @@ class TestExecuteTrxFromInstruction:
         evm_loader,
         calculator_contract,
         calculator_caller_contract,
-        solana_client,
-        environment
+        solana_client
     ):
         access_list = (
             {
@@ -447,8 +505,7 @@ class TestExecuteTrxFromInstruction:
         calculator_contract,
         treasury_pool,
         holder_acc,
-        solana_client,
-        environment
+        solana_client
     ):
         signed_tx = make_contract_call_trx(
             evm_loader, sender_with_tokens, calculator_caller_contract, "callCalculator()"
