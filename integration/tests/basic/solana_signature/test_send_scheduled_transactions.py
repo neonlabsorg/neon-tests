@@ -15,10 +15,10 @@ from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData,
 @allure.story("Test sending scheduled transaction")
 @pytest.mark.usefixtures("accounts", "web3_client")
 class TestScheduledTrx:
-
-    def test_send_simple_single_trx(self, pytestconfig, web3_client_sol, neon_user, common_contract, evm_loader,
-                                    treasury_pool):
-        chain_id = web3_client_sol.chain_id
+    def test_send_simple_single_trx(
+        self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
+    ):
+        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         contract_data = 18
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
@@ -92,8 +92,13 @@ class TestScheduledTrx:
         assert pending_trx[hex(nonce)][0]["hash"][2:] == trxs[0].hash().hex()
 
     def test_multiple_scheduled_trx_with_failed_trx(
-            self, web3_client_sol, neon_user, treasury_pool,
-            revert_contract_caller, event_caller_contract, evm_loader
+        self,
+        web3_client_sol,
+        neon_user,
+        treasury_pool,
+        revert_contract_caller,
+        event_caller_contract,
+        evm_loader
     ):
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
 
@@ -114,8 +119,7 @@ class TestScheduledTrx:
             call_data=call_data_trx0,
             max_fee_per_gas=max_fee_per_gas,
             max_priority_fee_per_gas=max_priority_fee_per_gas,
-            gas_limit=gas_limit,
-            chain_id=web3_client_sol.chain_id,
+            gas_limit=gas_limit
         )
         tx1 = ScheduledTransaction(
             neon_user.neon_address,
@@ -126,8 +130,7 @@ class TestScheduledTrx:
             call_data=call_data_trx1,
             max_fee_per_gas=max_fee_per_gas,
             max_priority_fee_per_gas=max_priority_fee_per_gas,
-            gas_limit=gas_limit,
-            chain_id=web3_client_sol.chain_id,
+            gas_limit=gas_limit
         )
         tree_acc_data = CreateTreeAccMultipleData(
             nonce=nonce, max_fee_per_gas=max_fee_per_gas,
@@ -305,7 +308,13 @@ class TestScheduledTrx:
         assert contract.functions.getDataFromMapping(added_timestamp).call() == [v1, v2]
 
     def test_scheduled_trx_with_small_gas_limit(
-            self, block_timestamp_contract, web3_client_sol, neon_user, treasury_pool, evm_loader, event_caller_contract
+        self,
+        block_timestamp_contract,
+        web3_client_sol,
+        neon_user,
+        treasury_pool,
+        evm_loader,
+        event_caller_contract
     ):
         contract, _ = block_timestamp_contract
 
