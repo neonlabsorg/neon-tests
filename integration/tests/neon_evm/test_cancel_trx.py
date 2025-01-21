@@ -25,7 +25,7 @@ class TestCancelTrx:
     ):
         """EVM can cancel transaction and finalize storage account"""
         signed_tx = make_contract_call_trx(
-            evm_loader, user_account, rw_lock_contract, "unchange_storage(uint8,uint8)", environment, [1, 1]
+            evm_loader, user_account, rw_lock_contract, "unchange_storage(uint8,uint8)", [1, 1]
         )
 
         storage_account = create_holder(operator_keypair, evm_loader)
@@ -86,7 +86,7 @@ class TestCancelTrx:
         (but not exceeding the gas limit)."""
         signed_tx = make_contract_call_trx(
             evm_loader, sender_with_tokens, rw_lock_contract,
-            "unchange_storage(uint8,uint8)", environment, [1, 1], gas=gas_limit, gas_price=1
+            "unchange_storage(uint8,uint8)", [1, 1], gas=gas_limit, gas_price=1
         )
 
         storage_account = create_holder(operator_keypair, evm_loader)

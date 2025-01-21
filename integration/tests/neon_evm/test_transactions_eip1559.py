@@ -30,7 +30,6 @@ class TestEIP1559Transactions:
             sender_with_tokens,
             calculator_caller_contract,
             "callCalculator()",
-            environment,
             max_fee_per_gas=10000,
             max_priority_fee_per_gas=10,
             trx_type=2,
@@ -62,7 +61,7 @@ class TestEIP1559Transactions:
             self, operator_keypair, holder_acc, treasury_pool, sender_with_tokens, evm_loader, sol_client, environment
     ):
         contract_filename = "hello_world"
-        contract = create_contract_address(sender_with_tokens, evm_loader, environment)
+        contract = create_contract_address(sender_with_tokens, evm_loader)
 
         signed_tx = make_deployment_transaction(
             evm_loader, sender_with_tokens, contract_filename, max_fee_per_gas=10000, max_priority_fee_per_gas=10
@@ -105,7 +104,6 @@ class TestEIP1559Transactions:
             sender_with_tokens,
             calculator_caller_contract,
             "callCalculator()",
-            environment,
             max_fee_per_gas=10,
             max_priority_fee_per_gas=1000,
             trx_type=2,
@@ -143,17 +141,9 @@ class TestEIP1559Transactions:
         sender_balance_before = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
         recipient_balance_before = evm_loader.get_neon_balance(session_user.eth_address)
 
-        signed_tx = make_eth_transaction(
-            evm_loader,
-            session_user.eth_address,
-            None,
-            sender_with_tokens,
-            environment,
-            amount,
-            max_fee_per_gas=max_fee_per_gas,
-            max_priority_fee_per_gas=max_priority_fee_per_gas,
-            gas=10000,
-        )
+        signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, amount,
+                                         gas=10000, max_priority_fee_per_gas=max_priority_fee_per_gas,
+                                         max_fee_per_gas=max_fee_per_gas)
 
         resp = evm_loader.execute_trx_from_instruction(
             operator_keypair,

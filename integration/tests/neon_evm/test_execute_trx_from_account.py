@@ -10,7 +10,6 @@ from utils.types import Caller
 class TestExecuteTrxFromAccount:
     def test_simple_transfer_transaction(
         self,
-        environment,
         operator_keypair,
         treasury_pool,
         sender_with_tokens: Caller, session_user: Caller, holder_acc, evm_loader, sol_client
@@ -19,8 +18,9 @@ class TestExecuteTrxFromAccount:
         sender_balance_before = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
         recipient_balance_before = evm_loader.get_neon_balance(session_user.eth_address)
         signed_tx = make_eth_transaction(
-            evm_loader, session_user.eth_address, None, sender_with_tokens, environment, amount
+            evm_loader, session_user.eth_address, None, sender_with_tokens, amount, chain_id=None
         )
+
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
 
         resp = evm_loader.execute_trx_from_account(
@@ -52,7 +52,7 @@ class TestExecuteTrxFromAccount:
         neon_api_client,
         environment
     ):
-        contract = create_contract_address(sender_with_tokens, evm_loader, environment)
+        contract = create_contract_address(sender_with_tokens, evm_loader)
 
         signed_tx = make_deployment_transaction(evm_loader, sender_with_tokens, "hello_world")
         evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc, operator_keypair)

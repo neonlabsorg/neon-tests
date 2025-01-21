@@ -4,7 +4,7 @@ from solders.pubkey import Pubkey
 
 
 class NeonApiRpcClient:
-    def __init__(self, url: str, chain_id: str) -> None :
+    def __init__(self, url: str, chain_id: int) -> None :
         self.url = url
         self.headers = {"Content-Type": "application/json"}
         self.chain_id = chain_id

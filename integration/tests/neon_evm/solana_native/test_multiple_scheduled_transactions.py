@@ -183,7 +183,7 @@ class TestMultipleScheduledTrx:
             + eth_abi.encode(["address"], [basic_contract.eth_address.hex()]).hex()
         )
         caller_contract: Contract = create_contract_address(
-            neon_user.neon_address, evm_loader, environment, environment.network_ids['sol']
+            neon_user.neon_address, evm_loader
         )
 
         emulate_deploy = neon_api_client.emulate(

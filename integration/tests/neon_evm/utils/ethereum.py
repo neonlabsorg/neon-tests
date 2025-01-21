@@ -16,11 +16,11 @@ from .eth_tx_utils import pack
 def create_contract_address(
     user: Union[Caller, bytes],
     evm_loader: EvmLoader,
-    environment: EnvironmentConfig,
-    chain_id: int | None = None,
+    chain_id: int | str | None = "",
 ) -> Contract:
 
-    chain_id = chain_id or environment.network_ids["neon"]
+    if chain_id == '':
+        chain_id = evm_loader.chain_id
 
     # Create contract address from (caller_address, nonce)
     if isinstance(user, Caller):
@@ -43,7 +43,6 @@ def make_eth_transaction(
     to_addr: bytes,
     data: Union[bytes, None],
     caller: Caller,
-    environment: EnvironmentConfig,
     value: int = 0,
     chain_id: int | str | None = '',
     gas=9999999999,
@@ -55,7 +54,7 @@ def make_eth_transaction(
 ):
 
     if chain_id == '':
-        chain_id = environment.network_ids["neon"]
+        chain_id = evm_loader.chain_id
 
     nonce = evm_loader.get_neon_nonce(caller.eth_address)
     tx = {"to": to_addr, "value": value, "gas": gas, "gasPrice": gas_price, "nonce": nonce}

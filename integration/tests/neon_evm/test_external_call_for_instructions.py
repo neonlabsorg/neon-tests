@@ -24,7 +24,7 @@ class TestExternalCall:
         operator_balance = evm_loader.get_operator_balance_pubkey(operator_keypair)
         amount = 1
 
-        msg = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, environment, amount)
+        msg = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, amount)
         accounts = [
             sender_with_tokens.solana_account_address,
             sender_with_tokens.balance_account_address,
@@ -67,16 +67,8 @@ class TestExternalCall:
         max_fee_per_gas = 100
         max_priority_fee_per_gas = 10
 
-        msg = make_eth_transaction(
-            evm_loader,
-            session_user.eth_address,
-            None,
-            sender_with_tokens,
-            environment,
-            amount,
-            max_fee_per_gas=max_fee_per_gas,
-            max_priority_fee_per_gas=max_priority_fee_per_gas
-        )
+        msg = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, amount,
+                                   max_priority_fee_per_gas=max_priority_fee_per_gas, max_fee_per_gas=max_fee_per_gas)
 
         accounts = [
             sender_with_tokens.solana_account_address,

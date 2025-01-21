@@ -43,7 +43,7 @@ class TestAccountRevision:
 
         for i in range(trx_count):
             signed_tx = make_contract_call_trx(
-                evm_loader, session_user, rw_lock_caller, "update_storage_map(uint256)", environment, [data_storage_acc_count]
+                evm_loader, session_user, rw_lock_caller, "update_storage_map(uint256)", [data_storage_acc_count]
             )
             evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
             evm_loader.execute_transaction_steps_from_account(
@@ -81,7 +81,7 @@ class TestAccountRevision:
         holder1 = holder_acc
         holder2 = new_holder_acc
         signed_tx1 = make_contract_call_trx(
-            evm_loader, user1, rw_lock_contract, "update_storage_map(uint256)", environment, [data_storage_acc_count]
+            evm_loader, user1, rw_lock_contract, "update_storage_map(uint256)",[data_storage_acc_count]
         )
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
 
@@ -109,7 +109,7 @@ class TestAccountRevision:
             set(acc_from_emulation1) - {user1.balance_account_address, rw_lock_contract.solana_address}
         )
         signed_tx2 = make_contract_call_trx(
-            evm_loader, user2, rw_lock_contract, "update_storage_map(uint256)", environment,[data_storage_acc_count]
+            evm_loader, user2, rw_lock_contract, "update_storage_map(uint256)", [data_storage_acc_count]
         )
 
         emulate_result2 = neon_api_client.emulate_contract_call(
@@ -191,7 +191,7 @@ class TestAccountRevision:
 
         acc_from_emulation1 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result1["solana_accounts"]]
         signed_tx1 = make_contract_call_trx(
-            evm_loader, user1, rw_lock_contract, "update_storage_str(string)", environment, [text1]
+            evm_loader, user1, rw_lock_contract, "update_storage_str(string)", [text1]
         )
 
         evm_loader.write_transaction_to_holder_account(signed_tx1, holder1, operator_keypair)
@@ -201,7 +201,7 @@ class TestAccountRevision:
         )
         acc_from_emulation2 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result2["solana_accounts"]]
         signed_tx2 = make_contract_call_trx(
-            evm_loader, user2, rw_lock_contract, "update_storage_str(string)", environment,[text2])
+            evm_loader, user2, rw_lock_contract, "update_storage_str(string)", [text2])
         evm_loader.write_transaction_to_holder_account(signed_tx2, holder2, operator_keypair)
 
         send_transaction_steps(holder1, acc_from_emulation1)
@@ -257,7 +257,7 @@ class TestAccountRevision:
             evm_loader.make_new_user(operator_keypair),
         ]
         contract = deploy_contract(
-            operator_keypair, session_user, "transfers", evm_loader, neon_api_client, treasury_pool, environment, sol_client
+            operator_keypair, session_user, "transfers", evm_loader, neon_api_client, treasury_pool, sol_client
         )
 
         recipients_eth_addresses = [rec.eth_address for rec in recipients]
@@ -266,7 +266,6 @@ class TestAccountRevision:
             sender1,
             contract,
             "transferNeon(uint256,address[])",
-            environment,
             [amount, recipients_eth_addresses],
             value=3 * amount,
         )
@@ -276,7 +275,6 @@ class TestAccountRevision:
             sender2,
             contract,
             "transferNeon(uint256,address[])",
-            environment,
             [amount, recipients_eth_addresses],
             value=3 * amount,
         )
@@ -355,7 +353,7 @@ class TestAccountRevision:
         acc_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
         data_accounts = set(acc_from_emulation) - set(additional_accounts)
         signed_tx1 = make_contract_call_trx(
-            evm_loader, session_user, rw_lock_contract, "update_storage_map(uint256)", environment, [3]
+            evm_loader, session_user, rw_lock_contract, "update_storage_map(uint256)",[3]
         )
         evm_loader.write_transaction_to_holder_account(signed_tx1, holder_acc, operator_keypair)
 
@@ -381,7 +379,7 @@ class TestAccountRevision:
         for _ in range(2):
             holder_acc_for_trx_from_instr = create_holder(operator_keypair, evm_loader)
             signed_tx2 = make_contract_call_trx(
-                evm_loader, session_user, rw_lock_contract, "update_storage_map(uint256)", environment,[3]
+                evm_loader, session_user, rw_lock_contract, "update_storage_map(uint256)", [3]
             )
             resp = evm_loader.execute_trx_from_instruction(
                 operator_keypair,
@@ -424,7 +422,7 @@ class TestAccountRevision:
         sender_balance_before = evm_loader.get_neon_balance(session_user.eth_address)
         recipients = [evm_loader.make_new_user(operator_keypair), evm_loader.make_new_user(operator_keypair)]
         contract = deploy_contract(
-            operator_keypair, session_user, "transfers", evm_loader, neon_api_client, treasury_pool, environment, sol_client
+            operator_keypair, session_user, "transfers", evm_loader, neon_api_client, treasury_pool, sol_client
         )
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
         recipients_eth_addresses = [rec.eth_address for rec in recipients]
@@ -433,7 +431,6 @@ class TestAccountRevision:
             session_user,
             contract,
             "transferNeon(uint256,address[])",
-            environment,
             [amount, recipients_eth_addresses],
             value=amount * 2,
         )
@@ -460,7 +457,6 @@ class TestAccountRevision:
             session_user,
             contract,
             "transferNeon(uint256,address[])",
-            environment,
             [amount, recipients_eth_addresses],
             value=amount * 2,
         )
@@ -515,7 +511,7 @@ class TestAccountRevision:
 
         evm_loader.deposit_neon(operator_keypair, sender.eth_address, 1000000)
         contract = deploy_contract(
-            operator_keypair, session_user, "transfers", evm_loader, neon_api_client, treasury_pool, environment, sol_client
+            operator_keypair, session_user, "transfers", evm_loader, neon_api_client, treasury_pool, sol_client
         )
 
         amount = evm_loader.get_neon_balance(sender.eth_address)
@@ -525,7 +521,6 @@ class TestAccountRevision:
             sender,
             contract,
             "transferNeon(uint256,address[])",
-            environment,
             [amount // 2, [recipient.eth_address]],
             value=amount // 2,
         )
@@ -563,7 +558,6 @@ class TestAccountRevision:
             sender,
             contract,
             "transferNeon(uint256,address[])",
-            environment,
             [amount, [recipient.eth_address]],
             value=amount,
         )
@@ -588,12 +582,12 @@ class TestAccountRevision:
     ):
         holder_acc = create_holder(operator_keypair, evm_loader)
         contract = deploy_contract(
-            operator_keypair, sender_with_tokens, "transfers", evm_loader, neon_api_client, treasury_pool, environment, sol_client, value=1000
+            operator_keypair, sender_with_tokens, "transfers", evm_loader, neon_api_client, treasury_pool, sol_client, value=1000
         )
         sender_balance_before = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
 
         signed_tx1 = make_contract_call_trx(
-            evm_loader, sender_with_tokens, contract, "donateTenPercent()", environment
+            evm_loader, sender_with_tokens, contract, "donateTenPercent()"
         )
         accounts = [
             sender_with_tokens.balance_account_address,
@@ -618,7 +612,7 @@ class TestAccountRevision:
         )
 
         signed_tx2 = make_contract_call_trx(
-            evm_loader, sender_with_tokens, contract, "donateTenPercent()", environment
+            evm_loader, sender_with_tokens, contract, "donateTenPercent()"
         )
         holder_acc_2 = create_holder(operator_keypair, evm_loader)
         resp = evm_loader.execute_trx_from_instruction(

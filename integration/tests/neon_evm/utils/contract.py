@@ -103,7 +103,6 @@ def make_contract_call_trx(
     user,
     contract,
     function_signature,
-    environment: EnvironmentConfig,
     params=None,
     value=0,
     chain_id: int | str | None = '',
@@ -113,9 +112,9 @@ def make_contract_call_trx(
     max_priority_fee_per_gas=None,
     max_fee_per_gas=None,
     trx_type=None,
-):
+) -> SignedTransaction:
     if chain_id == '':
-        chain_id = environment.network_ids['neon']
+        chain_id = evm_loader.chain_id
 
     # does not work for tuple in params
     data = abi.function_signature_to_4byte_selector(function_signature)
@@ -128,21 +127,9 @@ def make_contract_call_trx(
         contract_addr = contract.eth_address
     else:
         contract_addr = contract
-    signed_tx = make_eth_transaction(
-        evm_loader,
-        contract_addr,
-        data,
-        user,
-        environment,
-        value=value,
-        chain_id=chain_id,
-        access_list=access_list,
-        gas=gas,
-        max_priority_fee_per_gas=max_priority_fee_per_gas,
-        max_fee_per_gas=max_fee_per_gas,
-        type_=trx_type,
-        gas_price=gas_price
-    )
+    signed_tx = make_eth_transaction(evm_loader, contract_addr, data, user, value=value, chain_id=chain_id, gas=gas,
+                                     max_priority_fee_per_gas=max_priority_fee_per_gas, max_fee_per_gas=max_fee_per_gas,
+                                     access_list=access_list, type_=trx_type, gas_price=gas_price)
 
     return signed_tx
 
@@ -155,15 +142,16 @@ def deploy_contract(
     evm_loader: EvmLoader,
     neon_api_client: NeonApiClient,
     treasury_pool: TreasuryPool,
-    environment: EnvironmentConfig,
     solana_client: SolanaClient,
+    chain_id: int | str = '',
     value: int = 0,
     encoded_args=None,
     contract_name: tp.Optional[str] = None,
     version: str = "0.7.6",
 ) -> Contract:
 
-    chain_id = environment.network_ids['neon']
+    if chain_id == '':
+        chain_id = evm_loader.chain_id
 
     contract_code = get_contract_bin(contract_file_name, contract_name=contract_name, version=version)
     if encoded_args is None:
@@ -178,7 +166,7 @@ def deploy_contract(
     )
     additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
-    contract: Contract = create_contract_address(user, evm_loader, environment, chain_id)
+    contract: Contract = create_contract_address(user, evm_loader, chain_id)
     holder_acc = create_holder(operator, evm_loader)
     signed_tx = make_deployment_transaction(
         evm_loader,
@@ -236,7 +224,7 @@ def deploy_contract_sol(
     )
     additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
-    contract: Contract = create_contract_address(user, evm_loader, environment, chain_id)
+    contract: Contract = create_contract_address(user, evm_loader, chain_id)
     holder_acc = create_holder(operator, evm_loader)
     signed_tx = make_deployment_transaction(
         evm_loader,

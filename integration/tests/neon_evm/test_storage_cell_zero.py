@@ -36,7 +36,7 @@ class TestStorageCells:
              operator=operator_keypair, user=user_account,
              contract_file_name="neon_evm/store_zeros.sol", evm_loader=evm_loader,
              neon_api_client=neon_api_client, treasury_pool=treasury_pool,
-             environment=environment, solana_client=sol_client,
+             solana_client=sol_client,
              contract_name="saveZeros", version="0.8.12"
         )
 
@@ -56,7 +56,6 @@ class TestStorageCells:
         signed_tx = make_contract_call_trx(
             evm_loader=evm_loader,
             user=user_account,
-            environment=environment,
             contract=contract,
             function_signature=function_signature
         )

@@ -87,8 +87,7 @@ class TestInteroperability:
             treasury_pool,
             holder_acc,
             neon_api_client,
-            solana_client,
-            environment
+            solana_client
         )
 
     def test_get_solana_address_by_neon_address(self, sender_with_tokens, solana_caller):
@@ -145,10 +144,10 @@ class TestInteroperability:
     ):
 
         contract = deploy_contract(operator_keypair, sender_with_tokens, "precompiled/call_solana_test", evm_loader,
-                                   neon_api_client, treasury_pool, environment, sol_client, contract_name="Test")
+                                   neon_api_client, treasury_pool, sol_client, contract_name="Test")
 
         data = abi.function_signature_to_4byte_selector("call_memo()")
-        signed_tx = make_eth_transaction(evm_loader, contract.eth_address, data, sender_with_tokens, environment)
+        signed_tx = make_eth_transaction(evm_loader, contract.eth_address, data, sender_with_tokens)
 
         resp = evm_loader.execute_trx_from_instruction_with_solana_call(
             operator_keypair,
@@ -395,7 +394,7 @@ class TestInteroperability:
         solana_client
     ):
         precompiled_caller = deploy_contract(operator_keypair, sender_with_tokens, "precompiled/CommonCaller",
-                                             evm_loader, neon_api_client, treasury_pool, environment, solana_client,
+                                             evm_loader, neon_api_client, treasury_pool, solana_client,
                                              contract_name="CommonCaller", version="0.8.3")
 
         resource_addr = solana_caller.create_resource(
@@ -420,8 +419,7 @@ class TestInteroperability:
             sender_with_tokens,
             precompiled_caller,
             "staticcall_precompiled(address,bytes)",
-            environment,
-            [solana_caller.contract.eth_address, calldata],
+            [solana_caller.contract.eth_address, calldata]
         )
 
         try:

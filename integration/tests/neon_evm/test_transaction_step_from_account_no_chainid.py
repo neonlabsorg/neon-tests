@@ -21,9 +21,8 @@ class TestTransactionStepFromAccountNoChainId:
         sender_balance_before = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
         recipient_balance_before = evm_loader.get_neon_balance(session_user.eth_address)
 
-        signed_tx = make_eth_transaction(
-            evm_loader, session_user.eth_address, None, sender_with_tokens, environment, amount, chain_id=None
-        )
+        signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, amount,
+                                         chain_id=None)
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
         resp = evm_loader.execute_transaction_steps_from_account_no_chain_id(
             operator_keypair,
@@ -54,7 +53,7 @@ class TestTransactionStepFromAccountNoChainId:
         self, operator_keypair, holder_acc, treasury_pool, evm_loader, sender_with_tokens, neon_api_client, environment, sol_client
     ):
         contract_filename = "hello_world"
-        contract = create_contract_address(sender_with_tokens, evm_loader, environment)
+        contract = create_contract_address(sender_with_tokens, evm_loader)
 
         signed_tx = make_deployment_transaction(evm_loader, sender_with_tokens, contract_filename, chain_id=None)
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
@@ -103,7 +102,6 @@ class TestTransactionStepFromAccountNoChainId:
             sender_with_tokens,
             string_setter_contract,
             "set(string)",
-            environment,
             [text],
             value=transfer_amount,
             chain_id=None,
@@ -156,7 +154,6 @@ class TestTransactionStepFromAccountNoChainId:
             sender_with_tokens,
             calculator_caller_contract,
             "callCalculator()",
-            environment,
             chain_id=None,
             access_list=access_list,
         )

@@ -7,7 +7,7 @@ from solana.rpc.core import RPCException
 from solders.pubkey import Pubkey
 
 from integration.tests.neon_evm.utils.assert_messages import InstructionAsserts
-from integration.tests.neon_evm.utils.contract import deploy_contract, deploy_contract_sol
+from integration.tests.neon_evm.utils.contract import deploy_contract
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
 from integration.tests.neon_evm.utils.storage import create_holder
 from utils.neon_user import NeonUser
@@ -41,7 +41,6 @@ class TestScheduledTrx:
 
         evm_loader.write_transaction_to_holder_account(tx.encode(), holder_acc, operator_keypair)
         additional_accounts = [basic_contract.solana_address, neon_user.get_balance_account(evm_loader.sol_chain_id)]
-        print("Additional accounts: ", additional_accounts)
         evm_loader.execute_scheduled_trx_from_account(
             0, operator_keypair, holder_acc, tree_account, treasury_pool, additional_accounts, compute_unit_price=3929
         )
@@ -132,11 +131,11 @@ class TestScheduledTrx:
             evm_loader,
             neon_api_client,
             treasury_pool,
-            environment,
-            sol_client
+            sol_client,
+            chain_id=evm_loader.sol_chain_id
         )
 
-        nonce = evm_loader.get_neon_nonce(account=neon_user.neon_address, chain_id=environment.network_ids['sol'])
+        nonce = evm_loader.get_neon_nonce(account=neon_user.neon_address, chain_id=evm_loader.sol_chain_id)
         data = abi.function_signature_to_4byte_selector("donate1000()")
         amount = 10000
         tx = ScheduledTransaction(
@@ -157,17 +156,17 @@ class TestScheduledTrx:
     def test_out_of_gas(
         self, evm_loader, neon_user: NeonUser, treasury_pool, operator_keypair, sender_with_wsol, environment, sol_client, neon_api_client
     ):
-        contract = deploy_contract_sol(
+        contract = deploy_contract(
             operator_keypair,
             sender_with_wsol,
             "transfers",
             evm_loader,
             neon_api_client,
             treasury_pool,
-            environment,
-            sol_client
+            sol_client,
+            chain_id=evm_loader.sol_chain_id
         )
-        nonce = evm_loader.get_neon_nonce(neon_user.neon_address, environment.network_ids['sol'])
+        nonce = evm_loader.get_neon_nonce(neon_user.neon_address, evm_loader.sol_chain_id)
         data = abi.function_signature_to_4byte_selector("donate1000()")
         amount = 10000
         tx = ScheduledTransaction(
@@ -182,7 +181,9 @@ class TestScheduledTrx:
         )
 
         with pytest.raises(solana.rpc.core.RPCException, match="transaction requires at least 25'000 gas limit"):
-            evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), environment.sol_mint_id)
+            evm_loader.create_tree_account(
+                neon_user, treasury_pool, tx.encode(), mint=environment.sol_mint_id, chain_id=evm_loader.sol_chain_id
+            )
 
     def test_send_sol_with_priority_fee(
         self,
@@ -195,18 +196,18 @@ class TestScheduledTrx:
         environment,
         sol_client
     ):
-        contract = deploy_contract_sol(
+        contract = deploy_contract(
             second_operator_keypair,
             sender_with_wsol,
             "transfers",
             evm_loader,
             neon_api_client,
             treasury_pool_new,
-            environment,
             sol_client,
+            chain_id=evm_loader.sol_chain_id
         )
         holder_acc = create_holder(second_operator_keypair, evm_loader)
-        nonce = evm_loader.get_neon_nonce(neon_user.neon_address, environment.network_ids['sol'])
+        nonce = evm_loader.get_neon_nonce(account=neon_user.neon_address, chain_id=evm_loader.sol_chain_id)
         data = abi.function_signature_to_4byte_selector("donate1000()")
         amount = 10000
         tx = ScheduledTransaction(
@@ -218,15 +219,15 @@ class TestScheduledTrx:
             value=amount,
             call_data=data,
         )
-        operator_balance_before = evm_loader.get_operator_neon_balance(second_operator_keypair, environment.network_ids['sol'])
-        user_balance_before = evm_loader.get_neon_balance(neon_user.neon_address, environment.network_ids['sol'])
+        operator_balance_before = evm_loader.get_operator_neon_balance(second_operator_keypair, evm_loader.sol_chain_id)
+        user_balance_before = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
         treasury_balance_before = evm_loader.get_solana_balance(treasury_pool_new.account)
 
         tree_account = evm_loader.create_tree_account(
             neon_user, treasury_pool_new, tx.encode(), environment.sol_mint_id
         )
 
-        user_balance_after = evm_loader.get_neon_balance(neon_user.neon_address, environment.network_ids['sol'])
+        user_balance_after = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
         treasury_balance_after = evm_loader.get_solana_balance(treasury_pool_new.account)
         tree_account_balance = evm_loader.get_solana_balance(tree_account)
         user_balance_diff = user_balance_before - user_balance_after
@@ -237,7 +238,7 @@ class TestScheduledTrx:
         assert user_balance_diff > 0
 
         emulate_result = neon_api_client.emulate(
-            neon_user.neon_address.hex(), contract.eth_address.hex(), data, chain_id=environment.network_ids['sol'], value=hex(amount)
+            neon_user.neon_address.hex(), contract.eth_address.hex(), data, chain_id=evm_loader.sol_chain_id, value=hex(amount)
         )
         additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
@@ -252,13 +253,15 @@ class TestScheduledTrx:
             compute_unit_price=3929,
         )
         evm_loader.finish_scheduled_trx(second_operator_keypair, tree_account, holder_acc)
-        user_balance_before_destroy = evm_loader.get_neon_balance(neon_user.neon_address, environment.network_ids['sol'])
+        user_balance_before_destroy = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
 
-        evm_loader.destroy_tree_account(second_operator_keypair, neon_user, treasury_pool_new, tree_account)
+        evm_loader.destroy_tree_account(
+            second_operator_keypair, neon_user, treasury_pool_new, tree_account
+        )
         user_balance_after_destroy = evm_loader.get_neon_balance(
-            account=neon_user.neon_address, chain_id=environment.network_ids['sol']
+            account=neon_user.neon_address, chain_id=evm_loader.sol_chain_id
         )
         assert user_balance_after_destroy > user_balance_before_destroy
         operator_balance_after = evm_loader.get_operator_neon_balance(
-            operator=second_operator_keypair, chain_id=environment.network_ids['sol'])
+            operator=second_operator_keypair, chain_id=evm_loader.sol_chain_id)
         assert operator_balance_after > operator_balance_before

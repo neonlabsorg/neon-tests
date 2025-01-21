@@ -72,8 +72,7 @@ def test_create_the_same_holder_account_by_another_user(operator_keypair, sessio
 
 def test_write_tx_to_holder(operator_keypair, session_user, second_session_user, evm_loader, environment):
     holder_acc = create_holder(operator_keypair, evm_loader)
-    signed_tx = make_eth_transaction(
-        evm_loader, second_session_user.eth_address, None, session_user, environment, 10)
+    signed_tx = make_eth_transaction(evm_loader, second_session_user.eth_address, None, session_user, 10)
     evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
     assert signed_tx.rawTransaction == transaction_from_holder(evm_loader, holder_acc), "Account data is not correct"
 
@@ -91,9 +90,7 @@ def test_write_tx_to_holder_in_parts(operator_keypair, session_user, evm_loader)
 def test_write_tx_to_holder_by_no_owner(operator_keypair, session_user, second_session_user, evm_loader, environment):
     holder_acc = create_holder(operator_keypair, evm_loader)
 
-    signed_tx = make_eth_transaction(
-        evm_loader, second_session_user.eth_address, None, session_user, environment, 10
-    )
+    signed_tx = make_eth_transaction(evm_loader, second_session_user.eth_address, None, session_user, 10)
     with pytest.raises(SolanaRPCException, match="invalid owner"):
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, session_user.solana_account)
 
@@ -128,7 +125,7 @@ def test_write_to_not_finalized_holder(
     rw_lock_contract, user_account, evm_loader, operator_keypair, treasury_pool, new_holder_acc, environment
 ):
     signed_tx = make_contract_call_trx(
-        evm_loader, user_account, rw_lock_contract, "unchange_storage(uint8,uint8)", environment, [1, 1]
+        evm_loader, user_account, rw_lock_contract, "unchange_storage(uint8,uint8)",[1, 1]
     )
     evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc, operator_keypair)
     operator_balance = evm_loader.get_operator_balance_pubkey(operator_keypair)
@@ -143,7 +140,7 @@ def test_write_to_not_finalized_holder(
     )
 
     signed_tx2 = make_contract_call_trx(
-        evm_loader, user_account, rw_lock_contract, "unchange_storage(uint8,uint8)", environment,[1, 1]
+        evm_loader, user_account, rw_lock_contract, "unchange_storage(uint8,uint8)", [1, 1]
     )
 
     with pytest.raises(SolanaRPCException, match="invalid tag"):
@@ -154,7 +151,7 @@ def test_write_to_finalized_holder(
     rw_lock_contract, session_user, evm_loader, operator_keypair, treasury_pool, new_holder_acc, environment
 ):
     signed_tx = make_contract_call_trx(
-        evm_loader, session_user, rw_lock_contract, "unchange_storage(uint8,uint8)", environment, [1, 1]
+        evm_loader, session_user, rw_lock_contract, "unchange_storage(uint8,uint8)", [1, 1]
     )
     evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc, operator_keypair)
 
@@ -165,7 +162,7 @@ def test_write_to_finalized_holder(
         [session_user.solana_account_address, session_user.balance_account_address, rw_lock_contract.solana_address],
     )
     signed_tx2 = make_contract_call_trx(
-        evm_loader, session_user, rw_lock_contract, "unchange_storage(uint8,uint8)", environment, [1, 1]
+        evm_loader, session_user, rw_lock_contract, "unchange_storage(uint8,uint8)",[1, 1]
     )
 
     evm_loader.write_transaction_to_holder_account(signed_tx2, new_holder_acc, operator_keypair)
@@ -223,9 +220,7 @@ def test_temporary_holder_acc_is_free(treasury_pool, sender_with_tokens, evm_loa
     create_holder_instruction = make_CreateHolderAccount(holder_pubkey, user_as_operator.pubkey(), bytes(seed, 'utf8'), evm_loader.loader_id)
     trx.add(create_acc_with_seed_instr)
     trx.add(create_holder_instruction)
-    signed_tx = make_eth_transaction(
-        evm_loader, sender_with_tokens.eth_address, None, sender_with_tokens, environment, amount
-    )
+    signed_tx = make_eth_transaction(evm_loader, sender_with_tokens.eth_address, None, sender_with_tokens, amount)
 
     operator_balance_account = evm_loader.get_operator_balance_pubkey(user_as_operator)
 
@@ -249,9 +244,7 @@ def test_temporary_holder_acc_is_free(treasury_pool, sender_with_tokens, evm_loa
     operator_balance_after = evm_loader.get_solana_balance(user_as_operator.pubkey())
     operator_gas_paid_with_holder = operator_balance_before - operator_balance_after
 
-    signed_tx = make_eth_transaction(
-        evm_loader, sender_with_tokens.eth_address, None, sender_with_tokens, environment, amount
-    )
+    signed_tx = make_eth_transaction(evm_loader, sender_with_tokens.eth_address, None, sender_with_tokens, amount)
 
     holder_acc = create_holder(sender_with_tokens.solana_account, evm_loader, seed=str(randrange(1000000)))
     operator_balance_before = evm_loader.get_solana_balance(user_as_operator.pubkey())
