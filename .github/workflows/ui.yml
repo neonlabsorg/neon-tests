@@ -28,6 +28,7 @@ jobs:
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
           image_name: ${{ env.IMAGE_NAME }}
           docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
+        continue-on-error: true
       - name: "Define image tag"
         id: image_tag
         uses: ./.github/actions/define-image-tag
@@ -37,14 +38,16 @@ jobs:
   test:
     needs: dockerize
     runs-on: ubuntu-latest
-    if: |
-      always() &&
-      !contains(needs.*.result, 'failure') &&
-      !contains(needs.*.result, 'cancelled')
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Define fallback image tag
+        if: ${{ needs.dockerize.result == 'failure' }}
+        run: echo "Fallback to default tag"
+        env:
+          image_tag: "latest"
 
       - name: Run tests container
         id: run-container
