@@ -76,7 +76,6 @@ contract CallSolanaCaller {
         uint64 lamports,
         bytes calldata instruction
     ) public {
-        
         uint sum = 0;
         for (uint i = 0; i < a.length; i++) {
             for (uint j = 0; j < a[i].length; j++) {
@@ -87,19 +86,6 @@ contract CallSolanaCaller {
             }
         }
         emit LogInt(sum);
-    }
-
-
-    function executeMultipleInIterativeMode(
-        uint256 calls,
-        uint256 actionsNumber,
-        uint64 lamports,
-        bytes calldata instruction
-    ) public {
-        doIterativeActions(actionsNumber);
-        for (uint256 i = 0; i < calls; i++) {
-            execute(lamports, instruction);
-        }
     }
 
     function batchExecuteInIterativeMode(

@@ -526,7 +526,7 @@ def call_solana_caller(accounts, web3_client):
     return contract
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def counter_resource_address(call_solana_caller, accounts, web3_client) -> bytes:
     tx = web3_client.make_raw_tx(accounts[0].address)
     salt = web3_client.text_to_bytes32(''.join(random.choices(string.ascii_letters, k=5)))
