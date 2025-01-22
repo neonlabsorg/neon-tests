@@ -924,7 +924,7 @@ class TestTransactionStepFromInstructionParallelRuns:
         send_transaction_steps(session_user, holder_acc2, contract2, signed_tx2)
         for holder in (new_holder_acc, holder_acc2):
             check_holder_account_tag(
-                solana_client=sol_client,
+                solana_client=evm_loader,
                 storage_account=holder,
                 layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
                 expected_tag=TAG_FINALIZED_STATE,
