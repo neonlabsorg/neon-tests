@@ -28,6 +28,14 @@ Please use clickfile.py to install deps because our web3 has conflicts with sola
 ./clickfile.py requirements
 ```
 
+
+## Install Pre-commit hooks
+
+Please install pre-commit hooks to run linter and formatter in auto pre-commit mode
+```bash
+pre-commit install
+```
+
 ## Download test contracts
 
 To download test contracts from the Neon EVM repo, you need to use:

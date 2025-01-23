@@ -94,7 +94,7 @@ class TestEIP1559Transactions:
         sender_with_tokens,
         evm_loader,
         calculator_contract,
-        calculator_caller_contract
+        calculator_caller_contract,
     ):
         signed_tx = make_contract_call_trx(
             evm_loader,

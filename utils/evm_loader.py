@@ -672,8 +672,9 @@ class EvmLoader(SolanaClient):
         wrap_sol_tx = make_wSOL(full_amount, solana_account.pubkey(), ata_address)
         self.send_tx_and_check_status_ok(wrap_sol_tx, solana_account)
 
-        self.sent_token_from_solana_to_neon(solana_account, wSOL["address_spl"], neon_account, full_amount,
-                                            self.sol_chain_id)
+        self.sent_token_from_solana_to_neon(
+            solana_account, wSOL["address_spl"], neon_account, full_amount, self.sol_chain_id
+        )
 
     def deposit_neon_like_tokens_from_solana_to_neon(
         self,
@@ -839,7 +840,9 @@ class EvmLoader(SolanaClient):
         trx = TransactionWithComputeBudget(operator, compute_unit_price=1000000)
         operator_balance = self.get_operator_balance_pubkey(operator, chain_id)
         trx.add(
-            make_ScheduledTransactionFinish(operator.pubkey(), operator_balance, self.loader_id, holder_account, tree_account)
+            make_ScheduledTransactionFinish(
+                operator.pubkey(), operator_balance, self.loader_id, holder_account, tree_account
+            )
         )
         return self.send_tx(trx, operator)
 

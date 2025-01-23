@@ -153,7 +153,7 @@ class TestTransactionStepFromAccountNoChainId:
         calculator_contract,
         calculator_caller_contract,
         holder_acc,
-        evm_loader
+        evm_loader,
     ):
         access_list = (
             {
