@@ -94,6 +94,7 @@ jobs:
   prepare-env-proxy:
     name: Prepare environment for proxy tests
     runs-on: ["self-hosted", "k8s-prod"]
+    needs: pre-commit-check
     if: always()
     steps:
       - uses: hashicorp/setup-terraform@v3
