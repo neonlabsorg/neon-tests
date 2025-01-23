@@ -84,9 +84,10 @@ jobs:
     runs-on: ["self-hosted", "k8s-prod"]
     steps:
       - uses: actions/checkout@v4
+
       - name: Install python requirements
-        id: requirements
         uses: ./.github/actions/python-requirements
+
       - name: Notify on failure
         run: |
            python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
