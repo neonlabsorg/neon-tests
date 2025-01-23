@@ -451,6 +451,96 @@ class TestInteroperability:
         else:
             assert False, f"Expected error but got {resp}"
 
+    def test_revision_2_txs_from_1_sender_with_balance_changed(
+        self,
+        sender_with_tokens,
+        solana_caller,
+        evm_loader,
+        holder_acc,
+        new_holder_acc,
+        neon_api_client,
+        operator_keypair,
+        treasury_pool,
+        sol_client,
+        solana_client
+    ):
+        sender_balance_before = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
+        contract_balance_before = evm_loader.get_neon_balance(solana_caller.contract.eth_address)
+        operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
+        transfer_amount = 10
+        resource_addr = solana_caller.create_resource(sender_with_tokens, b"1234", 8, 1000000000, COUNTER_ID)
+        matrix_size = 6
+        matrix = [[random.randint(1, 100) for _ in range(matrix_size)] for _ in range(matrix_size)]
+
+        instruction = Instruction(
+            program_id=COUNTER_ID,
+            accounts=[
+                AccountMeta(resource_addr, is_signer=False, is_writable=True),
+            ],
+            data=bytes([0x1]),
+        )
+        serialized_instruction = serialize_instruction(COUNTER_ID, instruction)
+
+        signed_tx = make_contract_call_trx(
+            evm_loader,
+            sender_with_tokens,
+            solana_caller.contract,
+            "solanaCallInsideActionWithMatrixAndChangeBalance(uint256[][],uint64,bytes)",
+            [matrix, 0, serialized_instruction],
+            value=transfer_amount,
+        )
+
+        emulate_result = neon_api_client.emulate_contract_call(
+            sender_with_tokens.eth_address.hex(),
+            solana_caller.contract.eth_address.hex(),
+            "solanaCallInsideActionWithMatrixAndChangeBalance(uint256[][],uint64,bytes)",
+            [matrix, 0, serialized_instruction],
+            value=hex(transfer_amount),
+        )
+        accounts_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+
+        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
+
+        for i in range(0, 11):
+            evm_loader.send_transaction_step_from_account(
+                operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=i
+            )
+
+        resp = solana_caller.execute_with_balance_change(program_id=COUNTER_ID,
+                                                         instruction=instruction,
+                                                         sender=sender_with_tokens,
+                                                         holder_acc=new_holder_acc,
+                                                         value=transfer_amount)
+        check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
+
+        operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
+        check_holder_account_tag(
+            solana_client=sol_client,
+            storage_account=holder_acc,
+            layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
+            expected_tag=TAG_ACTIVE_STATE,
+        )
+
+        evm_loader.send_transaction_step_from_account(
+            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=11
+        )
+
+        resp = evm_loader.send_transaction_step_from_account(
+            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=12
+        )
+
+        check_holder_account_tag(
+            solana_client=sol_client,
+            storage_account=holder_acc,
+            layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
+            expected_tag=TAG_FINALIZED_STATE,
+        )
+        check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x11")
+
+        assert evm_loader.get_neon_balance(solana_caller.contract.eth_address) == contract_balance_before + 2*transfer_amount
+        assert evm_loader.get_neon_balance(sender_with_tokens.eth_address) == sender_balance_before - 2*transfer_amount
+
+
     def test_revision_2_txs_from_1_sender(
         self,
         sender_with_tokens,
@@ -514,11 +604,11 @@ class TestInteroperability:
         )
 
         evm_loader.send_transaction_step_from_account(
-            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=12
+            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=11
         )
 
         resp = evm_loader.send_transaction_step_from_account(
-            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=13
+            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=12
         )
 
         check_holder_account_tag(

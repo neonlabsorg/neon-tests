@@ -50,6 +50,13 @@ contract CallSolanaCaller {
         execute(lamports, instruction);
     }
 
+    function executeWithChangeBalance(
+        uint64 lamports,
+        bytes calldata instruction
+    ) public payable{
+        execute(lamports, instruction);
+    }
+
     function executeInIterativeMode(
         uint256 actionsNumber,
         uint64 lamports,
@@ -86,6 +93,23 @@ contract CallSolanaCaller {
         bytes calldata instruction
     ) public {
         numberToStore = 18;
+        uint sum = 0;
+        for (uint i = 0; i < a.length; i++) {
+            for (uint j = 0; j < a[i].length; j++) {
+                if (i == a.length / 2) {
+                    execute(lamports, instruction);
+                }
+                sum += a[i][j];
+            }
+        }
+        emit LogInt(sum);
+    }
+
+    function solanaCallInsideActionWithMatrixAndChangeBalance(
+        uint[][] memory a,
+        uint64 lamports,
+        bytes calldata instruction
+    ) public payable{
         uint sum = 0;
         for (uint i = 0; i < a.length; i++) {
             for (uint j = 0; j < a[i].length; j++) {
