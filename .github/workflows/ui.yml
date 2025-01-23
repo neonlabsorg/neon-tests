@@ -16,12 +16,11 @@ env:
 jobs:
   dockerize:
     name: Dockerize neon tests
-    continue-on-error: true
-    if: ${{ github.ref_name != 'develop' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Dockerize neon tests
+        if: ${{ github.ref_name != 'develop' }}
         uses: ./.github/actions/dockerize-neon-tests
         with:
           image_tag: ${{ github.sha }}
@@ -29,7 +28,6 @@ jobs:
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
           image_name: ${{ env.IMAGE_NAME }}
           docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
-        continue-on-error: true
       - name: "Define image tag"
         id: image_tag
         uses: ./.github/actions/define-image-tag
@@ -43,12 +41,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Define fallback image tag
-        if: ${{ needs.dockerize.result == 'failure' }}
-        run: echo "Fallback to default tag"
-        env:
-          image_tag: "latest"
 
       - name: Run tests container
         id: run-container
