@@ -21,7 +21,6 @@ from solana.transaction import Transaction
 from solders.rpc.responses import SendTransactionResp, GetTransactionResp
 from spl.token.instructions import get_associated_token_address, MintToParams, ApproveParams, approve
 from spl.token.constants import TOKEN_PROGRAM_ID
-from web3.auto import w3
 
 from integration.tests.neon_evm.utils.contract import get_contract_bin
 from integration.tests.neon_evm.utils.ethereum import create_contract_address, make_deployment_transaction
@@ -50,7 +49,9 @@ from utils.instructions import (
     make_ScheduledTransactionDestroy,
     make_ScheduledTransactionStartFromInstruction,
     make_ScheduledTransactionCreateMultiple,
-    make_ScheduledTransactionSkipFromInstruction, make_CreateAccountWithSeed, make_CreateHolderAccount,
+    make_ScheduledTransactionSkipFromInstruction,
+    make_CreateAccountWithSeed,
+    make_CreateHolderAccount,
     make_DeleteHolderAccount,
 )
 from utils.layouts import (
@@ -971,4 +972,3 @@ class EvmLoader(SolanaClient):
         trx = Transaction()
         trx.add(make_DeleteHolderAccount(acc.pubkey(), del_key, self.loader_id))
         return self.send_tx(trx, signer)
-
