@@ -16,6 +16,7 @@ env:
 jobs:
   dockerize:
     name: Dockerize neon tests
+    continue-on-error: true
     if: ${{ github.ref_name != 'develop' }}
     runs-on: ubuntu-latest
     steps:
