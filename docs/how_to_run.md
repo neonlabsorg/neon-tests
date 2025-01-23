@@ -16,7 +16,8 @@ After this, you can use from the project root directory:
 
 This file contains a lot of utilities to work with this repository, such as:
 1. update deps
-2. download test contracts
+2. install pre-commit-hook
+3. download test contracts
 3. run different tests
 4. prepare data and stand for run tests
 
