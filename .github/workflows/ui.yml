@@ -88,5 +88,5 @@ jobs:
         uses: ./.github/actions/python-requirements
       - name: Notify on failure
         run: |
-           python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
+          python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
           -b ${{ env.BUILD_URL }} --network ${{ env.NETWORK }} --test-group ui
