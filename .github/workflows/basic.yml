@@ -59,7 +59,7 @@ env:
 jobs:
 
   pre-commit-check:
-    name: Pre-Commit Hook Validation
+    name: Pre-commit hook validation
     runs-on: ["self-hosted", "k8s-prod"]
     permissions:
       contents: read
