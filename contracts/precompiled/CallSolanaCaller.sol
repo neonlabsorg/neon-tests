@@ -12,6 +12,7 @@ contract CallSolanaCaller {
         uint256 value2;
     }
     mapping(uint256 => Data) public dataMap;
+    uint256 public numberToStore;
 
     struct ExecuteArgs {
         uint64 lamports;
@@ -39,6 +40,14 @@ contract CallSolanaCaller {
             _callSolana.execute(lamports, instruction)
         );
         emit LogBytes(returnData);
+    }
+
+    function executeWithNumberStore(
+        uint64 lamports,
+        bytes calldata instruction
+    ) public {
+        numberToStore = 190;
+        execute(lamports, instruction);
     }
 
     function executeInIterativeMode(
@@ -76,6 +85,7 @@ contract CallSolanaCaller {
         uint64 lamports,
         bytes calldata instruction
     ) public {
+        numberToStore = 18;
         uint sum = 0;
         for (uint i = 0; i < a.length; i++) {
             for (uint j = 0; j < a[i].length; j++) {

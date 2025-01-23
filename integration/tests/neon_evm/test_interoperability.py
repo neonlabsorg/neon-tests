@@ -497,14 +497,12 @@ class TestInteroperability:
 
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
 
-        evm_loader.send_transaction_step_from_account(
-            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=0
-        )
-        evm_loader.send_transaction_step_from_account(
-            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=1
-        )
+        for i in range(0, 11):
+            evm_loader.send_transaction_step_from_account(
+                operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=i
+            )
 
-        resp = solana_caller.execute(program_id=COUNTER_ID, instruction=instruction, sender=sender_with_tokens, holder_acc=new_holder_acc)
+        resp = solana_caller.execute_with_number_to_store(program_id=COUNTER_ID, instruction=instruction, sender=sender_with_tokens, holder_acc=new_holder_acc)
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
 
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
@@ -515,10 +513,13 @@ class TestInteroperability:
             expected_tag=TAG_ACTIVE_STATE,
         )
 
-        for i in range(2, 12):
-            resp = evm_loader.send_transaction_step_from_account(
-                operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=i
-            )
+        evm_loader.send_transaction_step_from_account(
+            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=12
+        )
+
+        resp = evm_loader.send_transaction_step_from_account(
+            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=13
+        )
 
         check_holder_account_tag(
             solana_client=sol_client,
