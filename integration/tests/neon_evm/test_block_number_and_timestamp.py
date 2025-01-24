@@ -25,9 +25,6 @@ class TestBlockNumberAndTimestamp:
             version="0.8.10",
         )
 
-    def test(self, block_contract):
-        print(block_contract)
-
     def test_trx_steps_with_number_timestamp(
         self,
         block_contract,
@@ -110,7 +107,7 @@ class TestBlockNumberAndTimestamp:
             expected_tag=TAG_FINALIZED_STATE,
         )
 
-    def test_parallel_execution_with_timestamp_contract_changing(
+    def test_block_number_timestamp_reset_for_changed_revision(
         self,
         block_contract,
         operator_keypair,

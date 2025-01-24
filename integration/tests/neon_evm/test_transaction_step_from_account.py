@@ -1013,7 +1013,6 @@ class TestStepFromAccountChangingOperatorsDuringTrxRun:
         trx = TransactionWithComputeBudget(operator_keypair)
         trx.add(
             make_ExecuteTrxFromAccountDataIterativeOrContinue(
-                0,
                 1,
                 operator_keypair,
                 operator_balance_pubkey,
