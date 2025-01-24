@@ -445,7 +445,7 @@ class TestInteroperability:
         sender_with_tokens,
         solana_caller,
         evm_loader,
-        holder_acc,
+        new_holder_acc_2,
         new_holder_acc,
         neon_api_client,
         operator_keypair,
@@ -488,14 +488,14 @@ class TestInteroperability:
         )
         accounts_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
-        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc_2, operator_keypair)
 
         for i in range(0, 11):
             evm_loader.send_transaction_step_from_account(
                 operator_keypair,
                 operator_balance_pubkey,
                 treasury_pool,
-                holder_acc,
+                new_holder_acc_2,
                 accounts_from_emulation,
                 EVM_STEPS,
                 operator_keypair,
@@ -513,7 +513,7 @@ class TestInteroperability:
 
         check_holder_account_tag(
             solana_client=sol_client,
-            storage_account=holder_acc,
+            storage_account=new_holder_acc_2,
             layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
             expected_tag=TAG_ACTIVE_STATE,
         )
@@ -522,7 +522,7 @@ class TestInteroperability:
             operator_keypair,
             operator_balance_pubkey,
             treasury_pool,
-            holder_acc,
+            new_holder_acc_2,
             accounts_from_emulation,
             EVM_STEPS,
             operator_keypair,
@@ -533,7 +533,7 @@ class TestInteroperability:
             operator_keypair,
             operator_balance_pubkey,
             treasury_pool,
-            holder_acc,
+            new_holder_acc_2,
             accounts_from_emulation,
             EVM_STEPS,
             operator_keypair,
@@ -542,7 +542,7 @@ class TestInteroperability:
 
         check_holder_account_tag(
             solana_client=sol_client,
-            storage_account=holder_acc,
+            storage_account=new_holder_acc_2,
             layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
             expected_tag=TAG_FINALIZED_STATE,
         )
@@ -561,7 +561,7 @@ class TestInteroperability:
         sender_with_tokens,
         solana_caller,
         evm_loader,
-        holder_acc,
+        new_holder_acc_2,
         new_holder_acc,
         neon_api_client,
         operator_keypair,
@@ -600,14 +600,14 @@ class TestInteroperability:
         )
         accounts_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
-        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc_2, operator_keypair)
 
         for i in range(0, 11):
             evm_loader.send_transaction_step_from_account(
                 operator_keypair,
                 operator_balance_pubkey,
                 treasury_pool,
-                holder_acc,
+                new_holder_acc_2,
                 accounts_from_emulation,
                 EVM_STEPS,
                 operator_keypair,
@@ -622,7 +622,7 @@ class TestInteroperability:
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
         check_holder_account_tag(
             solana_client=sol_client,
-            storage_account=holder_acc,
+            storage_account=new_holder_acc_2,
             layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
             expected_tag=TAG_ACTIVE_STATE,
         )
@@ -631,7 +631,7 @@ class TestInteroperability:
             operator_keypair,
             operator_balance_pubkey,
             treasury_pool,
-            holder_acc,
+            new_holder_acc_2,
             accounts_from_emulation,
             EVM_STEPS,
             operator_keypair,
@@ -642,7 +642,7 @@ class TestInteroperability:
             operator_keypair,
             operator_balance_pubkey,
             treasury_pool,
-            holder_acc,
+            new_holder_acc_2,
             accounts_from_emulation,
             EVM_STEPS,
             operator_keypair,
@@ -651,7 +651,7 @@ class TestInteroperability:
 
         check_holder_account_tag(
             solana_client=sol_client,
-            storage_account=holder_acc,
+            storage_account=new_holder_acc_2,
             layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
             expected_tag=TAG_FINALIZED_STATE,
         )
