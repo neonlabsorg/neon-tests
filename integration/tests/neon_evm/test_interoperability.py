@@ -513,7 +513,6 @@ class TestInteroperability:
                                                          value=transfer_amount)
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
 
-        operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
         check_holder_account_tag(
             solana_client=sol_client,
             storage_account=holder_acc,

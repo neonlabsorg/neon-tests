@@ -53,7 +53,7 @@ contract CallSolanaCaller {
     function executeWithChangeBalance(
         uint64 lamports,
         bytes calldata instruction
-    ) public payable{
+    ) public payable {
         execute(lamports, instruction);
     }
 
@@ -109,7 +109,7 @@ contract CallSolanaCaller {
         uint[][] memory a,
         uint64 lamports,
         bytes calldata instruction
-    ) public payable{
+    ) public payable {
         uint sum = 0;
         for (uint i = 0; i < a.length; i++) {
             for (uint j = 0; j < a[i].length; j++) {
@@ -162,7 +162,7 @@ contract CallSolanaCaller {
         emit LogAddress(address(storageContract));
     }
 
-    function execute_with_get_return_data(
+    function executeWithGetReturnData(
         uint64 lamports,
         bytes calldata instruction
     ) public {
