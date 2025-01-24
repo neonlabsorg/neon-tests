@@ -99,7 +99,11 @@ class SolanaCaller:
         holder_acc = self.holder_acc if holder_acc is None else holder_acc
         serialized_instructions = serialize_instruction(program_id, instruction)
         signed_tx = make_contract_call_trx(
-            self.evm_loader, sender, self.contract, "executeWithNumberStore(uint64,bytes)", [lamports, serialized_instructions]
+            self.evm_loader,
+            sender,
+            self.contract,
+            "executeWithNumberStore(uint64,bytes)",
+            [lamports, serialized_instructions],
         )
         resp = self.evm_loader.execute_trx_from_instruction_with_solana_call(
             self.operator_keypair,
@@ -127,7 +131,12 @@ class SolanaCaller:
         holder_acc = self.holder_acc if holder_acc is None else holder_acc
         serialized_instructions = serialize_instruction(program_id, instruction)
         signed_tx = make_contract_call_trx(
-            self.evm_loader, sender, self.contract, "executeWithChangeBalance(uint64,bytes)", [lamports, serialized_instructions], value
+            self.evm_loader,
+            sender,
+            self.contract,
+            "executeWithChangeBalance(uint64,bytes)",
+            [lamports, serialized_instructions],
+            value,
         )
         resp = self.evm_loader.execute_trx_from_instruction_with_solana_call(
             self.operator_keypair,

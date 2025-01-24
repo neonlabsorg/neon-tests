@@ -18,7 +18,7 @@ from spl.token.instructions import TransferParams, transfer
 
 from conftest import EnvironmentConfig
 from integration.tests.neon_evm.utils.call_solana import SolanaCaller
-from .utils.transaction_checks import check_holder_account_tag, check_transaction_logs_have_text
+from .utils.transaction_checks import check_holder_account_tag, check_transaction_logs_have_text, decode_logs
 
 from integration.tests.neon_evm.utils.ethereum import make_eth_transaction, make_contract_call_trx
 
@@ -34,7 +34,6 @@ from utils.consts import (
     TRANSFER_TOKENS_ID,
 )
 
-from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text, decode_logs
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
 from utils.evm_loader import EvmLoader
 from utils.helpers import serialize_instruction
@@ -452,7 +451,7 @@ class TestInteroperability:
         operator_keypair,
         treasury_pool,
         sol_client,
-        solana_client
+        solana_client,
     ):
         sender_balance_before = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
         contract_balance_before = evm_loader.get_neon_balance(solana_caller.contract.eth_address)
@@ -493,14 +492,23 @@ class TestInteroperability:
 
         for i in range(0, 11):
             evm_loader.send_transaction_step_from_account(
-                operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=i
+                operator_keypair,
+                operator_balance_pubkey,
+                treasury_pool,
+                holder_acc,
+                accounts_from_emulation,
+                EVM_STEPS,
+                operator_keypair,
+                index=i,
             )
 
-        resp = solana_caller.execute_with_balance_change(program_id=COUNTER_ID,
-                                                         instruction=instruction,
-                                                         sender=sender_with_tokens,
-                                                         holder_acc=new_holder_acc,
-                                                         value=transfer_amount)
+        resp = solana_caller.execute_with_balance_change(
+            program_id=COUNTER_ID,
+            instruction=instruction,
+            sender=sender_with_tokens,
+            holder_acc=new_holder_acc,
+            value=transfer_amount,
+        )
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
 
         check_holder_account_tag(
@@ -511,11 +519,25 @@ class TestInteroperability:
         )
 
         evm_loader.send_transaction_step_from_account(
-            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=11
+            operator_keypair,
+            operator_balance_pubkey,
+            treasury_pool,
+            holder_acc,
+            accounts_from_emulation,
+            EVM_STEPS,
+            operator_keypair,
+            index=11,
         )
 
         resp = evm_loader.send_transaction_step_from_account(
-            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=12
+            operator_keypair,
+            operator_balance_pubkey,
+            treasury_pool,
+            holder_acc,
+            accounts_from_emulation,
+            EVM_STEPS,
+            operator_keypair,
+            index=12,
         )
 
         check_holder_account_tag(
@@ -526,9 +548,13 @@ class TestInteroperability:
         )
         check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x11")
 
-        assert evm_loader.get_neon_balance(solana_caller.contract.eth_address) == contract_balance_before + 2*transfer_amount
-        assert evm_loader.get_neon_balance(sender_with_tokens.eth_address) == sender_balance_before - 2*transfer_amount
-
+        assert (
+            evm_loader.get_neon_balance(solana_caller.contract.eth_address)
+            == contract_balance_before + 2 * transfer_amount
+        )
+        assert (
+            evm_loader.get_neon_balance(sender_with_tokens.eth_address) == sender_balance_before - 2 * transfer_amount
+        )
 
     def test_revision_2_txs_from_1_sender(
         self,
@@ -541,7 +567,7 @@ class TestInteroperability:
         operator_keypair,
         treasury_pool,
         sol_client,
-        solana_client
+        solana_client,
     ):
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
 
@@ -578,10 +604,19 @@ class TestInteroperability:
 
         for i in range(0, 11):
             evm_loader.send_transaction_step_from_account(
-                operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=i
+                operator_keypair,
+                operator_balance_pubkey,
+                treasury_pool,
+                holder_acc,
+                accounts_from_emulation,
+                EVM_STEPS,
+                operator_keypair,
+                index=i,
             )
 
-        resp = solana_caller.execute_with_number_to_store(program_id=COUNTER_ID, instruction=instruction, sender=sender_with_tokens, holder_acc=new_holder_acc)
+        resp = solana_caller.execute_with_number_to_store(
+            program_id=COUNTER_ID, instruction=instruction, sender=sender_with_tokens, holder_acc=new_holder_acc
+        )
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
 
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
@@ -593,11 +628,25 @@ class TestInteroperability:
         )
 
         evm_loader.send_transaction_step_from_account(
-            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=11
+            operator_keypair,
+            operator_balance_pubkey,
+            treasury_pool,
+            holder_acc,
+            accounts_from_emulation,
+            EVM_STEPS,
+            operator_keypair,
+            index=11,
         )
 
         resp = evm_loader.send_transaction_step_from_account(
-            operator_keypair, operator_balance_pubkey, treasury_pool, holder_acc, accounts_from_emulation, EVM_STEPS, operator_keypair, index=12
+            operator_keypair,
+            operator_balance_pubkey,
+            treasury_pool,
+            holder_acc,
+            accounts_from_emulation,
+            EVM_STEPS,
+            operator_keypair,
+            index=12,
         )
 
         check_holder_account_tag(
