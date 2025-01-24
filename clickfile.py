@@ -39,7 +39,6 @@ except ImportError:
 try:
     from deploy.cli.github_api_client import GithubClient
     from deploy.cli.network_manager import NetworkManager
-    from deploy.cli import dapps as dapps_cli
 
     from utils import create_allure_environment_opts, time_measure
     from deploy.cli import infrastructure
@@ -83,8 +82,6 @@ VERSION_BRANCH_TEMPLATE = r"[vt]{1}\d{1,2}\.\d{1,2}\.x.*"
 GITHUB_TAG_PATTERN = re.compile(r"^[vt]\d{1,2}\.\d{1,2}\.\d{1,2}$")
 
 TEST_GROUPS: tp.Tuple[TestGroup, ...] = tp.get_args(TestGroup)
-
-network_manager = NetworkManager()
 
 
 class EnvName(str, enum.Enum):
@@ -149,6 +146,7 @@ def check_profitability(func: tp.Callable) -> tp.Callable:
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs) -> None:
+        network_manager = NetworkManager()
         network = network_manager.get_network_object(args[0])
         w3client = web3client.NeonChainWeb3Client(network["proxy_url"])
 
@@ -198,6 +196,7 @@ def check_profitability(func: tp.Callable) -> tp.Callable:
 @check_profitability
 def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
     print(f"Running OpenZeppelin tests in {jobs} jobs on {network}")
+    network_manager = NetworkManager()
     cwd = (Path().parent / "compatibility/openzeppelin-contracts").absolute()
     if not list(cwd.glob("*")):
         subprocess.check_call("git submodule init && git submodule update", shell=True, cwd=cwd)
@@ -363,6 +362,7 @@ def print_oz_balances():
 
 
 def wait_for_tracer_service(network: str):
+    network_manager = NetworkManager()
     settings = network_manager.get_network_object(network)
     web3_client = web3client.NeonChainWeb3Client(proxy_url=settings["proxy_url"])
     tracer_api = JsonRPCSession(settings["tracer_url"])
@@ -378,6 +378,7 @@ def wait_for_tracer_service(network: str):
 
 
 def generate_allure_environment(network_name: str):
+    network_manager = NetworkManager()
     network = network_manager.get_network_object(network_name)
     env = os.environ.copy()
 
@@ -493,10 +494,10 @@ def download_evm_contracts(branch):
     click.echo(f"Contracts would be downloaded from {neon_evm_branch} neon-evm branch")
     Path(EXTERNAL_CONTRACT_PATH / "neon-evm").mkdir(parents=True, exist_ok=True)
 
-    click.echo(f"Check contract availability in neon-evm repo")
+    click.echo("Check contract availability in neon-evm repo")
     response = requests.get(f"{NEON_EVM_GITHUB_URL}/contents/solidity?ref={neon_evm_branch}")
     if response.status_code != 200:
-        click.echo(f"Repository doesn't has solidity directory, check old structure")
+        click.echo("Repository doesn't has solidity directory, check old structure")
         response = requests.get(f"{NEON_EVM_GITHUB_URL}/contents/evm_loader/solidity?ref={neon_evm_branch}")
         if response.status_code != 200:
             raise click.ClickException(f"Can't get contracts from neon-evm repo: {response.text}")
@@ -783,7 +784,7 @@ def locust(ctx):
     help="NEON RPC entry point.",
     show_default=True,
 )
-def run(credentials, host, users, spawn_rate, run_time, tag, web_ui, locustfile, neon_rpc):
+def run_load(credentials, host, users, spawn_rate, run_time, tag, web_ui, locustfile, neon_rpc):
     """Run `Neon` pipeline performance test
 
     path it's sub-folder and file name  `loadtesting/locustfile.py`.
@@ -804,7 +805,7 @@ def run(credentials, host, users, spawn_rate, run_time, tag, web_ui, locustfile,
     if tag:
         command += f" --tags {' '.join(tag)}"
     if not web_ui:
-        command += f" --headless"
+        command += " --headless"
 
     cmd = subprocess.run(command, shell=True)
 
@@ -833,11 +834,11 @@ def prepare(credentials, host, users, spawn_rate, run_time, tag):
     if run_time:
         command += f" --run-time={run_time}"
     else:
-        command += f" --run-time=120"
+        command += " --run-time=120"
     if tag:
         command += f" --tags {' '.join(tag)}"
     else:
-        command += f" --tags prepare"
+        command += " --tags prepare"
 
     cmd = subprocess.run(command, shell=True)
 
@@ -971,6 +972,7 @@ def send_notification(url, build_url, network, test_group: str):
 @cli.command(name="get-balances", help="Get operator balances in NEON and SOL")
 @click.option("-n", "--network", default="night-stand", type=str, help="In which stand run tests")
 def get_operator_balances(network: str):
+    network_manager = NetworkManager()
     net = network_manager.get_network_object(network)
     operator = Operator(net["proxy_url"], net["solana_url"], net["spl_neon_mint"], evm_loader=net["evm_loader"])
     neon_balance = operator.get_token_balance()
@@ -1306,14 +1308,15 @@ def build(tag):
 @click.option("-b", "--balance", default=None, required=True, help="Initial balance of accounts in Neon")
 @click.option("-a", "--bank_account", default="", required=False, help="Eth bank account private key")
 @catch_traceback
-def run(network, script, users, balance, bank_account):
+def run_load_k6(network, script, users, balance, bank_account):
+    network_manager = NetworkManager()
     network_object = network_manager.get_network_object(network)
     web3_client = NeonChainWeb3Client(proxy_url=network_object["proxy_url"])
     faucet = Faucet(faucet_url=network_object["faucet_url"], web3_client=web3_client)
     account_manager = EthAccounts(web3_client, faucet, bank_account)
 
     print("Compiling ERC20 contract...")
-    command_erc20 = f"solc --abi ./contracts/EIPs/ERC20/ERC20.sol -o ./loadtesting/k6/contracts/ERC20 --overwrite"
+    command_erc20 = "solc --abi ./contracts/EIPs/ERC20/ERC20.sol -o ./loadtesting/k6/contracts/ERC20 --overwrite"
     command_erc20_run = subprocess.run(command_erc20, shell=True)
     if command_erc20_run.returncode != 0:
         sys.exit(command_erc20_run.returncode)
