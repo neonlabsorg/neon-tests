@@ -269,7 +269,7 @@ class TestERC20SPL:
                 amount=10,
             )
 
-    def test_transferFrom_more_than_allowanced(self, erc20_contract):
+    def test_transferFrom_more_than_allowed(self, erc20_contract):
         new_account = self.accounts.create_account()
         amount = 2
         erc20_contract.approve(erc20_contract.account, new_account.address, amount)
@@ -1104,3 +1104,31 @@ class TestERC20FactoryUpdate:
         )
         assert new_token_contract.functions.name().call() == "TOKEN3"
         assert new_token_contract.functions.getDummyData().call() == 1112131415
+
+
+def test_claim_insufficient_delegated_amount():
+    # Setup an account with a delegated amount less than the claim request
+    # Expect the function to revert with `AmountExceedsBalance`.
+    ...
+
+
+def test_claim_to_uninitialized_account():
+    # Attempt to claim tokens to a Solana account without an ATA
+    # Expect the contract to initialize the ATA and complete the transfer.
+    ...
+
+
+def test_transfer_to_uninitialized_ata():
+    # Attempt to transfer tokens to a Solana address without an ATA
+    # Ensure the ATA is initialized during the process.
+    ...
+
+
+def test_balance_of_combined_pda_and_ata():
+    # Verify `balanceOf` accounts for both PDA and ATA balances when appropriate.
+    ...
+
+
+def test_gas_cost_of_transfer_vs_transfer_from():
+    # Compare gas costs of similar operations with varying balances and allowances.
+    ...

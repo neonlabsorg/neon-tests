@@ -58,7 +58,9 @@ class ERC20Wrapper:
             self.contract_address = self.deploy_wrapper(mintable)
 
         self.contract = web3_client.get_deployed_contract(
-            self.contract_address, contract_name=self.contract_name, contract_file="EIPs/ERC20/ERC20ForSplBackbone"
+            self.contract_address,
+            contract_name=self.contract_name,
+            contract_file="neon-contracts/erc20_for_spl_backbone",
         )
 
     @property
@@ -85,7 +87,7 @@ class ERC20Wrapper:
 
     def deploy_wrapper(self, mintable: bool):
         contract, contract_deploy_tx = self.web3_client.deploy_and_get_contract(
-            "neon-evm/erc20_for_spl_factory", "0.8.28", self.account, contract_name="ERC20ForSplFactory"
+            "neon-contracts/erc20_for_spl_factory_new", "0.8.28", self.account, contract_name="ERC20ForSplFactory"
         )
 
         assert contract_deploy_tx["status"] == 1, f"ERC20 Factory wasn't deployed: {contract_deploy_tx}"
