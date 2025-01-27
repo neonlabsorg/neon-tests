@@ -109,11 +109,6 @@ contract CallSolanaCaller {
         executeInIterativeMode(actionsNumber, lamports, instruction);
     }
 
-    function doSomeIterativeActions(uint256 actionsNumber) public {
-        doIterativeActions(actionsNumber);
-        emit LogStr("iterative actions status: done");
-    }
-
     function doIterativeActions(uint actionsNumber) public {
         // some actions to make the call iterative
         for (uint256 i = 0; i < actionsNumber; i++) {
