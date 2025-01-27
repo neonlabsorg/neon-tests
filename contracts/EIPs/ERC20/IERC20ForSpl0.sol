@@ -1,6 +1,6 @@
 pragma solidity >=0.7.0;
 
-interface IERC20ForSpl {
+interface IERC20ForSpl0 {
     event Transfer(address indexed from, address indexed to, uint256 amount);
     event Approval(address indexed owner, address indexed spender, uint256 amount);
     event ApprovalSolana(address indexed owner, bytes32 indexed spender, uint64 amount);

@@ -450,7 +450,7 @@ class Web3Client:
         address,
         contract_file,
         contract_name=None,
-        solc_version="0.8.12",
+        solc_version="0.8.28",
         import_remapping: tp.Optional[dict] = None,
     ):
         contract_interface = helpers.get_contract_interface(

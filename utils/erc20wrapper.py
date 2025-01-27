@@ -26,6 +26,7 @@ class ERC20Wrapper:
         evm_loader_id=None,
         account=None,
         mintable=True,
+        contract_name=None,
         contract_address=None,
         bank_account=None,
     ):
@@ -35,6 +36,7 @@ class ERC20Wrapper:
         self.evm_loader_id = evm_loader_id
         self.web3_client = web3_client
         self.account = account
+        self.contract_name = contract_name
         if self.account is None:
             self.account = web3_client.create_account()
             if bank_account is not None:
@@ -52,11 +54,12 @@ class ERC20Wrapper:
         self.token_mint: Token
         self.solana_associated_token_acc: Pubkey
 
-        if contract_address:
-            self.contract = web3_client.get_deployed_contract(contract_address, contract_file="EIPs/ERC20/IERC20ForSpl")
-        else:
+        if not self.contract_address:
             self.contract_address = self.deploy_wrapper(mintable)
-            self.contract = self.web3_client.get_deployed_contract(self.contract_address, "EIPs/ERC20/IERC20ForSpl")
+
+        self.contract = web3_client.get_deployed_contract(
+            self.contract_address, contract_name=self.contract_name, contract_file="EIPs/ERC20/ERC20ForSplBackbone"
+        )
 
     @property
     def address(self):
@@ -82,7 +85,7 @@ class ERC20Wrapper:
 
     def deploy_wrapper(self, mintable: bool):
         contract, contract_deploy_tx = self.web3_client.deploy_and_get_contract(
-            "neon-evm/erc20_for_spl_factory", "0.8.10", self.account, contract_name="ERC20ForSplFactory"
+            "neon-evm/erc20_for_spl_factory", "0.8.28", self.account, contract_name="ERC20ForSplFactory"
         )
 
         assert contract_deploy_tx["status"] == 1, f"ERC20 Factory wasn't deployed: {contract_deploy_tx}"
