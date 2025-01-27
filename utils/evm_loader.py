@@ -25,7 +25,7 @@ from spl.token.constants import TOKEN_PROGRAM_ID
 from integration.tests.neon_evm.utils.contract import get_contract_bin
 from integration.tests.neon_evm.utils.ethereum import create_contract_address, make_deployment_transaction
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
-from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
+from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text, decode_logs
 from utils.scheduled_trx import ScheduledTransaction
 from utils.neon_user import NeonUser
 from integration.tests.neon_evm.utils.constants import TREASURY_POOL_SEED
@@ -478,6 +478,7 @@ class EvmLoader(SolanaClient):
         signer: Keypair = None,
         compute_unit_price=None,
         chain_id: int | None = None,
+        check_invalid_revision=False,
     ) -> GetTransactionResp:
         chain_id = chain_id or self.chain_id
 
@@ -487,6 +488,8 @@ class EvmLoader(SolanaClient):
         index = 0
         receipt = None
         done = False
+        is_invalid_revision = False
+
         while not done:
             receipt = self.send_transaction_step_from_account(
                 operator,
@@ -509,7 +512,12 @@ class EvmLoader(SolanaClient):
                     break
                 if "ExitError" in log:
                     raise AssertionError(f"EVM Return error in logs: {receipt}")
+            if check_invalid_revision:
+                if "INVALID_REVISION" in decode_logs(receipt.value.transaction.meta.log_messages):
+                    is_invalid_revision = True
 
+        if check_invalid_revision and not is_invalid_revision:
+            raise AssertionError("INVALID_REVISION not in logs")
         return receipt
 
     def execute_transaction_steps_from_account_no_chain_id(

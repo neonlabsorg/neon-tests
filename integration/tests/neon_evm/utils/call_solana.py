@@ -18,7 +18,6 @@ class SolanaCaller:
         treasury_pool,
         holder_acc,
         neon_api_client,
-        solana_client,
     ) -> None:
         self.operator_keypair = operator_keypair
         self.owner = owner
@@ -26,7 +25,6 @@ class SolanaCaller:
         self.treasury_pool = treasury_pool
         self.holder_acc = holder_acc
         self.neon_api_client = neon_api_client
-        self.solana_client = solana_client
         self.contract = evm_loader.deploy_contract(
             operator=operator_keypair,
             user=owner,
@@ -72,71 +70,6 @@ class SolanaCaller:
         serialized_instructions = serialize_instruction(program_id, instruction)
         signed_tx = make_contract_call_trx(
             self.evm_loader, sender, self.contract, "execute(uint64,bytes)", [lamports, serialized_instructions]
-        )
-        resp = self.evm_loader.execute_trx_from_instruction_with_solana_call(
-            self.operator_keypair,
-            holder_acc,
-            self.treasury_pool.account,
-            self.treasury_pool.buffer,
-            signed_tx,
-            [
-                sender.balance_account_address,
-                sender.solana_account_address,
-                SOLANA_CALL_PRECOMPILED_ID,
-                self.contract.balance_account_address,
-                self.contract.solana_address,
-                program_id,
-            ]
-            + (additional_accounts or [])
-            + self._get_all_pubkeys_from_instructions([instruction]),
-        )
-        return resp
-
-    def execute_with_number_to_store(
-        self, program_id, instruction, lamports=0, holder_acc=None, sender=None, additional_accounts=None
-    ):
-        sender = self.owner if sender is None else sender
-        holder_acc = self.holder_acc if holder_acc is None else holder_acc
-        serialized_instructions = serialize_instruction(program_id, instruction)
-        signed_tx = make_contract_call_trx(
-            self.evm_loader,
-            sender,
-            self.contract,
-            "executeWithNumberStore(uint64,bytes)",
-            [lamports, serialized_instructions],
-        )
-        resp = self.evm_loader.execute_trx_from_instruction_with_solana_call(
-            self.operator_keypair,
-            holder_acc,
-            self.treasury_pool.account,
-            self.treasury_pool.buffer,
-            signed_tx,
-            [
-                sender.balance_account_address,
-                sender.solana_account_address,
-                SOLANA_CALL_PRECOMPILED_ID,
-                self.contract.balance_account_address,
-                self.contract.solana_address,
-                program_id,
-            ]
-            + (additional_accounts or [])
-            + self._get_all_pubkeys_from_instructions([instruction]),
-        )
-        return resp
-
-    def execute_with_balance_change(
-        self, program_id, instruction, lamports=0, holder_acc=None, sender=None, additional_accounts=None, value=0
-    ):
-        sender = self.owner if sender is None else sender
-        holder_acc = self.holder_acc if holder_acc is None else holder_acc
-        serialized_instructions = serialize_instruction(program_id, instruction)
-        signed_tx = make_contract_call_trx(
-            self.evm_loader,
-            sender,
-            self.contract,
-            "executeWithChangeBalance(uint64,bytes)",
-            [lamports, serialized_instructions],
-            value,
         )
         resp = self.evm_loader.execute_trx_from_instruction_with_solana_call(
             self.operator_keypair,
@@ -269,7 +202,7 @@ class SolanaCaller:
                 SYSTEM_PROGRAM_ID,
             ],
         )
-        check_transaction_logs_have_text(solana_client=self.solana_client, trx=resp, text="exit_status=0x12")
+        check_transaction_logs_have_text(solana_client=self.evm_loader, trx=resp, text="exit_status=0x12")
         return resource_address_pubkey
 
     @staticmethod

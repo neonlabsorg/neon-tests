@@ -570,7 +570,7 @@ class TestSolanaInteroperability:
         to_wallet = Keypair()
         amount = 100000
 
-        serialized, mint, accounts_list = self.serialized_transfer(
+        serialized_transfer, mint, accounts_list = self.serialized_transfer(
             sol_client, from_wallet, to_wallet, amount, call_solana_caller
         )
 
@@ -586,7 +586,7 @@ class TestSolanaInteroperability:
         serialized_counter = serialize_instruction(COUNTER_ID, instruction_counter)
 
         instruction_tx = call_solana_caller.functions.batchExecuteInIterativeMode(
-            iterations, [(0, serialized), (0, serialized_counter)]
+            iterations, [(0, serialized_transfer), (0, serialized_counter)]
         ).build_transaction(tx)
 
         resp = self.web3_client.send_transaction(sender, instruction_tx)
