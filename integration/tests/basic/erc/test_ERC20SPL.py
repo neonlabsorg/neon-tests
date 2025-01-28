@@ -43,7 +43,7 @@ class TestERC20SPL:
             self.web3_client.send_neon(eth_bank_account, erc20_spl.account.address, 10)
         return erc20_spl
 
-    @pytest.fixture()
+    @pytest.fixture
     def restore_balance(self, erc20_contract):
         pass
 
@@ -241,6 +241,7 @@ class TestERC20SPL:
         with pytest.raises(ValueError, match=msg):
             erc20_contract.transfer(erc20_contract.account, erc20_contract.account.address, 1, **param)
 
+    @pytest.mark.cost_report
     def test_transferFrom(self, erc20_contract, restore_balance):
         new_account = self.accounts.create_account()
         balance_acc1_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()

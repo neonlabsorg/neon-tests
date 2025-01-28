@@ -124,8 +124,7 @@ class ERC20Wrapper:
     def claim(self, signer, from_address, amount: int = INIT_TOKEN_AMOUNT, gas_price=None, gas=None) -> TxReceipt:
         tx = self.web3_client.make_raw_tx(signer.address, gas_price=gas_price, gas=gas)
         instruction_tx = self.contract.functions.claim(from_address, amount).build_transaction(tx)
-        resp = self.web3_client.send_transaction(signer, instruction_tx)
-        return resp
+        return self.web3_client.send_transaction(signer, instruction_tx)
 
     def claim_to(self, signer, from_address, to_address, amount, gas_price=None, gas=None) -> TxReceipt:
         tx = self.web3_client.make_raw_tx(signer.address, gas_price=gas_price, gas=gas)
@@ -162,6 +161,7 @@ class ERC20Wrapper:
         resp = self.web3_client.send_transaction(signer, instruction_tx)
         return resp
 
+    @stats_collector.cost_report_from_receipt
     def transfer_from(self, signer, address_from, address_to, amount, gas_price=None, gas=None) -> TxReceipt:
         tx = self.web3_client.make_raw_tx(signer.address, gas_price=gas_price, gas=gas)
         instruction_tx = self.contract.functions.transferFrom(address_from, address_to, amount).build_transaction(tx)
