@@ -773,3 +773,8 @@ jobs:
           --pr_url_for_report="${{ inputs.pr_url_for_report }}" \
           --token="${{ secrets.GHTOKEN }}" \
           --md_file cost_reports.md
+      - name: "Validate cost report data"
+        if: ${{ steps.set-do-compare-reports.outputs.compare == 'true' && steps.save-cost-report-to-db.outcome == 'success' }}
+        run: |
+          python3 ./clickfile.py dapps validate_cost_reports \
+            --directory="reports"

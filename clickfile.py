@@ -1260,6 +1260,14 @@ def compare_dapp_results(
     )
 
 
+@dapps.command("validate_cost_reports", help="Validate cost reports data")
+@click.option("--directory", default="reports", help="Directory with reports")
+def validate_cost_reports(
+    directory: str,
+):
+    report_data = prepare_report_data(directory)  # noqa
+
+
 @dapps.command("add_pr_comment", help="Add PR comment with dApp cost reports")
 @click.option("--pr_url_for_report", default="", help="Url to send the report as comment for PR")
 @click.option("--token", default="", help="github token")
