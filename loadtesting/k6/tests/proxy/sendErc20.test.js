@@ -1,6 +1,6 @@
 import { ethClient, sendErc20ViaTransferFunction } from '../utils/ethClient.js';
 import { randomItem } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
-import { transferAmountRange } from '../../utils/consts.js';
+import { transferAmountRange } from '../utils/consts.js';
 import { standardScenarioOptions } from '../../options/options.js';
 import { Trend, Counter } from 'k6/metrics';
 import { check } from 'k6';
