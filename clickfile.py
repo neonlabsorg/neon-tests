@@ -40,7 +40,7 @@ try:
     from deploy.cli.github_api_client import GithubClient
     from deploy.cli.network_manager import NetworkManager
 
-    from utils import create_allure_environment_opts, time_measure
+    from utils import create_allure_environment_opts, time_measure, helpers
     from deploy.cli import infrastructure
     from utils import web3client
     from utils import cloud
@@ -1325,8 +1325,28 @@ def run_load_k6(network, script, users, balance, bank_account):
     erc20 = deploy_erc20_contract(web3_client, faucet, account_manager.create_account(balance=int(balance)))
     print(f"ERC20 contract deployed at {erc20.contract.address} with owner {erc20.owner.address}")
 
+    print("Compiling Block contract...")
+    contract_interface = helpers.get_contract_interface(
+        "common/Block.sol",
+        "0.8.12",
+        contract_name="BlockNumber",
+    )
+    with open("./loadtesting/k6/contracts/Block/Block.abi", "wt") as f:
+        json.dump(contract_interface["abi"], f)
+
+    print("Deploying Block contract...")
+    block_contract_owner = account_manager.create_account(balance=int(balance))
+    block_contract, contract_deploy_tx = web3_client.deploy_and_get_contract(
+        contract="Common/Block.sol",
+        version="0.8.12",
+        account=block_contract_owner,
+        contract_name="BlockNumber",
+    )
+    print(f"Block contract deployed at {block_contract.address} with owner {block_contract_owner.address}")
+
     k6_prepare_accounts(erc20, account_manager, users, balance, 100)
     k6_set_envs(network, erc20, users, balance, bank_account)
+    os.environ["K6_BLOCK_ADDRESS"] = block_contract.address
 
     command = f"./k6 run {script} -o 'prometheus=namespace=k6'"
     command_run = subprocess.run(command, shell=True)
