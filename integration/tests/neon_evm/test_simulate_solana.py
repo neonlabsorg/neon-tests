@@ -2,22 +2,82 @@ import os
 
 import eth_abi
 from eth_utils import abi
-from solders.pubkey import Pubkey
+from solana.transaction import Transaction
 from solders.keypair import Keypair
+from solders.pubkey import Pubkey
 
-from conftest import EnvironmentConfig
+# from conftest import EnvironmentConfig
 from utils import instructions
-from utils.neon_user import NeonUser
-from utils.evm_loader import EvmLoader
-from .utils import ethereum as eth_utils
-from .utils import contract as contract_utils
-from .utils.neon_api_client import NeonApiClient
 from utils.consts import QUERY_ACCOUNT_ID
+from utils.evm_loader import EvmLoader
+from utils.neon_user import NeonUser
 from utils.scheduled_trx import ScheduledTransaction
 from utils.types import TreasuryPool, Caller, Contract
+from .utils import contract as contract_utils
+from .utils import ethereum as eth_utils
+from .utils.contract import get_contract_bin
+from .utils.neon_api_client import NeonApiClient
 
 
 class TestSimulateSolana:
+    @staticmethod
+    def _simulate_and_execute_tx(
+        sol_tx: Transaction,
+        index: int,
+        neon_api_client: NeonApiClient,
+        evm_loader: EvmLoader,
+        operator_keypair: Keypair,
+        done_simulation: bool,
+        done_execution: bool,
+        simulated_compute_units: int,
+        actual_compute_units: int,
+    ) -> tuple[bool, bool]:
+        # Simulate the transaction
+        if not done_simulation:
+            assert not done_execution, f"Execution completed in {index} steps but simulation is still going"
+
+            serialized_transaction = sol_tx.serialize()
+            hex_serialized_transaction = serialized_transaction.hex()
+            simulate_response = neon_api_client.simulate_solana(
+                blockhash=os.urandom(32).hex(),
+                transactions=[hex_serialized_transaction],
+            )
+            simulated_transactions = simulate_response.json()["value"]["transactions"]
+
+            simulated_compute_units += sum(
+                [simulate_result["executed_units"] for simulate_result in simulated_transactions]
+            )
+
+            for simulated_transaction in simulated_transactions:
+                if simulated_transaction["error"]:
+                    raise AssertionError(f"Error in sol trx: {simulated_transaction}")
+
+                for log in simulated_transaction["logs"]:
+                    if "ExitError" in log:
+                        raise AssertionError(f"EVM Return error in logs: {simulated_transaction}")
+
+                    elif "exit_status" in log:
+                        done_simulation = True
+                        break
+
+        # Execute the transaction
+        if not done_execution:
+            executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
+            actual_compute_units += executed_sol_tx.value.transaction.meta.compute_units_consumed
+
+            if executed_sol_tx.value.transaction.meta.err:
+                raise AssertionError(f"Error in sol trx: {executed_sol_tx}")
+
+            for log in executed_sol_tx.value.transaction.meta.log_messages:
+                if "ExitError" in log:
+                    raise AssertionError(f"EVM Return error in logs: {executed_sol_tx}")
+
+                elif "exit_status" in log:
+                    done_execution = True
+                    assert done_simulation, f"Execution completed in {index + 1} steps but simulation is still going"
+                    break
+
+        return done_simulation, done_execution
 
     def test_simulate_solana_send_neon_from_holder_account(
         self,
@@ -29,7 +89,6 @@ class TestSimulateSolana:
         treasury_pool: TreasuryPool,
         session_user: Caller,
     ):
-
         # Create Neon transaction and write it to a holder account
         amount = 1
         neon_signed_tx = eth_utils.make_eth_transaction(
@@ -90,7 +149,6 @@ class TestSimulateSolana:
         treasury_pool: TreasuryPool,
         session_user,
     ):
-
         # Create Neon transaction
         amount = 1
         neon_signed_tx = eth_utils.make_eth_transaction(
@@ -149,16 +207,36 @@ class TestSimulateSolana:
         evm_loader: EvmLoader,
         holder_acc: Pubkey,
         treasury_pool: TreasuryPool,
-        calculator_contract: Contract,
     ):
         # Create Neon transaction and write it to a holder account
-        neon_signed_tx = eth_utils.make_contract_call_trx(
-            evm_loader=evm_loader,
-            user=sender_with_tokens,
-            contract=calculator_contract,
-            function_signature="callCalculator()",
+        chain_id = evm_loader.chain_id
+        contract_file_name = "external/neon-evm/erc20_for_spl_factory"
+        contract_name = "ERC20ForSplFactory"
+        version = "0.8.24"
+        encoded_args = b""
+
+        contract_code = get_contract_bin(contract=contract_file_name, contract_name=contract_name, version=version)
+
+        emulate_result = neon_api_client.emulate(
+            sender_with_tokens.eth_address.hex(),
+            contract=None,
+            data=contract_code + encoded_args.hex(),
+            chain_id=chain_id,
+            value=hex(0),
         )
-        evm_loader.write_transaction_to_holder_account(neon_signed_tx, holder_acc, operator_keypair)
+        additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+
+        signed_tx = eth_utils.make_deployment_transaction(
+            evm_loader,
+            sender_with_tokens,
+            contract_file_name,
+            contract_name,
+            encoded_args=encoded_args,
+            value=0,
+            version=version,
+            chain_id=chain_id,
+        )
+        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
 
         simulated_compute_units = actual_compute_units = index = 0
         done = done_simulation = done_execution = False
@@ -169,66 +247,28 @@ class TestSimulateSolana:
             operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
             sol_tx.add(
                 instructions.make_ExecuteTrxFromAccountDataIterativeOrContinue(
-                    index=index,
                     step_count=500,
                     operator=operator_keypair,
                     operator_balance=operator_balance_pubkey,
                     evm_loader_id=evm_loader.loader_id,
                     holder_address=holder_acc,
                     treasury=treasury_pool,
-                    additional_accounts=[
-                        sender_with_tokens.balance_account_address,
-                        calculator_contract.solana_address,
-                        calculator_contract.solana_address,
-                    ],
+                    additional_accounts=additional_accounts,
                 )
             )
             sol_tx.sign(operator_keypair)
 
-            # Simulate the transaction
-            if not done_simulation:
-                assert not done_execution, f"Execution completed in {index} steps but simulation is still going"
-
-                serialized_transaction = sol_tx.serialize()
-                hex_serialized_transaction = serialized_transaction.hex()
-                simulate_response = neon_api_client.simulate_solana(
-                    blockhash=os.urandom(32).hex(),
-                    transactions=[hex_serialized_transaction],
-                )
-                simulated_transactions = simulate_response.json()["value"]["transactions"]
-
-                simulated_compute_units += sum(
-                    [simulate_result["executed_units"] for simulate_result in simulated_transactions]
-                )
-
-                for simulated_transaction in simulated_transactions:
-                    if simulated_transaction["error"]:
-                        raise AssertionError(f"Error in sol trx: {simulated_transaction}")
-
-                    for log in simulated_transaction["logs"]:
-                        if "ExitError" in log:
-                            raise AssertionError(f"EVM Return error in logs: {simulated_transaction}")
-
-                        elif "exit_status" in log:
-                            done_simulation = True
-                            break
-
-            # Execute the transaction
-            if not done_execution:
-                executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
-                actual_compute_units += executed_sol_tx.value.transaction.meta.compute_units_consumed
-
-                if executed_sol_tx.value.transaction.meta.err:
-                    raise AssertionError(f"Error in sol trx: {executed_sol_tx}")
-
-                for log in executed_sol_tx.value.transaction.meta.log_messages:
-                    if "ExitError" in log:
-                        raise AssertionError(f"EVM Return error in logs: {executed_sol_tx}")
-
-                    elif "exit_status" in log:
-                        done_execution = True
-                        assert done_simulation, f"Execution completed in {index+1} steps but simulation is still going"
-                        break
+            done_simulation, done_execution = self._simulate_and_execute_tx(
+                sol_tx=sol_tx,
+                index=index,
+                neon_api_client=neon_api_client,
+                evm_loader=evm_loader,
+                operator_keypair=operator_keypair,
+                done_simulation=done_simulation,
+                done_execution=done_execution,
+                simulated_compute_units=simulated_compute_units,
+                actual_compute_units=actual_compute_units,
+            )
 
             index += 1
             done = done_simulation and done_execution
@@ -245,15 +285,28 @@ class TestSimulateSolana:
         evm_loader: EvmLoader,
         holder_acc: Pubkey,
         treasury_pool: TreasuryPool,
-        calculator_contract: Contract,
+        rw_lock_contract: Contract,
     ):
         # Create Neon transaction
+        function_signature = "update_storage(uint256)"
+        params = [10]
         neon_signed_tx = eth_utils.make_contract_call_trx(
             evm_loader=evm_loader,
             user=sender_with_tokens,
-            contract=calculator_contract,
-            function_signature="callCalculator()",
+            contract=rw_lock_contract,
+            function_signature=function_signature,
+            params=params,
         )
+
+        # Emulate transaction
+        emulate_result = neon_api_client.emulate_contract_call(
+            sender=sender_with_tokens.eth_address.hex(),
+            contract=rw_lock_contract.eth_address.hex(),
+            function_signature=function_signature,
+            params=params,
+        )
+        additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+
         simulated_compute_units = actual_compute_units = index = 0
         done = done_simulation = done_execution = False
 
@@ -271,59 +324,21 @@ class TestSimulateSolana:
                     evm_loader_id=evm_loader.loader_id,
                     storage_address=holder_acc,
                     treasury=treasury_pool,
-                    additional_accounts=[
-                        sender_with_tokens.balance_account_address,
-                        calculator_contract.solana_address,
-                        calculator_contract.solana_address,
-                    ],
+                    additional_accounts=additional_accounts,
                 )
             )
             sol_tx.sign(operator_keypair)
-
-            # Simulate the transaction
-            if not done_simulation:
-                assert not done_execution, f"Execution completed in {index} steps but simulation is still going"
-
-                serialized_transaction = sol_tx.serialize()
-                hex_serialized_transaction = serialized_transaction.hex()
-                simulate_response = neon_api_client.simulate_solana(
-                    blockhash=os.urandom(32).hex(),
-                    transactions=[hex_serialized_transaction],
-                )
-                simulated_transactions = simulate_response.json()["value"]["transactions"]
-
-                simulated_compute_units += sum(
-                    [simulate_result["executed_units"] for simulate_result in simulated_transactions]
-                )
-
-                for simulated_transaction in simulated_transactions:
-                    if simulated_transaction["error"]:
-                        raise AssertionError(f"Error in sol trx: {simulated_transaction}")
-
-                    for log in simulated_transaction["logs"]:
-                        if "ExitError" in log:
-                            raise AssertionError(f"EVM Return error in logs: {simulated_transaction}")
-
-                        elif "exit_status" in log:
-                            done_simulation = True
-                            break
-
-            # Execute the transaction
-            if not done_execution:
-                executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
-                actual_compute_units += executed_sol_tx.value.transaction.meta.compute_units_consumed
-
-                if executed_sol_tx.value.transaction.meta.err:
-                    raise AssertionError(f"Error in sol trx: {executed_sol_tx}")
-
-                for log in executed_sol_tx.value.transaction.meta.log_messages:
-                    if "ExitError" in log:
-                        raise AssertionError(f"EVM Return error in logs: {executed_sol_tx}")
-
-                    elif "exit_status" in log:
-                        done_execution = True
-                        assert done_simulation, f"Execution completed in {index+1} steps but simulation is still going"
-                        break
+            done_simulation, done_execution = self._simulate_and_execute_tx(
+                sol_tx=sol_tx,
+                index=index,
+                neon_api_client=neon_api_client,
+                evm_loader=evm_loader,
+                operator_keypair=operator_keypair,
+                done_simulation=done_simulation,
+                done_execution=done_execution,
+                simulated_compute_units=simulated_compute_units,
+                actual_compute_units=actual_compute_units,
+            )
 
             index += 1
             done = done_simulation and done_execution
@@ -369,7 +384,6 @@ class TestSimulateSolana:
             operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
             sol_tx.add(
                 instructions.make_ExecuteTrxFromAccountDataIterativeOrContinue(
-                    index=index,
                     step_count=500,
                     operator=operator_keypair,
                     operator_balance=operator_balance_pubkey,
@@ -381,50 +395,17 @@ class TestSimulateSolana:
             )
             sol_tx.sign(operator_keypair)
 
-            # Simulate the transaction
-            if not done_simulation:
-                assert not done_execution, f"Execution completed in {index} steps but simulation is still going"
-
-                serialized_transaction = sol_tx.serialize()
-                hex_serialized_transaction = serialized_transaction.hex()
-                simulate_response = neon_api_client.simulate_solana(
-                    blockhash=os.urandom(32).hex(),
-                    transactions=[hex_serialized_transaction],
-                )
-                simulated_transactions = simulate_response.json()["value"]["transactions"]
-
-                simulated_compute_units += sum(
-                    [simulate_result["executed_units"] for simulate_result in simulated_transactions]
-                )
-
-                for simulated_transaction in simulated_transactions:
-                    if simulated_transaction["error"]:
-                        raise AssertionError(f"Error in sol trx: {simulated_transaction}")
-
-                    for log in simulated_transaction["logs"]:
-                        if "ExitError" in log:
-                            raise AssertionError(f"EVM Return error in logs: {simulated_transaction}")
-
-                        elif "exit_status" in log:
-                            done_simulation = True
-                            break
-
-            # Execute the transaction
-            if not done_execution:
-                executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
-                actual_compute_units += executed_sol_tx.value.transaction.meta.compute_units_consumed
-
-                if executed_sol_tx.value.transaction.meta.err:
-                    raise AssertionError(f"Error in sol trx: {executed_sol_tx}")
-
-                for log in executed_sol_tx.value.transaction.meta.log_messages:
-                    if "ExitError" in log:
-                        raise AssertionError(f"EVM Return error in logs: {executed_sol_tx}")
-
-                    elif "exit_status" in log:
-                        done_execution = True
-                        assert done_simulation, f"Execution completed in {index+1} steps but simulation is still going"
-                        break
+            done_simulation, done_execution = self._simulate_and_execute_tx(
+                sol_tx=sol_tx,
+                index=index,
+                neon_api_client=neon_api_client,
+                evm_loader=evm_loader,
+                operator_keypair=operator_keypair,
+                done_simulation=done_simulation,
+                done_execution=done_execution,
+                simulated_compute_units=simulated_compute_units,
+                actual_compute_units=actual_compute_units,
+            )
 
             index += 1
             done = done_simulation and done_execution
@@ -444,7 +425,6 @@ class TestSimulateSolana:
         session_user: Caller,
         query_account_caller_contract: Contract,
     ):
-
         # Create Neon transaction
         solana_account_address_uint256 = int.from_bytes(session_user.solana_account_address, byteorder="big")
         neon_signed_tx = eth_utils.make_contract_call_trx(
@@ -506,9 +486,8 @@ class TestSimulateSolana:
         session_user: Caller,
         basic_contract: Contract,
         neon_user: NeonUser,
-        environment: EnvironmentConfig,
+        environment,
     ):
-
         nonce = evm_loader.get_neon_nonce(neon_user.neon_address)
         contract_data = 18
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
@@ -577,7 +556,6 @@ class TestSimulateSolana:
             sol_tx = instructions.TransactionWithComputeBudget(operator_keypair, compute_unit_price=3929)
             sol_tx.add(
                 instructions.make_ExecuteTrxFromAccountDataIterativeOrContinue(
-                    index=index,
                     step_count=500,
                     operator=operator_keypair,
                     operator_balance=operator_balance_pubkey,
@@ -589,50 +567,17 @@ class TestSimulateSolana:
             )
             sol_tx.sign(operator_keypair)
 
-            # Simulate the transaction
-            if not done_simulation:
-                assert not done_execution, f"Execution completed in {index} steps but simulation is still going"
-
-                serialized_transaction = sol_tx.serialize()
-                hex_serialized_transaction = serialized_transaction.hex()
-                simulate_response = neon_api_client.simulate_solana(
-                    blockhash=os.urandom(32).hex(),
-                    transactions=[hex_serialized_transaction],
-                )
-                simulated_transactions = simulate_response.json()["value"]["transactions"]
-                simulated_compute_units += sum(
-                    [simulate_result["executed_units"] for simulate_result in simulated_transactions]
-                )
-
-                for simulated_transaction in simulated_transactions:
-                    if simulated_transaction["error"]:
-                        raise AssertionError(f"Error in sol trx: {simulated_transaction}")
-
-                    for log in simulated_transaction["logs"]:
-                        if "ExitError" in log:
-                            raise AssertionError(f"EVM Return error in logs: {simulated_transaction}")
-
-                        elif "exit_status" in log:
-                            done_simulation = True
-                            break
-
-            # Execute the transaction
-            if not done_execution:
-                executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
-                actual_compute_units += executed_sol_tx.value.transaction.meta.compute_units_consumed
-
-                if executed_sol_tx.value.transaction.meta.err:
-                    raise AssertionError(f"Error in sol trx: {executed_sol_tx}")
-
-                for log in executed_sol_tx.value.transaction.meta.log_messages:
-                    if "ExitError" in log:
-                        raise AssertionError(f"EVM Return error in logs: {executed_sol_tx}")
-
-                    elif "exit_status" in log:
-                        done_execution = True
-                        assert done_simulation, f"Execution completed in {index+1} steps but simulation is still going"
-                        break
-
+            done_simulation, done_execution = self._simulate_and_execute_tx(
+                sol_tx=sol_tx,
+                index=index,
+                neon_api_client=neon_api_client,
+                evm_loader=evm_loader,
+                operator_keypair=operator_keypair,
+                done_simulation=done_simulation,
+                done_execution=done_execution,
+                simulated_compute_units=simulated_compute_units,
+                actual_compute_units=actual_compute_units,
+            )
             index += 1
             done = done_simulation and done_execution
 
