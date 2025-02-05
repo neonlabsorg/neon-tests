@@ -4,9 +4,8 @@ import pathlib
 import random
 
 import pytest
-from solders.pubkey import Pubkey
-from solders.signature import Signature
 
+from integration.tests.basic.helpers.rpc_checks import assert_solana_address_was_not_used_in_trx
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 
@@ -151,14 +150,10 @@ class TestPrecompiledContracts:
         ]:
             receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
             assert receipt["status"] == 1
-            sol_trx = self.web3_client.get_solana_trx_by_neon(receipt["transactionHash"].hex())["result"][0]
-            solana_resp = evm_loader.get_transaction(Signature.from_string(sol_trx))
-            sol_accounts = solana_resp.value.transaction.transaction.message.account_keys
             precompile_program_address = evm_loader.ether2program(address[2:])[0]
-            assert (
-                Pubkey.from_string(precompile_program_address) not in sol_accounts
-            ), f"Program address for {address} is in the account list"
-
+            assert_solana_address_was_not_used_in_trx(
+                receipt["transactionHash"].hex(), precompile_program_address, web3_client, evm_loader
+            )
             if pytestconfig.getoption("--network") not in ["devnet", "night-stand"]:
                 assert self.web3_client.get_balance(address) - balance_before == amount
         else:

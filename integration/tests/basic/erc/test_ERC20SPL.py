@@ -8,10 +8,10 @@ from solana.rpc.types import TokenAccountOpts, TxOpts
 from solana.transaction import Transaction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
-from solders.signature import Signature
 from spl.token import instructions
 from spl.token.constants import TOKEN_PROGRAM_ID
 
+from integration.tests.basic.helpers.rpc_checks import assert_solana_address_was_not_used_in_trx
 from utils import metaplex
 from utils.consts import ZERO_ADDRESS, METAPLEX_ADDRESS, SPL_TOKEN_ADDRESS, CALL_SOLANA_ADDRESS, SOLANA_NATIVE_ADDRESS
 from utils.erc20wrapper import ERC20Wrapper
@@ -218,15 +218,12 @@ class TestERC20SPL:
         new_account = self.accounts.create_account()
 
         receipt = erc20_contract.transfer(erc20_contract.account, new_account.address, 100)
-        sol_trx = self.web3_client.get_solana_trx_by_neon(receipt["transactionHash"].hex())["result"][0]
-        solana_resp = evm_loader.get_transaction(Signature.from_string(sol_trx))
-        sol_accounts = solana_resp.value.transaction.transaction.message.account_keys
         precompiled_addresses = [METAPLEX_ADDRESS, SPL_TOKEN_ADDRESS, CALL_SOLANA_ADDRESS, SOLANA_NATIVE_ADDRESS]
         for precompiled_address in precompiled_addresses:
             program_address = evm_loader.ether2program(precompiled_address[2:])[0]
-            assert (
-                Pubkey.from_string(program_address) not in sol_accounts
-            ), f"Program address for {precompiled_address} is in the account list"
+            assert_solana_address_was_not_used_in_trx(
+                receipt["transactionHash"].hex(), program_address, self.web3_client, evm_loader
+            )
 
     @pytest.mark.parametrize(
         "block_len, expected_exception, msg",

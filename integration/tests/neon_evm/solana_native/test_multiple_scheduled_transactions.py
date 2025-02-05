@@ -287,7 +287,9 @@ class TestMultipleScheduledTrx:
         additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
         # check emulated accounts don't contain precompiled program address
-        assert Pubkey.from_string(evm_loader.ether2program(SPL_TOKEN_ADDRESS[2:])[0]) not in additional_accounts
+        assert (
+            Pubkey.from_string(evm_loader.ether2program(SPL_TOKEN_ADDRESS[2:])[0]) not in additional_accounts
+        ), "Precompiled program address is in the list of accounts"
 
         tx0 = ScheduledTransaction(
             neon_user.neon_address, None, nonce, target=spl_token_caller.eth_address, index=0, value=0, call_data=data
