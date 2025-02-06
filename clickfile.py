@@ -420,6 +420,35 @@ def install_ui_requirements():
     subprocess.check_call("playwright install chromium", shell=True)
 
 
+def get_service_tags_for_cost_reports(
+    evm_tag: str,
+    proxy_tag: str,
+    repo: RepoType,
+    db: PostgresTestResultsHandler,
+    history_depth_limit: int,
+    version_branch: str,
+) -> tuple[str, str, list[str]]:
+    compared_service_tag = evm_tag if repo == "evm" else proxy_tag
+    other_service_tag = evm_tag if repo == "proxy" else proxy_tag
+
+    # define the tags against which the comparison will be done
+    previous_tags: list[str]
+
+    if re.fullmatch(GITHUB_TAG_PATTERN, compared_service_tag):
+        previous_tags = db.get_previous_tags(
+            repo=repo,
+            tag=compared_service_tag,
+            limit=history_depth_limit,
+        )
+    else:
+        if version_branch:
+            previous_tags = [version_branch]
+        else:
+            previous_tags = ["latest"]
+
+    return compared_service_tag, other_service_tag, previous_tags
+
+
 @click.group()
 def cli():
     pass
@@ -1201,26 +1230,15 @@ def compare_dapp_results(
     latest - develop branch
     """
     click.echo(f"compare_dapp_results: {locals()}")
-
-    compared_service_tag = evm_tag if repo == "evm" else proxy_tag
-    other_service_tag = evm_tag if repo == "proxy" else proxy_tag
     db = PostgresTestResultsHandler()
-
-    # define the tags against which the comparison will be done
-    previous_tags: list[str]
-
-    if re.fullmatch(GITHUB_TAG_PATTERN, compared_service_tag):
-        previous_tags = db.get_previous_tags(
-            repo=repo,
-            tag=compared_service_tag,
-            limit=history_depth_limit,
-        )
-    else:
-        if version_branch:
-            previous_tags = [version_branch]
-        else:
-            previous_tags = ["latest"]
-
+    compared_service_tag, other_service_tag, previous_tags = get_service_tags_for_cost_reports(
+        evm_tag=evm_tag,
+        proxy_tag=proxy_tag,
+        repo=repo,
+        db=db,
+        history_depth_limit=history_depth_limit,
+        version_branch=version_branch,
+    )
     click.echo(f"previous_tags: {previous_tags}")
 
     historical_data = db.get_historical_data(
@@ -1261,11 +1279,36 @@ def compare_dapp_results(
 
 
 @dapps.command("validate_cost_reports", help="Validate cost reports data")
-@click.option("--directory", default="reports", help="Directory with reports")
+@click.option("--repo", type=click.Choice(tp.get_args(RepoType)), required=True)
+@click.option("--evm_tag", required=True)
+@click.option("--proxy_tag", required=True)
+@click.option("--version_branch", required=True)
+@click.option("--history_depth_limit", type=int, help="How many runs to include into statistical analysis")
 def validate_cost_reports(
-    directory: str,
+    repo: RepoType,
+    evm_tag: str,
+    proxy_tag: str,
+    version_branch: str,
+    history_depth_limit: int,
 ):
-    report_data = prepare_report_data(directory)  # noqa
+    db = PostgresTestResultsHandler()
+    compared_service_tag, other_service_tag, previous_tags = get_service_tags_for_cost_reports(
+        evm_tag=evm_tag,
+        proxy_tag=proxy_tag,
+        repo=repo,
+        db=db,
+        history_depth_limit=history_depth_limit,
+        version_branch=version_branch,
+    )
+    click.echo(f"previous_tags: {previous_tags}")
+
+    historical_data = db.get_historical_data(
+        depth=3,
+        repo=repo,
+        latest_tag=compared_service_tag,
+        previous_tags=previous_tags,
+    )
+    print(historical_data)
 
 
 @dapps.command("add_pr_comment", help="Add PR comment with dApp cost reports")
