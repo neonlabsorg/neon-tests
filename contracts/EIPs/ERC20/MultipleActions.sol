@@ -126,7 +126,7 @@ contract MultipleActionsERC20 {
         erc20.transfer(transfer_to, transfer_amount);
         for (uint256 i = 0; i < 50; i++) {
             current_balance = erc20.balanceOf(address(this));
-            require( current_balance == expected_balance, "balance not updated");
+            require(current_balance == expected_balance, "balance not updated");
         }
         erc20.transfer(transfer_to, transfer_amount);
     }
