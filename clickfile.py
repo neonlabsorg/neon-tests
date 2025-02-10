@@ -588,6 +588,15 @@ def run(
             command = "py.test integration/tests/basic --ignore=integration/tests/basic/erc/test_ERC20SPLnew.py"
         if numprocesses:
             command = f"{command} --numprocesses {numprocesses} --dist loadgroup"
+
+    elif name == "basic_extended":
+        # run basic excluding tests for ERC20SPLNew contract
+        if network == "mainnet":
+            command = "py.test integration/tests/basic -m mainnet"
+        else:
+            command = "py.test integration/tests/basic"
+        if numprocesses:
+            command = f"{command} --numprocesses {numprocesses} --dist loadgroup"
     elif name == "tracer":
         command = "py.test -n 5 integration/tests/tracer"
     elif name == "services":
