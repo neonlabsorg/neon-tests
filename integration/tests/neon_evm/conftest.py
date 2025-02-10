@@ -265,6 +265,21 @@ def erc20_for_spl_factory_contract(
 
 
 @pytest.fixture(scope="session")
+def erc20_for_spl_new_factory_contract(
+    operator_keypair, evm_loader, sender_with_tokens, treasury_pool, neon_api_client, holder_acc
+):
+    return evm_loader.deploy_contract(
+        operator_keypair,
+        sender_with_tokens,
+        "external/neon-contracts/erc20_for_spl_new_factory",
+        neon_api_client,
+        treasury_pool,
+        contract_name="ERC20ForSplFactory",
+        version="0.8.24",
+    )
+
+
+@pytest.fixture(scope="session")
 def neon_rpc_client(environment: EnvironmentConfig) -> NeonApiRpcClient:
     return NeonApiRpcClient(url=environment.neon_core_api_rpc_url, chain_id=environment.network_ids["neon"])
 

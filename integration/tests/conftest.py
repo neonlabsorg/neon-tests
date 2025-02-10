@@ -4,6 +4,7 @@ import os
 import random
 import string
 import time
+
 import allure
 import typing as tp
 
@@ -28,7 +29,7 @@ from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
 from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS
 from utils.erc20 import ERC20
-from utils.erc20wrapper import ERC20Wrapper
+from utils.erc20wrapper import ERC20Wrapper, ERC20NewWrapper
 from utils.evm_loader import EvmLoader
 from utils.operator import Operator
 from utils.solana_client import SolanaClient
@@ -186,7 +187,45 @@ def erc20_spl(
         f"Test {symbol}",
         symbol,
         sol_client_session,
-        contract_name="ERC20ForSpl",
+        solana_account=solana_account,
+        mintable=False,
+        bank_account=eth_bank_account,
+        account=accounts_session[0],
+        evm_loader_id=environment.evm_loader,
+    )
+    erc20.token_mint.approve(
+        source=erc20.solana_associated_token_acc,
+        delegate=sol_client_session.get_erc_auth_address(
+            erc20.account.address,
+            erc20.contract.address,
+            environment.evm_loader,
+        ),
+        owner=erc20.solana_acc.pubkey(),
+        amount=1000000000000000,
+        opts=TxOpts(preflight_commitment=commitment.Confirmed, skip_confirmation=False),
+    )
+
+    erc20.claim(erc20.account, bytes(erc20.solana_associated_token_acc), 100000000000000)
+    yield erc20
+
+
+@pytest.fixture(scope="session")
+def erc20_spl_new(
+    web3_client_session: NeonChainWeb3Client,
+    faucet,
+    environment: EnvironmentConfig,
+    sol_client_session,
+    solana_account,
+    eth_bank_account,
+    accounts_session,
+) -> tp.Generator[ERC20NewWrapper, tp.Any, tp.Any]:
+    symbol = "".join([random.choice(string.ascii_uppercase) for _ in range(3)])
+    erc20 = ERC20NewWrapper(
+        web3_client_session,
+        faucet,
+        f"Test {symbol}",
+        symbol,
+        sol_client_session,
         solana_account=solana_account,
         mintable=False,
         bank_account=eth_bank_account,
@@ -227,7 +266,7 @@ def erc20_spl_mintable(
     solana_account,
     accounts_session,
     eth_bank_account,
-) -> tp.Generator[ERC20Wrapper, tp.Any, tp.Any]:
+) -> tp.Generator[ERC20NewWrapper, tp.Any, tp.Any]:
     symbol = "".join([random.choice(string.ascii_uppercase) for _ in range(3)])
     erc20 = ERC20Wrapper(
         web3_client_session,
@@ -235,7 +274,31 @@ def erc20_spl_mintable(
         f"Test {symbol}",
         symbol,
         sol_client_session,
-        contract_name="ERC20ForSplMintable",
+        solana_account=solana_account,
+        mintable=True,
+        bank_account=eth_bank_account,
+        account=accounts_session[0],
+    )
+    erc20.mint_tokens(erc20.account, erc20.account.address)
+    yield erc20
+
+
+@pytest.fixture(scope="session")
+def erc20_spl_mintable_new(
+    web3_client_session: NeonChainWeb3Client,
+    faucet,
+    sol_client_session,
+    solana_account,
+    accounts_session,
+    eth_bank_account,
+) -> tp.Generator[ERC20NewWrapper, tp.Any, tp.Any]:
+    symbol = "".join([random.choice(string.ascii_uppercase) for _ in range(3)])
+    erc20 = ERC20NewWrapper(
+        web3_client_session,
+        faucet,
+        f"Test {symbol}",
+        symbol,
+        sol_client_session,
         solana_account=solana_account,
         mintable=True,
         bank_account=eth_bank_account,
@@ -562,7 +625,7 @@ def call_solana_caller(accounts, web3_client):
 
 
 @pytest.fixture(scope="function")
-def counter_resource_address(call_solana_caller, accounts, web3_client) -> bytes:
+def counter_resource_address(call_solana_caller, accounts, web3_client) -> tp.Generator[bytes, None, None]:
     tx = web3_client.make_raw_tx(accounts[0].address)
     salt = web3_client.text_to_bytes32("".join(random.choices(string.ascii_letters, k=5)))
     instruction_tx = call_solana_caller.functions.createResource(salt, 8, 100000, bytes(COUNTER_ID)).build_transaction(

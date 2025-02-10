@@ -136,6 +136,24 @@ class SolanaClient(solana.rpc.api.Client):
         except Exception as e:
             print(f"An error occurred: {e}")
 
+    def is_ata_initialized(self, owner: Pubkey, token_mint: Pubkey) -> bool:
+        """
+        Checks if an associated token account (ATA) for the given owner and token mint is initialized.
+
+        :param owner: Public key of the token account owner.
+        :param token_mint: Public key of the token mint.
+        :return: True if the ATA is initialized, False otherwise.
+        """
+        ata: Pubkey = get_associated_token_address(owner, token_mint)
+        account_info = self.get_account_info(ata, commitment=Confirmed)
+
+        if account_info.value is not None:
+            # Further check to ensure it's initialized correctly as an associated token account
+            data = account_info.value
+            if data.owner == TOKEN_PROGRAM_ID:
+                return True
+        return False
+
     def get_account_whole_info(
         self,
         pubkey: Pubkey,

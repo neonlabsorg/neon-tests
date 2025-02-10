@@ -293,6 +293,7 @@ class Web3Client:
     def send_all_scheduled_transactions(self, raw_transactions: tp.List[ScheduledTransaction]):
         for trx in raw_transactions:
             self.send_scheduled_transaction(trx)
+            self.wait_for_transaction_receipt(trx.hash())
 
     @allure.step("Create raw transaction EIP-1559")
     def make_raw_tx_eip_1559(
@@ -450,7 +451,7 @@ class Web3Client:
         address,
         contract_file,
         contract_name=None,
-        solc_version="0.8.28",
+        solc_version="0.8.12",
         import_remapping: tp.Optional[dict] = None,
     ):
         contract_interface = helpers.get_contract_interface(
