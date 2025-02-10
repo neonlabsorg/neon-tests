@@ -2,10 +2,9 @@ import pytest
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 
-from integration.tests.neon_evm.utils.contract import deploy_contract, make_contract_call_trx
+from integration.tests.neon_evm.utils.ethereum import make_contract_call_trx
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
 from utils.evm_loader import EvmLoader
-from utils.solana_client import SolanaClient
 from utils.types import Contract, Caller, TreasuryPool
 
 
@@ -18,24 +17,22 @@ from utils.types import Contract, Caller, TreasuryPool
     ],
 )
 class TestStorageCells:
-
     def test_save_zero(
-            self,
-            operator_keypair: Keypair,
-            user_account: Caller,
-            evm_loader: EvmLoader,
-            treasury_pool: TreasuryPool,
-            neon_api_client: NeonApiClient,
-            holder_acc: Pubkey,
-            sol_client: SolanaClient,
-            function_signature: str,
+        self,
+        operator_keypair: Keypair,
+        user_account: Caller,
+        evm_loader: EvmLoader,
+        treasury_pool: TreasuryPool,
+        neon_api_client: NeonApiClient,
+        holder_acc: Pubkey,
+        function_signature: str,
     ):
         # Deploy the contract
-        contract: Contract = deploy_contract(
+        contract: Contract = evm_loader.deploy_contract(
             operator=operator_keypair,
             user=user_account,
             contract_file_name="neon_evm/store_zeros.sol",
-            evm_loader=evm_loader,
+            neon_api_client=neon_api_client,
             treasury_pool=treasury_pool,
             contract_name="saveZeros",
             version="0.8.12",
@@ -55,10 +52,7 @@ class TestStorageCells:
 
         # Actually execute the transaction
         signed_tx = make_contract_call_trx(
-            evm_loader=evm_loader,
-            user=user_account,
-            contract=contract,
-            function_signature=function_signature
+            evm_loader=evm_loader, user=user_account, contract=contract, function_signature=function_signature
         )
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
 

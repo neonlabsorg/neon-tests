@@ -6,9 +6,9 @@ import typing as tp
 import pathlib
 import logging
 
-import click
 from paramiko.client import SSHClient
 from scp import SCPClient
+from solana.rpc.commitment import Confirmed
 
 from deploy.cli.network_manager import NetworkManager
 
@@ -28,7 +28,6 @@ TF_BACKEND_CONFIG = {"bucket": TFSTATE_BUCKET, "key": TF_STATE_KEY, "region": TF
 os.environ["TF_VAR_run_number"] = os.environ.get("GITHUB_RUN_NUMBER", "0")
 os.environ["TF_VAR_branch"] = os.environ.get("GITHUB_REF_NAME", "develop").replace("/", "-").replace("_", "-")
 
-
 terraform = Terraform(working_dir=pathlib.Path(__file__).parent.parent / "hetzner")
 
 WEB3_CLIENT = NeonChainWeb3Client(os.environ.get("PROXY_URL"))
@@ -45,7 +44,7 @@ def set_github_env(envs: tp.Dict, upper=True) -> None:
 
 
 def deploy_infrastructure(
-    evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_branch, use_real_price: bool = False
+    evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_branch, devnet_solana_url, use_real_price: bool = False
 ) -> dict:
     print(
         f"Deploy infrastructure with evm_tag: {evm_tag}, "
@@ -57,6 +56,8 @@ def deploy_infrastructure(
     os.environ["TF_VAR_proxy_image_tag"] = proxy_tag
     os.environ["TF_VAR_proxy_model_commit"] = proxy_branch
     os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("GITHUB_REPOSITORY_OWNER")
+    os.environ["TF_VAR_devnet_solana_url"] = devnet_solana_url
+    os.environ["TF_LOG"] = "DEBUG"
 
     if use_real_price:
         os.environ["TF_VAR_use_real_price"] = "1"
@@ -66,7 +67,7 @@ def deploy_infrastructure(
     print(f"code: {return_code}")
     print(f"stdout: {stdout}")
     print(f"stderr: {stderr}")
-    with open(f"terraform.log", "w") as file:
+    with open("terraform.log", "w") as file:
         file.write(stdout)
         file.write(stderr)
     if return_code != 0:
@@ -88,6 +89,7 @@ def destroy_infrastructure():
     os.environ["TF_VAR_proxy_image_tag"] = "latest"
     os.environ["TF_VAR_proxy_model_commit"] = "develop"
     os.environ["TF_VAR_dockerhub_org_name"] = os.environ.get("GITHUB_REPOSITORY_OWNER")
+    os.environ["TF_VAR_devnet_solana_url"] = os.environ.get("DEVNET_SOLANA_URL")
 
     log = logging.getLogger()
     log.handlers = []
@@ -126,7 +128,8 @@ def download_remote_docker_logs():
     ssh_client.load_system_host_keys()
     ssh_client.connect(solana_ip, username="root", key_filename=ssh_key, timeout=120)
 
-    upload_service_logs(ssh_client, "opt_solana_1", artifact_logs)
+    upload_service_logs(ssh_client, "solana", artifact_logs)
+    ssh_client.close()
 
     ssh_client.connect(proxy_ip, username="root", key_filename=ssh_key, timeout=120)
     services = ["postgres", "dbcreation", "indexer", "proxy", "faucet"]
@@ -167,7 +170,9 @@ def get_solana_accounts_transactions_compute_units(eth_transaction):
     print(f"minimum_ledger_slot={sol_client.get_minimum_ledger_slot()}")
     print(f"first_available_block={sol_client.get_first_available_block()}")
     print(f"get_slot={sol_client.get_slot()}")
-    tr = sol_client.get_transaction(Signature.from_string(trx["result"][0]), max_supported_transaction_version=0)
+    tr = sol_client.get_transaction(
+        Signature.from_string(trx["result"][0]), max_supported_transaction_version=0, commitment=Confirmed
+    )
     print(f"get_transaction({trx}): {tr}")
 
     solana_transaction_hashes = trx["result"]
@@ -177,19 +182,9 @@ def get_solana_accounts_transactions_compute_units(eth_transaction):
         solana_transaction = sol_client.get_transaction(
             tx_sig=Signature.from_string(solana_transaction_hash),
             max_supported_transaction_version=0,
+            commitment=Confirmed,
         )
-
-        try:
-            log_messages = solana_transaction.value.transaction.meta.log_messages
-        except AttributeError:
-            click.echo(f"WARNING: no log messages in transaction {solana_transaction_hash}: {solana_transaction}")
-            continue
-
-        for message in log_messages[::-1]:
-            match = re.match(r'^.+consumed (\d+) of \d+ compute units$', message)
-            if match:
-                compute_units += int(match.group(1))
-                break
+        compute_units += int(solana_transaction.value.transaction.meta.compute_units_consumed)
 
     if tr.value.transaction.transaction.message.address_table_lookups:
         alt = tr.value.transaction.transaction.message.address_table_lookups

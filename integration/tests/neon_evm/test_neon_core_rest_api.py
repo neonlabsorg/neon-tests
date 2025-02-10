@@ -2,15 +2,15 @@ import base58
 import pytest
 from eth_utils import abi, to_text
 
-from .utils.contract import deploy_contract, get_contract_bin
+from .utils.contract import get_contract_bin
 
 
 def decode_pubkey(pubkey):
     return base58.b58encode(bytes(pubkey)).decode("utf-8")
 
 
-def test_get_storage_at(neon_api_client, operator_keypair, user_account, evm_loader, treasury_pool):
-    contract = deploy_contract(operator_keypair, user_account, "hello_world", evm_loader, treasury_pool)
+def test_get_storage_at(neon_api_client, operator_keypair, user_account, evm_loader, treasury_pool, sol_client):
+    contract = evm_loader.deploy_contract(operator_keypair, user_account, "hello_world", neon_api_client, treasury_pool)
     storage = neon_api_client.get_storage_at(contract.eth_address.hex())["value"]
     zero_array = [0 for _ in range(31)]
     assert storage == zero_array + [5]
@@ -64,7 +64,7 @@ def test_emulate_contract_deploy(neon_api_client, user_account):
 
 
 def test_emulate_call_contract_function(neon_api_client, operator_keypair, treasury_pool, evm_loader, user_account):
-    contract = deploy_contract(operator_keypair, user_account, "hello_world", evm_loader, treasury_pool)
+    contract = evm_loader.deploy_contract(operator_keypair, user_account, "hello_world", neon_api_client, treasury_pool)
     assert contract.eth_address
     data = abi.function_signature_to_4byte_selector("call_hello_world()")
 
@@ -86,23 +86,26 @@ def test_emulate_with_small_amount_of_steps(neon_api_client, evm_loader, user_ac
 
 
 @pytest.mark.parametrize("contract_name", ["BlockTimestamp", "BlockNumber"])
-def test_emulate_call_contract_with_block_timestamp_number(contract_name, neon_api_client, operator_keypair,
-                                                           treasury_pool, evm_loader):
+def test_emulate_call_contract_with_block_timestamp_number(
+    contract_name, neon_api_client, operator_keypair, treasury_pool, evm_loader
+):
     user_account = evm_loader.make_new_user(operator_keypair)
-    contract = deploy_contract(
+    contract = evm_loader.deploy_contract(
         operator_keypair,
         user_account,
         "common/Block.sol",
-        evm_loader,
+        neon_api_client,
         treasury_pool,
-        version="0.8.10",
         contract_name=contract_name,
+        version="0.8.10",
     )
 
-    result = neon_api_client.emulate_contract_call(user_account.eth_address.hex(),
-                                                   contract=contract.eth_address.hex(),
-                                                   function_signature="addDataToMapping(uint256,uint256)",
-                                                   params=[1, 2])
+    result = neon_api_client.emulate_contract_call(
+        user_account.eth_address.hex(),
+        contract=contract.eth_address.hex(),
+        function_signature="addDataToMapping(uint256,uint256)",
+        params=[1, 2],
+    )
 
     assert result["exit_status"] == "succeed", f"The 'exit_status' field is not succeed. Result: {result}"
     assert result["is_timestamp_number_used"], f"Timestamp number is not used. Result: {result}"
