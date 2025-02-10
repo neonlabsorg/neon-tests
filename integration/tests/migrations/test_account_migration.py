@@ -167,7 +167,7 @@ def get_solana_accounts_by_emulation(web3_client, sender, contract, function_sig
     signed_tx = web3_client.eth.account.sign_transaction(tx, sender.key)
     result = web3_client.get_neon_emulate(str(signed_tx.rawTransaction.hex())[2:])
     print(result)
-    return [item["pubkey"] for item in result["result"]["solana_accounts"]]
+    return [item["pubkey"] for item in result["result"]["solanaAccounts"]]
 
 
 def print_solana_accounts_info(sol_client, accounts, action):
@@ -197,7 +197,7 @@ class TestAccountMigration:
         token_diff = web3_client.to_main_currency(token_balance_after - token_balance_before)
         assert_profit(sol_diff, sol_price, token_diff, neon_price, web3_client.native_token_name)
 
-    def test_transfers(self, alice, bob, accounts, web3_client, trx_list, check_operator_balance):
+    def test_transfers(self, alice, bob, accounts, web3_client, trx_list):
         web3_client.send_neon(alice, bob, 5)
         for i in range(5):
             receipt = web3_client.send_neon(alice, accounts[i + 1], 5)
@@ -207,10 +207,10 @@ class TestAccountMigration:
             trx_list.append(receipt["transactionHash"])
             assert receipt["status"] == 1
 
-    def test_contract_deploy_economics(self, alice, bob, web3_client, check_operator_balance):
+    def test_contract_deploy_economics(self, alice, bob, web3_client):
         web3_client.deploy_and_get_contract("common/EventCaller", "0.8.12", bob)
 
-    def test_contract_deploy_and_interact(self, web3_client, accounts, trx_list, check_operator_balance):
+    def test_contract_deploy_and_interact(self, web3_client, accounts, trx_list):
         acc1 = accounts[7]
         acc2 = accounts[8]
         contract_a, receipt = web3_client.deploy_and_get_contract(
@@ -246,13 +246,11 @@ class TestAccountMigration:
         for log in (event_b2_logs, event_c1_logs, event_c2_logs):
             assert log == (), f"Trx shouldn't contain logs for the events: eventB2, eventC1, eventC2_log0. Log: {log}"
 
-    def test_economics_for_erc721_mint(self, erc721, web3_client, check_operator_balance):
+    def test_economics_for_erc721_mint(self, erc721, web3_client):
         seed = web3_client.text_to_bytes32(gen_hash_of_block(8))
         erc721.mint(seed, erc721.account.address, "uri")
 
-    def test_erc721_interaction(
-        self, erc721, web3_client, sol_client, bob, alice, accounts, trx_list, check_operator_balance
-    ):
+    def test_erc721_interaction(self, erc721, web3_client, sol_client, bob, alice, accounts, trx_list):
         seed = web3_client.text_to_bytes32(gen_hash_of_block(8))
 
         solana_accounts = get_solana_accounts_by_emulation(
@@ -314,7 +312,7 @@ class TestAccountMigration:
             assert balance_usr1_after - balance_usr1_before == -1
             assert balance_usr2_after - balance_usr2_before == 1
 
-    def test_erc20_interaction(self, erc20, web3_client, bob, alice, accounts, trx_list, check_operator_balance):
+    def test_erc20_interaction(self, erc20, web3_client, bob, alice, accounts, trx_list):
         balance_before = erc20.contract.functions.balanceOf(erc20.account.address).call()
         amount = 500
         resp = erc20.mint_tokens(erc20.account, erc20.account.address, amount)
@@ -333,7 +331,7 @@ class TestAccountMigration:
 
         balance_before = erc20.contract.functions.balanceOf(tom.address).call()
         total_before = erc20.contract.functions.totalSupply().call()
-        resp = erc20.burn(tom, tom.address, amount)
+        resp = erc20.burn(tom, amount)
         trx_list.append(resp["transactionHash"])
 
         balance_after = erc20.contract.functions.balanceOf(tom.address).call()
