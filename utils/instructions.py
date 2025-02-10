@@ -152,7 +152,6 @@ def make_ExecuteTrxFromAccount(
 
 
 def make_ExecuteTrxFromAccountDataIterativeOrContinue(
-    index: int,
     step_count: int,
     operator: Keypair,
     operator_balance: Pubkey,
@@ -165,7 +164,8 @@ def make_ExecuteTrxFromAccountDataIterativeOrContinue(
 ):
     # 0x35 - TransactionStepFromAccount
     # 0x36 - TransactionStepFromAccountNoChainId
-    data = tag.to_bytes(1, "little") + treasury.buffer + step_count.to_bytes(4, "little") + index.to_bytes(4, "little")
+    data = tag.to_bytes(1, "little") + treasury.buffer + step_count.to_bytes(4, "little")
+
     print("make_ExecuteTrxFromAccountDataIterativeOrContinue accounts")
     print("Holder: ", holder_address)
     print("Operator: ", operator.pubkey())
@@ -464,22 +464,43 @@ def make_ScheduledTransactionStartFromInstruction(
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
 
-def make_ScheduledTransactionDestroy(operator, signer, balance_account, treasury, tree_account, evm_loader_id):
+def make_ScheduledTransactionDestroy(
+    signer: Pubkey, balance_account: Pubkey, treasury: TreasuryPool, tree_account: Pubkey, evm_loader_id: Pubkey
+):
     data = InstructionTags.SCHEDULED_TRANSACTION_DESTROY + treasury.buffer
     accounts = [
-        AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
+        AccountMeta(pubkey=signer, is_signer=True, is_writable=True),
         AccountMeta(pubkey=balance_account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
         AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
-        AccountMeta(pubkey=signer.pubkey(), is_signer=False, is_writable=True),
     ]
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
 
 def make_ScheduledTransactionFinish(
-    operator: Keypair, operator_balance: Pubkey, evm_loader_id: Pubkey, holder_address: Pubkey, tree_account: Pubkey
+    operator: Pubkey, operator_balance: Pubkey, evm_loader_id: Pubkey, holder_address: Pubkey, tree_account: Pubkey
 ):
     data = InstructionTags.SCHEDULED_TRANSACTION_FINISH
+    accounts = [
+        AccountMeta(pubkey=holder_address, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=operator, is_signer=True, is_writable=True),
+        AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True),
+    ]
+    return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
+
+
+def make_ScheduledTransactionSkipFromInstruction(
+    index: int,
+    neon_trx: bytes,
+    operator: Keypair,
+    operator_balance: Pubkey,
+    holder_address: Pubkey,
+    tree_account: Pubkey,
+    evm_loader_id: Pubkey,
+):
+    data = InstructionTags.SCHEDULED_TRANSACTION_SKIP_FROM_INSTRUCTION
+    data += index.to_bytes(4, "little") + neon_trx
     accounts = [
         AccountMeta(pubkey=holder_address, is_signer=False, is_writable=True),
         AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
@@ -489,18 +510,15 @@ def make_ScheduledTransactionFinish(
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
 
-def make_ScheduledTransactionSkipFromInstruction(
-    index: int, neon_trx: bytes, operator: Keypair, operator_balance: Pubkey, holder_address: Pubkey, tree_account: Pubkey, evm_loader_id: Pubkey
-):
-    data = InstructionTags.SCHEDULED_TRANSACTION_SKIP_FROM_INSTRUCTION
-    data += index.to_bytes(4, "little") + neon_trx
-    accounts = [
-        AccountMeta(pubkey=holder_address, is_signer=False, is_writable=True),
-        AccountMeta(pubkey=tree_account, is_signer=False, is_writable=True),
-        AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
-        AccountMeta(pubkey=operator_balance, is_signer=False, is_writable=True)
-    ]
-    return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
+def make_DeleteHolderAccount(signer: Pubkey, holder_account: Pubkey, evm_loader_id):
+    return Instruction(
+        program_id=evm_loader_id,
+        data=bytes.fromhex("25"),
+        accounts=[
+            AccountMeta(pubkey=holder_account, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=signer, is_signer=True, is_writable=True),
+        ],
+    )
 
 
 def get_compute_unit_price_eip_1559(

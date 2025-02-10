@@ -16,7 +16,8 @@ After this, you can use from the project root directory:
 
 This file contains a lot of utilities to work with this repository, such as:
 1. update deps
-2. download test contracts
+2. install pre-commit-hook
+3. download test contracts
 3. run different tests
 4. prepare data and stand for run tests
 
@@ -28,12 +29,27 @@ Please use clickfile.py to install deps because our web3 has conflicts with sola
 ./clickfile.py requirements
 ```
 
+
+## Install Pre-commit hooks
+
+Please install pre-commit hooks to run linter and formatter in auto pre-commit mode
+```bash
+pre-commit install
+```
+
 ## Download test contracts
 
 To download test contracts from the Neon EVM repo, you need to use:
 
 ```bash
 ./clickfile.py update-contracts
+```
+
+## Set environment variables for tests
+
+To set variable DOCKER_HUB_ORG_NAME text to terminal
+```
+export DOCKER_HUB_ORG_NAME=neonlabsorg
 ```
 
 ## Run OpenZeppelin tests
@@ -45,13 +61,10 @@ To run OpenZeppelin tests just use the next command:
 
 ## Run neon evm tests
 
-To run neon evm tests:
-1. set environment variables: 
-   SOLANA_URL: by default http://solana:8899
-   NEON_CORE_API_URL: by default http://neon_api:8085/api
-2. run the next command:
+To run neon evm tests usd the next command:
+
 ```bash
-./clickfile.py run evm --numprocesses 6
+./clickfile.py run evm --network <your-stand> --numprocesses 6
 ```
 
 ## Run tests manually
@@ -70,7 +83,7 @@ To run tests with mark "mainnet"
 ./clickfile.py run basic -n mainnet
 ```
 
-This command collects 73 items and run it on our mainnet. 
+This command collects 73 items and run it on our mainnet.
 Bank accounts envs have to be set up:
 
 ```

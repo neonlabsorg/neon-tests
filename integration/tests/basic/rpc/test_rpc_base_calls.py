@@ -1,9 +1,7 @@
-import time
 import typing as tp
 
 import pytest
 import web3
-from eth_utils import keccak
 
 import allure
 from integration.tests.basic.helpers import rpc_checks
@@ -76,7 +74,6 @@ UNSUPPORTED_METHODS = [
     "eth_getWork",
     "eth_hashrate",
 ]
-
 
 
 @allure.feature("JSON-RPC validation")
@@ -251,9 +248,9 @@ class TestRpcBaseCalls:
     @pytest.mark.mainnet
     def test_eth_block_number_next_block_different(self, json_rpc_client):
         response = json_rpc_client.send_rpc(method="eth_blockNumber")
-        assert wait_condition(lambda: json_rpc_client.send_rpc(
-            method="eth_blockNumber")["result"] != response["result"], timeout_sec=10)
-
+        assert wait_condition(
+            lambda: json_rpc_client.send_rpc(method="eth_blockNumber")["result"] != response["result"], timeout_sec=10
+        )
 
     # Geth returns different error message for None NDEV-3169
     @pytest.mark.mainnet

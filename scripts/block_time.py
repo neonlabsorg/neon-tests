@@ -3,17 +3,16 @@ import sys
 import time
 from datetime import datetime, timezone
 from solana.rpc.core import RPCException
+from utils.solana_client import SolanaClient
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(SCRIPT_DIR))
 
-from utils.solana_client import SolanaClient
-
 sol_client = SolanaClient("https://solana-api.instantnodes.io/token-OjVeh8exYGMeFh7QKIRLsF93T4xratD6")
 
-expected_time = '20-10-2024 00:00:00'
+expected_time = "20-10-2024 00:00:00"
 
-dt = datetime.strptime(expected_time, '%d-%m-%Y %H:%M:%S')
+dt = datetime.strptime(expected_time, "%d-%m-%Y %H:%M:%S")
 unix_time = int(time.mktime(dt.timetuple()))
 
 utc_unix_time = int(dt.replace(tzinfo=timezone.utc).timestamp())

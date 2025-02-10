@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field, model_validator
 
 from utils.models.mixins import ForbidExtra
 from integration.tests.basic.helpers.basic import NeonEventType
-from integration.tests.basic.helpers.basic import NeonEventType, SolanaInstruction
 from utils.models.model_types import (
     BalanceString,
     EstimateGasPriceString,
@@ -236,7 +235,6 @@ class ReceiptDetails(ForbidExtra):
     root: tp.Optional[HexString] = None
     scheduledParentTransactionHashes: tp.Optional[List[HexString]] = None
     scheduledChildTransactionHashes: tp.Optional[List[HexString]] = None
-
 
     @model_validator(mode="before")
     @classmethod
