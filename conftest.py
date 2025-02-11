@@ -64,7 +64,7 @@ def pytest_addoption(parser: Parser):
         "--network",
         action="store",
         choices=[env.value for env in EnvName],  # noqa
-        default="devnet",
+        default="local",
         help="Which stand use",
     )
     parser.addoption(
