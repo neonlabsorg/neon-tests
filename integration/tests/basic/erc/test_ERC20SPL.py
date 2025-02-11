@@ -986,7 +986,7 @@ class TestMultipleActionsForERC20:
         transfer_amount = 100
 
         tx = self.web3_client.make_raw_tx(sender_account)
-        instruction_tx = contract.functions.mint(transfer_amount * trx_amount).build_transaction(tx)
+        instruction_tx = contract.functions.mint(transfer_amount * trx_amount * 2).build_transaction(tx)
         self.web3_client.send_transaction(sender_account, instruction_tx)
 
         hashes = []
@@ -998,7 +998,7 @@ class TestMultipleActionsForERC20:
             ).build_transaction(tx)
             instruction_tx = self.web3_client._web3.eth.account.sign_transaction(transaction, sender_account.key)
             signature = self.web3_client._web3.eth.send_raw_transaction(instruction_tx.rawTransaction)
-            hashes.append(signature)
+            hashes.append(signature.hex())
         for tx_hash in hashes:
             resp = self.web3_client.wait_for_transaction_receipt(tx_hash)
             assert resp.status == 1, f"Transaction {tx_hash} failed"
