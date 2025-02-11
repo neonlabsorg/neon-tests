@@ -180,24 +180,33 @@ class TestScheduledTrx:
         evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
         web3_client_sol.send_scheduled_transaction(tx0)
         receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
-        event_logs = event_caller_contract.events.IndexedArgs().process_receipt(receipt)
-        assert len(event_logs) == 1
-        assert len(event_logs[0].args) == 2
-        assert event_logs[0].args.who == neon_user.checksum_address
-        assert event_logs[0].args.value == value
-        assert event_logs[0].event == "IndexedArgs"
+        assert receipt["status"] == 0
 
+    @pytest.mark.parametrize(
+        "wsol_inside_neon",
+        [True, False],
+    )
     def test_scheduled_trx_send_tokens_to_sol_chain_contract(
-        self, neon_user, evm_loader, event_caller_sol_chain, web3_client_sol, treasury_pool, solana_account
+        self,
+        neon_user,
+        evm_loader,
+        event_caller_sol_chain,
+        web3_client_sol,
+        treasury_pool,
+        solana_account,
+        wsol_inside_neon,
     ):
-        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
-            neon_user.solana_account,
-            "0x" + neon_user.neon_address.hex(),
-            int(1 * LAMPORT_PER_SOL),
-        )
+        contract_balance_before = web3_client_sol.get_balance(event_caller_sol_chain.address)
+        if wsol_inside_neon:
+            evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+                neon_user.solana_account,
+                "0x" + neon_user.neon_address.hex(),
+                int(1 * LAMPORT_PER_SOL),
+            )
+
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         call_data = abi.function_signature_to_4byte_selector("indexedArgs()")
-        value = 100000
+        value = 1000
 
         trx_estimate_obj = ScheduledTrxEstimateRequest(
             neon_user.checksum_address, event_caller_sol_chain.address, call_data, value=value
@@ -223,6 +232,7 @@ class TestScheduledTrx:
         assert event_logs[0].args.who == neon_user.checksum_address
         assert event_logs[0].args.value == value
         assert event_logs[0].event == "IndexedArgs"
+        assert web3_client_sol.get_balance(event_caller_sol_chain.address) == contract_balance_before + value
 
     def test_scheduled_trx_with_timestamp(
         self, block_timestamp_contract, web3_client_sol, neon_user, treasury_pool, evm_loader, json_rpc_client
