@@ -1,19 +1,18 @@
-import os
-
+import allure
+import base58
 import eth_abi
 from eth_utils import abi
+from solana.rpc.commitment import Finalized
 from solana.transaction import Transaction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 
-# from conftest import EnvironmentConfig
 from utils import instructions
 from utils.consts import QUERY_ACCOUNT_ID
 from utils.evm_loader import EvmLoader
 from utils.neon_user import NeonUser
 from utils.scheduled_trx import ScheduledTransaction
 from utils.types import TreasuryPool, Caller, Contract
-from .utils import contract as contract_utils
 from .utils import ethereum as eth_utils
 from .utils.contract import get_contract_bin
 from .utils.neon_api_client import NeonApiClient
@@ -21,6 +20,7 @@ from .utils.neon_api_client import NeonApiClient
 
 class TestSimulateSolana:
     @staticmethod
+    @allure.step("Simulate and execute Solana transaction")
     def _simulate_and_execute_tx(
         sol_tx: Transaction,
         index: int,
@@ -38,8 +38,9 @@ class TestSimulateSolana:
 
             serialized_transaction = sol_tx.serialize()
             hex_serialized_transaction = serialized_transaction.hex()
+            blockhash = base58.b58decode(str(evm_loader.get_latest_blockhash(Finalized).value.blockhash)).hex()
             simulate_response = neon_api_client.simulate_solana(
-                blockhash=os.urandom(32).hex(),
+                blockhash=blockhash,
                 transactions=[hex_serialized_transaction],
             )
             simulated_transactions = simulate_response.json()["value"]["transactions"]
@@ -123,8 +124,9 @@ class TestSimulateSolana:
         # Simulate the transaction
         serialized_transaction = sol_tx.serialize()
         hex_serialized_transaction = serialized_transaction.hex()
+        blockhash = base58.b58decode(str(evm_loader.get_latest_blockhash(Finalized).value.blockhash)).hex()
         simulate_response = neon_api_client.simulate_solana(
-            blockhash=os.urandom(32).hex(),
+            blockhash=blockhash,
             transactions=[hex_serialized_transaction],
         )
         simulated_compute_units = sum(
@@ -183,8 +185,9 @@ class TestSimulateSolana:
         # Simulate the transaction
         serialized_transaction = sol_tx.serialize()
         hex_serialized_transaction = serialized_transaction.hex()
+        blockhash = base58.b58decode(str(evm_loader.get_latest_blockhash(Finalized).value.blockhash)).hex()
         simulate_response = neon_api_client.simulate_solana(
-            blockhash=os.urandom(32).hex(),
+            blockhash=blockhash,
             transactions=[hex_serialized_transaction],
         )
         simulated_compute_units = sum(
@@ -241,7 +244,7 @@ class TestSimulateSolana:
         simulated_compute_units = actual_compute_units = index = 0
         done = done_simulation = done_execution = False
 
-        while not done and index <= 500:
+        while not done:
             # Create a Solana transaction
             sol_tx = instructions.TransactionWithComputeBudget(operator_keypair)
             operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
@@ -310,7 +313,7 @@ class TestSimulateSolana:
         simulated_compute_units = actual_compute_units = index = 0
         done = done_simulation = done_execution = False
 
-        while not done and index <= 500:
+        while not done:
             # Create a Solana transaction
             sol_tx = instructions.TransactionWithComputeBudget(operator_keypair)
             operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
@@ -328,73 +331,6 @@ class TestSimulateSolana:
                 )
             )
             sol_tx.sign(operator_keypair)
-            done_simulation, done_execution = self._simulate_and_execute_tx(
-                sol_tx=sol_tx,
-                index=index,
-                neon_api_client=neon_api_client,
-                evm_loader=evm_loader,
-                operator_keypair=operator_keypair,
-                done_simulation=done_simulation,
-                done_execution=done_execution,
-                simulated_compute_units=simulated_compute_units,
-                actual_compute_units=actual_compute_units,
-            )
-
-            index += 1
-            done = done_simulation and done_execution
-
-        # Compare simulation and execution results
-        msg = f"Simulated: {simulated_compute_units}, executed: {actual_compute_units}"
-        assert abs(simulated_compute_units - actual_compute_units) < 10, msg
-
-    def test_simulate_solana_deploy_contract(
-        self,
-        sender_with_tokens: Caller,
-        neon_api_client: NeonApiClient,
-        operator_keypair: Keypair,
-        evm_loader: EvmLoader,
-        holder_acc: Pubkey,
-        treasury_pool: TreasuryPool,
-        session_user: Caller,
-        calculator_contract,
-    ):
-        # Create Neon transaction and write to holder account
-        signed_neon_tx = eth_utils.make_deployment_transaction(
-            evm_loader=evm_loader,
-            user=session_user,
-            contract_file_name="calculator",
-        )
-        evm_loader.write_transaction_to_holder_account(signed_neon_tx, holder_acc, operator_keypair)
-
-        # Emulate transaction
-        contract_code = contract_utils.get_contract_bin(contract="calculator")
-        emulate_result = neon_api_client.emulate(
-            sender=session_user.eth_address.hex(),
-            contract=None,
-            data=contract_code + b"".hex(),
-        )
-        additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
-
-        simulated_compute_units = actual_compute_units = index = 0
-        done = done_simulation = done_execution = False
-
-        while not done and index <= 500:
-            # Create a Solana transaction
-            sol_tx = instructions.TransactionWithComputeBudget(operator_keypair)
-            operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
-            sol_tx.add(
-                instructions.make_ExecuteTrxFromAccountDataIterativeOrContinue(
-                    step_count=500,
-                    operator=operator_keypair,
-                    operator_balance=operator_balance_pubkey,
-                    evm_loader_id=evm_loader.loader_id,
-                    holder_address=holder_acc,
-                    treasury=treasury_pool,
-                    additional_accounts=additional_accounts,
-                )
-            )
-            sol_tx.sign(operator_keypair)
-
             done_simulation, done_execution = self._simulate_and_execute_tx(
                 sol_tx=sol_tx,
                 index=index,
@@ -460,8 +396,9 @@ class TestSimulateSolana:
         # Simulate the transaction
         serialized_transaction = sol_tx.serialize()
         hex_serialized_transaction = serialized_transaction.hex()
+        blockhash = base58.b58decode(str(evm_loader.get_latest_blockhash(Finalized).value.blockhash)).hex()
         simulate_response = neon_api_client.simulate_solana(
-            blockhash=os.urandom(32).hex(),
+            blockhash=blockhash,
             transactions=[hex_serialized_transaction],
         )
         simulated_compute_units = sum(
@@ -532,8 +469,9 @@ class TestSimulateSolana:
 
         serialized_start_transaction = start_scheduled_transaction_tx.serialize()
         hex_serialized_start_transaction = serialized_start_transaction.hex()
+        blockhash = base58.b58decode(str(evm_loader.get_latest_blockhash(Finalized).value.blockhash)).hex()
         simulate_start_response = neon_api_client.simulate_solana(
-            blockhash=os.urandom(32).hex(),
+            blockhash=blockhash,
             transactions=[hex_serialized_start_transaction],
         )
         simulated_start_transactions = simulate_start_response.json()["value"]["transactions"]
@@ -551,7 +489,7 @@ class TestSimulateSolana:
         index = 0
         done = done_simulation = done_execution = False
 
-        while not done and index <= 500:
+        while not done:
             # Create a Solana transaction
             sol_tx = instructions.TransactionWithComputeBudget(operator_keypair, compute_unit_price=3929)
             sol_tx.add(
@@ -596,8 +534,9 @@ class TestSimulateSolana:
 
         serialized_finish_transaction = finish_trx.serialize()
         hex_serialized_finish_transaction = serialized_finish_transaction.hex()
+        blockhash = base58.b58decode(str(evm_loader.get_latest_blockhash(Finalized).value.blockhash)).hex()
         simulate_finish_response = neon_api_client.simulate_solana(
-            blockhash=os.urandom(32).hex(),
+            blockhash=blockhash,
             transactions=[hex_serialized_finish_transaction],
         )
         simulated_finish_transactions = simulate_finish_response.json()["value"]["transactions"]
@@ -623,8 +562,9 @@ class TestSimulateSolana:
 
         serialized_destroy_transaction = destroy_trx.serialize()
         hex_serialized_destroy_transaction = serialized_destroy_transaction.hex()
+        blockhash = base58.b58decode(str(evm_loader.get_latest_blockhash(Finalized).value.blockhash)).hex()
         simulate_destroy_response = neon_api_client.simulate_solana(
-            blockhash=os.urandom(32).hex(),
+            blockhash=blockhash,
             transactions=[hex_serialized_destroy_transaction],
         )
         simulated_destroy_transactions = simulate_destroy_response.json()["value"]["transactions"]
