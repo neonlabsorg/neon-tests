@@ -151,9 +151,9 @@ class TestPrecompiledContracts:
             receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
             assert receipt["status"] == 1
             precompile_program_address = evm_loader.ether2program(address[2:])[0]
-            #assert_solana_address_was_not_used_in_trx(
-            #    receipt["transactionHash"].hex(), precompile_program_address, web3_client, evm_loader
-            #)
+            assert_solana_address_was_not_used_in_trx(
+                receipt["transactionHash"].hex(), precompile_program_address, web3_client, evm_loader
+            )
             if pytestconfig.getoption("--network") not in ["devnet", "night-stand"]:
                 assert self.web3_client.get_balance(address) - balance_before == amount
         else:
