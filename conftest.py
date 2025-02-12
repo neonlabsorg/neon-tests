@@ -273,6 +273,12 @@ def neon_user(evm_loader: EvmLoader, pytestconfig, bank_account, faucet, environ
     return user
 
 
+@pytest.fixture(scope="function")
+def neon_user_no_sols(pytestconfig, bank_account, faucet, environment) -> NeonUser:
+    user = NeonUser(environment.evm_loader, bank_account)
+    return user
+
+
 @pytest.fixture(scope="session")
 def treasury_pool(evm_loader, pytestconfig) -> TreasuryPool:
     index = 2
