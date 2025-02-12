@@ -158,8 +158,16 @@ class TestScheduledTrx:
             )
 
     def test_scheduled_trx_send_tokens_to_neon_chain_contract(
-        self, neon_user, evm_loader, event_caller_contract, web3_client_sol, treasury_pool
+        self, neon_user, evm_loader, event_caller_contract, web3_client_sol, treasury_pool, faucet, web3_client
     ):
+
+        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+            neon_user.solana_account,
+            "0x" + neon_user.neon_address.hex(),
+            int(1 * LAMPORT_PER_SOL),
+        )
+        faucet.request_neon(neon_user.checksum_address, 1000)
+
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         call_data = abi.function_signature_to_4byte_selector("indexedArgs()")
         value = 100000
@@ -180,7 +188,10 @@ class TestScheduledTrx:
         evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
         web3_client_sol.send_scheduled_transaction(tx0)
         receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
-        assert receipt["status"] == 0
+        assert web3_client_sol.get_balance(event_caller_contract.address) == 0
+        assert web3_client.get_balance(event_caller_contract.address) == value
+
+        assert receipt["status"] == 1
 
     @pytest.mark.parametrize(
         "wsol_inside_neon",

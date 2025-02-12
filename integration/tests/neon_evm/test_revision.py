@@ -509,6 +509,7 @@ class TestAccountRevision:
         )
 
         amount = evm_loader.get_neon_balance(sender.eth_address)
+        print("amount", amount)
 
         signed_tx1 = make_contract_call_trx(
             evm_loader,
