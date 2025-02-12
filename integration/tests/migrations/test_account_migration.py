@@ -3,11 +3,12 @@ Environment variables ACCOUNTS, ERC20_ADDRESS, ERC721_ADDRESS should be set"""
 
 import os
 import time
+import typing as tp
 
 import eth_abi
 import pytest
 from eth_utils import abi
-
+from web3.contract import Contract
 from web3.logs import DISCARD
 
 from integration.tests.economy.steps import assert_profit
@@ -15,10 +16,12 @@ from eth_account.signers.local import LocalAccount
 from utils.erc20wrapper import ERC20Wrapper
 from utils.erc721ForMetaplex import ERC721ForMetaplex
 from utils.helpers import gen_hash_of_block
+from utils.solana_client import SolanaClient
+from utils.web3client import NeonChainWeb3Client
 
 
 @pytest.fixture(scope="class")
-def accounts(web3_client):
+def accounts(web3_client) -> tp.Generator[list[LocalAccount], None, None]:
     print("VERSIONS", web3_client.get_neon_versions())
 
     account_keys = os.environ.get("ACCOUNTS").split(",")
@@ -136,6 +139,22 @@ def erc721(web3_client, faucet, bob):
         print(f"ERC721 deployed at address: {erc721.contract.address}")
 
     return erc721
+
+
+@pytest.fixture(scope="class")
+def block(web3_client, accounts) -> Contract:
+    contract_address = os.environ.get("BLOCK_ADDRESS")
+    if contract_address:
+        contract = web3_client.get_deployed_contract(
+            contract_address, contract_file="common/Block.sol", contract_name="BlockNumber"
+        )
+        print(f"Using BlockNumber deployed earlier at {contract_address}")
+    else:
+        contract, _ = web3_client.deploy_and_get_contract(
+            "common/Block.sol", "0.8.10", contract_name="BlockNumber", account=accounts[0]
+        )
+        print(f"BlockNumber deployed at address: {contract.address}")
+    return contract
 
 
 def check_counter(sender, contract, web3_client, sol_client):
@@ -384,3 +403,16 @@ class TestAccountMigration:
     def test_counter_with_map(self, web3_client, accounts, counter_with_map, sol_client):
         sender = accounts[9]
         check_counter(sender, counter_with_map, web3_client, sol_client)
+
+    def test_tx_with_timestamp(
+        self,
+        web3_client: NeonChainWeb3Client,
+        accounts: list[LocalAccount],
+        block: Contract,
+        sol_client: SolanaClient,
+    ):
+        sender = accounts[9]
+        tx = web3_client.make_raw_tx(sender)
+        tx = block.functions.accrueInterestIterative().build_transaction(tx)
+        receipt = web3_client.send_transaction(sender, tx)
+        assert receipt.status == 1
