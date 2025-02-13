@@ -209,6 +209,76 @@ class TestSimulateSolana:
         evm_loader: EvmLoader,
         holder_acc: Pubkey,
         treasury_pool: TreasuryPool,
+        multiple_actions_erc20: Contract,
+        session_user: Caller,
+    ):
+        # Create Neon transaction and write it to a holder account
+        function_signature = "mintMintTransferTransferMintMintTransferTransfer(uint256,uint256,address)"
+        params = [10000, 10000, session_user.eth_address]
+
+        emulate_result = neon_api_client.emulate_contract_call(
+            sender=sender_with_tokens.eth_address.hex(),
+            contract=multiple_actions_erc20.eth_address.hex(),
+            function_signature=function_signature,
+            params=params,
+        )
+        additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+
+        neon_signed_tx = eth_utils.make_contract_call_trx(
+            evm_loader=evm_loader,
+            user=sender_with_tokens,
+            contract=multiple_actions_erc20,
+            function_signature=function_signature,
+            params=params,
+        )
+
+        evm_loader.write_transaction_to_holder_account(neon_signed_tx, holder_acc, operator_keypair)
+
+        simulated_compute_units = actual_compute_units = 0
+        done = done_simulation = done_execution = False
+
+        while not done:
+            # Create a Solana transaction
+            sol_tx = instructions.TransactionWithComputeBudget(operator_keypair)
+            operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
+            sol_tx.add(
+                instructions.make_ExecuteTrxFromAccountDataIterativeOrContinue(
+                    step_count=500,
+                    operator=operator_keypair,
+                    operator_balance=operator_balance_pubkey,
+                    evm_loader_id=evm_loader.loader_id,
+                    holder_address=holder_acc,
+                    treasury=treasury_pool,
+                    additional_accounts=additional_accounts,
+                )
+            )
+            sol_tx.sign(operator_keypair)
+
+            done_simulation, done_execution = self._simulate_and_execute_tx(
+                sol_tx=sol_tx,
+                neon_api_client=neon_api_client,
+                evm_loader=evm_loader,
+                operator_keypair=operator_keypair,
+                done_simulation=done_simulation,
+                done_execution=done_execution,
+                simulated_compute_units=simulated_compute_units,
+                actual_compute_units=actual_compute_units,
+            )
+
+            done = done_simulation and done_execution
+
+        # Compare simulation and execution results
+        msg = f"Simulated: {simulated_compute_units}, executed: {actual_compute_units}"
+        assert abs(simulated_compute_units - actual_compute_units) < 10, msg
+
+    def test_simulate_solana_iterative_deployment_from_holder_account(
+        self,
+        sender_with_tokens: Caller,
+        neon_api_client: NeonApiClient,
+        operator_keypair: Keypair,
+        evm_loader: EvmLoader,
+        holder_acc: Pubkey,
+        treasury_pool: TreasuryPool,
     ):
         # Create Neon transaction and write it to a holder account
         chain_id = evm_loader.chain_id
