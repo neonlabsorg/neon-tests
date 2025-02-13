@@ -509,7 +509,6 @@ class TestAccountRevision:
         )
 
         amount = evm_loader.get_neon_balance(sender.eth_address)
-        print("amount", amount)
 
         signed_tx1 = make_contract_call_trx(
             evm_loader,
@@ -556,21 +555,20 @@ class TestAccountRevision:
             [amount, [recipient.eth_address]],
             value=amount,
         )
-
-        resp = evm_loader.execute_trx_from_instruction(
-            operator_keypair, holder_acc, treasury_pool.account, treasury_pool.buffer, signed_tx2, accounts
+        with pytest.raises(SolanaRPCException, match=ErrorMessage.INSUFFICIENT_BALANCE.value):
+            evm_loader.execute_trx_from_instruction(
+                operator_keypair, holder_acc, treasury_pool.account, treasury_pool.buffer, signed_tx2, accounts
+            )
+        resp = evm_loader.send_transaction_step_from_account(
+            operator_keypair,
+            operator_balance_pubkey,
+            treasury_pool,
+            new_holder_acc,
+            accounts,
+            EVM_STEPS,
+            operator_keypair,
         )
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
-        with pytest.raises(SolanaRPCException, match=ErrorMessage.INSUFFICIENT_BALANCE.value):
-            evm_loader.send_transaction_step_from_account(
-                operator_keypair,
-                operator_balance_pubkey,
-                treasury_pool,
-                new_holder_acc,
-                accounts,
-                EVM_STEPS,
-                operator_keypair,
-            )
 
     def test_parallel_change_balance_in_one_trx_and_check_in_second_trx(
         self, operator_keypair, treasury_pool, neon_api_client, sender_with_tokens, evm_loader
