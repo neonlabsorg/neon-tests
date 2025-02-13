@@ -80,7 +80,7 @@ class TestInstruction:
 
     @pytest.mark.parametrize(
         "remove_chain_id, expected_instruction",
-        [{True, "TxStepFromAccountNoChainId"}, {False, "TxStepFromData"}],
+        [(True, "TxStepFromAccountNoChainId"), (False, "TxStepFromData")],
     )
     def test_tx_iterative_with_and_without_chain_id(
         self, counter_contract, json_rpc_client, remove_chain_id, expected_instruction
