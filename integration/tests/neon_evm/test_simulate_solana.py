@@ -23,7 +23,6 @@ class TestSimulateSolana:
     @allure.step("Simulate and execute Solana transaction")
     def _simulate_and_execute_tx(
         sol_tx: Transaction,
-        index: int,
         neon_api_client: NeonApiClient,
         evm_loader: EvmLoader,
         operator_keypair: Keypair,
@@ -34,7 +33,7 @@ class TestSimulateSolana:
     ) -> tuple[bool, bool]:
         # Simulate the transaction
         if not done_simulation:
-            assert not done_execution, f"Execution completed in {index} steps but simulation is still going"
+            assert not done_execution, "Execution completed but simulation is still going"
 
             serialized_transaction = sol_tx.serialize()
             hex_serialized_transaction = serialized_transaction.hex()
@@ -75,7 +74,7 @@ class TestSimulateSolana:
 
                 elif "exit_status" in log:
                     done_execution = True
-                    assert done_simulation, f"Execution completed in {index + 1} steps but simulation is still going"
+                    assert done_simulation, "Execution completed but simulation is still going"
                     break
 
         return done_simulation, done_execution
@@ -241,7 +240,7 @@ class TestSimulateSolana:
         )
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
 
-        simulated_compute_units = actual_compute_units = index = 0
+        simulated_compute_units = actual_compute_units = 0
         done = done_simulation = done_execution = False
 
         while not done:
@@ -263,7 +262,6 @@ class TestSimulateSolana:
 
             done_simulation, done_execution = self._simulate_and_execute_tx(
                 sol_tx=sol_tx,
-                index=index,
                 neon_api_client=neon_api_client,
                 evm_loader=evm_loader,
                 operator_keypair=operator_keypair,
@@ -273,7 +271,6 @@ class TestSimulateSolana:
                 actual_compute_units=actual_compute_units,
             )
 
-            index += 1
             done = done_simulation and done_execution
 
         # Compare simulation and execution results
@@ -333,7 +330,6 @@ class TestSimulateSolana:
             sol_tx.sign(operator_keypair)
             done_simulation, done_execution = self._simulate_and_execute_tx(
                 sol_tx=sol_tx,
-                index=index,
                 neon_api_client=neon_api_client,
                 evm_loader=evm_loader,
                 operator_keypair=operator_keypair,
@@ -486,7 +482,6 @@ class TestSimulateSolana:
         actual_compute_units += start_scheduled_transaction_tx_receipt.value.transaction.meta.compute_units_consumed
 
         # Execute scheduled transaction steps (simulation and execution)
-        index = 0
         done = done_simulation = done_execution = False
 
         while not done:
@@ -507,7 +502,6 @@ class TestSimulateSolana:
 
             done_simulation, done_execution = self._simulate_and_execute_tx(
                 sol_tx=sol_tx,
-                index=index,
                 neon_api_client=neon_api_client,
                 evm_loader=evm_loader,
                 operator_keypair=operator_keypair,
@@ -516,7 +510,6 @@ class TestSimulateSolana:
                 simulated_compute_units=simulated_compute_units,
                 actual_compute_units=actual_compute_units,
             )
-            index += 1
             done = done_simulation and done_execution
 
         # Finish scheduled transaction steps (simulation and execution)
