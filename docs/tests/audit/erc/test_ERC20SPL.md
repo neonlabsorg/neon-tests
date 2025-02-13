@@ -61,6 +61,4 @@ tokens
 | TestMultipleActionsForERC20::test_mint_mint_transfer_transfer                  | Verify mint -> mint -> transfer -> transfer in one transaction              |         |
 | TestMultipleActionsForERC20::test_burn_transfer_burn_transfer                  | Verify burn -> transfer -> burn in one transaction                          |         |
 | TestMultipleActionsForERC20::test_burn_mint_transfer                           | Verify burn -> mint -> transfer in one transaction                          |         |
-
-
-
+| TestMultipleActionsForERC20::test_parallel_trxs_transfer_read_balance_transfer | Verify spl balance isn't cashed                                             |         |
