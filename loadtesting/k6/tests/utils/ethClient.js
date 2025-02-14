@@ -57,14 +57,12 @@ export async function sendCallContractTransaction({
     try {
         const contract = ethClient.newContract(contractAddress, contractAbi);
         const input = contract.fillInput(contractAbi, functionName, ...functionArgs);
-        const nonce = ethClient.getNonce(senderAddress);
 
         const transaction = {
             from: senderAddress,
             to: contractAddress,
             value: 0,
             input: input,
-            nonce: nonce,
         };
 
         const timeout = 120;

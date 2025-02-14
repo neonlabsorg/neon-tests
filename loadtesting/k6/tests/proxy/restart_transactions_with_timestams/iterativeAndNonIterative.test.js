@@ -1,11 +1,11 @@
 import exec from 'k6/execution';
 import eth from 'k6/x/ethereum';
-import { Trend, Counter } from 'k6/metrics';
+import {Counter, Trend} from 'k6/metrics';
 
-import { BlockContractAddress, proxyUrl, networkId } from '../../utils/consts.js';
-import { standardScenarioOptions } from '../../../options/options.js';
-import { sendCallContractTransaction } from '../../utils/ethClient.js';
-import { readUsersFromFile } from '../../utils/accounts.js'
+import {BlockContractAddress, networkId, proxyUrl} from '../../utils/consts.js';
+import {standardScenarioOptions} from '../../../options/options.js';
+import {sendCallContractTransaction} from '../../utils/ethClient.js';
+import {readUsersFromFile} from '../../utils/accounts.js'
 
 
 const requestCounter = new Counter('send_block_contract_requests');
@@ -15,7 +15,7 @@ const requestTimeTrend = new Trend('block_contract_request_time', true);
 
 export const options = standardScenarioOptions;
 
-const pathToContractData = '../../../contracts/Block/Block.abi';
+const pathToContractData = '../../../contracts/BlockNumber/BlockNumber.abi';
 const abi = open(pathToContractData);
 const users = readUsersFromFile();
 
