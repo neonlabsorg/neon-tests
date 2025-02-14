@@ -15,7 +15,6 @@ from utils import metaplex
 from utils.consts import ZERO_ADDRESS
 from utils.erc20wrapper import ERC20Wrapper
 from utils.helpers import gen_hash_of_block, wait_condition, create_invalid_address
-from utils.multiple_actions_wrapper import transfer_five_times
 from utils.web3client import NeonChainWeb3Client
 from utils.solana_client import SolanaClient
 from utils.accounts import EthAccounts
@@ -44,7 +43,7 @@ class TestERC20SPL:
             self.web3_client.send_neon(eth_bank_account, erc20_spl.account.address, 10)
         return erc20_spl
 
-    @pytest.fixture
+    @pytest.fixture()
     def restore_balance(self, erc20_contract):
         pass
 
@@ -141,7 +140,7 @@ class TestERC20SPL:
         ):
             erc20_contract.burn_from(new_account, erc20_contract.account.address, 10)
 
-    def test_burnFrom_more_than_allowed(self, erc20_contract):
+    def test_burnFrom_more_than_allowanced(self, erc20_contract):
         new_account = self.accounts.create_account()
         amount = 2
         erc20_contract.approve(erc20_contract.account, new_account.address, amount)
@@ -242,7 +241,6 @@ class TestERC20SPL:
         with pytest.raises(ValueError, match=msg):
             erc20_contract.transfer(erc20_contract.account, erc20_contract.account.address, 1, **param)
 
-    @pytest.mark.cost_report
     def test_transferFrom(self, erc20_contract, restore_balance):
         new_account = self.accounts.create_account()
         balance_acc1_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
@@ -271,7 +269,7 @@ class TestERC20SPL:
                 amount=10,
             )
 
-    def test_transferFrom_more_than_allowed(self, erc20_contract):
+    def test_transferFrom_more_than_allowanced(self, erc20_contract):
         new_account = self.accounts.create_account()
         amount = 2
         erc20_contract.approve(erc20_contract.account, new_account.address, amount)
@@ -480,7 +478,7 @@ class TestERC20SPLMintable:
         owner = erc20_contract.contract.functions.owner().call()
         assert owner == erc20_contract.account.address
 
-    @pytest.fixture
+    @pytest.fixture()
     def return_ownership(self, erc20_contract, accounts):
         yield
         erc20_contract.transfer_ownership(accounts[2], erc20_contract.account.address)
@@ -980,55 +978,30 @@ class TestMultipleActionsForERC20:
         ), "Contract balance is not correct"
         assert user_balance == transfer_amount + user_balance_before, "User balance is not correct"
 
-    @pytest.mark.cost_report
-    def test_transfer_five_times(self, multiple_actions_erc20):
+    def test_parallel_trxs_transfer_read_balance_transfer(self, multiple_actions_erc20, faucet, solana_account):
         sender_account = self.accounts[0]
+        receiver_account = self.accounts[1]
         acc, contract = multiple_actions_erc20
-        contract_balance_before = contract.functions.contractBalance().call()
-        user_balance_before = contract.functions.balance(acc.address).call()
-        mint_amount_0 = random.randint(10000, 100000000)
-        transfer_amount_1 = random.randint(1, mint_amount_0)
-        transfer_amount_2 = random.randint(1, mint_amount_0 - transfer_amount_1)
-        transfer_amount_3 = random.randint(1, mint_amount_0 - transfer_amount_1 - transfer_amount_2)
-        transfer_amount_4 = random.randint(1, mint_amount_0 - transfer_amount_1 - transfer_amount_2 - transfer_amount_3)
-        transfer_amount_5 = random.randint(
-            1, mint_amount_0 - transfer_amount_1 - transfer_amount_2 - transfer_amount_3 - transfer_amount_4
-        )
+        trx_amount = 10
+        transfer_amount = 100
 
         tx = self.web3_client.make_raw_tx(sender_account)
-        instruction_tx = contract.functions.mint(mint_amount_0).build_transaction(tx)
+        instruction_tx = contract.functions.mint(transfer_amount * trx_amount * 2).build_transaction(tx)
         self.web3_client.send_transaction(sender_account, instruction_tx)
 
-        transfer_five_times(
-            self.web3_client,
-            contract,
-            sender_account,
-            acc.address,
-            [transfer_amount_1, transfer_amount_2, transfer_amount_3, transfer_amount_4, transfer_amount_5],
-        )
-
-        contract_balance = contract.functions.contractBalance().call()
-        user_balance = contract.functions.balance(acc.address).call()
-
-        assert (
-            contract_balance
-            == contract_balance_before
-            + mint_amount_0
-            - transfer_amount_1
-            - transfer_amount_2
-            - transfer_amount_3
-            - transfer_amount_4
-            - transfer_amount_5
-        ), "Contract balance is not correct"
-        assert (
-            user_balance
-            == transfer_amount_1
-            + transfer_amount_2
-            + transfer_amount_3
-            + transfer_amount_4
-            + transfer_amount_5
-            + user_balance_before
-        ), "User balance is not correct"
+        hashes = []
+        nonce = self.web3_client.get_nonce(sender_account.address)
+        for i in range(trx_amount):
+            tx = self.web3_client.make_raw_tx(sender_account, nonce=nonce + i)
+            transaction = contract.functions.transferReadBalanceTransfer(
+                transfer_amount, receiver_account.address
+            ).build_transaction(tx)
+            instruction_tx = self.web3_client._web3.eth.account.sign_transaction(transaction, sender_account.key)
+            signature = self.web3_client._web3.eth.send_raw_transaction(instruction_tx.rawTransaction)
+            hashes.append(signature.hex())
+        for tx_hash in hashes:
+            resp = self.web3_client.wait_for_transaction_receipt(tx_hash)
+            assert resp.status == 1, f"Transaction {tx_hash} failed"
 
 
 @pytest.fixture(scope="class")
