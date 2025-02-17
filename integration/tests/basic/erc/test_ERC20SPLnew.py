@@ -1179,39 +1179,42 @@ class TestERC20SPLNewFeatures:
     accounts: EthAccounts
     sol_client: SolanaClient
 
-    @pytest.fixture(scope="class")
-    def erc20_contract(self, erc20_spl_new, eth_bank_account, pytestconfig: Config) -> ERC20NewWrapper:
-        if pytestconfig.getoption("--network") == "mainnet":
-            self.web3_client.send_neon(eth_bank_account, erc20_spl_new.account.address, 10)
-        return erc20_spl_new
-
     # Single functions testing
-    def test_solana_account_getter(self, erc20_contract):
+    def test_solana_account_getter(self, erc20_spl_mintable_new):
         acc = self.accounts[0]
-        solana_pubkey = erc20_contract.get_solana_account(acc.address)
+        solana_pubkey = erc20_spl_mintable_new.get_solana_account(acc.address)
 
         assert isinstance(solana_pubkey, bytes), "Returned value is not bytes32"
         assert len(solana_pubkey) == 32, "Invalid bytes32 length"
 
-    def test_get_account_delegate_data(self, erc20_contract):
-        acc = self.accounts[1]
-        delegate_address, delegated_amount = erc20_contract.get_account_delegate_data(acc.address)
+    def test_get_account_delegate_data(self, erc20_spl_mintable_new, neon_user):
+
+        signer = erc20_spl_mintable_new.account
+        owner_address = erc20_spl_mintable_new.account.address
+        recipient_user = neon_user.neon_address
+        solana_acc = erc20_spl_mintable_new.get_solana_account(recipient_user)
+
+        amount_to_approve = random.randint(500, 1000)
+        erc20_spl_mintable_new.approve_solana(signer=signer, spender=solana_acc, amount=amount_to_approve)
+
+        delegate_address, delegate_amount = erc20_spl_mintable_new.get_account_delegate_data(owner_address)
 
         assert isinstance(delegate_address, bytes), "Delegate address is not bytes32"
+        assert delegate_address != bytes(0), "Address has to be non zero"
         assert len(delegate_address) == 32, "Invalid delegate address length"
+        assert isinstance(delegate_amount, int), "Delegated amount is not uint64"
+        assert delegate_address == solana_acc, f"Delegated address is expected to {solana_acc}"
+        assert delegate_amount == amount_to_approve, f"Expected delegation to be {amount_to_approve}"
 
-        assert isinstance(delegated_amount, int), "Delegated amount is not uint64"
-        assert delegated_amount == 0, "Expected initial delegation to be 0"
-
-    def test_get_token_mint_ata(self, erc20_contract):
+    def test_get_token_mint_ata(self, erc20_spl_mintable_new):
         """Test getTokenMintATA(bytes32 account) returns a valid ATA address."""
-        solana_pubkey = erc20_contract.get_solana_account(erc20_contract.address)
-        ata_address = erc20_contract.get_token_mint_ata(solana_pubkey)
+        solana_pubkey = erc20_spl_mintable_new.get_solana_account(erc20_spl_mintable_new.address)
+        ata_address = erc20_spl_mintable_new.get_token_mint_ata(solana_pubkey)
 
         assert isinstance(ata_address, bytes), "Returned ATA is not bytes32"
         assert len(ata_address) == 32, "Invalid ATA address length"
 
-    def test_transferSolana_uninitialized_ata(self, erc20_contract, erc20_spl_new, solana_account, sol_client):
+    def test_transferSolana_uninitialized_ata(self, erc20_spl_new, solana_account, sol_client):
         token_mint = erc20_spl_new.token_mint.pubkey
         new_account = sol_client.create_account(
             payer=solana_account,

@@ -5,12 +5,13 @@ from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
+from spl.token.instructions import get_associated_token_address
 from web3.types import TxReceipt
 
 from clickfile import EXTERNAL_CONTRACT_PATH
 from . import web3client, stats_collector
 from .metaplex import create_metadata_instruction_data, create_metadata_instruction
-
+from .neon_user import NeonUser
 
 INIT_TOKEN_AMOUNT = 1000000000000000
 REMAPPING_ZEPPELIN = {"@openzeppelin": str(EXTERNAL_CONTRACT_PATH / "neon-contracts/node_modules/@openzeppelin")}
@@ -366,7 +367,7 @@ class ERC20NewWrapper:
             address = address.address
         return self.contract.functions.getUserExtAuthority(address).call()
 
-    def get_account_delegate_data(self, address):
+    def get_account_delegate_data(self, address) -> list[bytes, int]:
         if isinstance(address, LocalAccount):
             address = address.address
         return self.contract.functions.getAccountDelegateData(address).call()
@@ -380,3 +381,27 @@ class ERC20NewWrapper:
         if isinstance(address, LocalAccount):
             address = address.address
         return self.contract.functions.getTokenMintATA(address).call()
+
+    def pop_up_balance(self, recipient: NeonUser, pda_amount: int, ata_amount: int) -> None:
+        """
+        Top up a recipient's token balances by transferring tokens to both their PDA and ATA accounts.
+
+        Parameters:
+        recipient: The target user object receiving the token top-up.
+        pda_amount (int): The number of tokens to transfer to the recipient's PDA account.
+        ata_amount (int): The number of tokens to transfer to the recipient's ATA account.
+
+        Returns: None
+
+        Example:
+            >> recipient = NeonUser(...)  # must have 'checksum_address' and 'solana_account'
+            >> self.pop_up_balance(recipient, 1000, 500)
+        # This transfers 1000 tokens to the recipient's PDA and 500 tokens to their ATA.
+        """
+
+        mint = Pubkey(self.contract.functions.tokenMint().call())
+        if pda_amount:
+            self.transfer(self.account, recipient.checksum_address, pda_amount)  # PDA top up
+        if ata_amount:
+            ata_account = get_associated_token_address(recipient.solana_account.pubkey(), mint)
+            self.transfer_solana(self.account, bytes(ata_account), ata_amount)

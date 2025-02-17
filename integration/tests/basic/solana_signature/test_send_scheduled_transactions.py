@@ -324,7 +324,6 @@ class TestScheduledTrx:
 
 @allure.feature("Solana native")
 @allure.story("Test sending scheduled transaction ERC20New")
-@pytest.mark.usefixtures("accounts", "web3_client")
 class TestScheduledTrxERC20new:
 
     def test_scheduled_trx_pda_balance(
@@ -555,7 +554,6 @@ class TestScheduledTrxERC20new:
     def test_scheduled_trx_ata_balance_not_used(
         self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool, environment
     ):
-        recipient = NeonUser(environment.evm_loader)
 
         # Creating pda and ata accounts
         Pubkey(erc20_spl_mintable_new.contract.functions.solanaAccount(neon_user.checksum_address).call())
@@ -566,7 +564,7 @@ class TestScheduledTrxERC20new:
             evm_loader.ether2program(erc20_spl_mintable_new.contract.address)[0]
         )
 
-        # Delegating solana contract account to spend tokens in amount of 1000
+        # Delegating solana contract owner to spend tokens in amount of 1000
         trx = Transaction()
         trx.add(
             create_associated_token_account(
@@ -593,7 +591,7 @@ class TestScheduledTrxERC20new:
         erc20_spl_mintable_new.transfer_solana(erc20_spl_mintable_new.account, bytes(my_ata), 2000)
 
         data = abi.function_signature_to_4byte_selector("transferSolana(address,uint256)") + eth_abi.encode(
-            ["address", "uint256"], [recipient.checksum_address, 10]
+            ["bytes", "uint256"], [bytes(my_ata), 10]
         )
         # trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, erc20_spl_mintable_new.address, data)
         # estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
@@ -626,9 +624,146 @@ class TestScheduledTrxERC20new:
         assert resp["status"] == 0, resp
 
     def test_multiple_transactions_with_tree_actions(
+        self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool, environment, sol_client
+    ):
+
+        recipient = NeonUser(environment)
+
+        token_mint = Pubkey(erc20_spl_mintable_new.contract.functions.tokenMint().call())
+        my_ata_user_1 = get_associated_token_address(neon_user.solana_account.pubkey(), token_mint)
+        my_ata_user_2 = get_associated_token_address(recipient.solana_account.pubkey(), token_mint)
+
+        solana_contract_account = Pubkey.from_string(
+            evm_loader.ether2program(erc20_spl_mintable_new.contract.address)[0]
+        )
+
+        trx = Transaction()
+        trx.add(
+            create_associated_token_account(
+                neon_user.solana_account.pubkey(), neon_user.solana_account.pubkey(), token_mint
+            )
+        )
+        trx.add(
+            approve(
+                ApproveParams(
+                    program_id=TOKEN_PROGRAM_ID,
+                    source=my_ata_user_1,
+                    delegate=solana_contract_account,
+                    owner=neon_user.solana_account.pubkey(),
+                    amount=1_000,
+                )
+            )
+        )
+        evm_loader.send_tx_and_check_status_ok(trx, neon_user.solana_account)
+
+        # My pda/ata transfer
+        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, 700)
+        erc20_spl_mintable_new.approve_solana(erc20_spl_mintable_new.account, bytes(my_ata_user_1), 700)
+
+        # + top_up_pda 400
+        # - burn 100
+        # - transfer 150
+        # - transfer 450
+
+        top_up_in_trx = 400
+        amount_to_recipient_1 = 150
+        amount_to_recipient_2 = 450
+
+        data_0 = abi.function_signature_to_4byte_selector("transferFrom(address,address,uint256)") + eth_abi.encode(
+            ["address", "address", "uint256"],
+            [erc20_spl_mintable_new.account.address, neon_user.checksum_address, top_up_in_trx],
+        )  # neon_user: pda -> ata (200) balance pda/ata (300, 400)
+        data_1 = abi.function_signature_to_4byte_selector("transfer(address,uint256)") + eth_abi.encode(
+            ["address", "uint256"], [recipient.checksum_address, 150]
+        )  # neon_user: pda -> recipient_user pda (150)
+        data_2 = abi.function_signature_to_4byte_selector("transferSolana(bytes,uint256)") + eth_abi.encode(
+            ["bytes", "uint256"], [bytes(my_ata_user_2), 150]
+        )  # (0, 300)
+        data_3 = abi.function_signature_to_4byte_selector("transferSolana(bytes,uint256)") + eth_abi.encode(
+            ["bytes", "uint256"], [bytes(my_ata_user_2), 25]
+        )  #
+        call_data: list = [data_0, data_1, data_2, data_3]
+
+        # TODO Use estimate result method to count transaction fees. Waiting for developers to fix it.
+        # trx_estimate_obj_list: list[ScheduledTrxEstimateRequest] = []
+        # for i in range(trx_count):
+        #     trx_estimate_obj_list.append(
+        #         ScheduledTrxEstimateRequest(erc20_spl_mintable_new.address, user_1.checksum_address, call_data[i])
+        #     )
+        # estimate_result = web3_client_sol.estimate_scheduled(user_1.solana_account.pubkey(), trx_estimate_obj_list)
+
+        gas_limit = 3_000_000
+        trx_count = 4
+        base_fee_per_gas = web3_client_sol.base_fee_per_gas()
+        max_priority_fee_per_gas = 2_500_000_000
+        max_fee_per_gas = base_fee_per_gas * 2 + max_priority_fee_per_gas
+        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
+
+        trxs = []
+        for i in range(trx_count):
+            trxs.append(
+                ScheduledTransaction(
+                    nonce=nonce,
+                    index=i,
+                    target=erc20_spl_mintable_new.address,
+                    call_data=call_data[i],
+                    max_fee_per_gas=max_fee_per_gas,
+                    max_priority_fee_per_gas=max_priority_fee_per_gas,
+                    gas_limit=gas_limit,
+                    payer=neon_user.checksum_address,
+                    sender=None,
+                )
+            )
+
+        tree_acc_data = CreateTreeAccMultipleData(
+            nonce=nonce,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+        )
+
+        tree_acc_data.add_trx(trxs[0], 2, 0)
+        tree_acc_data.add_trx(trxs[1], 3, 0)
+        tree_acc_data.add_trx(trxs[2], 0xFFFF, 1)
+        tree_acc_data.add_trx(trxs[3], 0xFFFF, 1)
+
+        evm_loader.create_tree_account_multiple(
+            neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"], chain_id=web3_client_sol.chain_id
+        )
+        web3_client_sol.send_all_scheduled_transactions(trxs)
+        all((web3_client_sol.wait_for_transaction_receipt(trx.hash()) for trx in trxs))
+
+        balance_user_1 = erc20_spl_mintable_new.get_balance(neon_user.checksum_address)
+        balance_user_2 = erc20_spl_mintable_new.get_balance(recipient.checksum_address)
+
+        balance_user_1_pda = erc20_spl_mintable_new.contract.functions.balanceOfPDA(neon_user.checksum_address).call()
+        balance_user_1_ata = erc20_spl_mintable_new.contract.functions.balanceOfATA(neon_user.checksum_address).call()
+        balance_user_2_pda = erc20_spl_mintable_new.contract.functions.balanceOfPDA(recipient.checksum_address).call()
+        balance_user_2_ata = erc20_spl_mintable_new.contract.functions.balanceOfATA(recipient.checksum_address).call()
+
+        print(erc20_spl_mintable_new.get_balance(neon_user.checksum_address))
+        print(erc20_spl_mintable_new.get_balance(recipient.checksum_address))
+
+        print(f"balance neon pda: {balance_user_1_pda} ata: {balance_user_1_ata}")
+        print(f"balance recipient pda: {balance_user_2_pda} ata: {balance_user_2_ata}")
+
+        assert balance_user_1 == top_up_in_trx - amount_to_recipient_1 - amount_to_recipient_2
+        assert balance_user_2 == amount_to_recipient_1 + amount_to_recipient_2
+        assert balance_user_2 == balance_user_2_pda
+
+    def test_multiple_transactions_with_tree_actions_parallel_exc(
         self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool, environment
     ):
+        # ┌───────┐  ┌──────┐
+        # │ t0 ✓  ├─>┤ t2 ✓ │
+        # │ s=0   │  │ s=1  │
+        # └───────┘  └──────┘
+        # ┌───────┐  ┌──────┐
+        # │ t1 ✓  ├─>┤ t3 ✓ │
+        # │ s=0   │  │ s=1  │
+        # └───────┘  └──────┘
+
         recipient = NeonUser(environment.evm_loader)
+
         amount_to_transfer = 1_000
         amount_to_approve = 1_000
 
@@ -662,8 +797,9 @@ class TestScheduledTrxERC20new:
         evm_loader.send_tx_and_check_status_ok(trx, neon_user.solana_account)
 
         # My pda/ata transfer
-        erc20_spl_mintable_new.transfer(erc20_spl_mintable_new.account, neon_user.neon_address, amount_to_transfer)
-        erc20_spl_mintable_new.transfer_solana(erc20_spl_mintable_new.account, bytes(my_ata), amount_to_transfer)
+        erc20_spl_mintable_new.pop_up_balance(
+            recipient=neon_user, pda_amount=amount_to_transfer, ata_amount=amount_to_transfer
+        )
 
         assert (
             int(evm_loader.get_token_account_balance(my_ata, commitment=Confirmed).value.amount) == amount_to_transfer
@@ -700,20 +836,25 @@ class TestScheduledTrxERC20new:
         trxs = []
         for i in range(trx_count):
             trxs.append(ScheduledTransaction.from_estimate_result(i, trx_estimate_obj_list[i], estimate_result))
+
         tree_acc_data = CreateTreeAccMultipleData(
             nonce=nonce,
             max_fee_per_gas=estimate_result["maxFeePerGas"],
             max_priority_fee_per_gas=estimate_result["maxPriorityFeePerGas"],
         )
-        tree_acc_data.add_trx(trxs[0], 1, 0)
-        if trx_count > 2:
-            for i in range(1, trx_count - 1):
-                tree_acc_data.add_trx(trxs[i], i + 1, 1)
-        tree_acc_data.add_trx(trxs[trx_count - 1], 0xFFFF, 1)
+        tree_acc_data.add_trx(trxs[0], 2, 0)
+        tree_acc_data.add_trx(trxs[1], 3, 0)
+        tree_acc_data.add_trx(trxs[2], 0xFFFF, 1)
+        tree_acc_data.add_trx(trxs[3], 0xFFFF, 1)
+        # if trx_count > 2:
+        #     for i in range(1, trx_count - 1):
+        #         tree_acc_data.add_trx(trxs[i], i + 1, 1)
+        # tree_acc_data.add_trx(trxs[trx_count - 1], 0xFFFF, 1)
         evm_loader.create_tree_account_multiple(
             neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"], chain_id=web3_client_sol.chain_id
         )
         web3_client_sol.send_all_scheduled_transactions(trxs)
+        all((web3_client_sol.wait_for_transaction_receipt(trx.hash()) for trx in trxs))
 
         balance_pda = erc20_spl_mintable_new.contract.functions.balanceOfPDA(neon_user.checksum_address).call()
         balance_ata = erc20_spl_mintable_new.contract.functions.balanceOfATA(neon_user.checksum_address).call()

@@ -528,10 +528,8 @@ def update_contracts(branch):
         "https://github.com/neonevm/neon-contracts.git",
         "neon-contracts",
         "update/erc20forspl-solana-native",
-        update_npm=False,
+        update_npm=True,
     )
-
-    subprocess.check_call(f'npm install --force --prefix {EXTERNAL_CONTRACT_PATH / "neon-contracts"}', shell=True)
 
 
 @cli.command(help="Run any type of tests")
