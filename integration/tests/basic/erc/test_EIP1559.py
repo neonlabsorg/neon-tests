@@ -483,7 +483,7 @@ class TestEIP1559:
         solana_transactions = web3_client.get_solana_trx_by_neon(receipt["transactionHash"].hex())["result"]
         assert len(solana_transactions) == 1
         solana_transaction = sol_client.get_transaction(
-            sol_sig=Signature.from_string(solana_transactions[0]),
+            tx_sig=Signature.from_string(solana_transactions[0]),
             commitment=Confirmed,
         )
 
@@ -547,7 +547,7 @@ class TestEIP1559:
         # first transactions are "WriteToHolder", so we're interested only in the last one
         solana_transaction_hash = solana_transaction_hashes[-1]
         solana_transaction = sol_client.get_transaction(
-            sol_sig=Signature.from_string(solana_transaction_hash),
+            tx_sig=Signature.from_string(solana_transaction_hash),
             commitment=Confirmed,
         )
 
