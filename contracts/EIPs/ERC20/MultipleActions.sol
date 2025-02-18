@@ -180,7 +180,6 @@ contract MultipleActionsERC20 {
         erc20.transfer(transfer_to, transfer_amount_4);
         erc20.transfer(transfer_to, transfer_amount_5);
     }
-}
 
     function mintMintTransferTransferMintMintTransferTransfer( // 17 Solana transactions
         uint256 mint_amount1,
@@ -197,4 +196,3 @@ contract MultipleActionsERC20 {
         erc20.transfer(transfer_to, mint_amount2);
     }
 }
-
