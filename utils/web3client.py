@@ -293,7 +293,6 @@ class Web3Client:
     def send_all_scheduled_transactions(self, raw_transactions: tp.List[ScheduledTransaction]):
         for trx in raw_transactions:
             self.send_scheduled_transaction(trx)
-            self.wait_for_transaction_receipt(trx.hash())
 
     @allure.step("Create raw transaction EIP-1559")
     def make_raw_tx_eip_1559(
