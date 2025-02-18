@@ -319,8 +319,6 @@ class TestScheduledTrx:
         # for now, it is not possible to see error through the proxy
         assert receipt["status"] == 0
 
-    # ---------------------- # ------------------ # ---------------------------------------------- # ------------- #
-
 
 @allure.feature("Solana native")
 @allure.story("Test sending scheduled transaction ERC20New")
