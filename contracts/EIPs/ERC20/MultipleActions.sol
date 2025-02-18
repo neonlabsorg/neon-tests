@@ -1,7 +1,8 @@
 pragma solidity >=0.7.0;
-pragma abicoder v2;
 
-import "../../external/neon-evm/erc20_for_spl.sol";
+import {ERC20ForSplMintable} from "../../external/neon-evm/erc20_for_spl.sol";
+
+pragma abicoder v2;
 
 contract MultipleActionsERC20 {
     uint256 data;
@@ -150,33 +151,18 @@ contract MultipleActionsERC20 {
         erc20.transfer(transfer_to, mint_amount2);
     }
 
-    function mintMintTransferTransferBurn(
-        address transfer_to,
+    function mintMintTransferTransferMintMintTransferTransfer( // 17 Solana transactions
         uint256 mint_amount1,
         uint256 mint_amount2,
-        uint256 transfer_amount_1,
-        uint256 transfer_amount_2,
-        uint256 burn_amount
+        address transfer_to
     ) public {
         erc20.mint(address(this), mint_amount1);
         erc20.mint(address(this), mint_amount2);
-        erc20.transfer(transfer_to, transfer_amount_1);
-        erc20.transfer(transfer_to, transfer_amount_2);
-        erc20.burn(burn_amount);
-    }
-
-    function transferFiveTimes(
-        address transfer_to,
-        uint256 transfer_amount_1,
-        uint256 transfer_amount_2,
-        uint256 transfer_amount_3,
-        uint256 transfer_amount_4,
-        uint256 transfer_amount_5
-    ) public {
-        erc20.transfer(transfer_to, transfer_amount_1);
-        erc20.transfer(transfer_to, transfer_amount_2);
-        erc20.transfer(transfer_to, transfer_amount_3);
-        erc20.transfer(transfer_to, transfer_amount_4);
-        erc20.transfer(transfer_to, transfer_amount_5);
+        erc20.transfer(transfer_to, mint_amount1);
+        erc20.transfer(transfer_to, mint_amount2);
+        erc20.mint(address(this), mint_amount1);
+        erc20.mint(address(this), mint_amount2);
+        erc20.transfer(transfer_to, mint_amount1);
+        erc20.transfer(transfer_to, mint_amount2);
     }
 }
