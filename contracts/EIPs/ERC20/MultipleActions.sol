@@ -195,4 +195,5 @@ contract MultipleActionsERC20 {
         erc20.transfer(transfer_to, mint_amount1);
         erc20.transfer(transfer_to, mint_amount2);
     }
+
 }
