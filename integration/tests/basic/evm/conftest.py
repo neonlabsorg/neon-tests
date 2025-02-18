@@ -3,11 +3,9 @@ from solders.pubkey import Pubkey
 from web3.contract import Contract
 from utils import helpers
 from utils.accounts import EthAccounts
+from utils.consts import SPL_TOKEN_ADDRESS, METAPLEX_ADDRESS
 from utils.solana_client import SolanaClient
 from utils.web3client import Web3Client
-
-SPL_TOKEN_ADDRESS = "0xFf00000000000000000000000000000000000004"
-METAPLEX_ADDRESS = "0xff00000000000000000000000000000000000005"
 
 
 @pytest.fixture(scope="class")
@@ -61,8 +59,8 @@ def blockhash_contract(web3_client, accounts):
 
 @pytest.fixture(scope="class")
 def query_account_caller_contract(
-        web3_client: Web3Client,
-        accounts: EthAccounts,
+    web3_client: Web3Client,
+    accounts: EthAccounts,
 ) -> Contract:
     contract, _ = web3_client.deploy_and_get_contract(
         "precompiled/QueryAccountCaller.sol",
@@ -75,14 +73,14 @@ def query_account_caller_contract(
 
 @pytest.fixture(scope="session")
 def max_non_existent_solana_address(
-        sol_client_session: SolanaClient,
+    sol_client_session: SolanaClient,
 ) -> int:
-    address_uint_256 = 2 ** 256
+    address_uint_256 = 2**256
     address_exists = True
 
     while address_exists:
         address_uint_256 -= 1
-        pubkey = Pubkey(address_uint_256.to_bytes(32, byteorder='big'))
+        pubkey = Pubkey(address_uint_256.to_bytes(32, byteorder="big"))
         address_exists = sol_client_session.get_account_info(pubkey=pubkey).value is not None
 
     return address_uint_256

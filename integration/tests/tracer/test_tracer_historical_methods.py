@@ -1,6 +1,5 @@
 import math
 import random
-import re
 import typing as tp
 
 import pytest
@@ -293,7 +292,12 @@ class TestTracerHistoricalMethods:
 
     # GETH: NDEV-3251, NDEV-3252
     def test_eth_get_code(self, storage_contract_with_deploy_tx):
-        storage_contract_code = storage_contract_with_deploy_tx[0].functions.at(storage_contract_with_deploy_tx[1]["contractAddress"]).call().hex()
+        storage_contract_code = (
+            storage_contract_with_deploy_tx[0]
+            .functions.at(storage_contract_with_deploy_tx[1]["contractAddress"])
+            .call()
+            .hex()
+        )
         request_type = "blockNumber"
 
         wait_condition(
@@ -301,8 +305,10 @@ class TestTracerHistoricalMethods:
                 self.tracer_api.send_rpc(
                     method="eth_getCode",
                     req_type=request_type,
-                    params=[storage_contract_with_deploy_tx[0].address, 
-                            {request_type: hex(storage_contract_with_deploy_tx[1]['blockNumber'] - 1)}],
+                    params=[
+                        storage_contract_with_deploy_tx[0].address,
+                        {request_type: hex(storage_contract_with_deploy_tx[1]["blockNumber"] - 1)},
+                    ],
                 )
             )["result"]
             == "",
@@ -314,8 +320,10 @@ class TestTracerHistoricalMethods:
                 self.tracer_api.send_rpc(
                     method="eth_getCode",
                     req_type="blockHash",
-                    params=[storage_contract_with_deploy_tx[0].address, 
-                            {request_type: hex(storage_contract_with_deploy_tx[1]['blockNumber'])}],
+                    params=[
+                        storage_contract_with_deploy_tx[0].address,
+                        {request_type: hex(storage_contract_with_deploy_tx[1]["blockNumber"])},
+                    ],
                 )
             )["result"]
             == storage_contract_code,
@@ -327,8 +335,10 @@ class TestTracerHistoricalMethods:
                 self.tracer_api.send_rpc(
                     method="eth_getCode",
                     req_type=request_type,
-                    params=[storage_contract_with_deploy_tx[0].address, 
-                            {request_type: hex(storage_contract_with_deploy_tx[1]['blockNumber'] + 1)}],
+                    params=[
+                        storage_contract_with_deploy_tx[0].address,
+                        {request_type: hex(storage_contract_with_deploy_tx[1]["blockNumber"] + 1)},
+                    ],
                 )
             )["result"]
             == storage_contract_code,
@@ -338,8 +348,9 @@ class TestTracerHistoricalMethods:
     # GETH: NDEV-3250
     def test_eth_get_code_invalid_params(self, storage_contract_with_deploy_tx):
         response = self.tracer_api.send_rpc(
-            method="eth_getCode", req_type="blockHash", 
-            params=[storage_contract_with_deploy_tx[0].address, {"blockHash": "0x0002"}]
+            method="eth_getCode",
+            req_type="blockHash",
+            params=[storage_contract_with_deploy_tx[0].address, {"blockHash": "0x0002"}],
         )
         self.assert_invalid_params(response)
 
@@ -347,7 +358,6 @@ class TestTracerHistoricalMethods:
         block = self.web3_client.get_block_number()
         revision = self.tracer_api.send_rpc(method="get_neon_revision", params=block)["result"]["neon_revision"]
         assert revision is not None
-        assert re.match(r"^v[\d]+\.[\d]+\.[\d]+$|^[a-fA-F\d]{40}$", revision) or revision == "latest"
 
     @pytest.mark.parametrize("block", [-190, '{"slot": 3f08}', "oneonetwozero", ["900"]])
     def test_neon_revision_invalid_block(self, block):

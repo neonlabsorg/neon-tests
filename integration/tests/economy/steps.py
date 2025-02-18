@@ -3,6 +3,7 @@ import time
 from decimal import Decimal
 
 import allure
+from solana.rpc.commitment import Confirmed
 from solana.rpc.core import RPCException
 from solders.rpc.responses import GetTransactionResp
 from solders.signature import Signature
@@ -23,7 +24,7 @@ def assert_profit(sol_diff, sol_price, token_diff, token_price, token_name):
     expense_usd = Decimal(expense_lamports, DECIMAL_CONTEXT) * Decimal(sol_price, DECIMAL_CONTEXT)
     revenue_usd = Decimal(token_diff, DECIMAL_CONTEXT) * Decimal(token_price, DECIMAL_CONTEXT)
     profit_usd = revenue_usd - expense_usd
-    profit_percentage = (profit_usd / expense_usd * 100)
+    profit_percentage = profit_usd / expense_usd * 100
 
     log_level = logging.WARNING if profit_percentage < 2 else logging.INFO
     logger.log(level=log_level, msg=f"Operator income: {profit_percentage}%")
@@ -63,6 +64,7 @@ def check_alt_on(web3_client, sol_client, receipt, accounts_quantity):
     alt = trx.value.transaction.transaction.message.address_table_lookups
     assert alt
 
+
 @allure.step("Check block for not using ALT")
 def check_alt_off(block):
     txs = block.value.transactions
@@ -99,16 +101,14 @@ def get_sol_trx_with_alt(web3_client, sol_client, web3_transaction_receipt):
 
     wait_condition(
         lambda: sol_client.get_transaction(
-            Signature.from_string(solana_trx["result"][0]),
-            max_supported_transaction_version=0,
+            Signature.from_string(solana_trx["result"][0]), max_supported_transaction_version=0, commitment=Confirmed
         )
         != GetTransactionResp(None)
     )
 
     for trx in solana_trx["result"]:
         trx_sol = sol_client.get_transaction(
-            Signature.from_string(trx),
-            max_supported_transaction_version=0,
+            Signature.from_string(trx), max_supported_transaction_version=0, commitment=Confirmed
         )
         if (
             hasattr_recursive(trx_sol, "value.transaction.transaction.message.address_table_lookups")

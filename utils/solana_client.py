@@ -36,10 +36,10 @@ class SolanaClient(solana.rpc.api.Client):
         )
 
     def request_airdrop(
-            self,
-            pubkey: Pubkey,
-            lamports: int,
-            commitment: tp.Optional[Commitment] = None,
+        self,
+        pubkey: Pubkey,
+        lamports: int,
+        commitment: tp.Optional[Commitment] = None,
     ) -> RequestAirdropResp:
         airdrop_resp = None
         for _ in range(5):
@@ -59,7 +59,6 @@ class SolanaClient(solana.rpc.api.Client):
             transfer(TransferParams(from_pubkey=from_.pubkey(), to_pubkey=to, lamports=amount_lamports))
         )
         self.send_tx_and_check_status_ok(tx, from_)
-
 
     def get_erc_auth_address(self, neon_account_address: str, token_address: str, evm_loader_id: str):
         neon_account_addressbytes = bytes(12) + bytes.fromhex(neon_account_address[2:])
@@ -89,7 +88,7 @@ class SolanaClient(solana.rpc.api.Client):
             dest=assoc_addr,
             mint_authority=owner,
             amount=1000000000000000,
-            opts=TxOpts(skip_confirmation=False),
+            opts=TxOpts(skip_confirmation=False, skip_preflight=True),
         )
 
         return token_mint, assoc_addr
@@ -99,11 +98,13 @@ class SolanaClient(solana.rpc.api.Client):
         sig = self.send_transaction(tx, *signers, opts=opts).value
         statuses_resp = self.confirm_transaction(sig, commitment=Confirmed)
         sig_status = json.loads(statuses_resp.to_json())
-        assert sig_status["result"]["value"][0]["status"] == {"Ok": None}, f"error:{sig_status}"
+        receipt = self.get_transaction(sig)
+        assert sig_status["result"]["value"][0]["status"] == {"Ok": None}, f"error:{sig_status}, receipt: {receipt}"
 
-    def send_tx(self, trx: Transaction, *signers: Keypair, wait_status=Confirmed):
-        result = self.send_transaction(trx, *signers,
-                                       opts=TxOpts(skip_confirmation=True, preflight_commitment=wait_status))
+    def send_tx(self, trx: Transaction, *signers: Keypair, wait_status=Confirmed) -> GetTransactionResp:
+        result = self.send_transaction(
+            trx, *signers, opts=TxOpts(skip_confirmation=True, preflight_commitment=wait_status)
+        )
         self.confirm_transaction(result.value, commitment=Confirmed)
         return self.get_transaction(result.value, commitment=Confirmed)
 
@@ -124,6 +125,7 @@ class SolanaClient(solana.rpc.api.Client):
             return None
         return self.get_transaction(Signature.from_string(tx), max_supported_transaction_version=0)
 
+    @allure.step("Check if account exists")
     def account_exists(self, account_address: Pubkey) -> bool:
         try:
             account_info = self.get_account_info(account_address, commitment=Confirmed)
@@ -135,8 +137,8 @@ class SolanaClient(solana.rpc.api.Client):
             print(f"An error occurred: {e}")
 
     def get_account_whole_info(
-            self,
-            pubkey: Pubkey,
+        self,
+        pubkey: Pubkey,
     ):
         # get_account_info method returns cut data
 
@@ -163,7 +165,7 @@ class SolanaClient(solana.rpc.api.Client):
         token.payer = authority
         token.mint_to(token_account, authority, amount)
 
-    def get_solana_balance(self, account):
+    def get_solana_balance(self, account: Pubkey):
         return self.get_balance(account, commitment=Confirmed).value
 
     def create_account(self, payer, size, owner, account=None, lamports=None):
@@ -173,45 +175,24 @@ class SolanaClient(solana.rpc.api.Client):
         trx.fee_payer = payer.pubkey()
         instr = create_account(
             CreateAccountParams(
-                from_pubkey=payer.pubkey(),
-                to_pubkey=account.pubkey(),
-                lamports=lamports,
-                space=size,
-                owner=owner))
+                from_pubkey=payer.pubkey(), to_pubkey=account.pubkey(), lamports=lamports, space=size, owner=owner
+            )
+        )
         self.send_tx(trx.add(instr), payer, account)
         return account
 
-    @allure.step("Get Solana transaction with wait")
-    def get_transaction_with_wait(
-            self,
-            tx_sig: Signature,
-            encoding: str = "json",
-            commitment: tp.Optional[Commitment] = None,
-            max_supported_transaction_version: tp.Optional[int] = None,
-    ) -> GetTransactionResp:
-        tx = wait_condition(
-            func_cond=lambda: super(SolanaClient, self).get_transaction(
-                tx_sig=tx_sig,
-                encoding=encoding,
-                commitment=commitment,
-                max_supported_transaction_version=max_supported_transaction_version,
-            ),
-            check_success=lambda trx: trx.value is not None
-        )
-        return tx
-
     def transaction_contains_call_to_program(
-            self,
-            tx: EncodedConfirmedTransactionWithStatusMeta,
-            program_id: Pubkey,
+        self,
+        tx: EncodedConfirmedTransactionWithStatusMeta,
+        program_id: Pubkey,
     ) -> bool:
         account_key_index = self.get_account_key_index_from_tx(tx=tx, account=program_id)
         return self.do_tx_instructions_contain_program_id_index(tx=tx, i=account_key_index)
 
     @staticmethod
     def get_account_key_index_from_tx(
-            tx: EncodedConfirmedTransactionWithStatusMeta,
-            account: Pubkey,
+        tx: EncodedConfirmedTransactionWithStatusMeta,
+        account: Pubkey,
     ) -> int:
         """
         :returns index in transaction.message.account_keys or -1 if not found
@@ -224,11 +205,16 @@ class SolanaClient(solana.rpc.api.Client):
 
     @staticmethod
     def do_tx_instructions_contain_program_id_index(
-            tx: EncodedConfirmedTransactionWithStatusMeta,
-            i: int,
+        tx: EncodedConfirmedTransactionWithStatusMeta,
+        i: int,
     ) -> bool:
         for instruction in tx.transaction.transaction.message.instructions:
             if instruction.program_id_index == i:
                 return True
         else:
             return False
+
+    @allure.step("Get account keys for solana transaction")
+    def get_account_keys_for_transaction(self, sol_trx: str):
+        resp = self.get_transaction(Signature.from_string(sol_trx), commitment=Confirmed)
+        return resp.value.transaction.transaction.message.account_keys
