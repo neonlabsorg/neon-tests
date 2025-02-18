@@ -17,11 +17,11 @@ def k6_prepare_accounts(erc20, account_manager, users, balance, erc20_balance):
     # We need to create 2*VU accounts cause we want to make sure account's nonces is not overlapping.
     for i in range(int(users)):
         account_sender = account_manager.create_account(balance=int(balance))
-        # account_receiver = account_manager.create_account(balance=0)
+        account_receiver = account_manager.create_account(balance=0)
         accounts[i] = {
             "sender_address": str(account_sender.address),
             "sender_key": str(account_sender.key.hex())[2:],
-            # "receiver_address": str(account_receiver.address),
+            "receiver_address": str(account_receiver.address),
         }
 
         tx_receipt = erc20.transfer(erc20.owner, account_sender, erc20_balance)
@@ -29,7 +29,7 @@ def k6_prepare_accounts(erc20, account_manager, users, balance, erc20_balance):
         print(
             f"Account {str(i)} sender: {account_sender.address}, initial balance: {balance} Neon, {erc20_balance} ERC20."
         )
-        # print(f"Account {str(i)} receiver: {account_receiver.address}")
+        print(f"Account {str(i)} receiver: {account_receiver.address}")
 
     with open("./loadtesting/k6/data/accounts.json", "w", encoding="utf-8") as f:
         json.dump(accounts, f)
