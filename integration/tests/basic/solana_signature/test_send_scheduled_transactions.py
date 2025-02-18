@@ -623,19 +623,13 @@ class TestScheduledTrxERC20new:
 
         assert resp["status"] == 0, resp
 
-    def test_multiple_transactions_with_tree_actions(
-        self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool, environment, sol_client
+    @pytest.mark.xfail(reason="NDEV-3575")
+    def test_multiple_transactions_with_transfer_from_solana(
+        self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool
     ):
 
-        recipient = NeonUser(environment)
-
         token_mint = Pubkey(erc20_spl_mintable_new.contract.functions.tokenMint().call())
-        my_ata_user_1 = get_associated_token_address(neon_user.solana_account.pubkey(), token_mint)
-        my_ata_user_2 = get_associated_token_address(recipient.solana_account.pubkey(), token_mint)
-
-        solana_contract_account = Pubkey.from_string(
-            evm_loader.ether2program(erc20_spl_mintable_new.contract.address)[0]
-        )
+        my_ata = get_associated_token_address(neon_user.solana_account.pubkey(), token_mint)
 
         trx = Transaction()
         trx.add(
@@ -643,45 +637,121 @@ class TestScheduledTrxERC20new:
                 neon_user.solana_account.pubkey(), neon_user.solana_account.pubkey(), token_mint
             )
         )
-        trx.add(
-            approve(
-                ApproveParams(
-                    program_id=TOKEN_PROGRAM_ID,
-                    source=my_ata_user_1,
-                    delegate=solana_contract_account,
-                    owner=neon_user.solana_account.pubkey(),
-                    amount=1_000,
+        evm_loader.send_tx_and_check_status_ok(trx, neon_user.solana_account)
+        amount = 1000
+
+        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, amount)
+
+        call_data = abi.function_signature_to_4byte_selector(
+            "transferSolanaFrom(address,bytes,uint64)"
+        ) + eth_abi.encode(
+            ["address", "bytes", "uint64"],
+            [erc20_spl_mintable_new.account.address, bytes(my_ata), amount],
+        )
+
+        gas_limit = 3_000_000
+        base_fee_per_gas = web3_client_sol.base_fee_per_gas()
+        max_priority_fee_per_gas = 2_500_000_000
+        max_fee_per_gas = base_fee_per_gas * 2 + max_priority_fee_per_gas
+        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
+
+        tx = ScheduledTransaction(
+            nonce=nonce,
+            index=0,
+            target=erc20_spl_mintable_new.address,
+            call_data=call_data,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            gas_limit=gas_limit,
+            payer=neon_user.checksum_address,
+            sender=None,
+        )
+
+        tree_acc_data = CreateTreeAccMultipleData(
+            nonce=nonce,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+        )
+
+        tree_acc_data.add_trx(tx, 0xFFFF, 0)
+
+        evm_loader.create_tree_account_multiple(
+            neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"], chain_id=web3_client_sol.chain_id
+        )
+        web3_client_sol.send_scheduled_transaction(tx)
+
+        resp = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
+        assert resp["status"] == 1, resp
+
+    @pytest.mark.parametrize(
+        "ata_param",
+        [False, pytest.param(True, marks=pytest.mark.xfail(reason='Default "to" account bug transferFrom'))],
+    )
+    def test_multiple_transactions_with_tree_actions(
+        self,
+        web3_client_sol,
+        neon_user,
+        ata_param,
+        erc20_spl_mintable_new,
+        evm_loader,
+        treasury_pool,
+        environment,
+        sol_client,
+    ):
+
+        recipient = NeonUser(environment)
+
+        if ata_param:
+            solana_contract_account = Pubkey.from_string(
+                evm_loader.ether2program(erc20_spl_mintable_new.contract.address)[0]
+            )
+            token_mint = Pubkey(erc20_spl_mintable_new.contract.functions.tokenMint().call())
+            my_ata_user_1 = get_associated_token_address(neon_user.solana_account.pubkey(), token_mint)
+            trx = Transaction()
+            trx.add(
+                create_associated_token_account(
+                    neon_user.solana_account.pubkey(), neon_user.solana_account.pubkey(), token_mint
                 )
             )
-        )
-        evm_loader.send_tx_and_check_status_ok(trx, neon_user.solana_account)
+            trx.add(
+                approve(
+                    ApproveParams(
+                        program_id=TOKEN_PROGRAM_ID,
+                        source=my_ata_user_1,
+                        delegate=solana_contract_account,
+                        owner=neon_user.solana_account.pubkey(),
+                        amount=1_000,
+                    )
+                )
+            )
+            evm_loader.send_tx_and_check_status_ok(trx, neon_user.solana_account)
 
         # My pda/ata transfer
-        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, 700)
-        erc20_spl_mintable_new.approve_solana(erc20_spl_mintable_new.account, bytes(my_ata_user_1), 700)
-
-        # + top_up_pda 400
-        # - burn 100
-        # - transfer 150
-        # - transfer 450
+        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, 800)
 
         top_up_in_trx = 400
-        amount_to_recipient_1 = 150
-        amount_to_recipient_2 = 450
+        amount_to_recipient_1 = 400
+        amount_to_recipient_2 = 400
 
         data_0 = abi.function_signature_to_4byte_selector("transferFrom(address,address,uint256)") + eth_abi.encode(
             ["address", "address", "uint256"],
             [erc20_spl_mintable_new.account.address, neon_user.checksum_address, top_up_in_trx],
-        )  # neon_user: pda -> ata (200) balance pda/ata (300, 400)
-        data_1 = abi.function_signature_to_4byte_selector("transfer(address,uint256)") + eth_abi.encode(
-            ["address", "uint256"], [recipient.checksum_address, 150]
-        )  # neon_user: pda -> recipient_user pda (150)
-        data_2 = abi.function_signature_to_4byte_selector("transferSolana(bytes,uint256)") + eth_abi.encode(
-            ["bytes", "uint256"], [bytes(my_ata_user_2), 150]
-        )  # (0, 300)
-        data_3 = abi.function_signature_to_4byte_selector("transferSolana(bytes,uint256)") + eth_abi.encode(
-            ["bytes", "uint256"], [bytes(my_ata_user_2), 25]
-        )  #
+        )
+        data_1 = abi.function_signature_to_4byte_selector("transferFrom(address,address,uint256)") + eth_abi.encode(
+            ["address", "address", "uint256"],
+            [erc20_spl_mintable_new.account.address, neon_user.checksum_address, top_up_in_trx],
+        )
+        data_2 = abi.function_signature_to_4byte_selector("transfer(address,uint256)") + eth_abi.encode(
+            ["address", "uint256"], [recipient.checksum_address, amount_to_recipient_1]
+        )
+        data_3 = abi.function_signature_to_4byte_selector("transfer(address,uint256)") + eth_abi.encode(
+            ["address", "uint256"], [recipient.checksum_address, amount_to_recipient_2]
+        )
+        if ata_param:
+            burn_amount = 400
+            data_3 = abi.function_signature_to_4byte_selector("burn(uint256)") + eth_abi.encode(
+                ["uint256"], [burn_amount]
+            )
         call_data: list = [data_0, data_1, data_2, data_3]
 
         # TODO Use estimate result method to count transaction fees. Waiting for developers to fix it.
@@ -732,6 +802,11 @@ class TestScheduledTrxERC20new:
         web3_client_sol.send_all_scheduled_transactions(trxs)
         all((web3_client_sol.wait_for_transaction_receipt(trx.hash()) for trx in trxs))
 
+        for trx in trxs:
+            assert (
+                web3_client_sol.wait_for_transaction_receipt(trx.hash(), timeout=180)["status"] == 1
+            ), f"transaction_{trx.index} failed"
+
         balance_user_1 = erc20_spl_mintable_new.get_balance(neon_user.checksum_address)
         balance_user_2 = erc20_spl_mintable_new.get_balance(recipient.checksum_address)
 
@@ -740,15 +815,9 @@ class TestScheduledTrxERC20new:
         balance_user_2_pda = erc20_spl_mintable_new.contract.functions.balanceOfPDA(recipient.checksum_address).call()
         balance_user_2_ata = erc20_spl_mintable_new.contract.functions.balanceOfATA(recipient.checksum_address).call()
 
-        print(erc20_spl_mintable_new.get_balance(neon_user.checksum_address))
-        print(erc20_spl_mintable_new.get_balance(recipient.checksum_address))
-
-        print(f"balance neon pda: {balance_user_1_pda} ata: {balance_user_1_ata}")
-        print(f"balance recipient pda: {balance_user_2_pda} ata: {balance_user_2_ata}")
-
-        assert balance_user_1 == top_up_in_trx - amount_to_recipient_1 - amount_to_recipient_2
-        assert balance_user_2 == amount_to_recipient_1 + amount_to_recipient_2
-        assert balance_user_2 == balance_user_2_pda
+        assert balance_user_1 == balance_user_1_ata == balance_user_1_pda == 0
+        assert balance_user_2_ata == 0
+        assert balance_user_2 == balance_user_2_pda == 400 if ata_param else balance_user_2 == balance_user_2_pda == 800
 
     def test_multiple_transactions_with_tree_actions_parallel_exc(
         self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool, environment
