@@ -120,7 +120,7 @@ def validate_transfer_positive(
         access_list=access_list,
     )
 
-    receipt = web3_client.send_transaction(account=sender, transaction=tx_params, timeout=15)
+    receipt = web3_client.send_transaction(account=sender, transaction=tx_params)
     assert receipt.type == 2
 
     balance_sender_after = web3_client.get_balance(sender.address)
