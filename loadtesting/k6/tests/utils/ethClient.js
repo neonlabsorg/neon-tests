@@ -1,6 +1,6 @@
 import eth from 'k6/x/ethereum';
-import { proxyUrl, tracerUrl, networkId, erc20Address } from './consts.js';
-import { check } from 'k6';
+import {erc20Address, networkId, proxyUrl, tracerUrl} from './consts.js';
+import {check} from 'k6';
 
 export function ethClient(privateKey) {
     const client = new eth.Client({
@@ -50,6 +50,7 @@ export async function sendCallContractTransaction({
     requestTimeTrend,
     requestCounter,
     prometheusLabels = {},
+    gasLimitMultiplier = 1,
 }) {
     const startTime = new Date();
     const labels = Object.assign({ function: functionName }, prometheusLabels);
@@ -64,6 +65,10 @@ export async function sendCallContractTransaction({
             value: 0,
             input: input,
         };
+
+        const gasEstimate = ethClient.estimateGas(transaction)
+        const gasLimit = gasEstimate * gasLimitMultiplier
+        transaction.gas = gasLimit
 
         const timeout = 120;
         const txHash = ethClient.sendRawTransaction(transaction);

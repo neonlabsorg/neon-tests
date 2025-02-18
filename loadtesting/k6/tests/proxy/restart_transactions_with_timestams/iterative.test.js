@@ -44,5 +44,6 @@ export default function restartTransactionsWithTimestampTest() {
         requestTimeTrend: requestTimeTrend,
         requestCounter: requestCounter,
         prometheusLabels: {iterative: true},
+        gasLimitMultiplier: 10,
     })
 }
