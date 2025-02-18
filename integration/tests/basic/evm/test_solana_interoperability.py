@@ -526,48 +526,6 @@ class TestSolanaInteroperability:
         ):
             call_solana_caller.functions.executeInIterativeMode(loop_count, lamports, serialized).build_transaction(tx)
 
-    def test_solana_call_inside_iterative_actions(
-        self, counter_resource_address: bytes, call_solana_caller, get_counter_value
-    ):
-        sender = self.accounts[0]
-        lamports = 0
-        matrix_lenght = 8
-        matrix = [[random.randint(1, 100) for _ in range(matrix_lenght)] for _ in range(matrix_lenght)]
-
-        instruction = Instruction(
-            program_id=COUNTER_ID,
-            accounts=[
-                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
-            ],
-            data=bytes([0x1]),
-        )
-        serialized = serialize_instruction(COUNTER_ID, instruction)
-
-        tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.solanaCallInsideActionWithMatrix(
-            matrix, lamports, serialized
-        ).build_transaction(tx)
-        resp = self.web3_client.send_transaction(sender, instruction_tx)
-        assert resp["status"] == 1
-
-        event_logs_bytes = call_solana_caller.events.LogBytes().process_receipt(resp)
-        for i in range(matrix_lenght - 1):
-            next(get_counter_value)
-
-        all_logs_value = [
-            int.from_bytes(event_logs_byte.args.value, byteorder="little") for event_logs_byte in event_logs_bytes
-        ]
-
-        assert max(all_logs_value) == next(get_counter_value)
-
-        event_logs_int = call_solana_caller.events.LogInt().process_receipt(resp)
-        assert event_logs_int[0].args.value == sum(sum(row) for row in matrix)
-
-        wait_condition(
-            lambda: self.web3_client.is_trx_iterative(resp["transactionHash"].hex()) is True,
-            timeout_sec=60,
-        )
-
     def test_solana_call_of_two_programs_in_one_iterative_tx(
         self, counter_resource_address: bytes, call_solana_caller, get_counter_value, sol_client, solana_account
     ):

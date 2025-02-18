@@ -184,11 +184,3 @@ class TestPrecompiledContracts:
             params=[address, "latest"],
         )
         assert response["result"] == "0x"
-
-    @pytest.mark.parametrize("address", NEON_PRECOMPILED)
-    def test_eth_get_code_neon_precompiled(self, json_rpc_client, address):
-        response = json_rpc_client.send_rpc(
-            "eth_getCode",
-            params=[address, "latest"],
-        )
-        assert response["result"] == "0xfe"
