@@ -1,6 +1,7 @@
 class Error32602:
     CODE = -32602
     BAD_FROM_ADDRESS = "bad from-address"
+    WRONG_TRANSACTION_FOWMAT = "wrong transaction format"
 
     INVALID_PARAMETERS = "Invalid params"
     INVALID_FILTER = INVALID_PARAMETERS
@@ -11,3 +12,14 @@ class Error32602:
     INVALID_BLOCKHASH = INVALID_SENDER
     INVALID_TRANSACTIONID = INVALID_PARAMETERS
     INVALID_CALL = INVALID_PARAMETERS
+
+
+class Error32000:
+    CODE = -32000
+    UNKNOWN_TRANSACTION_HASH = "unknown transaction hash"
+    WRONG_CHAIN_ID = "wrong chain id"
+
+
+class Error3:
+    CODE = 3
+    EXECUTION_REVERTED = "execution reverted"
