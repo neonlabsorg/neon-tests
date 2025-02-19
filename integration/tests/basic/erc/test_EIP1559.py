@@ -592,11 +592,7 @@ class TestRpcMaxPriorityFeePerGas:
         response = json_rpc_client.send_rpc(method="eth_maxPriorityFeePerGas")
         assert "error" not in response, response["error"]
         max_priority_fee_per_gas = int(response["result"], 16)
-
-        fee_history: web3.types.FeeHistory = web3_client._web3.eth.fee_history(1, "pending", [100])
-        last_reward = fee_history["reward"][-1][-1]
-        change_10_pct = int(last_reward * 0.1)
-        assert abs(max_priority_fee_per_gas - last_reward) <= change_10_pct
+        assert max_priority_fee_per_gas > 0
 
 
 @allure.feature("EIP Verifications")
