@@ -590,7 +590,7 @@ def run(
     elif name == "compiler_compatibility":
         command = "py.test integration/tests/compiler_compatibility"
         if numprocesses:
-            command = f"{command} --numprocesses {numprocesses}"
+            command = f"{command} --numprocesses {numprocesses} --dist loadscope"
     elif name == "evm":
         command = "py.test integration/tests/neon_evm"
         if numprocesses:

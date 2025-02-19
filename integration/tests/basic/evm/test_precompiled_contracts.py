@@ -123,6 +123,7 @@ class TestPrecompiledContracts:
 
         assert result.hex() == expected
 
+    @pytest.mark.xdist_group("precompiled_contract_balance")
     @pytest.mark.parametrize(**parametrized_data)
     def test_call_via_send_trx(
         self, web3_client: NeonChainWeb3Client, address, input_data, request, pytestconfig, expected, evm_loader
