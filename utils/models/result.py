@@ -219,6 +219,20 @@ class EthGetBlockByHashFullResult(EthResult):
     result: Union[EthGetBlockByHashFullDetails, None]
 
 
+class EstimateScheduledGasDetails(ForbidExtra):
+    chainId: HexString
+    maxFeePerGas: HexString
+    maxPriorityFeePerGas: HexString
+    nonce: HexString
+    treasuryIndex: HexString
+    gasList: tp.Optional[List[HexString]] = None
+    accountList: tp.Optional[List[str]] = None
+
+
+class EstimateScheduledGas(EthResult):
+    result: Union[EstimateScheduledGasDetails, None]
+
+
 class EthGetScheduledTxBlockByHashFullResult(EthResult):
     result: Union[EthGetScheduledTxBlockByHashFullDetails, None]
 
