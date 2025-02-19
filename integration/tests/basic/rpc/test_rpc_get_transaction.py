@@ -2,6 +2,8 @@ import typing as tp
 
 import pytest
 import web3
+import eth_abi
+from eth_utils import abi
 
 import allure
 from integration.tests.basic.helpers import rpc_checks
@@ -11,9 +13,10 @@ from integration.tests.basic.helpers.errors import Error32602
 from integration.tests.basic.helpers.rpc_checks import (
     assert_equal_fields,
     assert_fields_are_hex,
+    is_hex,
 )
 from utils.accounts import EthAccounts
-from utils.consts import Unit
+from utils.consts import Unit, wSOL
 from utils.helpers import gen_hash_of_block
 from utils.models.error import EthError, EthError32602
 from utils.models.result import (
@@ -22,7 +25,9 @@ from utils.models.result import (
     EthGetTransactionByHashResult,
     EthGetTransactionReceiptResult,
     EthResult,
+    EthEthGetScheduledTransactionByHashResult,
 )
+from utils.scheduled_trx import ScheduledTrxEstimateRequest, ScheduledTransaction, CreateTreeAccMultipleData
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -321,3 +326,136 @@ class TestRpcGetTransaction:
             ["blockHash", "blockNumber", "hash", "transactionIndex", "type", "from", "to"],
             {"hash": "transactionHash"},
         )
+
+    @pytest.mark.mainnet
+    @pytest.mark.neon_only
+    @pytest.mark.parametrize(
+        "params_case, method",
+        [
+            ("blockHash_case", "eth_getTransactionByHash"),
+            ("blockNumberAndIndex_case", "eth_getTransactionByBlockNumberAndIndex"),
+            ("blockHashAndIndex_case", "eth_getTransactionByBlockHashAndIndex"),
+        ],
+    )
+    def test_get_scheduled_transaction_by_hash(
+        self,
+        json_rpc_client,
+        web3_client_sol,
+        neon_user,
+        common_contract,
+        evm_loader,
+        treasury_pool,
+        params_case,
+        method,
+    ):
+        contract_data = 18
+        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
+            ["uint256"], [contract_data]
+        )
+
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+
+        tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
+
+        evm_loader.create_tree_account(
+            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
+        )
+
+        web3_client_sol.send_scheduled_transaction(tx, check_result=True)
+        tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
+        transaction_index = hex(tx_receipt.transactionIndex)
+
+        params = None
+        if params_case == "blockHash_case":
+            params = tx_receipt["transactionHash"].hex()
+        elif params_case == "blockNumberAndIndex_case":
+            params = [hex(tx_receipt.blockNumber), transaction_index]
+        elif params_case == "blockHashAndIndex_case":
+            params = [tx_receipt.blockHash.hex(), transaction_index]
+
+        resp = json_rpc_client.send_rpc(
+            method=method,
+            params=params,
+        )
+
+        EthEthGetScheduledTransactionByHashResult(**resp)
+        result = resp["result"]
+        assert result["type"] == "0x80"
+        assert is_hex(result["scheduledIndex"])
+        assert is_hex(result["scheduledPayer"])
+        assert result["scheduledSolanaPayer"] is not None  # TODO norm check ?
+        assert result["scheduledSolanaSignature"] is not None  # TODO norm check ?
+        assert "error" not in resp
+        assert_fields_are_hex(
+            result,
+            ["blockHash", "blockNumber", "hash", "transactionIndex", "type", "from", "nonce", "gasPrice", "gas", "to"],
+        )
+
+    @pytest.mark.mainnet
+    @pytest.mark.neon_only
+    @pytest.mark.parametrize(
+        "params_case, method",
+        [
+            ("blockHash_case", "eth_getTransactionByHash"),
+            ("blockNumberAndIndex_case", "eth_getTransactionByBlockNumberAndIndex"),
+            ("blockHashAndIndex_case", "eth_getTransactionByBlockHashAndIndex"),
+        ],
+    )
+    def test_neon_get_reverted_scheduled_transaction_by_hash(
+        self,
+        json_rpc_client,
+        web3_client_sol,
+        neon_user,
+        treasury_pool,
+        event_caller_contract,
+        evm_loader,
+        common_contract,
+        revert_contract_caller,
+        params_case,
+        method,
+    ):
+        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
+        call_data = abi.function_signature_to_4byte_selector("doAssert()")
+
+        gas_limit = 3000000
+        base_fee_per_gas = web3_client_sol.base_fee_per_gas()
+        max_priority_fee_per_gas = 2500000000
+        max_fee_per_gas = base_fee_per_gas * 2 + max_priority_fee_per_gas
+
+        tx0 = ScheduledTransaction(
+            neon_user.neon_address,
+            None,
+            nonce,
+            index=0,
+            target=revert_contract_caller.address,
+            call_data=call_data,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            gas_limit=gas_limit,
+        )
+
+        tree_acc_data = CreateTreeAccMultipleData(
+            nonce=nonce, max_fee_per_gas=max_fee_per_gas, max_priority_fee_per_gas=max_priority_fee_per_gas
+        )
+        tree_acc_data.add_trx(tx0, 0xFFFF, 0)
+        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
+
+        web3_client_sol.send_scheduled_transaction(tx0, check_result=True)
+        tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash(), timeout=180)
+        assert tx_receipt["status"] == 0
+
+        transaction_index = hex(tx_receipt.transactionIndex)
+        params = None
+        if params_case == "blockHash_case":
+            params = tx_receipt["transactionHash"].hex()
+        elif params_case == "blockNumberAndIndex_case":
+            params = [hex(tx_receipt.blockNumber), transaction_index]
+        elif params_case == "blockHashAndIndex_case":
+            params = [tx_receipt.blockHash.hex(), transaction_index]
+
+        resp = json_rpc_client.send_rpc(
+            method=method,
+            params=params,
+        )
+        EthEthGetScheduledTransactionByHashResult(**resp)
