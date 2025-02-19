@@ -146,7 +146,6 @@ class TestExtCodeHashOpcode:
             ("0xFf00000000000000000000000000000000000004", keccak(hexstr="0xFE").hex()),
         ],
     )
-    @pytest.mark.xdist_group("precompiled_contract_balance")
     def test_extcodehash_with_send_tx_for_precompiled_contract(self, eip1052_checker, address, expected_hash):
         # Check the EXTCODEHASH of a precompiled contract with send_tx.
         sender_account = self.accounts[0]

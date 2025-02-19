@@ -123,7 +123,6 @@ class TestPrecompiledContracts:
 
         assert result.hex() == expected
 
-    @pytest.mark.xdist_group("precompiled_contract_balance")
     @pytest.mark.parametrize(**parametrized_data)
     def test_call_via_send_trx(
         self, web3_client: NeonChainWeb3Client, address, input_data, request, pytestconfig, expected, evm_loader
@@ -163,7 +162,6 @@ class TestPrecompiledContracts:
             except ValueError as exc:
                 assert "InvalidLength" in exc.args[0]["message"]
 
-    @pytest.mark.xdist_group("precompiled_contract_balance")
     def test_send_neon_without_data(self, pytestconfig):
         address = "0x0000000000000000000000000000000000000006"
         sender_account = self.accounts[0]
