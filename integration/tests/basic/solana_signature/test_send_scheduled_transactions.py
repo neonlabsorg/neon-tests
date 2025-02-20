@@ -560,7 +560,6 @@ class TestScheduledTrxERC20new:
         web3_client_sol,
         neon_user,
         erc20_spl_mintable_new,
-        solana_associated_token_mintable_erc20_new,
         evm_loader,
         treasury_pool,
         sol_client,
@@ -580,14 +579,14 @@ class TestScheduledTrxERC20new:
         top_up_in_trx = 400
         amount_to_recipient = 400
 
-        data_0, data_1 = abi.function_signature_to_4byte_selector(
+        data_0 = data_1 = abi.function_signature_to_4byte_selector(
             "transferFrom(address,address,uint256)"
         ) + eth_abi.encode(
             ["address", "address", "uint256"],
             [erc20_spl_mintable_new.account.address, neon_user.checksum_address, top_up_in_trx],
         )
 
-        data_2, data_3 = abi.function_signature_to_4byte_selector("transfer(address,uint256)") + eth_abi.encode(
+        data_2 = data_3 = abi.function_signature_to_4byte_selector("transfer(address,uint256)") + eth_abi.encode(
             ["address", "uint256"], [recipient.checksum_address, amount_to_recipient]
         )
 

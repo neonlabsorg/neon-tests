@@ -9,8 +9,7 @@ import typing as tp
 
 import base58
 import pytest
-from solana.transaction import Transaction
-from spl.token.instructions import create_associated_token_account, get_associated_token_address
+
 from web3.types import TxReceipt
 from _pytest.config import Config
 from solders.keypair import Keypair
@@ -778,16 +777,3 @@ def diamond(web3_client_session, diamond_init, facet_cuts, accounts):
         constructor_args=[facet_cuts, diamond_args],
     )
     return contract
-
-
-@pytest.fixture(scope="function")
-def solana_associated_token_mintable_erc20_new(
-    erc20_spl_mintable_new, sol_client, solana_account: Keypair
-) -> tp.Generator[tuple[Keypair, Pubkey, Pubkey], None, None]:
-    token_mint = Pubkey(erc20_spl_mintable_new.contract.functions.tokenMint().call())
-    trx = Transaction()
-    trx.add(create_associated_token_account(solana_account.pubkey(), solana_account.pubkey(), token_mint))
-    opts = TxOpts(skip_preflight=True, skip_confirmation=False)
-    sol_client.send_transaction(trx, solana_account, opts=opts)
-    solana_address = get_associated_token_address(solana_account.pubkey(), token_mint)
-    yield solana_account, token_mint, solana_address
