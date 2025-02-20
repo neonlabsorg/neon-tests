@@ -574,16 +574,6 @@ class TestScheduledTrxERC20new:
         # │ s=0   │  │ s=1  │
         # └───────┘  └──────┘
         recipient = NeonUser(evm_loader.loader_id)  # Recipient #1
-        token_mint = Pubkey(erc20_spl_mintable_new.contract.functions.tokenMint().call())
-        trx = Transaction()
-        trx.add(
-            create_associated_token_account(
-                neon_user.solana_account.pubkey(), neon_user.solana_account.pubkey(), token_mint
-            )
-        )
-        evm_loader.send_tx_and_check_status_ok(trx, neon_user.solana_account)
-
-        recipient_acc, _, solana_address = solana_associated_token_mintable_erc20_new  # Recipient #2
 
         erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, 800)
 
@@ -662,7 +652,7 @@ class TestScheduledTrxERC20new:
         assert balance_user_2 == balance_user_2_pda == 800
 
     def test_multiple_transactions_with_tree_actions_independent(
-        self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool, environment
+        self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool
     ):
 
         recipient = NeonUser(evm_loader.loader_id)
