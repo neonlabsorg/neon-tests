@@ -287,12 +287,16 @@ def account_with_all_tokens(
     neon_mint,
     operator_keypair,
     evm_loader_keypair,
-    bank_account,
+    bank_account: Keypair | None,
 ) -> LocalAccount:
     neon_account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account, amount=500)
     if web3_client_sol:
         lamports = 10 * LAMPORT_PER_SOL
         if environment.use_bank:
+            bank_account: Keypair
+            log.debug(f"bank_account pubkey: {bank_account.pubkey()}")
+            log.debug(f"bank_account private key: {bank_account.secret()}")
+            log.debug(f"bank_account balance: {evm_loader.get_solana_balance(bank_account.pubkey())}")
             evm_loader.send_sol(bank_account, solana_account.pubkey(), lamports)
         else:
             evm_loader.request_airdrop(solana_account.pubkey(), lamports)
