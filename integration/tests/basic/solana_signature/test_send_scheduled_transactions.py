@@ -324,7 +324,7 @@ class TestScheduledTrx:
         ) + eth_abi.encode(["uint256", "uint256"], [0, 1000])
 
         trx_estimate_obj_list = []
-        for i in range(total_trx_count):
+        for _ in range(total_trx_count):
             trx_estimate_obj_list.append(
                 ScheduledTrxEstimateRequest(neon_user.checksum_address, counter_contract.address, call_data_counter)
             )
