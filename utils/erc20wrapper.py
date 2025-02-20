@@ -405,7 +405,7 @@ class ERC20NewWrapper:
         if pda_amount:
             self.transfer(self.account, recipient.checksum_address, pda_amount)  # PDA top up
 
-        if ata_amount:
+        if ata_amount is not None:
             ata_account = get_associated_token_address(recipient.solana_account.pubkey(), mint)
             solana_contract_account = Pubkey.from_string(evm_loader.ether2program(self.contract.address)[0])
 

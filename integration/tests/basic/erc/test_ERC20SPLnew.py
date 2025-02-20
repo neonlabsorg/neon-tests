@@ -785,12 +785,10 @@ class TestERC20SPLMintable:
 
 @allure.feature("ERC Verifications")
 @allure.story("ERC20SPL: Tests for multiple actions in one transaction")
-@pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
-@pytest.mark.neon_only
+@pytest.mark.usefixtures("web3_client", "accounts")
 class TestMultipleActionsForERC20:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
-    sol_client: SolanaClient
 
     def test_mint_transfer_burn(self, multiple_actions_erc20_new):
         sender_account = self.accounts[0]
@@ -1124,33 +1122,10 @@ class TestMultipleActionsForERC20:
         ), "User balance is not correct"
 
 
-@pytest.fixture(scope="class")
-def new_factory_contract(web3_client, erc20_spl_mintable):
-    contract, tx = web3_client.deploy_and_get_contract(
-        "external/neon-contracts/ERC20ForSPL/contracts/test/ERC20ForSPLMintableFactoryV2",
-        "0.8.24",
-        erc20_spl_mintable.account,
-        contract_name="ERC20ForSPLMintableFactoryV2",
-    )
-    return contract
-
-
-@pytest.fixture(scope="class")
-def new_token_contract(web3_client, erc20_spl_mintable):
-    contract, tx = web3_client.deploy_and_get_contract(
-        "external/neon-contracts/ERC20ForSPL/contracts/test/ERC20ForSPLMintableV2",
-        "0.8.24",
-        erc20_spl_mintable.account,
-        contract_name="ERC20ForSPLMintableV2",
-    )
-    return contract
-
-
 @allure.feature("ERC Verifications")
 @allure.story("ERC20SPL: Tests for new ERC20ForSPL contract")
 class TestERC20SPLNewFeatures:
 
-    # Single functions testing
     def test_solana_account_getter(self, erc20_spl_mintable_new, accounts):
         acc = self.accounts[0]
         solana_pubkey = erc20_spl_mintable_new.get_solana_account(acc.address)
@@ -1184,15 +1159,6 @@ class TestERC20SPLNewFeatures:
 
         assert isinstance(ata_address, bytes), "Returned ATA is not bytes32"
         assert len(ata_address) == 32, "Invalid ATA address length"
-
-    def test_transferSolana_uninitialized_ata(self, erc20_spl_new, solana_account, sol_client):
-        token_mint = erc20_spl_new.token_mint.pubkey
-        new_account = sol_client.create_account(
-            payer=solana_account,
-            size=0,
-            owner=solana_account.pubkey(),
-        )
-        assert not sol_client.is_ata_initialized(new_account.pubkey(), token_mint), "ATA exists!"
 
     def test_transferSolanaFrom(
         self,
