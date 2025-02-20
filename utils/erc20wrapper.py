@@ -5,11 +5,13 @@ from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
-from spl.token.instructions import get_associated_token_address
+from spl.token.instructions import get_associated_token_address, create_associated_token_account, approve, ApproveParams
 from web3.types import TxReceipt
+from spl.token.constants import TOKEN_PROGRAM_ID
 
 from clickfile import EXTERNAL_CONTRACT_PATH
 from . import web3client, stats_collector
+from .evm_loader import EvmLoader
 from .metaplex import create_metadata_instruction_data, create_metadata_instruction
 from .neon_user import NeonUser
 
@@ -382,7 +384,7 @@ class ERC20NewWrapper:
             address = address.address
         return self.contract.functions.getTokenMintATA(address).call()
 
-    def pop_up_balance(self, recipient: NeonUser, pda_amount: int, ata_amount: int) -> None:
+    def pop_up_balance(self, evm_loader: EvmLoader, recipient: NeonUser, pda_amount: int, ata_amount: int) -> None:
         """
         Top up a recipient's token balances by transferring tokens to both their PDA and ATA accounts.
 
@@ -402,6 +404,28 @@ class ERC20NewWrapper:
         mint = Pubkey(self.contract.functions.tokenMint().call())
         if pda_amount:
             self.transfer(self.account, recipient.checksum_address, pda_amount)  # PDA top up
+
         if ata_amount:
             ata_account = get_associated_token_address(recipient.solana_account.pubkey(), mint)
+            solana_contract_account = Pubkey.from_string(evm_loader.ether2program(self.contract.address)[0])
+
+            trx = Transaction()
+            trx.add(
+                create_associated_token_account(
+                    recipient.solana_account.pubkey(), recipient.solana_account.pubkey(), mint
+                )
+            )
+            trx.add(
+                approve(
+                    ApproveParams(
+                        program_id=TOKEN_PROGRAM_ID,
+                        source=ata_account,
+                        delegate=solana_contract_account,
+                        owner=recipient.solana_account.pubkey(),
+                        amount=1000,
+                    )
+                )
+            )
+            evm_loader.send_tx_and_check_status_ok(trx, recipient.solana_account)
+
             self.transfer_solana(self.account, bytes(ata_account), ata_amount)

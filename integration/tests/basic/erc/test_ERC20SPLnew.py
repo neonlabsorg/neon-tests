@@ -11,7 +11,7 @@ from solders.pubkey import Pubkey
 from spl.token import instructions
 from spl.token.constants import TOKEN_PROGRAM_ID
 
-
+from integration.tests.basic.helpers.errors import ContractError
 from utils import metaplex
 from utils.consts import ZERO_ADDRESS
 from utils.erc20wrapper import ERC20NewWrapper
@@ -42,15 +42,12 @@ class TestERC20SPL:
 
     @pytest.fixture(scope="class")
     def erc20_contract(self, erc20_spl_new, eth_bank_account, pytestconfig: Config) -> ERC20NewWrapper:
-        if pytestconfig.getoption("--network") == "mainnet":
-            self.web3_client.send_neon(eth_bank_account, erc20_spl_new.account.address, 10)
         return erc20_spl_new
 
     @pytest.fixture
     def restore_balance(self, erc20_contract):
         pass
 
-    @pytest.mark.mainnet
     def test_metaplex_data(self, erc20_contract):
         metaplex.wait_account_info(self.sol_client, erc20_contract.token_mint.pubkey)
         metadata = metaplex.get_metadata(self.sol_client, erc20_contract.token_mint.pubkey)
@@ -58,7 +55,6 @@ class TestERC20SPL:
         assert metadata["data"]["symbol"] == erc20_contract.symbol
         assert metadata["is_mutable"] is True
 
-    @pytest.mark.mainnet
     def test_balanceOf(self, erc20_contract):
         recipient_account = self.accounts[1]
         transfer_amount = random.randint(0, 1000)
@@ -81,7 +77,6 @@ class TestERC20SPL:
         symbol = erc20_contract.contract.functions.symbol().call()
         assert symbol == erc20_contract.symbol
 
-    @pytest.mark.mainnet
     def test_name(self, erc20_contract):
         name = erc20_contract.contract.functions.name().call()
         assert name == erc20_contract.name
@@ -102,50 +97,48 @@ class TestERC20SPL:
         self,
         erc20_contract,
     ):
-        with pytest.raises(web3.exceptions.ContractLogicError):
-            erc20_contract.burn(self.accounts[2], 1000)
+        burn_amount = 1000
+        account_balance = erc20_contract.get_balance(self.accounts[2].address)
+        with pytest.raises(web3.exceptions.ContractLogicError) as exc_info:
+            erc20_contract.burn(self.accounts[2], burn_amount)
 
-        # error_expected = ContractError(
-        #     signature='ERC20InsufficientBalance(address, uint256, uint256)',
-        #     arg_types=['address', 'uint256', 'uint256']
-        # )
-        #
-        # assert error_expected.matches(error_hex_to_match=exc_info.value.args[0]), \
-        #     f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
-        #
-        # address, balance, needed = error_expected.decode_args(exc_info.value.args[0])
-        # address_expected = self.accounts[2].address.lower()
-        # assert address_expected == address, f"Expected address to be {address_expected}, but got {address}"
-        # assert 1000 == balance, f"Expected 1000 to be {1000}, but got {balance}"
-        # assert 0 == needed, f"Expected limit to be {0}, but got {needed}"
+        error_expected = ContractError(
+            signature="ERC20InsufficientBalance(address, uint256, uint256)", arg_types=["address", "uint256", "uint256"]
+        )
+
+        assert error_expected.matches(
+            error_hex_to_match=exc_info.value.args[0]
+        ), f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
+
+        address, balance, needed = error_expected.decode_args(exc_info.value.args[0])
+        address_expected = self.accounts[2].address.lower()
+        assert address_expected == address, f"Expected address to be {address_expected}, but got {address}"
+        assert account_balance == balance, f"Expected balance to be {account_balance}, but got {balance}"
+        assert burn_amount == needed, f"Expected limit to be {0}, but got {needed}"
 
     def test_burn_more_than_total_supply(self, erc20_contract):
         total = erc20_contract.contract.functions.totalSupply().call()
-        with pytest.raises(
-            web3.exceptions.ContractLogicError,
-        ):
+        with pytest.raises(web3.exceptions.ContractLogicError) as exc_info:
             erc20_contract.burn(erc20_contract.account, total + 1)
 
-        # error_expected = ContractError(
-        #     signature='ERC20InsufficientBalance(address, uint256, uint256)',
-        #     arg_types=['address', 'uint256', 'uint256']
-        # )
-        #
-        # assert error_expected.matches(error_hex_to_match=exc_info.value.args[0]), \
-        #     f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
-        #
-        # address, balance, needed = error_expected.decode_args(exc_info.value.args[0])
-        # address_expected = erc20_contract.account.address.lower()
-        # assert address_expected == address, f"Expected address to be {address_expected}, but got {address}"
-        # assert total == balance, f"Expected amount to be {total}, but got {balance}"
-        # assert needed == total + 1, f"Expected amount to be {total}, but got {balance}"
+        error_expected = ContractError(
+            signature="ERC20InsufficientBalance(address, uint256, uint256)", arg_types=["address", "uint256", "uint256"]
+        )
+
+        assert error_expected.matches(
+            error_hex_to_match=exc_info.value.args[0]
+        ), f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
+
+        address, balance, needed = error_expected.decode_args(exc_info.value.args[0])
+        address_expected = erc20_contract.account.address.lower()
+        assert address_expected == address, f"Expected address to be {address_expected}, but got {address}"
+        assert needed == total + 1, f"Expected amount to be {total}, but got {balance}"
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
     def test_burn_no_enough_gas(self, erc20_contract, param, msg):
         with pytest.raises(ValueError, match=msg):
             erc20_contract.burn(erc20_contract.account, 1, **param)
 
-    @pytest.mark.mainnet
     def test_burnFrom(self, erc20_contract, restore_balance):
         new_account = self.accounts[1]
         balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
@@ -161,15 +154,48 @@ class TestERC20SPL:
 
     def test_burnFrom_without_allowance(self, erc20_contract):
         new_account = self.accounts.create_account()
-        with pytest.raises(web3.exceptions.ContractLogicError):
-            erc20_contract.burn_from(new_account, erc20_contract.account.address, 10)
+        allowance_expected = 0
+        burn_amount = 10
+        with pytest.raises(web3.exceptions.ContractLogicError) as exc_info:
+            erc20_contract.burn_from(new_account, erc20_contract.account.address, burn_amount)
+
+        error_expected = ContractError(
+            signature="ERC20InsufficientAllowance(address, uint256, uint256)",
+            arg_types=["address", "uint256", "uint256"],
+        )
+
+        assert error_expected.matches(
+            error_hex_to_match=exc_info.value.args[0]
+        ), f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
+
+        spender, allowance, needed = error_expected.decode_args(exc_info.value.args[0])
+        address_expected = new_account.address.lower()
+        assert address_expected == spender, f"Expected address to be {address_expected}, but got {spender}"
+        assert allowance_expected == allowance, f"Expected allowance to be {allowance_expected}, but got {allowance}"
+        assert needed == burn_amount, f"Expected amount to be {needed}, but got {burn_amount}"
 
     def test_burnFrom_more_than_allowed(self, erc20_contract):
         new_account = self.accounts.create_account()
-        amount = 2
-        erc20_contract.approve(erc20_contract.account, new_account.address, amount)
-        with pytest.raises(web3.exceptions.ContractLogicError):
-            erc20_contract.burn_from(new_account, erc20_contract.account.address, amount + 1)
+        allowance_expected = 2
+        burn_amount = allowance_expected + 1
+        erc20_contract.approve(erc20_contract.account, new_account.address, allowance_expected)
+        with pytest.raises(web3.exceptions.ContractLogicError) as exc_info:
+            erc20_contract.burn_from(new_account, erc20_contract.account.address, burn_amount)
+
+        error_expected = ContractError(
+            signature="ERC20InsufficientAllowance(address, uint256, uint256)",
+            arg_types=["address", "uint256", "uint256"],
+        )
+
+        assert error_expected.matches(
+            error_hex_to_match=exc_info.value.args[0]
+        ), f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
+
+        spender, allowance, needed = error_expected.decode_args(exc_info.value.args[0])
+        address_expected = new_account.address.lower()
+        assert address_expected == spender, f"Expected address to be {address_expected}, but got {spender}"
+        assert allowance_expected == allowance, f"Expected allowance to be {allowance_expected}, but got {allowance}"
+        assert needed == burn_amount, f"Expected amount to be {needed}, but got {burn_amount}"
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
     def test_burnFrom_no_enough_gas(self, erc20_contract, param, msg):
@@ -196,8 +222,14 @@ class TestERC20SPL:
     )
     def test_approve_incorrect_address(self, erc20_contract, block_len, expected_exception):
         address = create_invalid_address(block_len) if isinstance(block_len, int) else block_len
-        with pytest.raises(expected_exception):
+        with pytest.raises(expected_exception) as exc_info:
             erc20_contract.approve(erc20_contract.account, address, 1)
+
+        error_expected = ContractError(signature="ERC20InvalidSpender(address)", arg_types=["address"])
+
+        assert error_expected.matches(
+            error_hex_to_match=exc_info.value.args[0]
+        ), f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
     def test_approve_no_enough_gas(self, erc20_contract, param, msg):
@@ -241,15 +273,34 @@ class TestERC20SPL:
     )
     def test_transfer_incorrect_address(self, erc20_contract, block_len, expected_exception):
         address = gen_hash_of_block(block_len) if isinstance(block_len, int) else block_len
-        with pytest.raises(expected_exception):
+        with pytest.raises(expected_exception) as exc_info:
             erc20_contract.transfer(erc20_contract.account, address, 1)
 
+        error_expected = ContractError(signature="ERC20InvalidReceiver(address)", arg_types=["address"])
+
+        assert error_expected.matches(
+            error_hex_to_match=exc_info.value.args[0]
+        ), f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
+
     def test_transfer_more_than_balance(self, erc20_contract):
-        balance = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
-        with pytest.raises(
-            web3.exceptions.ContractLogicError,
-        ):
-            erc20_contract.transfer(erc20_contract.account, erc20_contract.account.address, balance + 1)
+        balance_expected = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
+        transfer_amount = balance_expected + 1
+        with pytest.raises(web3.exceptions.ContractLogicError) as exc_info:
+            erc20_contract.transfer(erc20_contract.account, erc20_contract.account.address, transfer_amount)
+
+        error_expected = ContractError(
+            signature="ERC20InsufficientBalance(address, uint256, uint256)", arg_types=["address", "uint256", "uint256"]
+        )
+
+        assert error_expected.matches(
+            error_hex_to_match=exc_info.value.args[0]
+        ), f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
+
+        address, balance, needed = error_expected.decode_args(exc_info.value.args[0])
+        address_expected = erc20_contract.account.address.lower()
+        assert address_expected == address, f"Expected address to be {address_expected}, but got {address}"
+        assert balance == balance_expected, f"Expected balance {balance_expected}, got {balance}"
+        assert needed == transfer_amount, f"Expected amount to be {transfer_amount}, but got {balance}"
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
     def test_transfer_no_enough_gas(self, erc20_contract, param, msg):
@@ -274,29 +325,57 @@ class TestERC20SPL:
 
     def test_transferFrom_without_allowance(self, erc20_contract):
         new_account = self.accounts.create_account()
-        with pytest.raises(
-            web3.exceptions.ContractLogicError,  # InvalidAllowance error insufficient allowance
-        ):
+        allowance_expected = 0
+        transfer_amount = 10
+        with pytest.raises(web3.exceptions.ContractLogicError) as exc_info:
             erc20_contract.transfer_from(
                 signer=new_account,
                 address_from=erc20_contract.account.address,
                 address_to=new_account.address,
-                amount=10,
+                amount=transfer_amount,
             )
+        error_expected = ContractError(
+            signature="ERC20InsufficientAllowance(address, uint256, uint256)",
+            arg_types=["address", "uint256", "uint256"],
+        )
+
+        assert error_expected.matches(
+            error_hex_to_match=exc_info.value.args[0]
+        ), f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
+
+        spender, allowance, needed = error_expected.decode_args(exc_info.value.args[0])
+        address_expected = new_account.address.lower()
+        assert address_expected == spender, f"Expected address to be {address_expected}, but got {spender}"
+        assert allowance_expected == allowance, f"Expected allowance to be {allowance_expected}, but got {allowance}"
+        assert needed == transfer_amount, f"Expected amount to be {needed}, but got {transfer_amount}"
 
     def test_transferFrom_more_than_allowed(self, erc20_contract):
         new_account = self.accounts.create_account()
-        amount = 2
-        erc20_contract.approve(erc20_contract.account, new_account.address, amount)
-        with pytest.raises(
-            web3.exceptions.ContractLogicError,
-        ):
+        allowance_expected = 2
+        transfer_amount = allowance_expected + 1
+        erc20_contract.approve(erc20_contract.account, new_account.address, allowance_expected)
+        with pytest.raises(web3.exceptions.ContractLogicError) as exc_info:
             erc20_contract.transfer_from(
                 signer=new_account,
                 address_from=erc20_contract.account.address,
                 address_to=new_account.address,
-                amount=amount + 1,
+                amount=transfer_amount,
             )
+
+        error_expected = ContractError(
+            signature="ERC20InsufficientAllowance(address, uint256, uint256)",
+            arg_types=["address", "uint256", "uint256"],
+        )
+
+        assert error_expected.matches(
+            error_hex_to_match=exc_info.value.args[0]
+        ), f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
+
+        spender, allowance, needed = error_expected.decode_args(exc_info.value.args[0])
+        address_expected = new_account.address.lower()
+        assert address_expected == spender, f"Expected address to be {address_expected}, but got {spender}"
+        assert allowance_expected == allowance, f"Expected allowance to be {allowance_expected}, but got {allowance}"
+        assert needed == transfer_amount, f"Expected amount to be {needed}, but got {transfer_amount}"
 
     def test_transferFrom_incorrect_address(self, erc20_contract):
         with pytest.raises(web3.exceptions.InvalidAddress):
@@ -307,20 +386,33 @@ class TestERC20SPL:
                 amount=1,
             )
 
-    # TODO add custom errors parser to check specific errors are raised
+    # TODO Add EmptyAccount(bytes32) MissingMetaples(bytes32) InvalidTokenMint(bytes32) AmountExceedsUint64
     def test_transferFrom_more_than_balance(self, erc20_contract):
         new_account = self.accounts.create_account()
+        balance_expected = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
         amount = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call() + 1
         erc20_contract.approve(erc20_contract.account, new_account.address, amount)
-        with pytest.raises(
-            web3.exceptions.ContractLogicError,
-        ):
+        with pytest.raises(web3.exceptions.ContractLogicError) as exc_info:
             erc20_contract.transfer_from(
                 signer=new_account,
                 address_from=erc20_contract.account.address,
                 address_to=new_account.address,
                 amount=amount,
             )
+
+        error_expected = ContractError(
+            signature="ERC20InsufficientBalance(address, uint256, uint256)", arg_types=["address", "uint256", "uint256"]
+        )
+
+        assert error_expected.matches(
+            error_hex_to_match=exc_info.value.args[0]
+        ), f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
+
+        address, balance, needed = error_expected.decode_args(exc_info.value.args[0])
+        address_expected = erc20_contract.account.address.lower()
+        assert address_expected == address, f"Expected address to be {address_expected}, but got {address}"
+        assert balance == balance_expected, f"Expected balance {balance_expected}, got {balance}"
+        assert needed == amount, f"Expected amount to be {amount}, but got {balance}"
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
     def test_transferFrom_no_enough_gas(self, erc20_contract, param, msg):
@@ -493,22 +585,6 @@ class TestERC20SPLMintable:
                 default_value - current_balance,
             )
 
-    @pytest.mark.skip(reason="This test is not actual for erc20ForSpl 1.0.0")
-    def test_owner(self, erc20_contract):
-        owner = erc20_contract.contract.functions.owner().call()
-        assert owner == erc20_contract.account.address
-
-    @pytest.fixture()
-    def return_ownership(self, erc20_contract, accounts):
-        yield
-        erc20_contract.transfer_ownership(accounts[2], erc20_contract.account.address)
-
-    @pytest.mark.skip(reason="This test is not actual for erc20ForSpl 1.0.0")
-    def test_transferOwnership(self, erc20_contract, accounts, return_ownership):
-        erc20_contract.transfer_ownership(erc20_contract.account, accounts[2].address)
-        owner = erc20_contract.contract.functions.owner().call()
-        assert owner == accounts[2].address
-
     def test_metaplex_data(self, erc20_contract):
         mint_key = Pubkey(erc20_contract.contract.functions.findMintAccount().call())
         metaplex.wait_account_info(self.sol_client, mint_key)
@@ -532,11 +608,6 @@ class TestERC20SPLMintable:
         balance_after = erc20_contract.contract.functions.balanceOf(new_account.address).call()
         assert balance_after == amount
 
-    def test_mint_by_no_minter_role(self, erc20_contract):
-        recipient_account = self.accounts[1]
-        with pytest.raises(web3.exceptions.ContractLogicError):
-            erc20_contract.mint_tokens(recipient_account, recipient_account.address, 0)
-
     @pytest.mark.parametrize(
         "address_to, expected_exception",
         [
@@ -545,18 +616,27 @@ class TestERC20SPLMintable:
     )
     def test_mint_with_incorrect_address(self, erc20_contract, address_to, expected_exception):
         address_to = create_invalid_address(address_to) if isinstance(address_to, int) else address_to
-        with pytest.raises(expected_exception):
+        with pytest.raises(expected_exception) as exc_info:
             erc20_contract.mint_tokens(erc20_contract.account, address_to, 10)
 
+        error_expected = ContractError(signature="ERC20InvalidReceiver(address)", arg_types=["address"])
+
+        assert error_expected.matches(
+            error_hex_to_match=exc_info.value.args[0]
+        ), f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
+
     def test_mint_with_too_big_amount(self, erc20_contract):
-        with pytest.raises(
-            web3.exceptions.ContractLogicError,
-        ):
+        with pytest.raises(web3.exceptions.ContractLogicError) as exc_info:
             erc20_contract.mint_tokens(
                 erc20_contract.account,
                 erc20_contract.account.address,
                 UINT64_LIMIT,
             )
+        error_expected = ContractError(signature="AmountExceedsUint64(uint256)", arg_types=["uint256"])
+
+        assert error_expected.matches(
+            error_hex_to_match=exc_info.value.args[0]
+        ), f" Expected {error_expected.selector.hex()}, got {exc_info.value.args[0]}"
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
     def test_mint_no_enough_gas(self, erc20_contract, param, msg):
@@ -1067,122 +1147,11 @@ def new_token_contract(web3_client, erc20_spl_mintable):
 
 
 @allure.feature("ERC Verifications")
-@allure.story("ERC20SPL: Tests for factory update")
-@pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
-@pytest.mark.neon_only
-@pytest.mark.skip(reason="This test is not actual for erc20ForSpl 1.0.0")
-class TestERC20FactoryUpdate:
-    web3_client: NeonChainWeb3Client
-    accounts: EthAccounts
-    sol_client: SolanaClient
-
-    def get_factory_contract(self, token_contract):
-        factory_address = token_contract.functions.beacon().call()
-        factory_contract = self.web3_client.get_deployed_contract(
-            factory_address,
-            "external/neon-contracts/ERC20ForSPL/contracts/ERC20ForSPLMintableFactory",
-            contract_name="ERC20ForSPLMintableFactory",
-            solc_version="0.8.24",
-        )
-        return factory_contract
-
-    def test_update_factory(self, erc20_spl_mintable_new, new_factory_contract):
-        # get contract factory object, get address from erc20 token contract
-        factory_contract = self.get_factory_contract(erc20_spl_mintable_new.contract)
-        # update factory implementation
-        impl_address_before_update = self.web3_client.eth.get_storage_at(factory_contract.address, 1).hex()
-        tx_opt = self.web3_client.make_raw_tx(erc20_spl_mintable_new.account)
-        tx_body = factory_contract.functions.upgradeToAndCall(new_factory_contract.address, "0x").build_transaction(
-            tx_opt
-        )
-        receipt = self.web3_client.send_transaction(erc20_spl_mintable_new.account, tx_body)
-        assert receipt.status == 1, "Transaction failed"
-
-        # check proxy factory address
-        impl_address_after_update = self.web3_client.eth.get_storage_at(factory_contract.address, 1).hex()
-        assert impl_address_before_update != impl_address_after_update, "Factory wasn't updated"
-
-        # check new factory method
-        new_factory_contract.address = factory_contract.address
-        assert new_factory_contract.functions.getDummyData().call() == 1617181920
-
-        # deploy new token
-        deploy_tx = self.web3_client.make_raw_tx(erc20_spl_mintable_new.account)
-        deploy_body = factory_contract.functions.deploy("TOKEN2", "ABC", "http://uri2.com", 8).build_transaction(
-            deploy_tx
-        )
-        deploy_receipt = self.web3_client.send_transaction(erc20_spl_mintable_new.account, deploy_body)
-        logs = factory_contract.events.TokenDeploy().process_receipt(deploy_receipt)
-        new_token_addr = logs[0]["args"]["token"]
-        new_token_contract = self.web3_client.get_deployed_contract(
-            new_token_addr,
-            contract_name="ERC20ForSPLMintable",
-            contract_file="neon-contracts/contracts/token/ERC20ForSpl/erc20_for_spl",
-            solc_version="0.8.28",
-        )
-        assert new_token_contract.functions.name().call() == "TOKEN2"
-
-    def test_update_factory_with_incorrect_address(self, erc20_spl_mintable):
-        factory_contract = self.get_factory_contract(erc20_spl_mintable.contract)
-        tx_opt = self.web3_client.make_raw_tx(erc20_spl_mintable.account, gas=10000000)
-        tx_body = factory_contract.functions.upgradeToAndCall(
-            "0x3c42de8cf594B3955b596BFC16Deee4dF4BA10B7", "0x"
-        ).build_transaction(tx_opt)
-        receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, tx_body)
-        assert receipt.status == 0, "Transaction should fail"
-
-    @pytest.mark.skip("https://neonlabs.atlassian.net/browse/NDEV-3052")
-    def test_update_factory_invalid_owner(self, erc20_spl_mintable, accounts, new_factory_contract):
-        factory_contract = self.get_factory_contract(erc20_spl_mintable.contract)
-        tx_opt = self.web3_client.make_raw_tx(accounts[0], gas=10000000)
-        tx_body = factory_contract.functions.upgradeToAndCall(new_factory_contract.address, "0x").build_transaction(
-            tx_opt
-        )
-        receipt = self.web3_client.send_transaction(accounts[0], tx_body)
-        assert receipt.status == 0, "Transaction should fail"
-
-    def test_update_token_contract(self, erc20_spl_mintable_new, new_token_contract):
-        # get contract factory object, get address from erc20 token contract
-        factory_contract = self.get_factory_contract(erc20_spl_mintable_new.contract)
-        # update factory implementation
-        impl_address_before_update = self.web3_client.eth.get_storage_at(factory_contract.address, 0).hex()
-        tx_opt = self.web3_client.make_raw_tx(erc20_spl_mintable_new.account)
-        tx_body = factory_contract.functions.upgradeTo(new_token_contract.address).build_transaction(tx_opt)
-        receipt = self.web3_client.send_transaction(erc20_spl_mintable_new.account, tx_body)
-        assert receipt.status == 1, "Transaction failed"
-
-        # check proxy factory address
-        impl_address_after_update = self.web3_client.eth.get_storage_at(factory_contract.address, 0).hex()
-        assert impl_address_before_update != impl_address_after_update, "Token implementation wasn't updated"
-
-        # deploy new token
-        deploy_tx = self.web3_client.make_raw_tx(erc20_spl_mintable_new.account)
-        deploy_body = factory_contract.functions.deploy("TOKEN3", "ABC", "http://uri2.com", 8).build_transaction(
-            deploy_tx
-        )
-        deploy_receipt = self.web3_client.send_transaction(erc20_spl_mintable_new.account, deploy_body)
-        logs = factory_contract.events.TokenDeploy().process_receipt(deploy_receipt)
-        new_token_addr = logs[0]["args"]["token"]
-        new_token_contract = self.web3_client.get_deployed_contract(
-            new_token_addr,
-            contract_file="external/neon-contracts/ERC20ForSPL/contracts/test/ERC20ForSPLMintableV2",
-            solc_version="0.8.24",
-        )
-        assert new_token_contract.functions.name().call() == "TOKEN3"
-        assert new_token_contract.functions.getDummyData().call() == 1112131415
-
-
-@allure.feature("ERC Verifications")
-@allure.story("ERC20SPL: Tests for ERC20ForSPL contract")
-@pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
-@pytest.mark.neon_only
+@allure.story("ERC20SPL: Tests for new ERC20ForSPL contract")
 class TestERC20SPLNewFeatures:
-    web3_client: NeonChainWeb3Client
-    accounts: EthAccounts
-    sol_client: SolanaClient
 
     # Single functions testing
-    def test_solana_account_getter(self, erc20_spl_mintable_new):
+    def test_solana_account_getter(self, erc20_spl_mintable_new, accounts):
         acc = self.accounts[0]
         solana_pubkey = erc20_spl_mintable_new.get_solana_account(acc.address)
 
@@ -1224,3 +1193,32 @@ class TestERC20SPLNewFeatures:
             owner=solana_account.pubkey(),
         )
         assert not sol_client.is_ata_initialized(new_account.pubkey(), token_mint), "ATA exists!"
+
+    def test_transferSolanaFrom(
+        self,
+        erc20_spl_mintable_new,
+        neon_user,
+        evm_loader,
+        accounts,
+        solana_associated_token_mintable_erc20_new,
+        sol_client,
+    ):
+
+        acc_0 = accounts[0]
+        approve_amount = 700
+        transfer_amount = random.randint(1, 300)
+
+        solana_acc, token_mint, ata_address = solana_associated_token_mintable_erc20_new
+
+        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, acc_0.address, approve_amount)
+
+        balance_before = erc20_spl_mintable_new.get_balance(erc20_spl_mintable_new.account.address)
+
+        trx = erc20_spl_mintable_new.transfer_solana_from(
+            acc_0, erc20_spl_mintable_new.account.address, bytes(ata_address), transfer_amount
+        )
+        assert trx.status == 1, f"trx: {trx} failed"
+
+        balance_after = erc20_spl_mintable_new.get_balance(erc20_spl_mintable_new.account.address)
+
+        assert balance_after == balance_before - transfer_amount

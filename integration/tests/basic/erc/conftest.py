@@ -107,7 +107,7 @@ def multiple_actions_erc20_new(web3_client_session, accounts, erc20_spl_mintable
         "EIPs/ERC20/MultipleActionsNew",
         "0.8.28",
         accounts[0],
-        contract_name="MultipleActionsERC20",
+        contract_name="MultipleActionsERC20New",
         import_remapping=REMAPPING_ZEPPELIN,
         constructor_args=["Test TTT", "TTT", 9],
     )
