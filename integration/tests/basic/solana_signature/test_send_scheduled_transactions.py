@@ -350,4 +350,4 @@ class TestScheduledTrx:
 
         for trx in trxs:
             receipt = web3_client_sol.wait_for_transaction_receipt(trx.hash())
-            assert receipt["status"] == 1
+            assert receipt["status"] == 1, f"Trx failed: receipt - {receipt}"
