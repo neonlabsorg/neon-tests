@@ -268,7 +268,7 @@ def neon_user(evm_loader: EvmLoader, pytestconfig, bank_account, faucet, environ
     if pytestconfig.getoption("--network") != "mainnet":
         if balance < 5 * LAMPORT_PER_SOL:
             slow_envs = EnvName.MAINNET, EnvName.DEVNET, EnvName.TESTNET
-            timeout_sec = 180 if environment.name in slow_envs else 30
+            timeout_sec = 360 if environment.name in slow_envs else 30
             evm_loader.request_airdrop(
                 pubkey=user.solana_account.pubkey(),
                 lamports=5 * LAMPORT_PER_SOL,
@@ -279,7 +279,7 @@ def neon_user(evm_loader: EvmLoader, pytestconfig, bank_account, faucet, environ
 
 
 @pytest.fixture(scope="session")
-def treasury_pool(evm_loader, pytestconfig) -> TreasuryPool:
+def treasury_pool(evm_loader: EvmLoader, pytestconfig) -> TreasuryPool:
     index = 2
     evm_loader.create_treasury_pool_address(index)
     if pytestconfig.getoption("--network") == "mainnet":

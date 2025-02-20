@@ -295,7 +295,6 @@ def account_with_all_tokens(
         if environment.use_bank:
             bank_account: Keypair
             log.debug(f"bank_account pubkey: {bank_account.pubkey()}")
-            log.debug(f"bank_account private key: {bank_account.secret()}")
             log.debug(f"bank_account balance: {evm_loader.get_solana_balance(bank_account.pubkey())}")
             evm_loader.send_sol(bank_account, solana_account.pubkey(), lamports)
         else:
