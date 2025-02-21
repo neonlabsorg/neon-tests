@@ -265,15 +265,19 @@ def accounts_session(pytestconfig: Config, web3_client_session, faucet, eth_bank
 def neon_user(evm_loader: EvmLoader, pytestconfig, bank_account, faucet, environment: EnvironmentConfig) -> NeonUser:
     user = NeonUser(environment.evm_loader, bank_account)
     balance = evm_loader.get_solana_balance(user.solana_account.pubkey())
-    if pytestconfig.getoption("--network") != "mainnet":
-        if balance < 5 * LAMPORT_PER_SOL:
-            slow_envs = EnvName.MAINNET, EnvName.DEVNET, EnvName.TESTNET
-            timeout_sec = 360 if environment.name in slow_envs else 30
+
+    prod_envs = EnvName.MAINNET, EnvName.DEVNET, EnvName.TESTNET
+
+    if environment.name in prod_envs or environment.use_bank:
+        lamports = 2 * LAMPORT_PER_SOL
+        evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
+    else:
+        lamports = 5 * LAMPORT_PER_SOL
+        if balance < lamports:
             evm_loader.request_airdrop(
                 pubkey=user.solana_account.pubkey(),
-                lamports=5 * LAMPORT_PER_SOL,
+                lamports=lamports,
                 commitment=Confirmed,
-                timeout_sec=timeout_sec,
             )
     return user
 

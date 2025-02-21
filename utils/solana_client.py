@@ -39,7 +39,6 @@ class SolanaClient(solana.rpc.api.Client):
         pubkey: Pubkey,
         lamports: int,
         commitment: tp.Optional[Commitment] = None,
-        timeout_sec: int = 30,
     ) -> RequestAirdropResp:
         airdrop_resp = None
         for _ in range(5):
@@ -51,7 +50,7 @@ class SolanaClient(solana.rpc.api.Client):
                 break
         else:
             raise AssertionError(f"Can't get airdrop from solana: {airdrop_resp}")
-        wait_condition(lambda: self.get_balance(pubkey).value >= lamports, timeout_sec=timeout_sec)
+        wait_condition(lambda: self.get_balance(pubkey).value >= lamports, timeout_sec=30)
         return airdrop_resp
 
     def send_sol(self, from_: Keypair, to: Pubkey, amount_lamports: int):

@@ -273,7 +273,7 @@ def evm_loader(environment: EnvironmentConfig) -> EvmLoader:
     )
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def account_with_all_tokens(
     evm_loader,
     solana_account,
@@ -291,11 +291,9 @@ def account_with_all_tokens(
 ) -> LocalAccount:
     neon_account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account, amount=500)
     if web3_client_sol:
-        lamports = 10 * LAMPORT_PER_SOL
+        lamports = 1 * LAMPORT_PER_SOL
         if environment.use_bank:
             bank_account: Keypair
-            log.debug(f"bank_account pubkey: {bank_account.pubkey()}")
-            log.debug(f"bank_account balance: {evm_loader.get_solana_balance(bank_account.pubkey())}")
             evm_loader.send_sol(bank_account, solana_account.pubkey(), lamports)
         else:
             evm_loader.request_airdrop(solana_account.pubkey(), lamports)
