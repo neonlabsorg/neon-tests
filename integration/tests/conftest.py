@@ -279,7 +279,7 @@ def evm_loader(environment: EnvironmentConfig) -> EvmLoader:
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="class")
 def account_with_all_tokens(
     evm_loader,
     solana_account,
