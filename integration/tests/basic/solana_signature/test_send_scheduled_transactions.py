@@ -460,7 +460,6 @@ class TestScheduledTrxERC20new:
         self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool
     ):
 
-        Pubkey(erc20_spl_mintable_new.contract.functions.solanaAccount(neon_user.checksum_address).call())
         token_mint = Pubkey(erc20_spl_mintable_new.contract.functions.tokenMint().call())
 
         erc20_spl_mintable_new.pop_up_balance(evm_loader, recipient=neon_user, pda_amount=5, ata_amount=2000)
