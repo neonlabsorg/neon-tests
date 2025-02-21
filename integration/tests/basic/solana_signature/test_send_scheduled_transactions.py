@@ -7,6 +7,7 @@ from eth_utils import abi
 
 from utils.consts import wSOL, LAMPORT_PER_SOL
 from utils.models.result import EthGetBlockByHashResult
+from utils.neon_user import NeonUser
 from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData, ScheduledTrxEstimateRequest
 
 
@@ -296,6 +297,63 @@ class TestScheduledTrx:
         assert event_logs[0].args.who == neon_user.checksum_address
         assert event_logs[0].args.value == value
         assert event_logs[0].event == "IndexedArgs"
+
+    def test_scheduled_trx_send_tokens_to_sol_chain_contract_failed_trx(
+        self,
+        neon_user,
+        evm_loader,
+        event_caller_sol_chain,
+        web3_client_sol,
+        treasury_pool,
+        solana_account,
+    ):
+        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+            neon_user.solana_account,
+            "0x" + neon_user.neon_address.hex(),
+            int(1 * LAMPORT_PER_SOL),
+        )
+        recipient = NeonUser(evm_loader.loader_id)
+        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
+        value = 10000000000
+
+        call_data = abi.function_signature_to_4byte_selector(
+            "transferTokensAndRaiseError(uint256,address[])"
+        ) + eth_abi.encode(["uint256", "address[]"], [value, [recipient.neon_address]])
+
+        gas_limit = 3000000
+        base_fee_per_gas = web3_client_sol.base_fee_per_gas()
+        max_priority_fee_per_gas = 2500000000
+        max_fee_per_gas = base_fee_per_gas * 2 + max_priority_fee_per_gas
+
+        tx0 = ScheduledTransaction(
+            neon_user.neon_address,
+            None,
+            nonce,
+            index=0,
+            target=event_caller_sol_chain.address,
+            call_data=call_data,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            gas_limit=gas_limit,
+            value=value,
+        )
+        tree_acc_data = CreateTreeAccMultipleData(
+            nonce=nonce,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+        )
+        tree_acc_data.add_trx(tx0, 0xFFFF, 0)
+        evm_loader.create_tree_account_multiple(
+            neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"], chain_id=web3_client_sol.chain_id
+        )
+        wsol_balance_after_creating_tree = web3_client_sol.get_balance(neon_user.checksum_address)
+
+        web3_client_sol.send_scheduled_transaction(tx0)
+        receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
+        assert receipt["status"] == 0
+        wsol_balance_after = web3_client_sol.get_balance(neon_user.checksum_address)
+
+        assert wsol_balance_after > wsol_balance_after_creating_tree, "Sol should be returned"
 
     def test_scheduled_trx_with_timestamp(
         self, block_timestamp_contract, web3_client_sol, neon_user, treasury_pool, evm_loader, json_rpc_client

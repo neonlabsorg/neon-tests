@@ -29,7 +29,7 @@ class TestFailedTransactions:
             evm_loader,
             sender,
             contract,
-            "transferNeonAndRaiseError(uint256,address[])",
+            "transferTokensAndRaiseError(uint256,address[])",
             [amount // 2, [recipient.eth_address]],
             value=amount // 2,
         )
