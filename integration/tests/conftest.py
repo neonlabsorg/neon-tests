@@ -38,8 +38,6 @@ from utils.web3client import NeonChainWeb3Client, Web3Client
 
 log = logging.getLogger(__name__)
 
-NEON_AIRDROP_AMOUNT = 1_000
-
 
 @pytest.fixture(scope="session")
 def ws_subscriber_url(environment: EnvironmentConfig) -> tp.Optional[str]:
