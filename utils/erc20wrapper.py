@@ -422,7 +422,7 @@ class ERC20NewWrapper:
                         source=ata_account,
                         delegate=solana_contract_account,
                         owner=recipient.solana_account.pubkey(),
-                        amount=1000,
+                        amount=ata_amount,
                     )
                 )
             )

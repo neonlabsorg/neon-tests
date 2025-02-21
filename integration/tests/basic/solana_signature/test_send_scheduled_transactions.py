@@ -456,7 +456,7 @@ class TestScheduledTrxERC20new:
         assert erc20_spl_mintable_new.get_balance(recipient.checksum_address) == 2000
         assert balance_pda == balance_ata == 0
 
-    def test_scheduled_trx_ata_balance_not_used(
+    def test_scheduled_trx_transferSolana_ata_balance_not_used(
         self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool
     ):
 
