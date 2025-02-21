@@ -9,7 +9,6 @@ import typing as tp
 import allure
 import base58
 import pytest
-
 from _pytest.config import Config
 from eth_account.signers.local import LocalAccount
 from solana.rpc import commitment
@@ -340,7 +339,7 @@ def evm_loader(environment: EnvironmentConfig) -> EvmLoader:
 def account_with_all_tokens(
     evm_loader,
     solana_account,
-    web3_client,
+    web3_client_session,
     web3_client_usdt,
     web3_client_eth,
     web3_client_sol,
@@ -352,7 +351,7 @@ def account_with_all_tokens(
     evm_loader_keypair,
     bank_account: Keypair | None,
 ) -> LocalAccount:
-    neon_account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account, amount=500)
+    neon_account = web3_client_session.create_account_with_balance(faucet, bank_account=eth_bank_account, amount=500)
     if web3_client_sol:
         lamports = 2 * LAMPORT_PER_SOL
         if environment.use_bank:

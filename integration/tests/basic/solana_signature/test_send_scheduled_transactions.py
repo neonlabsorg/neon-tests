@@ -38,7 +38,6 @@ class TestScheduledTrx:
         assert pending_trx[hex(tx.nonce)][0]["status"] in ("Done", "InProgress")
         assert common_contract.functions.getNumber().call() == contract_data
 
-    @pytest.mark.eip_1559
     def test_multiple_scheduled_trx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         contract_data = 18
@@ -83,7 +82,6 @@ class TestScheduledTrx:
         assert pending_trx[hex(nonce)][0]["status"] == "Done"
         assert pending_trx[hex(nonce)][0]["hash"][2:] == trxs[0].hash().hex()
 
-    @pytest.mark.eip_1559
     def test_multiple_scheduled_trx_with_failed_trx(
         self, web3_client_sol, neon_user, treasury_pool, revert_contract_caller, event_caller_contract, evm_loader
     ):
@@ -232,7 +230,6 @@ class TestScheduledTrx:
         assert event_logs[0].args.value == value
         assert event_logs[0].event == "IndexedArgs"
 
-    @pytest.mark.eip_1559
     def test_scheduled_trx_with_timestamp(
         self, block_timestamp_contract, web3_client_sol, neon_user, treasury_pool, evm_loader, json_rpc_client
     ):
@@ -285,7 +282,6 @@ class TestScheduledTrx:
         assert added_timestamp <= int(tx_block_timestamp, 16)
         assert contract.functions.getDataFromMapping(added_timestamp).call() == [v1, v2]
 
-    @pytest.mark.eip_1559
     def test_scheduled_trx_with_small_gas_limit(
         self, block_timestamp_contract, web3_client_sol, neon_user, treasury_pool, evm_loader, event_caller_contract
     ):
@@ -364,7 +360,6 @@ class TestScheduledTrx:
 @allure.feature("Solana native")
 @allure.story("Test sending scheduled transaction ERC20ForSplNew")
 class TestScheduledTrxERC20new:
-
     def test_scheduled_trx_pda_balance(
         self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool
     ):
@@ -502,7 +497,6 @@ class TestScheduledTrxERC20new:
     def test_scheduled_trx_transferSolana_ata_balance_not_used(
         self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool
     ):
-
         token_mint = Pubkey(erc20_spl_mintable_new.contract.functions.tokenMint().call())
 
         erc20_spl_mintable_new.pop_up_balance(evm_loader, recipient=neon_user, pda_amount=5, ata_amount=2000)
@@ -541,7 +535,6 @@ class TestScheduledTrxERC20new:
     def test_multiple_transactions_with_transfer_from_solana(
         self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool
     ):
-
         token_mint = Pubkey(erc20_spl_mintable_new.contract.functions.tokenMint().call())
         my_ata = get_associated_token_address(neon_user.solana_account.pubkey(), token_mint)
 
@@ -695,7 +688,6 @@ class TestScheduledTrxERC20new:
     def test_multiple_transactions_with_tree_actions_independent(
         self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool
     ):
-
         recipient = NeonUser(evm_loader.loader_id)
 
         amount_to_transfer = 1_000
