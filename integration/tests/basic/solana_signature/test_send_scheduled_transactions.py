@@ -6,6 +6,7 @@ import pytest
 from eth_utils import abi
 
 from utils.consts import wSOL, LAMPORT_PER_SOL
+from utils.helpers import wait_condition
 from utils.models.result import EthGetBlockByHashResult
 from utils.neon_user import NeonUser
 from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData, ScheduledTrxEstimateRequest
@@ -158,8 +159,20 @@ class TestScheduledTrx:
                 neon_user, treasury_pool, tree_acc.data, wSOL["address_spl"], payer_nonce=nonce
             )
 
+    @pytest.mark.parametrize(
+        "with_estimate",
+        [True, False],
+    )
     def test_scheduled_trx_send_tokens_to_neon_chain_contract(
-        self, neon_user, evm_loader, event_caller_contract, web3_client_sol, treasury_pool, faucet, web3_client
+        self,
+        neon_user,
+        evm_loader,
+        event_caller_contract,
+        web3_client_sol,
+        treasury_pool,
+        faucet,
+        web3_client,
+        with_estimate,
     ):
 
         evm_loader.deposit_wrapped_sol_from_solana_to_neon(
@@ -167,32 +180,49 @@ class TestScheduledTrx:
             "0x" + neon_user.neon_address.hex(),
             int(1 * LAMPORT_PER_SOL),
         )
-        faucet.request_neon(neon_user.checksum_address, 1000)
+        faucet.request_neon(neon_user.checksum_address, 100)
 
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         call_data = abi.function_signature_to_4byte_selector("indexedArgs()")
         value = 100000
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(
-            neon_user.checksum_address, event_caller_contract.address, call_data, value=value
-        )
-        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+        if with_estimate:
+            trx_estimate_obj = ScheduledTrxEstimateRequest(
+                neon_user.checksum_address, event_caller_contract.address, call_data, value=value
+            )
+            with pytest.raises(AssertionError, match="Invalid token for transfer"):
+                web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+        else:
+            base_fee_per_gas = web3_client_sol.base_fee_per_gas()
+            max_priority_fee_per_gas = 2500000000
+            max_fee_per_gas = base_fee_per_gas * 2 + max_priority_fee_per_gas
 
-        tx0 = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
+            gas_limit = 30000000
+            tx0 = ScheduledTransaction(
+                neon_user.neon_address,
+                None,
+                nonce,
+                index=0,
+                target=event_caller_contract.address,
+                call_data=call_data,
+                max_fee_per_gas=max_fee_per_gas,
+                max_priority_fee_per_gas=max_priority_fee_per_gas,
+                gas_limit=gas_limit,
+                value=value,
+            )
+            tree_acc_data = CreateTreeAccMultipleData(
+                nonce=nonce,
+                max_fee_per_gas=max_fee_per_gas,
+                max_priority_fee_per_gas=max_priority_fee_per_gas,
+            )
+            tree_acc_data.add_trx(tx0, 0xFFFF, 0)
+            evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
+            web3_client_sol.send_scheduled_transaction(tx0)
+            receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
+            assert web3_client_sol.get_balance(event_caller_contract.address) == 0
+            assert web3_client.get_balance(event_caller_contract.address) == 0
 
-        tree_acc_data = CreateTreeAccMultipleData(
-            nonce=nonce,
-            max_fee_per_gas=estimate_result["maxFeePerGas"],
-            max_priority_fee_per_gas=estimate_result["maxPriorityFeePerGas"],
-        )
-        tree_acc_data.add_trx(tx0, 0xFFFF, 0)
-        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
-        web3_client_sol.send_scheduled_transaction(tx0)
-        receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
-        assert web3_client_sol.get_balance(event_caller_contract.address) == 0
-        assert web3_client.get_balance(event_caller_contract.address) == 0
-
-        assert receipt["status"] == 0
+            assert receipt["status"] == 0
 
     @pytest.mark.parametrize(
         "wsol_inside_neon",
@@ -298,6 +328,10 @@ class TestScheduledTrx:
         assert event_logs[0].args.value == value
         assert event_logs[0].event == "IndexedArgs"
 
+    @pytest.mark.parametrize(
+        "wsol_inside_neon",
+        [True, False],
+    )
     def test_scheduled_trx_send_tokens_to_sol_chain_contract_failed_trx(
         self,
         neon_user,
@@ -306,12 +340,14 @@ class TestScheduledTrx:
         web3_client_sol,
         treasury_pool,
         solana_account,
+        wsol_inside_neon,
     ):
-        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
-            neon_user.solana_account,
-            "0x" + neon_user.neon_address.hex(),
-            int(1 * LAMPORT_PER_SOL),
-        )
+        if wsol_inside_neon:
+            evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+                neon_user.solana_account,
+                "0x" + neon_user.neon_address.hex(),
+                int(1 * LAMPORT_PER_SOL),
+            )
         recipient = NeonUser(evm_loader.loader_id)
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
         value = 10000000000
@@ -343,7 +379,7 @@ class TestScheduledTrx:
             max_priority_fee_per_gas=max_priority_fee_per_gas,
         )
         tree_acc_data.add_trx(tx0, 0xFFFF, 0)
-        evm_loader.create_tree_account_multiple(
+        tree_account = evm_loader.create_tree_account_multiple(
             neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"], chain_id=web3_client_sol.chain_id
         )
         wsol_balance_after_creating_tree = web3_client_sol.get_balance(neon_user.checksum_address)
@@ -352,7 +388,7 @@ class TestScheduledTrx:
         receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
         assert receipt["status"] == 0
         wsol_balance_after = web3_client_sol.get_balance(neon_user.checksum_address)
-
+        wait_condition(lambda: not evm_loader.account_exists(tree_account))
         assert wsol_balance_after > wsol_balance_after_creating_tree, "Sol should be returned"
 
     def test_scheduled_trx_with_timestamp(
