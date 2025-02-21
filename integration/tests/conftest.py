@@ -279,7 +279,7 @@ def evm_loader(environment: EnvironmentConfig) -> EvmLoader:
     )
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def account_with_all_tokens(
     evm_loader,
     solana_account,
@@ -297,7 +297,7 @@ def account_with_all_tokens(
 ) -> LocalAccount:
     neon_account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account, amount=500)
     if web3_client_sol:
-        lamports = 10 * LAMPORT_PER_SOL
+        lamports = 2 * LAMPORT_PER_SOL
         if environment.use_bank:
             evm_loader.send_sol(bank_account, solana_account.pubkey(), lamports)
         else:
