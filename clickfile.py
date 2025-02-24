@@ -1297,12 +1297,22 @@ def compare_dapp_results(
 @click.option("--proxy_tag", required=True)
 @click.option("--version_branch", required=True)
 @click.option("--history_depth_limit", type=int, help="How many runs to include into statistical analysis")
+@click.option("--acc_count", type=int, help="Allowed absolute number of acceptable increase")
+@click.option("--trx_count", type=int, help="Allowed absolute number of acceptable increase")
+@click.option("--gas_estimated", type=int, help="Allowed absolute number of acceptable increase")
+@click.option("--gas_used", type=int, help="Allowed absolute number of acceptable increase")
+@click.option("--compute_units", type=int, help="Allowed absolute number of acceptable increase")
 def validate_cost_reports(
     repo: RepoType,
     evm_tag: str,
     proxy_tag: str,
     version_branch: str,
     history_depth_limit: int,
+    acc_count: int,
+    trx_count: int,
+    gas_estimated: int,
+    gas_used: int,
+    compute_units: int,
 ):
     db = PostgresTestResultsHandler()
     compared_service_tag, other_service_tag, previous_tags = get_service_tags_for_cost_reports(
@@ -1321,7 +1331,27 @@ def validate_cost_reports(
         latest_tag=compared_service_tag,
         previous_tags=previous_tags,
     )
-    print(historical_data)
+
+    all_metric_names = "acc_count", "trx_count", "gas_estimated", "gas_used", "compute_units"
+    dapp_names = historical_data["dapp_name"].unique()
+
+    for dapp_name in dapp_names:
+        data_for_dapp = historical_data[historical_data["dapp_name"] == dapp_name]
+        actions = data_for_dapp["action"].unique()
+        for action in actions:
+            data_for_dapp_action = data_for_dapp[data_for_dapp["action"] == action]
+            metric_names = [col_name for col_name in data_for_dapp_action.columns if col_name in all_metric_names]
+            for metric_name in metric_names:
+                metric_values = data_for_dapp_action[metric_name]
+                min_value = metric_values.min()
+                max_value = metric_values.max()
+                actual_change = max_value - min_value
+                max_acceptable_change = locals()[metric_name]
+                msg = (
+                    f"{dapp_name} > {action} > {metric_name} increased by {actual_change} "
+                    f"but only +{max_acceptable_change} is OK"
+                )
+                assert actual_change <= max_acceptable_change, msg
 
 
 @dapps.command("add_pr_comment", help="Add PR comment with dApp cost reports")
