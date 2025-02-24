@@ -519,5 +519,6 @@ class TestScheduledTrx:
         )
         web3_client_sol.send_all_scheduled_transactions(trxs)
         pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
+
         assert len(pending_trx) == 3
         assert pending_trx[hex(nonce)][2]["status"] == "WaitForParentTransactions"

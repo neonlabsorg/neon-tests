@@ -13,6 +13,7 @@ class JsonRPCSession(Session):
     def send_rpc(
         self,
         method: str,
+        additional_path: str = "",
         params: tp.Optional[tp.Any] = None,
         req_type: tp.Optional[str] = None,
     ) -> tp.Dict:
@@ -27,7 +28,7 @@ class JsonRPCSession(Session):
                 params = [params]
             body["params"] = params
 
-        resp = self.post(self.url, json=body, timeout=60)
+        resp = self.post(self.url + additional_path, json=body, timeout=60)
         response_body = resp.json()
         if "result" not in response_body and "error" not in response_body:
             raise AssertionError("Request must contains 'result' or 'error' field")
