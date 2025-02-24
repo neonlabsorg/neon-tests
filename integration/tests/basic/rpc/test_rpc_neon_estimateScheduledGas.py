@@ -32,8 +32,6 @@ class TestNeonRPCEstimateScheduledGas:
         resp = web3_client_sol.estimate_scheduled(
             neon_user.solana_account.pubkey(), [trx_estimate_obj], check_result=False
         )
-        EstimateScheduledGas(**resp)
-        result = resp["result"]
 
         EstimateScheduledGas(**resp)
         result = resp["result"]
