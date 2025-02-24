@@ -101,7 +101,7 @@ class SolanaClient(solana.rpc.api.Client):
         receipt = self.get_transaction(sig)
         assert sig_status["result"]["value"][0]["status"] == {"Ok": None}, f"error:{sig_status}, receipt: {receipt}"
 
-    def send_tx(self, trx: Transaction, *signers: Keypair, wait_status=Confirmed):
+    def send_tx(self, trx: Transaction, *signers: Keypair, wait_status=Confirmed) -> GetTransactionResp:
         result = self.send_transaction(
             trx, *signers, opts=TxOpts(skip_confirmation=True, preflight_commitment=wait_status)
         )
@@ -181,25 +181,6 @@ class SolanaClient(solana.rpc.api.Client):
         self.send_tx(trx.add(instr), payer, account)
         return account
 
-    @allure.step("Get Solana transaction with wait")
-    def get_transaction_with_wait(
-        self,
-        tx_sig: Signature,
-        encoding: str = "json",
-        commitment: tp.Optional[Commitment] = None,
-        max_supported_transaction_version: tp.Optional[int] = None,
-    ) -> GetTransactionResp:
-        tx = wait_condition(
-            func_cond=lambda: super(SolanaClient, self).get_transaction(
-                tx_sig=tx_sig,
-                encoding=encoding,
-                commitment=commitment,
-                max_supported_transaction_version=max_supported_transaction_version,
-            ),
-            check_success=lambda trx: trx.value is not None,
-        )
-        return tx
-
     def transaction_contains_call_to_program(
         self,
         tx: EncodedConfirmedTransactionWithStatusMeta,
@@ -232,3 +213,8 @@ class SolanaClient(solana.rpc.api.Client):
                 return True
         else:
             return False
+
+    @allure.step("Get account keys for solana transaction")
+    def get_account_keys_for_transaction(self, sol_trx: str):
+        resp = self.get_transaction(Signature.from_string(sol_trx), commitment=Confirmed)
+        return resp.value.transaction.transaction.message.account_keys
