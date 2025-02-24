@@ -387,8 +387,8 @@ class TestScheduledTrx:
         web3_client_sol.send_scheduled_transaction(tx0)
         receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
         assert receipt["status"] == 0
-        wsol_balance_after = web3_client_sol.get_balance(neon_user.checksum_address)
         wait_condition(lambda: not evm_loader.account_exists(tree_account))
+        wsol_balance_after = web3_client_sol.get_balance(neon_user.checksum_address)
         assert wsol_balance_after > wsol_balance_after_creating_tree, "Sol should be returned"
 
     def test_scheduled_trx_with_timestamp(
