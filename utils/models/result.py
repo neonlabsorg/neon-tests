@@ -185,12 +185,42 @@ class EthGetBlockByHashFullDetails(ForbidExtra):
     mixHash: HexString
 
 
+class EthGetScheduledTxBlockByHashFullDetails(ForbidExtra):
+    number: Union[HexString, None]
+    hash: Union[HexString, None]
+    parentHash: HexString
+    nonce: Union[HexString, None]
+    sha3Uncles: HexString
+    logsBloom: HexString
+    transactionsRoot: HexString
+    stateRoot: HexString
+    receiptsRoot: HexString
+    miner: tp.Optional[HexString]  # check with newer geth
+    baseFeePerGas: tp.Optional[HexString] = None  # check with newer geth
+    withdrawals: tp.Optional[List[HexString]] = None  # check with newer geth
+    withdrawalsRoot: tp.Optional[HexString] = None  # check with newer geth
+    difficulty: HexString
+    totalDifficulty: Union[HexString, None]
+    extraData: HexString
+    size: HexString
+    gasLimit: HexString
+    gasUsed: HexString
+    timestamp: HexString
+    transactions: List[ScheduledTransaction]
+    uncles: List[HexString]
+    mixHash: HexString
+
+
 class EthGetBlockByHashResult(EthResult):
     result: Union[EthGetBlockByHashDetails, None]
 
 
 class EthGetBlockByHashFullResult(EthResult):
     result: Union[EthGetBlockByHashFullDetails, None]
+
+
+class EthGetScheduledTxBlockByHashFullResult(EthResult):
+    result: Union[EthGetScheduledTxBlockByHashFullDetails, None]
 
 
 class EstimateScheduledGasDetails(ForbidExtra):
