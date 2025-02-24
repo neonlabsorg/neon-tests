@@ -12,6 +12,7 @@ from spl.token.instructions import get_associated_token_address, create_associat
 from utils.consts import wSOL, LAMPORT_PER_SOL
 from utils.models.result import EthGetBlockByHashResult
 from utils.neon_user import NeonUser
+
 from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData, ScheduledTrxEstimateRequest
 
 
@@ -317,7 +318,7 @@ class TestScheduledTrx:
         receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash())
         web3_client_sol.get_pending_transactions(neon_user.checksum_address)
         # for now, it is not possible to see error through the proxy
-        assert receipt["status"] == 0
+        assert receipt["status"] == 0, f"failed trx - receipt: {receipt}"
 
     def test_long_chain_iterative_scheduled_trx(
         self, web3_client_sol, neon_user, treasury_pool, evm_loader, json_rpc_client, counter_contract
