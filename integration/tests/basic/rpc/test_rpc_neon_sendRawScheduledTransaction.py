@@ -16,7 +16,7 @@ from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData,
 @allure.feature("Solana native")
 @allure.story("Test sending scheduled transaction")
 @pytest.mark.usefixtures("accounts", "web3_client")
-class TestScheduledTrx:
+class TestNeonRPCSendRAWTransaction:
 
     @pytest.fixture(scope="function")
     def tree_account_for_simple_trx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):

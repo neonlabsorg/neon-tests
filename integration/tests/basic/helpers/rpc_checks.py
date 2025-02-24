@@ -39,7 +39,12 @@ def hex_str_consists_not_only_of_zeros(hex_data: str) -> bool:
 
 
 def assert_block_fields(
-    env_name: EnvName, response: dict, full_trx: bool, tx_receipt: tp.Optional[types.TxReceipt], pending: bool = False
+    env_name: EnvName,
+    response: dict,
+    full_trx: bool,
+    tx_receipt: tp.Optional[types.TxReceipt],
+    pending: bool = False,
+    scheduled_tx: bool = False,
 ):
     assert "error" not in response
     assert "result" in response, AssertMessage.DOES_NOT_CONTAIN_RESULT
@@ -106,17 +111,31 @@ def assert_block_fields(
                 "value",
                 "gas",
                 "gasPrice",
-                "v",
-                "r",
-                "s",
             ]
+
+            if scheduled_tx:
+                expected_hex_fields += [
+                    "scheduledIndex",
+                    "scheduledPayer",
+                ]
+            else:
+                expected_hex_fields += ["v", "r", "s"]
+
             for field in expected_hex_fields:
                 assert is_hex(transaction[field]), f"field '{field}' is not correct. Actual : {transaction[field]}"
             if tx_receipt is not None:
                 if tx_receipt.transactionHash.hex() == transaction["hash"]:
                     assert transaction["from"].upper() == tx_receipt["from"].upper()
                     assert transaction["to"].upper() == tx_receipt["to"].upper()
+                if scheduled_tx:
+                    assert is_hex(
+                        transaction["input"]
+                    ), f"field '{'input'}' is not correct. Actual : {transaction['input']}"
+                else:
                     assert transaction["input"] == "0x"
+            if scheduled_tx:
+                assert transaction["type"] == "0x80"
+
     else:
         for transaction in transactions:
             assert is_hex(transaction)
