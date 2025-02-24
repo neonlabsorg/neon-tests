@@ -5,6 +5,7 @@ import eth_abi
 import pytest
 from eth_utils import abi
 from solana.rpc.commitment import Confirmed
+from solana.rpc.commitment import Confirmed
 from solana.transaction import Transaction
 from solders.pubkey import Pubkey
 from spl.token.instructions import get_associated_token_address, create_associated_token_account
@@ -317,7 +318,7 @@ class TestScheduledTrx:
         web3_client_sol.send_scheduled_transaction(tx)
         receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash())
         web3_client_sol.get_pending_transactions(neon_user.checksum_address)
-        # for now, it is not possible to see error through the proxy
+
         assert receipt["status"] == 0, f"failed trx - receipt: {receipt}"
 
     def test_long_chain_iterative_scheduled_trx(
@@ -975,6 +976,5 @@ class TestScheduledTrxERC20new:
         )
         web3_client_sol.send_all_scheduled_transactions(trxs)
         pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
-
         assert len(pending_trx) == 3
         assert pending_trx[hex(nonce)][2]["status"] == "WaitForParentTransactions"
