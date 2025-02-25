@@ -69,7 +69,6 @@ def deploy_infrastructure(
         print("variable HETZNER_INSTANCE_TYPES is not set, use default values")
         instance_types = ["cpx51", "cx52", "cpx41", "cx42", "ccx33", "ccx43"]
 
-    # instance_types = ["cpx51", "cx52", "cpx41", "cx42", "ccx33", "ccx43"]
     locations = ["nbg1", "hel1", "fsn1"]
     instances = [{"server_type": i, "location": j} for i in instance_types for j in locations]
     print("Possible instance options: ", instances)
