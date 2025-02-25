@@ -64,7 +64,7 @@ def deploy_infrastructure(
 
     instance_types_str = os.getenv("HETZNER_INSTANCE_TYPES")
     if instance_types_str:
-        instance_types = instance_types_str.split(',')
+        instance_types = instance_types_str.split(",")
     else:
         print("variable HETZNER_INSTANCE_TYPES is not set, use default values")
         instance_types = ["cpx51", "cx52", "cpx41", "cx42", "ccx33", "ccx43"]

@@ -65,7 +65,7 @@ runs:
         with:
           host: ${{ env.SOLANA_IP }}
           username: root
-          key: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
+          key: ${{ inputs.ci_stands_key_hcloud  }}
           script: |
             chmod a+x /tmp/solana_init.sh
             sudo /tmp/solana_init.sh
@@ -77,7 +77,7 @@ runs:
         with:
           host: ${{ env.PROXY_IP }}
           username: root
-          key: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
+          key: ${{ inputs.ci_stands_key_hcloud  }}
           envs: SOLANA_IP
           script: |
             echo $SOLANA_IP > /tmp/solana_host
