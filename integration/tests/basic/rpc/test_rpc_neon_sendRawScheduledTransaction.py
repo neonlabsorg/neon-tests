@@ -105,7 +105,7 @@ class TestNeonRPCSendRAWTransaction:
         assert Error32602.INVALID_TRANSACTIONID == resp["error"]["message"]
         assert (
             resp["error"]["data"]["errors"][0] == "Method neon_sendRawScheduledTransaction expect 1 parameters, got 2."
-        )  # Todo вынести в константу
+        )
 
     def test_repeat_call_with_same_trx_hash(self, tree_account_for_simple_trx):
 
