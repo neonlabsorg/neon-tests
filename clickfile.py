@@ -1335,6 +1335,8 @@ def validate_cost_reports(
     all_metric_names = "acc_count", "trx_count", "gas_estimated", "gas_used", "compute_units"
     dapp_names = historical_data["dapp_name"].unique()
 
+    failure_messages: list[str] = []
+
     for dapp_name in dapp_names:
         data_for_dapp = historical_data[historical_data["dapp_name"] == dapp_name]
         actions = data_for_dapp["action"].unique()
@@ -1351,7 +1353,10 @@ def validate_cost_reports(
                     f"{dapp_name} > {action} > {metric_name} increased by {actual_change} "
                     f"but only +{max_acceptable_change} is OK"
                 )
-                assert actual_change <= max_acceptable_change, msg
+                if actual_change > max_acceptable_change:
+                    failure_messages.append(msg)
+
+    assert not failure_messages, "\n" + "\n".join(failure_messages)
 
 
 @dapps.command("add_pr_comment", help="Add PR comment with dApp cost reports")

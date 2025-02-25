@@ -785,5 +785,5 @@ jobs:
             --acc_count 0 \
             --trx_count 0 \
             --gas_estimated 0 \
-            --gas_used 0 \
+            --gas_used 10000 \
             --compute_units 1000000
