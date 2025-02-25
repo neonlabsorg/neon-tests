@@ -19,7 +19,3 @@ variable "use_real_price" {
   type    = number
   default = 0
 }
-
-variable "devnet_solana_url" {
-  type = string
-}
