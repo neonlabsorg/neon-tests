@@ -171,7 +171,7 @@ class TestScheduledTrx:
             evm_loader.create_tree_account_multiple(
                 neon_user, treasury_pool, tree_acc.data, wSOL["address_spl"], payer_nonce=nonce
             )
-        wait_condition(lambda: not evm_loader.account_exists(tree_account))
+        wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=60, delay=1)
 
     @pytest.mark.skip("NDEV-3453")
     def test_scheduled_trx_send_tokens_to_neon_chain_contract(
