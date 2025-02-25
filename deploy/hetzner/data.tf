@@ -11,31 +11,6 @@ data "hcloud_ssh_key" "ci-ssh-key" {
   name = "hcloud-ci-stands"
 }
 
-variable "branch" {
-  type = string
-}
-
-
-variable "proxy_model_commit" {
-  type = string
-}
-
-variable "proxy_image_tag" {
-  type = string
-}
-
-variable "neon_evm_commit" {
-  type = string
-}
-
-variable "devnet_solana_url" {
-  type = string
-}
-
-variable "faucet_model_commit" {
-  type = string
-}
-
 data "template_file" "solana_init" {
   template = file("solana_init.sh")
 
