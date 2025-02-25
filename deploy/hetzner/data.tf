@@ -37,5 +37,6 @@ data "template_file" "proxy_init" {
     faucet_model_commit = var.faucet_model_commit
     dockerhub_org_name  = var.dockerhub_org_name
     use_real_price      = var.use_real_price
+    devnet_solana_url   = var.devnet_solana_url
   }
 }

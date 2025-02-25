@@ -16,8 +16,8 @@ inputs:
     default: '0'
     required: false
   hetzner_instance_types:
-    description: 'list of Hcloud instaces used(one by one) to try to set up infra e.g. "ccx33,ccx43,ccx53,cx42,ccx63"'
-    default: "cpx51,cx52,cpx41,cx42,ccx33,ccx43"
+    description: 'list of Hcloud instaces used(one by one) to try to set up infra e.g. ccx33,ccx43,ccx53,cx42,ccx63'
+    default: cpx51,cx52,cpx41,cx42,ccx33,ccx43
     required: false
 
 
