@@ -83,11 +83,3 @@ runs:
             echo $SOLANA_IP > /tmp/solana_host
             chmod a+x /tmp/proxy_init.sh
             sudo /tmp/proxy_init.sh
-
-      - name: Wait until proxy is ready
-        shell: bash
-        run: |
-            while [[ "$(curl -s -X POST -o /dev/null -w ''%{http_code}'' ${{ steps.share.outputs.proxy_url }})" != "200" ]];
-              do echo  "Proxy is not ready yet. Waiting 5 seconds...";
-              sleep 5;
-            done
