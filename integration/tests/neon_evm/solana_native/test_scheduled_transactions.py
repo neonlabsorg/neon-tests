@@ -116,7 +116,6 @@ class TestScheduledTrx:
         with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.TRANSACTION_TREE_INVALID_DATA):
             evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), environment.sol_mint_id)
 
-    @pytest.mark.eip_1559
     def test_send_sol_with_zero_fee(
         self,
         evm_loader,

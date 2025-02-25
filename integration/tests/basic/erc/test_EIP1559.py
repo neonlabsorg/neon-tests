@@ -145,7 +145,6 @@ def validate_transfer_positive(
         f"Actual recipient balance: {balance_recipient_after}"
     )
 
-    # Verify that the effective gas price does not exceed the max fee per gas
     assert effective_gas_price > 0
 
     # Validate gas used does not exceed the estimated gas

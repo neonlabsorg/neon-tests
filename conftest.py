@@ -262,23 +262,20 @@ def accounts_session(pytestconfig: Config, web3_client_session, faucet, eth_bank
 
 
 @pytest.fixture(scope="function")
-def neon_user(evm_loader: EvmLoader, pytestconfig, bank_account, faucet, environment: EnvironmentConfig) -> NeonUser:
+def neon_user(evm_loader: EvmLoader, bank_account, environment: EnvironmentConfig) -> NeonUser:
     user = NeonUser(environment.evm_loader, bank_account)
-    balance = evm_loader.get_solana_balance(user.solana_account.pubkey())
+    lamports = 2 * LAMPORT_PER_SOL
 
-    prod_envs = EnvName.MAINNET, EnvName.DEVNET, EnvName.TESTNET
-
-    if environment.name in prod_envs or environment.use_bank:
-        lamports = 2 * LAMPORT_PER_SOL
-        evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
-    else:
-        lamports = 5 * LAMPORT_PER_SOL
+    if environment.use_bank:
+        balance = evm_loader.get_solana_balance(user.solana_account.pubkey())
         if balance < lamports:
-            evm_loader.request_airdrop(
-                pubkey=user.solana_account.pubkey(),
-                lamports=lamports,
-                commitment=Confirmed,
-            )
+            evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
+    else:
+        evm_loader.request_airdrop(
+            pubkey=user.solana_account.pubkey(),
+            lamports=lamports,
+            commitment=Confirmed,
+        )
     return user
 
 
