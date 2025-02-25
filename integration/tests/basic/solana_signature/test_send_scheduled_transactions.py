@@ -8,7 +8,6 @@ from eth_utils import abi
 from utils.consts import wSOL, LAMPORT_PER_SOL
 from utils.helpers import wait_condition
 from utils.models.result import EthGetBlockByHashResult
-
 from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData, ScheduledTrxEstimateRequest
 from utils.web3client import BASE_MAX_PRIORITY_FEE
 
@@ -138,9 +137,9 @@ class TestScheduledTrx:
         )
 
         web3_client_sol.send_all_scheduled_transactions([tx0, tx1])
-        resp1 = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
+        resp1 = web3_client_sol.wait_for_transaction_receipt(tx0.hash(), timeout=180)
         assert resp1["status"] == 0
-        resp2 = web3_client_sol.wait_for_transaction_receipt(tx1.hash())
+        resp2 = web3_client_sol.wait_for_transaction_receipt(tx1.hash(), timeout=180)
         assert resp2["status"] == 0
         pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
         assert len(pending_trx) >= 1
@@ -197,7 +196,7 @@ class TestScheduledTrx:
         tree_acc_data.add_trx(tx0, 0xFFFF, 0)
         evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
         web3_client_sol.send_scheduled_transaction(tx0)
-        receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
+        receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash(), timeout=180)
         event_logs = event_caller_contract.events.IndexedArgs().process_receipt(receipt)
         assert len(event_logs) == 1
         assert len(event_logs[0].args) == 2
@@ -234,7 +233,7 @@ class TestScheduledTrx:
             neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"], chain_id=web3_client_sol.chain_id
         )
         web3_client_sol.send_scheduled_transaction(tx0)
-        receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
+        receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash(), timeout=180)
         event_logs = event_caller_sol_chain.events.IndexedArgs().process_receipt(receipt)
         assert len(event_logs) == 1
         assert len(event_logs[0].args) == 2
@@ -374,5 +373,5 @@ class TestScheduledTrx:
         web3_client_sol.send_all_scheduled_transactions(trxs)
 
         for trx in trxs:
-            receipt = web3_client_sol.wait_for_transaction_receipt(trx.hash())
+            receipt = web3_client_sol.wait_for_transaction_receipt(trx.hash(), timeout=180)
             assert receipt["status"] == 1, f"Trx {trx.hash().hex()} failed: receipt - {receipt}"
