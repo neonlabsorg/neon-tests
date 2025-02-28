@@ -15,6 +15,7 @@ from multiprocessing.dummy import Pool
 from pathlib import Path
 from urllib.parse import urlparse
 
+import pandas as pd
 import pytest
 
 from deploy.cli.cost_report import prepare_report_data, report_data_to_markdown
@@ -424,9 +425,18 @@ def get_service_tags_for_cost_reports(
     proxy_tag: str,
     repo: RepoType,
     db: PostgresTestResultsHandler,
-    history_depth_limit: int,
+    limit: int,
     version_branch: str,
 ) -> tuple[str, str, list[str]]:
+    """
+    :param evm_tag:
+    :param proxy_tag:
+    :param repo:
+    :param db:
+    :param limit: number of previous tags. E.g. if you want to compare 5 reports - you need 4 previous tags
+    :param version_branch:
+    :return:
+    """
     compared_service_tag = evm_tag if repo == "evm" else proxy_tag
     other_service_tag = evm_tag if repo == "proxy" else proxy_tag
 
@@ -437,7 +447,7 @@ def get_service_tags_for_cost_reports(
         previous_tags = db.get_previous_tags(
             repo=repo,
             tag=compared_service_tag,
-            limit=history_depth_limit,
+            limit=limit,
         )
     else:
         if version_branch:
@@ -1249,7 +1259,7 @@ def compare_dapp_results(
         proxy_tag=proxy_tag,
         repo=repo,
         db=db,
-        history_depth_limit=history_depth_limit,
+        limit=history_depth_limit - 1,
         version_branch=version_branch,
     )
     click.echo(f"previous_tags: {previous_tags}")
@@ -1296,7 +1306,6 @@ def compare_dapp_results(
 @click.option("--evm_tag", required=True)
 @click.option("--proxy_tag", required=True)
 @click.option("--version_branch", required=True)
-@click.option("--history_depth_limit", type=int, help="How many runs to include into statistical analysis")
 @click.option("--acc_count", type=int, help="Allowed absolute number of acceptable increase")
 @click.option("--trx_count", type=int, help="Allowed absolute number of acceptable increase")
 @click.option("--gas_estimated", type=int, help="Allowed absolute number of acceptable increase")
@@ -1307,7 +1316,6 @@ def validate_cost_reports(
     evm_tag: str,
     proxy_tag: str,
     version_branch: str,
-    history_depth_limit: int,
     acc_count: int,
     trx_count: int,
     gas_estimated: int,
@@ -1320,13 +1328,13 @@ def validate_cost_reports(
         proxy_tag=proxy_tag,
         repo=repo,
         db=db,
-        history_depth_limit=history_depth_limit,
+        limit=1,
         version_branch=version_branch,
     )
     click.echo(f"previous_tags: {previous_tags}")
 
     historical_data = db.get_historical_data(
-        depth=3,
+        depth=2,
         repo=repo,
         latest_tag=compared_service_tag,
         previous_tags=previous_tags,
@@ -1340,21 +1348,26 @@ def validate_cost_reports(
     for dapp_name in dapp_names:
         data_for_dapp = historical_data[historical_data["dapp_name"] == dapp_name]
         actions = data_for_dapp["action"].unique()
+
         for action in actions:
             data_for_dapp_action = data_for_dapp[data_for_dapp["action"] == action]
             metric_names = [col_name for col_name in data_for_dapp_action.columns if col_name in all_metric_names]
+
             for metric_name in metric_names:
                 metric_values = data_for_dapp_action[metric_name]
-                min_value = metric_values.min()
-                max_value = metric_values.max()
-                actual_change = max_value - min_value
-                max_acceptable_change = locals()[metric_name]
-                msg = (
-                    f"{dapp_name} > {action} > {metric_name} increased by {actual_change} "
-                    f"but only +{max_acceptable_change} is OK"
-                )
-                if actual_change > max_acceptable_change:
-                    failure_messages.append(msg)
+                historical_value = metric_values.iloc[0]
+                latest_value = metric_values.iloc[-1]
+
+                if not pd.isna(historical_value) and not pd.isna(latest_value):
+                    actual_change = latest_value - historical_value
+                    max_acceptable_change = locals()[metric_name]
+
+                    if actual_change > max_acceptable_change:
+                        msg = (
+                            f"{dapp_name} > {action} > {metric_name} increased by {actual_change} "
+                            f"but only +{max_acceptable_change} is OK"
+                        )
+                        failure_messages.append(msg)
 
     assert not failure_messages, "\n" + "\n".join(failure_messages)
 
