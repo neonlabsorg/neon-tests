@@ -781,8 +781,8 @@ jobs:
             --evm_tag="${{inputs.evm_tag}}" \
             --proxy_tag="${{inputs.proxy_tag}}" \
           	--version_branch "${{ inputs.repo == 'evm' && inputs.evm_pr_version_branch || inputs.proxy_pr_version_branch }}" \
-            --acc_count 0 \
-            --trx_count 0 \
-            --gas_estimated 0 \
-            --gas_used 10000 \
-            --compute_units 1000000
+            --acc_count 100 \
+            --trx_count 100 \
+            --gas_estimated 1000000000 \
+            --gas_used 1000000000 \
+            --compute_units 1000000000
