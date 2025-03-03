@@ -1311,6 +1311,7 @@ def compare_dapp_results(
 @click.option("--gas_estimated", type=int, help="Allowed absolute number of acceptable increase")
 @click.option("--gas_used", type=int, help="Allowed absolute number of acceptable increase")
 @click.option("--compute_units", type=int, help="Allowed absolute number of acceptable increase")
+@click.option("--output", type=int, help="Path to the JSON file where detected failures are saved")
 def validate_cost_reports(
     repo: RepoType,
     evm_tag: str,
@@ -1321,7 +1322,24 @@ def validate_cost_reports(
     gas_estimated: int,
     gas_used: int,
     compute_units: int,
+    output: str,
 ):
+    """
+    Compares the cost report data for <repo>:<evm_tag|proxy_tag|version_branch>
+    with previous report data based on acceptable absolute increases in metrics.
+    Any detected increases exceeding the allowed thresholds are saved to the <output> file.
+
+    :param repo: Repository name.
+    :param evm_tag: EVM tag of the report data.
+    :param proxy_tag: Proxy tag of the report data.
+    :param version_branch: Maximum acceptable absolute increase in the metric version_branch.
+    :param acc_count: Maximum acceptable absolute increase in the metric acc_count.
+    :param trx_count: Maximum acceptable absolute increase in the metric trx_count.
+    :param gas_estimated: Maximum acceptable absolute increase in the metric gas_estimated.
+    :param gas_used: Maximum acceptable absolute increase in the metric gas_used.
+    :param compute_units: Maximum acceptable absolute increase in the metric compute_units.
+    :param output: Path to the JSON file where detected failures are saved.
+    """
     db = PostgresTestResultsHandler()
     compared_service_tag, other_service_tag, previous_tags = get_service_tags_for_cost_reports(
         evm_tag=evm_tag,
@@ -1343,7 +1361,8 @@ def validate_cost_reports(
     all_metric_names = "acc_count", "trx_count", "gas_estimated", "gas_used", "compute_units"
     dapp_names = historical_data["dapp_name"].unique()
 
-    failure_messages: list[str] = []
+    failure = tp.TypedDict("failure", {"dapp": str, "action": str, "metric": str, "increase": int})
+    failures: list[failure] = []
 
     for dapp_name in dapp_names:
         data_for_dapp = historical_data[historical_data["dapp_name"] == dapp_name]
@@ -1363,27 +1382,34 @@ def validate_cost_reports(
                     max_acceptable_change = locals()[metric_name]
 
                     if actual_change > max_acceptable_change:
-                        msg = (
-                            f"{dapp_name} > {action} > {metric_name} increased by {actual_change} "
-                            f"but only +{max_acceptable_change} is OK"
-                        )
-                        failure_messages.append(msg)
+                        failure_dict: failure = {
+                            "dapp": dapp_name,
+                            "action": action,
+                            "metric": metric_name,
+                            "increase": actual_change,
+                        }
+                        failures.append(failure_dict)
 
-    assert not failure_messages, "\n" + "\n".join(failure_messages)
+    df = pd.DataFrame(failures)
+    md = df.to_markdown(index=False)
+
+    with open(output, "w") as f:
+        json.dump(md, f)
 
 
 @dapps.command("add_pr_comment", help="Add PR comment with dApp cost reports")
 @click.option("--pr_url_for_report", default="", help="Url to send the report as comment for PR")
 @click.option("--token", default="", help="github token")
 @click.option("--md_file", help="File with markdown for the comment")
-def add_pr_comment(pr_url_for_report: str, token: str, md_file: str):
+@click.option("--title", default="", help="Comment title")
+def add_pr_comment(pr_url_for_report: str, token: str, md_file: str, title: str):
     gh_client = GithubClient(token=token)
-    gh_client.delete_last_comment(pr_url_for_report)
+    gh_client.delete_last_comment(pr_url=pr_url_for_report, title=title)
 
     with open(md_file) as f:
         markdown = f.read()
 
-    gh_client.add_comment_to_pr(pr_url_for_report, markdown)
+    gh_client.add_comment_to_pr(url=pr_url_for_report, msg=markdown, title=title)
 
 
 @cli.group()

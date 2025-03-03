@@ -766,23 +766,41 @@ jobs:
         if: ${{ steps.dump-cost-reports-to-markdown.outcome == 'success' || steps.save-cost-reports-zip-url.outcome == 'success'  }}
         run: |
           cat cost_reports.md >> $GITHUB_STEP_SUMMARY
-      - name: "Add PR comment"
+      - name: "Add PR comment with cost report data"
         if: ${{ inputs.pr_url_for_report != '' }}
         run: |
           python3 ./clickfile.py dapps add_pr_comment \
           --pr_url_for_report="${{ inputs.pr_url_for_report }}" \
           --token="${{ secrets.GHTOKEN }}" \
-          --md_file cost_reports.md
-      - name: "Validate cost report data"
+          --md_file cost_reports.md \
+          --title "Dapps report"
+      - name: "Validate cost report data and save failures to file"
+        id: validate-cost-report
         if: ${{ steps.set-do-compare-reports.outputs.compare == 'true' && steps.save-cost-report-to-db.outcome == 'success' }}
         run: |
           python3 ./clickfile.py dapps validate_cost_reports \
-          	--repo "${{inputs.repo}}" \
-            --evm_tag="${{inputs.evm_tag}}" \
-            --proxy_tag="${{inputs.proxy_tag}}" \
-          	--version_branch "${{ inputs.repo == 'evm' && inputs.evm_pr_version_branch || inputs.proxy_pr_version_branch }}" \
-            --acc_count 100 \
-            --trx_count 100 \
-            --gas_estimated 1000000000 \
-            --gas_used 1000000000 \
-            --compute_units 1000000000
+            --repo "${{ inputs.repo }}" \
+            --evm_tag="${{ inputs.evm_tag }}" \
+            --proxy_tag="${{ inputs.proxy_tag }}" \
+            --version_branch "${{ inputs.repo == 'evm' && inputs.evm_pr_version_branch || inputs.proxy_pr_version_branch }}" \
+            --acc_count 0 \
+            --trx_count 0 \
+            --gas_estimated 10000 \
+            --gas_used 10000 \
+            --compute_units 1000000 \
+            --output cost_report_validation_issues.md
+
+          if [ -f "cost_report_validation_issues.md" ]; then
+            echo "has_errors=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_errors=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "Add PR comment if cost report validation has any issues"
+        if: ${{ steps.validate-cost-report.outputs.has_errors == 'true' }}
+        run: |
+          python3 ./clickfile.py dapps add_pr_comment \
+            --pr_url_for_report="${{ inputs.pr_url_for_report }}" \
+            --token="${{ secrets.GHTOKEN }}" \
+            --md_file cost_report_validation_issues.md \
+            --title "<strong>⚠️ Cost Report Validation Failed ⚠️</strong>"
