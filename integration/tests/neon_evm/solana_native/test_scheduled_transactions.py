@@ -104,7 +104,7 @@ class TestScheduledTrx:
         self, evm_loader, neon_user: NeonUser, treasury_pool, basic_contract, operator_keypair, holder_acc, environment
     ):
         nonce = evm_loader.get_neon_nonce(neon_user.neon_address, environment.network_ids["sol"])
-
+        data = abi.function_signature_to_4byte_selector("getNumber()")
         index = 1
         tx = ScheduledTransaction(
             neon_user.neon_address,
@@ -114,6 +114,7 @@ class TestScheduledTrx:
             target=basic_contract.eth_address,
             value=0,
             chain_id=evm_loader.sol_chain_id,
+            call_data=data,
         )
 
         with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.TRANSACTION_TREE_INVALID_DATA):

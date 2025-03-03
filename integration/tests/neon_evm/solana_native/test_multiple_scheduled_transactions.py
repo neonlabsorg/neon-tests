@@ -106,7 +106,7 @@ class TestMultipleScheduledTrx:
             index=0,
             target=basic_contract.eth_address,
             value=0,
-            call_data=data,
+            call_data=b"",
             chain_id=evm_loader.sol_chain_id,
         )
         tx1 = ScheduledTransaction(
