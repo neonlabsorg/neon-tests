@@ -14,13 +14,11 @@ from utils.scheduled_trx import ScheduledTransaction, ScheduledTrxEstimateReques
 from utils.models.result import EthGetBlockByHashResult
 
 
-@allure.feature("Solana native")
-@allure.story("Test sending scheduled transaction")
-@pytest.mark.usefixtures("accounts", "web3_client")
+@allure.feature("JSON-RPC validation")
+@allure.story("Verify JSON-RPC neon_sendRawScheduledTransaction work")
 class TestNeonRPCGetBlockNumber:
 
-    @pytest.fixture(scope="function")
-    def tree_account_for_simple_trx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
+    def test_send_simple_single_trx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
         contract_data = 18
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
@@ -31,16 +29,10 @@ class TestNeonRPCGetBlockNumber:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        tree_account = evm_loader.create_tree_account(
+        evm_loader.create_tree_account(
             neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
         )
 
-        return web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, tx, tree_account
-
-    def test_send_simple_single_trx(self, tree_account_for_simple_trx):
-        web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, tx, tree_account = (
-            tree_account_for_simple_trx
-        )
         resp = web3_client_sol.send_scheduled_transaction(tx, check_result=True)
         EthResult(**resp)
         assert is_hex(resp["result"])

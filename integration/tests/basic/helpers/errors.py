@@ -20,7 +20,18 @@ class Error32602:
 
 class Error32000:
     CODE = -32000
-    UNKNOWN_TRANSACTION_HASH = "bad from-address"
+    UNKNOWN_TRANSACTION_HASH = "unknown transaction hash"
+    WRONG_CHAIN_ID = "wrong chain id"
+
+
+class Error32603:
+    CODE = -32603
+    INTERNAL_ERROR = "Internal error"
+
+
+class Error3:
+    CODE = 3
+    EXECUTION_REVERTED = "execution reverted"
 
 
 class ContractError:

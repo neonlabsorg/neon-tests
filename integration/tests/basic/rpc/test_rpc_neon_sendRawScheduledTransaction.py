@@ -1,6 +1,5 @@
 import allure
 import eth_abi
-import pytest
 import requests
 from eth_utils import abi
 
@@ -13,13 +12,11 @@ from utils.consts import wSOL
 from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData, ScheduledTrxEstimateRequest
 
 
-@allure.feature("Solana native")
-@allure.story("Test sending scheduled transaction")
-@pytest.mark.usefixtures("accounts", "web3_client")
+@allure.feature("JSON-RPC validation")
+@allure.story("Verify JSON-RPC neon_sendRawScheduledTransaction work")
 class TestNeonRPCSendRAWTransaction:
 
-    @pytest.fixture(scope="function")
-    def tree_account_for_simple_trx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
+    def test_send_simple_single_trx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
         contract_data = 18
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
@@ -30,16 +27,10 @@ class TestNeonRPCSendRAWTransaction:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        tree_account = evm_loader.create_tree_account(
+        evm_loader.create_tree_account(
             neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
         )
 
-        return web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, tx, tree_account
-
-    def test_send_simple_single_trx(self, tree_account_for_simple_trx):
-        web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, tx, tree_account = (
-            tree_account_for_simple_trx
-        )
         resp = web3_client_sol.send_scheduled_transaction(tx, check_result=True)
         EthResult(**resp)
         assert is_hex(resp["result"])
@@ -84,9 +75,19 @@ class TestNeonRPCSendRAWTransaction:
         resp = web3_client_sol.send_scheduled_transaction(tx0, check_result=True)
         assert is_hex(resp["result"])
 
-    def test_two_transactions_in_params(self, tree_account_for_simple_trx):
-        web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, tx, tree_account = (
-            tree_account_for_simple_trx
+    def test_two_transactions_in_params(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
+        contract_data = 18
+        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
+            ["uint256"], [contract_data]
+        )
+
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+
+        tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
+
+        evm_loader.create_tree_account(
+            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
         )
 
         url = "http://127.0.0.1:9090/solana/sol"
@@ -107,11 +108,24 @@ class TestNeonRPCSendRAWTransaction:
             resp["error"]["data"]["errors"][0] == "Method neon_sendRawScheduledTransaction expect 1 parameters, got 2."
         )
 
-    def test_repeat_call_with_same_trx_hash(self, tree_account_for_simple_trx):
-
-        web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, tx, tree_account = (
-            tree_account_for_simple_trx
+    def test_repeat_call_with_same_trx_hash(
+        self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
+    ):
+        contract_data = 18
+        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
+            ["uint256"], [contract_data]
         )
+
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+
+        tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
+
+        evm_loader.create_tree_account(
+            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
+        )
+
+        web3_client_sol.send_scheduled_transaction(tx, check_result=False)
         web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)  # wait until first tx finished
         resp = web3_client_sol.send_scheduled_transaction(tx, check_result=False)
 
@@ -119,61 +133,71 @@ class TestNeonRPCSendRAWTransaction:
         assert Error32000.CODE == resp["error"]["code"]
         assert Error32000.UNKNOWN_TRANSACTION_HASH == resp["error"]["message"]
 
-    def test_no_tree_account_for_trx(self, tree_account_for_simple_trx):
-        web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, trx, tree_account = (
-            tree_account_for_simple_trx
+    def test_no_tree_account_for_trx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
+        contract_data = 18
+        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
+            ["uint256"], [contract_data]
         )
-        resp = web3_client_sol.send_scheduled_transaction(trx, check_result=False)
 
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+
+        tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
+
+        resp = web3_client_sol.send_scheduled_transaction(tx, check_result=False)
         assert "error" in resp
         assert Error32000.CODE == resp["error"]["code"]
         assert Error32000.UNKNOWN_TRANSACTION_HASH == resp["error"]["message"]
 
-    def test_tree_account_deleted_before_send_trx(self, tree_account_for_simple_trx):
-        web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, trx, tree_account = (
-            tree_account_for_simple_trx
+    def test_tree_account_deleted_before_send_trx(
+        self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
+    ):
+        contract_data = 18
+        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
+            ["uint256"], [contract_data]
+        )
+
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+
+        tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
+
+        tree_account = evm_loader.create_tree_account(
+            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
         )
 
         assert evm_loader.account_exists(account_address=tree_account)
         wait_condition(lambda: not evm_loader.account_exists(account_address=tree_account), timeout_sec=120)
-        resp = web3_client_sol.send_scheduled_transaction(trx, check_result=False)
+        resp = web3_client_sol.send_scheduled_transaction(tx, check_result=False)
 
         assert "error" in resp
         assert Error32000.CODE == resp["error"]["code"]
         assert Error32000.UNKNOWN_TRANSACTION_HASH == resp["error"]["message"]
 
-    def test_bad_chain_id_url(self, tree_account_for_simple_trx):
-        web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, trx, tree_account = (
-            tree_account_for_simple_trx
+    def test_bad_chain_id_url(
+        self, json_rpc_client, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
+    ):
+        contract_data = 18
+        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
+            ["uint256"], [contract_data]
         )
 
-        wrong_url = "http://127.0.0.1:9090/solana/"
-        resp = requests.post(
-            wrong_url,
-            json={
-                "jsonrpc": "2.0",
-                "method": "neon_sendRawScheduledTransaction",
-                "params": [trx.encode().hex()],
-                "id": 0,
-            },
-        ).json()
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
+        tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
+
+        evm_loader.create_tree_account(
+            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
+        )
+
+        resp = json_rpc_client.send_rpc(method="neon_sendRawScheduledTransaction", params=[tx.encode().hex()])
         assert "error" in resp
         assert Error32000.CODE == resp["error"]["code"]
         assert Error32000.WRONG_CHAIN_ID == resp["error"]["message"]
 
-    def test_bad_hash_of_trx(self):
-        url = "http://127.0.0.1:9090/solana/sol"
-        resp = requests.post(
-            url,
-            json={
-                "jsonrpc": "2.0",
-                "method": "neon_sendRawScheduledTransaction",
-                "params": [""],
-                "id": 0,
-            },
-        ).json()
-
+    def test_bad_hash_of_trx(self, json_sol_rpc_client):
+        resp = json_sol_rpc_client.send_rpc(method="neon_sendRawScheduledTransaction", params=[""])
         assert "error" in resp
         assert Error32602.CODE == resp["error"]["code"]
-        assert Error32602.WRONG_TRANSACTION_FOWMAT == resp["error"]["message"]
+        assert Error32602.WRONG_TRANSACTION_FORMAT == resp["error"]["message"]
