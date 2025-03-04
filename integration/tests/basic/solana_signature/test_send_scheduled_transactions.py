@@ -232,7 +232,6 @@ class TestScheduledTrx:
         event_caller_sol_chain,
         web3_client_sol,
         treasury_pool,
-        solana_account,
         wsol_inside_neon,
     ):
         contract_balance_before = web3_client_sol.get_balance(event_caller_sol_chain.address)
@@ -280,7 +279,6 @@ class TestScheduledTrx:
         event_caller_sol_chain,
         web3_client_sol,
         treasury_pool,
-        solana_account,
     ):
         contract_balance_before = web3_client_sol.get_balance(event_caller_sol_chain.address)
 
@@ -334,7 +332,6 @@ class TestScheduledTrx:
         event_caller_sol_chain,
         web3_client_sol,
         treasury_pool,
-        solana_account,
         wsol_inside_neon,
     ):
         if wsol_inside_neon:
