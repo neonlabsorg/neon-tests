@@ -342,11 +342,8 @@ class TestScheduledTrx:
             )
         recipient = NeonUser(evm_loader.loader_id)
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
-        value = 10000000000
+        value = 100
 
-        # call_data = abi.function_signature_to_4byte_selector(
-        #     "transferTokensAndRaiseError(uint256,address[])"
-        # ) + eth_abi.encode(["uint256", "address[]"], [value, [recipient.neon_address]])
         call_data = decode_function_signature(
             "transferTokensAndRaiseError(uint256,address[])", [value, [recipient.neon_address]]
         )
