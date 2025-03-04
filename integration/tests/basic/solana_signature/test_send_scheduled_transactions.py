@@ -7,6 +7,7 @@ from integration.tests.basic.helpers.rpc_checks import check_trx_is_success
 from utils.consts import wSOL, LAMPORT_PER_SOL
 from utils.helpers import wait_condition, decode_function_signature
 from utils.models.result import EthGetBlockByHashResult
+from utils.neon_user import NeonUser
 from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData, ScheduledTrxEstimateRequest
 from utils.web3client import BASE_MAX_PRIORITY_FEE
 
@@ -156,48 +157,94 @@ class TestScheduledTrx:
         web3_client_sol.send_scheduled_transaction(tx0)
         wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=1)
 
-    @pytest.mark.skip("NDEV-3453")
+    @pytest.mark.parametrize(
+        "with_estimate",
+        [True, False],
+    )
     def test_scheduled_trx_send_tokens_to_neon_chain_contract(
-        self, neon_user, evm_loader, event_caller_contract, web3_client_sol, treasury_pool
-    ):
-        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
-        call_data = decode_function_signature("indexedArgs()")
-        value = 100000
-
-        trx_estimate_obj = ScheduledTrxEstimateRequest(
-            neon_user.checksum_address, event_caller_contract.address, call_data, value=value
-        )
-        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
-
-        tx0 = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
-
-        tree_acc_data = CreateTreeAccMultipleData(
-            nonce=nonce,
-            max_fee_per_gas=estimate_result["maxFeePerGas"],
-            max_priority_fee_per_gas=estimate_result["maxPriorityFeePerGas"],
-        )
-        tree_acc_data.add_trx(tx0, 0xFFFF, 0)
-        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
-        web3_client_sol.send_scheduled_transaction(tx0)
-        receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash(), timeout=180)
-        event_logs = event_caller_contract.events.IndexedArgs().process_receipt(receipt)
-        assert len(event_logs) == 1
-        assert len(event_logs[0].args) == 2
-        assert event_logs[0].args.who == neon_user.checksum_address
-        assert event_logs[0].args.value == value
-        assert event_logs[0].event == "IndexedArgs"
-
-    def test_scheduled_trx_send_tokens_to_sol_chain_contract(
-        self, neon_user, evm_loader, event_caller_sol_chain, web3_client_sol, treasury_pool
+        self,
+        neon_user,
+        evm_loader,
+        event_caller_contract,
+        web3_client_sol,
+        treasury_pool,
+        faucet,
+        web3_client,
+        with_estimate,
     ):
         evm_loader.deposit_wrapped_sol_from_solana_to_neon(
             neon_user.solana_account,
             "0x" + neon_user.neon_address.hex(),
             int(1 * LAMPORT_PER_SOL),
         )
-        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
+        faucet.request_neon(neon_user.checksum_address, 100)
+
         call_data = decode_function_signature("indexedArgs()")
         value = 100000
+
+        if with_estimate:
+            trx_estimate_obj = ScheduledTrxEstimateRequest(
+                neon_user.checksum_address, event_caller_contract.address, call_data, value=value
+            )
+            with pytest.raises(AssertionError, match="Invalid token for transfer"):
+                web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+        else:
+            nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
+            max_priority_fee_per_gas = BASE_MAX_PRIORITY_FEE
+            max_fee_per_gas = web3_client_sol.get_max_fee_per_gas()
+            gas_limit = 30000000
+
+            tx0 = ScheduledTransaction(
+                neon_user.neon_address,
+                None,
+                nonce,
+                index=0,
+                target=event_caller_contract.address,
+                call_data=call_data,
+                max_fee_per_gas=max_fee_per_gas,
+                max_priority_fee_per_gas=max_priority_fee_per_gas,
+                gas_limit=gas_limit,
+                value=value,
+                chain_id=web3_client_sol.chain_id,
+            )
+            tree_acc_data = CreateTreeAccMultipleData(
+                nonce=nonce,
+                max_fee_per_gas=max_fee_per_gas,
+                max_priority_fee_per_gas=max_priority_fee_per_gas,
+            )
+            tree_acc_data.add_trx(tx0, 0xFFFF, 0)
+            evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
+            web3_client_sol.send_scheduled_transaction(tx0)
+            receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
+            assert web3_client_sol.get_balance(event_caller_contract.address) == 0
+            assert web3_client.get_balance(event_caller_contract.address) == 0
+
+            assert receipt["status"] == 0
+
+    @pytest.mark.parametrize(
+        "wsol_inside_neon",
+        [True, False],
+    )
+    def test_scheduled_trx_send_tokens_to_sol_chain_contract(
+        self,
+        neon_user,
+        evm_loader,
+        event_caller_sol_chain,
+        web3_client_sol,
+        treasury_pool,
+        solana_account,
+        wsol_inside_neon,
+    ):
+        contract_balance_before = web3_client_sol.get_balance(event_caller_sol_chain.address)
+        if wsol_inside_neon:
+            evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+                neon_user.solana_account,
+                "0x" + neon_user.neon_address.hex(),
+                int(1 * LAMPORT_PER_SOL),
+            )
+
+        call_data = decode_function_signature("indexedArgs()")
+        value = 1000
 
         trx_estimate_obj = ScheduledTrxEstimateRequest(
             neon_user.checksum_address, event_caller_sol_chain.address, call_data, value=value
@@ -207,14 +254,16 @@ class TestScheduledTrx:
         tx0 = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
         tree_acc_data = CreateTreeAccMultipleData(
-            nonce=nonce,
+            nonce=estimate_result["nonce"],
             max_fee_per_gas=estimate_result["maxFeePerGas"],
             max_priority_fee_per_gas=estimate_result["maxPriorityFeePerGas"],
         )
         tree_acc_data.add_trx(tx0, 0xFFFF, 0)
-        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
+        evm_loader.create_tree_account_multiple(
+            neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"], chain_id=web3_client_sol.chain_id
+        )
         web3_client_sol.send_scheduled_transaction(tx0)
-        check_trx_is_success(web3_client_sol, evm_loader, tx0.hash().hex())
+        check_trx_is_success(web3_client_sol, evm_loader, tx0.hash().hex(), timeout=180)
         receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash(), timeout=180)
         event_logs = event_caller_sol_chain.events.IndexedArgs().process_receipt(receipt)
         assert len(event_logs) == 1
@@ -222,6 +271,123 @@ class TestScheduledTrx:
         assert event_logs[0].args.who == neon_user.checksum_address
         assert event_logs[0].args.value == value
         assert event_logs[0].event == "IndexedArgs"
+        assert web3_client_sol.get_balance(event_caller_sol_chain.address) == contract_balance_before + value
+
+    def test_scheduled_trx_send_tokens_to_sol_chain_contract_without_estimation(
+        self,
+        neon_user,
+        evm_loader,
+        event_caller_sol_chain,
+        web3_client_sol,
+        treasury_pool,
+        solana_account,
+    ):
+        contract_balance_before = web3_client_sol.get_balance(event_caller_sol_chain.address)
+
+        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
+        call_data = decode_function_signature("indexedArgs()")
+        value = 10
+
+        max_priority_fee_per_gas = BASE_MAX_PRIORITY_FEE
+        max_fee_per_gas = web3_client_sol.get_max_fee_per_gas()
+        gas_limit = 30000000
+
+        tx0 = ScheduledTransaction(
+            neon_user.neon_address,
+            None,
+            nonce,
+            index=0,
+            target=event_caller_sol_chain.address,
+            call_data=call_data,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            gas_limit=gas_limit,
+            value=value,
+            chain_id=web3_client_sol.chain_id,
+        )
+        tree_acc_data = CreateTreeAccMultipleData(
+            nonce=nonce,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+        )
+        tree_acc_data.add_trx(tx0, 0xFFFF, 0)
+        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
+        web3_client_sol.send_scheduled_transaction(tx0)
+        receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
+        event_logs = event_caller_sol_chain.events.IndexedArgs().process_receipt(receipt)
+
+        assert web3_client_sol.get_balance(event_caller_sol_chain.address) == contract_balance_before + value
+        assert len(event_logs) == 1
+        assert len(event_logs[0].args) == 2
+        assert event_logs[0].args.who == neon_user.checksum_address
+        assert event_logs[0].args.value == value
+        assert event_logs[0].event == "IndexedArgs"
+
+    @pytest.mark.parametrize(
+        "wsol_inside_neon",
+        [True, False],
+    )
+    def test_scheduled_trx_send_tokens_to_sol_chain_contract_failed_trx(
+        self,
+        neon_user,
+        evm_loader,
+        event_caller_sol_chain,
+        web3_client_sol,
+        treasury_pool,
+        solana_account,
+        wsol_inside_neon,
+    ):
+        if wsol_inside_neon:
+            evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+                neon_user.solana_account,
+                "0x" + neon_user.neon_address.hex(),
+                int(1 * LAMPORT_PER_SOL),
+            )
+        recipient = NeonUser(evm_loader.loader_id)
+        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
+        value = 10000000000
+
+        # call_data = abi.function_signature_to_4byte_selector(
+        #     "transferTokensAndRaiseError(uint256,address[])"
+        # ) + eth_abi.encode(["uint256", "address[]"], [value, [recipient.neon_address]])
+        call_data = decode_function_signature(
+            "transferTokensAndRaiseError(uint256,address[])", [value, [recipient.neon_address]]
+        )
+
+        max_priority_fee_per_gas = BASE_MAX_PRIORITY_FEE
+        max_fee_per_gas = web3_client_sol.get_max_fee_per_gas()
+        gas_limit = 30000000
+
+        tx0 = ScheduledTransaction(
+            neon_user.neon_address,
+            None,
+            nonce,
+            index=0,
+            target=event_caller_sol_chain.address,
+            call_data=call_data,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            gas_limit=gas_limit,
+            value=value,
+            chain_id=web3_client_sol.chain_id,
+        )
+        tree_acc_data = CreateTreeAccMultipleData(
+            nonce=nonce,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+        )
+        tree_acc_data.add_trx(tx0, 0xFFFF, 0)
+        tree_account = evm_loader.create_tree_account_multiple(
+            neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"]
+        )
+        wsol_balance_after_creating_tree = web3_client_sol.get_balance(neon_user.checksum_address)
+
+        web3_client_sol.send_scheduled_transaction(tx0)
+        receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash())
+        assert receipt["status"] == 0
+        wait_condition(lambda: not evm_loader.account_exists(tree_account))
+        wsol_balance_after = web3_client_sol.get_balance(neon_user.checksum_address)
+        assert wsol_balance_after > wsol_balance_after_creating_tree, "Sol should be returned"
 
     def test_scheduled_trx_with_timestamp(
         self, block_timestamp_contract, web3_client_sol, neon_user, treasury_pool, evm_loader, json_rpc_client
