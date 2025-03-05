@@ -1,28 +1,36 @@
 import builtins
-import os
 import json
-import shutil
+import os
 import pathlib
+import shutil
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional, Dict
 
 import pytest
 from _pytest.config import Config
 from _pytest.config.argparsing import Parser
 from _pytest.nodes import Item
 from _pytest.runner import runtestprotocol
+from allure_commons.types import AttachmentType
+from solana.rpc.commitment import Confirmed
 from solders.keypair import Keypair
+from solders.pubkey import Pubkey
+from spl.token.constants import WRAPPED_SOL_MINT
 from web3.middleware import geth_poa_middleware
 
+import allure
 from clickfile import TEST_GROUPS, EnvName
-from utils.types import TestGroup
-from utils.error_log import error_log
 from utils import create_allure_environment_opts, setup_logging
-from utils.faucet import Faucet
 from utils.accounts import EthAccounts
-from utils.web3client import NeonChainWeb3Client
+from utils.consts import LAMPORT_PER_SOL
+from utils.error_log import error_log
+from utils.evm_loader import EvmLoader
+from utils.faucet import Faucet
+from utils.neon_user import NeonUser
 from utils.solana_client import SolanaClient
-
+from utils.types import TestGroup, TreasuryPool
+from utils.web3client import NeonChainWeb3Client
 
 pytest_plugins = ["ui.plugins.browser"]
 COST_REPORT_DIR: pathlib.Path = pathlib.Path()
@@ -36,7 +44,7 @@ class EnvironmentConfig:
     tracer_url: str
     solana_url: str
     faucet_url: str
-    network_ids: dict
+    network_ids: Dict[str, int]
     spl_neon_mint: str
     neon_erc20wrapper_address: str
     use_bank: bool
@@ -44,6 +52,9 @@ class EnvironmentConfig:
     neonpass_url: str = ""
     ws_subscriber_url: str = ""
     account_seed_version: str = "\3"
+    neon_core_api_url: Optional[str] = None
+    neon_core_api_rpc_url: Optional[str] = None
+    sol_mint_id: Pubkey = field(default=WRAPPED_SOL_MINT)
 
 
 def pytest_addoption(parser: Parser):
@@ -51,7 +62,7 @@ def pytest_addoption(parser: Parser):
         "--network",
         action="store",
         choices=[env.value for env in EnvName],  # noqa
-        default="night-stand",
+        default="devnet",
         help="Which stand use",
     )
     parser.addoption(
@@ -95,6 +106,7 @@ def pytest_sessionstart(session: pytest.Session):
 
 
 def pytest_runtest_protocol(item: Item, nextitem):
+    request: pytest.FixtureRequest = item._request  # noqa
     ihook = item.ihook
     ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
     reports = runtestprotocol(item, nextitem=nextitem)
@@ -108,6 +120,10 @@ def pytest_runtest_protocol(item: Item, nextitem):
                 else:
                     error_log.add_error(test_group=test_group, test_name=item.nodeid)
 
+                if test_group == "ui":
+                    driver = request.getfixturevalue("driver")
+                    allure.attach(driver.get_screenshot_as_png(), attachment_type=AttachmentType.PNG)
+
     return True
 
 
@@ -120,7 +136,6 @@ def pytest_configure(config: Config):
     global COST_REPORT_DIR
     COST_REPORT_DIR = config.getoption("--cost_reports_dir")
 
-    solana_url_env_vars = ["SOLANA_URL", "DEVNET_INTERNAL_RPC", "MAINNET_INTERNAL_RPC"]
     network_name = config.getoption("--network")
     envs_file = config.getoption("--envs")
     with open(pathlib.Path().parent.parent / envs_file, "r+") as f:
@@ -129,10 +144,8 @@ def pytest_configure(config: Config):
     env = environments[network_name]
     env["name"] = EnvName(network_name)
     if network_name in ["devnet", "tracer_ci"]:
-        for solana_env_var in solana_url_env_vars:
-            if solana_env_var in os.environ and os.environ[solana_env_var]:
-                env["solana_url"] = os.environ.get(solana_env_var)
-                break
+        if "DEVNET_SOLANA_URL" in os.environ and os.environ["DEVNET_SOLANA_URL"]:
+            env["solana_url"] = os.environ.get("DEVNET_SOLANA_URL")
         if "PROXY_URL" in os.environ and os.environ["PROXY_URL"]:
             env["proxy_url"] = os.environ.get("PROXY_URL")
         if "DEVNET_FAUCET_URL" in os.environ and os.environ["DEVNET_FAUCET_URL"]:
@@ -141,16 +154,6 @@ def pytest_configure(config: Config):
         env["use_bank"] = False
     if "eth_bank_account" not in env:
         env["eth_bank_account"] = ""
-
-    # Set envs for integration/tests/neon_evm project
-    if "SOLANA_URL" not in os.environ or not os.environ["SOLANA_URL"]:
-        os.environ["SOLANA_URL"] = env["solana_url"]
-    if "EVM_LOADER" not in os.environ or not os.environ["EVM_LOADER"]:
-        os.environ["EVM_LOADER"] = env["evm_loader"]
-    if "NEON_TOKEN_MINT" not in os.environ or not os.environ["NEON_TOKEN_MINT"]:
-        os.environ["NEON_TOKEN_MINT"] = env["spl_neon_mint"]
-    if "CHAIN_ID" not in os.environ or not os.environ["CHAIN_ID"]:
-        os.environ["CHAIN_ID"] = str(env["network_ids"]["neon"])
 
     if network_name == "terraform":
         env["solana_url"] = env["solana_url"].replace("<solana_ip>", os.environ.get("SOLANA_IP"))
@@ -166,14 +169,14 @@ def env_name(pytestconfig: Config) -> EnvName:
 
 
 @pytest.fixture(scope="session")
-def operator_keypair():
+def operator_keypair() -> Keypair:
     with open("operator-keypair.json", "r") as key:
         secret_key = json.load(key)
         return Keypair.from_bytes(secret_key)
 
 
 @pytest.fixture(scope="session")
-def evm_loader_keypair():
+def evm_loader_keypair() -> Keypair:
     with open("evm_loader-keypair.json", "r") as key:
         secret_key = json.load(key)
         return Keypair.from_bytes(secret_key)
@@ -188,7 +191,7 @@ def allure_environment(pytestconfig: Config, web3_client_session: NeonChainWeb3C
             "Network": pytestconfig.environment.proxy_url,
             "Proxy.Version": web3_client_session.get_proxy_version()["result"],
             "EVM.Version": web3_client_session.get_evm_version()["result"],
-            "CLI.Version": web3_client_session.get_cli_version()["result"],
+            "NEON_CORE.Version": web3_client_session.get_neon_core_version()["result"],
         }
 
     yield opts
@@ -224,12 +227,12 @@ def allure_environment(pytestconfig: Config, web3_client_session: NeonChainWeb3C
 
 @pytest.fixture(scope="session")
 def web3_client_session(
-        pytestconfig: Config,
-        env_name: EnvName,
+    environment: EnvironmentConfig,
+    env_name: EnvName,
 ) -> NeonChainWeb3Client:
     client = NeonChainWeb3Client(
-        pytestconfig.environment.proxy_url,
-        tracer_url=pytestconfig.environment.tracer_url,
+        environment.proxy_url,
+        tracer_url=environment.tracer_url,
     )
     if env_name is EnvName.GETH:
         client._web3.middleware_onion.inject(geth_poa_middleware, layer=0)  # noqa
@@ -237,20 +240,65 @@ def web3_client_session(
 
 
 @pytest.fixture(scope="session")
-def sol_client_session(pytestconfig: Config) -> SolanaClient:
-    client = SolanaClient(
-        pytestconfig.environment.solana_url,
-        pytestconfig.environment.account_seed_version,
-    )
-    return client
+def sol_client_session(environment: EnvironmentConfig) -> SolanaClient:
+    return SolanaClient(environment.solana_url, environment.account_seed_version)
 
 
-@pytest.fixture(scope="session", autouse=True)
-def faucet(pytestconfig: Config, web3_client_session) -> Faucet:
-    return Faucet(pytestconfig.environment.faucet_url, web3_client_session)
+@pytest.fixture(scope="session")
+def faucet(environment: EnvironmentConfig, web3_client_session: NeonChainWeb3Client) -> Faucet:
+    return Faucet(environment.faucet_url, web3_client_session)
 
 
 @pytest.fixture(scope="session")
 def accounts_session(pytestconfig: Config, web3_client_session, faucet, eth_bank_account):
     accounts = EthAccounts(web3_client_session, faucet, eth_bank_account)
-    return accounts
+    yield accounts
+    if pytestconfig.getoption("--network") == "mainnet":
+        if len(accounts.accounts_collector) > 0:
+            for item in accounts.accounts_collector:
+                with allure.step(f"Restoring eth account balance from {item.key.hex()} account"):
+                    web3_client_session.send_all_neons(item, eth_bank_account)
+    accounts_session._accounts = []
+
+
+@pytest.fixture(scope="function")
+def neon_user(evm_loader: EvmLoader, bank_account, environment: EnvironmentConfig) -> NeonUser:
+    user = NeonUser(environment.evm_loader, bank_account)
+    lamports = 2 * LAMPORT_PER_SOL
+
+    if environment.use_bank:
+        balance = evm_loader.get_solana_balance(user.solana_account.pubkey())
+        if balance < lamports:
+            evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
+    else:
+        evm_loader.request_airdrop(
+            pubkey=user.solana_account.pubkey(),
+            lamports=lamports,
+            commitment=Confirmed,
+        )
+    return user
+
+
+@pytest.fixture(scope="session")
+def treasury_pool(evm_loader: EvmLoader, pytestconfig) -> TreasuryPool:
+    index = 2
+    evm_loader.create_treasury_pool_address(index)
+    if pytestconfig.getoption("--network") == "mainnet":
+        address = Pubkey.from_string(os.environ.get("MAINNET_TREASURY_POOL_ADDRESS"))
+    else:
+        address = evm_loader.create_treasury_pool_address(index)
+    index_buf = index.to_bytes(4, "little")
+    balance = evm_loader.get_solana_balance(address)
+    if pytestconfig.getoption("--network") != "mainnet":
+        if balance < 5 * LAMPORT_PER_SOL:
+            evm_loader.request_airdrop(address, 5 * LAMPORT_PER_SOL, commitment=Confirmed)
+    return TreasuryPool(index, address, index_buf)
+
+
+@pytest.fixture(scope="session")
+def treasury_pool_new(evm_loader) -> TreasuryPool:
+    index = 3
+    address = evm_loader.create_treasury_pool_address(index)
+    index_buf = index.to_bytes(4, "little")
+    evm_loader.request_airdrop(address, 10000 * 10**9, commitment=Confirmed)
+    return TreasuryPool(index, address, index_buf)

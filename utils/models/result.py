@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field, model_validator
 
 from utils.models.mixins import ForbidExtra
 from integration.tests.basic.helpers.basic import NeonEventType
-from integration.tests.basic.helpers.basic import NeonEventType, SolanaInstruction
 from utils.models.model_types import (
     BalanceString,
     EstimateGasPriceString,
@@ -234,14 +233,17 @@ class ReceiptDetails(ForbidExtra):
     type: HexString
     status: tp.Optional[HexString] = None
     root: tp.Optional[HexString] = None
+    scheduledParentTransactionHashes: tp.Optional[List[HexString]] = None
+    scheduledChildTransactionHashes: tp.Optional[List[HexString]] = None
 
     @model_validator(mode="before")
     @classmethod
     def check_status(cls, values):
         if values.get("status") is None and values.get("root") is None:
             raise ValueError("Either status or root must be present")
-        if values.get("status") is not None and values.get("root") is not None:
-            raise ValueError("Either status or root must be present")
+        # TODO: refactor
+        # if values.get("status") is not None and values.get("root") is not None:
+        #     raise ValueError("Either status or root must be present")
         return values
 
 
@@ -257,6 +259,15 @@ class SolanaInstruction(ForbidExtra):
     solanaProgram: str
     solanaInstructionIndex: int
     solanaInnerInstructionIndex: Union[int, None]
+
+
+class SolanaAddressLookupTableInstruction(SolanaInstruction):
+    lookupTableAddress: str
+    lookupTableInstructionCode: int
+    lookupTableInstructionName: str
+
+
+class SolanaNeonProgramInstruction(SolanaInstruction):
     svmHeapSizeLimit: int
     svmCyclesLimit: int
     svmCyclesUsed: int
@@ -277,7 +288,7 @@ class SolanaTransaction(ForbidExtra):
     solanaBlockSlot: int
     solanaLamportExpense: int
     neonOperatorAddress: str
-    solanaInstructions: List[SolanaInstruction]
+    solanaInstructions: List[Union[SolanaAddressLookupTableInstruction, SolanaNeonProgramInstruction]]
 
 
 class NeonCostsDetails(ForbidExtra):
@@ -298,6 +309,7 @@ class NeonReceiptDetails(ForbidExtra):
     gasUsed: HexString
     cumulativeGasUsed: HexString
     contractAddress: Union[HexString, None]
+    root: HexString
     status: HexString
     logsBloom: HexString
     logs: Union[List[NeonGetLogsDetails], List]
@@ -310,6 +322,8 @@ class NeonReceiptDetails(ForbidExtra):
     neonIsCanceled: bool
     solanaTransactions: List[SolanaTransaction]
     neonCosts: List[NeonCostsDetails]
+    scheduledParentTransactionHashes: List[HexString]
+    scheduledChildTransactionHashes: List[HexString]
 
 
 class NeonGetTransactionResult(EthResult):

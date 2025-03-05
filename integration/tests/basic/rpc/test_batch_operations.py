@@ -18,9 +18,9 @@ class TestBatchOperations:
     web3_client: NeonChainWeb3Client
 
     def test_batch_operations_same_function(
-            self,
-            request: pytest.FixtureRequest,
-            common_contract,
+        self,
+        request: pytest.FixtureRequest,
+        common_contract,
     ):
         """
         sends a batch operation request with 100 calls to the same function with different parameters
@@ -67,7 +67,7 @@ class TestBatchOperations:
 
         for index, result in enumerate(results):
             assert "error" not in result
-            assert result["id"] == index + 1, f"Batch response response sequence invalid"
+            assert result["id"] == index + 1, "Batch response response sequence invalid"
 
             result_hex = result["result"]
             actual_function_return = int(result_hex, 16)
@@ -75,8 +75,8 @@ class TestBatchOperations:
             assert actual_function_return == expected_function_return, "Invalid function return"
 
     def test_batch_operations_different_functions(
-            self,
-            request: pytest.FixtureRequest,
+        self,
+        environment,
     ):
         """
         sends a batch operation request with a few calls to different functions
@@ -110,7 +110,7 @@ class TestBatchOperations:
         ]
 
         response = requests.post(
-            url=request.config.environment.proxy_url,  # noqa
+            url=environment.proxy_url,  # noqa
             json=batch,
         )
 
@@ -122,10 +122,14 @@ class TestBatchOperations:
             assert "error" not in result
             assert rpc_checks.is_hex(result["result"])
 
+        trx_hash = results[2]["result"]
+        resp = self.web3_client.wait_for_transaction_receipt(trx_hash)
+        assert resp["status"] == 1
+
     def test_batch_operations_negative(
-            self,
-            request: pytest.FixtureRequest,
-            common_contract,
+        self,
+        request: pytest.FixtureRequest,
+        common_contract,
     ):
         """
         sends a batch operation request with a few calls with invalid parameters
@@ -161,7 +165,7 @@ class TestBatchOperations:
                     },
                     "latest",
                 ],
-            }
+            },
         ]
 
         response = requests.post(
@@ -177,8 +181,8 @@ class TestBatchOperations:
             assert "error" in result
 
     def test_batch_operations_positive_and_negative_mix(
-            self,
-            request: pytest.FixtureRequest,
+        self,
+        request: pytest.FixtureRequest,
     ):
         """
         sends a batch operation request with a mix of positive and calls to different functions
@@ -214,7 +218,6 @@ class TestBatchOperations:
                 "params": [],
                 "id": 5,
             },
-
         ]
 
         response = requests.post(

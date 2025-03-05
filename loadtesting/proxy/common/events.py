@@ -1,27 +1,21 @@
 import functools
-import json
 import logging
-import os
 import re
-import pathlib
 import sys
 import time
 import typing as tp
 import uuid
-from dataclasses import dataclass
 
-import requests
 import tabulate
 from web3.datastructures import AttributeDict
-from web3.exceptions import TimeExhausted
 
 from locust import events
 from locust.runners import WorkerRunner
+from locust.event import EventHook
 
 from utils import operator
 from utils.web3client import NeonChainWeb3Client
 
-from . import env
 
 LOG = logging.getLogger(__name__)
 
@@ -100,7 +94,7 @@ def operator_economy_balance(environment, **kwargs):
 class LocustEventHandler:
     """Implements custom Locust events handler"""
 
-    def __init__(self, request_event: "EventHook") -> None:
+    def __init__(self, request_event: EventHook) -> None:
         self.buffer: tp.Dict[str, tp.Any] = dict()
         self._request_event = request_event
 
@@ -135,10 +129,7 @@ class LocustEventHandler:
             context={},
         )
         self._request_event.fire(**request_meta)
-        LOG.debug(
-            "- %s : %s - %sms"
-            % (event["request_type"], event["event_type"], total_time)
-        )
+        LOG.debug("- %s : %s - %sms" % (event["request_type"], event["event_type"], total_time))
 
 
 locust_events_handler = LocustEventHandler(events.request)
@@ -194,9 +185,7 @@ def save_transaction(transactions: tp.List[str]) -> tp.Callable:
                     transactions.append(f"{tx_id[0]}")
                 raise
             if isinstance(result, AttributeDict) or (
-                isinstance(result, tuple)
-                and len(result) == 2
-                and isinstance(result[1], AttributeDict)
+                isinstance(result, tuple) and len(result) == 2 and isinstance(result[1], AttributeDict)
             ):
                 if isinstance(result, tuple) and len(result) == 2:
                     tx = result[1]

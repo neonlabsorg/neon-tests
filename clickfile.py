@@ -3,29 +3,29 @@ import enum
 import functools
 import glob
 import json
-import time
-from collections import defaultdict
-from multiprocessing.dummy import Pool
-
 import os
 import re
 import shutil
 import subprocess
 import sys
+import time
 import typing as tp
+from collections import defaultdict
+from multiprocessing.dummy import Pool
 from pathlib import Path
 from urllib.parse import urlparse
 
+import pandas as pd
 import pytest
 
 from deploy.cli.cost_report import prepare_report_data, report_data_to_markdown
 from deploy.test_results_db.db_handler import PostgresTestResultsHandler
 from deploy.test_results_db.test_results_handler import TestResultsHandler
+from utils.accounts import EthAccounts
 from utils.error_log import error_log
 from utils.faucet import Faucet
 from utils.slack_notification import SlackNotification
 from utils.types import TestGroup, RepoType
-from utils.accounts import EthAccounts
 
 try:
     import click
@@ -39,7 +39,6 @@ except ImportError:
 try:
     from deploy.cli.github_api_client import GithubClient
     from deploy.cli.network_manager import NetworkManager
-    from deploy.cli import dapps as dapps_cli
 
     from utils import create_allure_environment_opts, time_measure
     from deploy.cli import infrastructure
@@ -47,10 +46,10 @@ try:
     from utils import cloud
     from utils.operator import Operator
     from utils.web3client import NeonChainWeb3Client
-    from utils.k6_helpers import k6_prepare_accounts, k6_set_envs, deploy_erc20_contract
     from utils.prices import get_sol_price_with_retry
     from utils.helpers import wait_condition
     from utils.apiclient import JsonRPCSession
+    from utils.k6_helpers import k6_prepare_accounts, k6_set_envs, deploy_erc20_contract, deploy_block_number_contract
 except ImportError:
     print("Please run ./clickfile.py requirements to install all requirements")
 
@@ -80,11 +79,9 @@ PROXY_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-pro
 FAUCET_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-faucet"
 EXTERNAL_CONTRACT_PATH = Path.cwd() / "contracts" / "external"
 VERSION_BRANCH_TEMPLATE = r"[vt]{1}\d{1,2}\.\d{1,2}\.x.*"
-GITHUB_TAG_PATTERN = re.compile(r'^[vt]\d{1,2}\.\d{1,2}\.\d{1,2}$')
+GITHUB_TAG_PATTERN = re.compile(r"^[vt]\d{1,2}\.\d{1,2}\.\d{1,2}$")
 
 TEST_GROUPS: tp.Tuple[TestGroup, ...] = tp.get_args(TestGroup)
-
-network_manager = NetworkManager()
 
 
 class EnvName(str, enum.Enum):
@@ -115,6 +112,7 @@ def red(s):
 
 def catch_traceback(func: tp.Callable) -> tp.Callable:
     """Catch traceback to file"""
+
     def add_error_log_comment(func_name, exc: BaseException):
         err_msg = ERR_MESSAGES.get(func_name) or f"{exc.__class__.__name__}({exc})"
         error_log.add_comment(text=f"{func_name}: {err_msg}")
@@ -148,6 +146,7 @@ def check_profitability(func: tp.Callable) -> tp.Callable:
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs) -> None:
+        network_manager = NetworkManager()
         network = network_manager.get_network_object(args[0])
         w3client = web3client.NeonChainWeb3Client(network["proxy_url"])
 
@@ -197,6 +196,7 @@ def check_profitability(func: tp.Callable) -> tp.Callable:
 @check_profitability
 def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
     print(f"Running OpenZeppelin tests in {jobs} jobs on {network}")
+    network_manager = NetworkManager()
     cwd = (Path().parent / "compatibility/openzeppelin-contracts").absolute()
     if not list(cwd.glob("*")):
         subprocess.check_call("git submodule init && git submodule update", shell=True, cwd=cwd)
@@ -279,7 +279,7 @@ def run_openzeppelin_tests(network, jobs=8, amount=20000, users=8):
     opts = {
         "Proxy.Version": web3_client.get_proxy_version()["result"],
         "EVM.Version": web3_client.get_evm_version()["result"],
-        "CLI.Version": web3_client.get_cli_version()["result"],
+        "NEON_CORE.Version": web3_client.get_neon_core_version()["result"],
     }
     create_allure_environment_opts(opts, DST_ALLURE_ENVIRONMENT)
     # Add epic name for allure result files
@@ -362,6 +362,7 @@ def print_oz_balances():
 
 
 def wait_for_tracer_service(network: str):
+    network_manager = NetworkManager()
     settings = network_manager.get_network_object(network)
     web3_client = web3client.NeonChainWeb3Client(proxy_url=settings["proxy_url"])
     tracer_api = JsonRPCSession(settings["tracer_url"])
@@ -377,6 +378,7 @@ def wait_for_tracer_service(network: str):
 
 
 def generate_allure_environment(network_name: str):
+    network_manager = NetworkManager()
     network = network_manager.get_network_object(network_name)
     env = os.environ.copy()
 
@@ -418,6 +420,44 @@ def install_ui_requirements():
     subprocess.check_call("playwright install chromium", shell=True)
 
 
+def get_service_tags_for_cost_reports(
+    evm_tag: str,
+    proxy_tag: str,
+    repo: RepoType,
+    db: PostgresTestResultsHandler,
+    limit: int,
+    version_branch: str,
+) -> tuple[str, str, list[str]]:
+    """
+    :param evm_tag:
+    :param proxy_tag:
+    :param repo:
+    :param db:
+    :param limit: number of previous tags. E.g. if you want to compare 5 reports - you need 4 previous tags
+    :param version_branch:
+    :return:
+    """
+    compared_service_tag = evm_tag if repo == "evm" else proxy_tag
+    other_service_tag = evm_tag if repo == "proxy" else proxy_tag
+
+    # define the tags against which the comparison will be done
+    previous_tags: list[str]
+
+    if re.fullmatch(GITHUB_TAG_PATTERN, compared_service_tag):
+        previous_tags = db.get_previous_tags(
+            repo=repo,
+            tag=compared_service_tag,
+            limit=limit,
+        )
+    else:
+        if version_branch:
+            previous_tags = [version_branch]
+        else:
+            previous_tags = ["latest"]
+
+    return compared_service_tag, other_service_tag, previous_tags
+
+
 @click.group()
 def cli():
     pass
@@ -446,7 +486,6 @@ def is_branch_exist(endpoint, branch):
     if branch:
         response = requests.get(f"{endpoint}/branches/{branch}")
         if response.status_code == 200:
-            click.echo(f"The branch {branch} exist in the {endpoint} repository")
             return True
     else:
         return False
@@ -493,10 +532,10 @@ def download_evm_contracts(branch):
     click.echo(f"Contracts would be downloaded from {neon_evm_branch} neon-evm branch")
     Path(EXTERNAL_CONTRACT_PATH / "neon-evm").mkdir(parents=True, exist_ok=True)
 
-    click.echo(f"Check contract availability in neon-evm repo")
+    click.echo("Check contract availability in neon-evm repo")
     response = requests.get(f"{NEON_EVM_GITHUB_URL}/contents/solidity?ref={neon_evm_branch}")
     if response.status_code != 200:
-        click.echo(f"Repository doesn't has solidity directory, check old structure")
+        click.echo("Repository doesn't has solidity directory, check old structure")
         response = requests.get(f"{NEON_EVM_GITHUB_URL}/contents/evm_loader/solidity?ref={neon_evm_branch}")
         if response.status_code != 200:
             raise click.ClickException(f"Can't get contracts from neon-evm repo: {response.text}")
@@ -523,15 +562,16 @@ def update_contracts(branch):
     update_contracts_from_git(HOODIES_CHAINLINK_GITHUB_URL, "hoodies_chainlink", "main")
 
     # uncomment for new version of erc20ForSpl
-    # update_contracts_from_git(
-    #     f"https://github.com/{DOCKER_HUB_ORG_NAME}/neon-contracts.git", "neon-contracts", "main", update_npm=False
-    # )
-    # subprocess.check_call(f'npm ci --prefix {EXTERNAL_CONTRACT_PATH / "neon-contracts" / "ERC20ForSPL"}', shell=True)
+    update_contracts_from_git(
+        "https://github.com/neonevm/neon-contracts.git",
+        "neon-contracts",
+        "update/erc20forspl-solana-native",
+        update_npm=True,
+    )
 
 
 @cli.command(help="Run any type of tests")
-@click.option("-n", "--network", type=click.Choice(EnvName),
-              help="In which stand run tests")
+@click.option("-n", "--network", type=click.Choice(EnvName), help="In which stand run tests")
 @click.option("-j", "--jobs", default=8, help="Number of parallel jobs (for openzeppelin)")
 @click.option("-p", "--numprocesses", help="Number of parallel jobs for basic tests")
 @click.option("-a", "--amount", default=20000, help="Requested amount from faucet")
@@ -546,10 +586,7 @@ def update_contracts(branch):
     help="Which UI test run",
 )
 @click.option(
-    "--keep-error-log",
-    is_flag=True,
-    default=False,
-    help=f"Don't clear {error_log.file_path.name} before run"
+    "--keep-error-log", is_flag=True, default=False, help=f"Don't clear {error_log.file_path.name} before run"
 )
 @click.argument(
     "name",
@@ -558,17 +595,17 @@ def update_contracts(branch):
 )
 @catch_traceback
 def run(
-        name: TestGroup,
-        jobs,
-        numprocesses,
-        ui_item,
-        amount,
-        users,
-        network: EnvName,
-        case,
-        keep_error_log: bool,
-        marker: str,
-        cost_reports_dir: str,
+    name: TestGroup,
+    jobs,
+    numprocesses,
+    ui_item,
+    amount,
+    users,
+    network: EnvName,
+    case,
+    keep_error_log: bool,
+    marker: str,
+    cost_reports_dir: str,
 ):
     if not network and name == "ui":
         network = "devnet"
@@ -578,6 +615,21 @@ def run(
     if name == "economy":
         command = "py.test integration/tests/economy/test_economics.py"
     elif name == "basic":
+        # run basic excluding tests for ERC20SPLNew contract
+        if network == "mainnet":
+            command = (
+                "py.test integration/tests/basic -m mainnet --ignore=integration/tests/basic/erc/test_ERC20SPLnew.py"
+            )
+        else:
+            command = (
+                "py.test integration/tests/basic --ignore=integration/tests/basic/erc/test_ERC20SPLnew.py"
+                " --ignore=integration/tests/basic/solana_signature/test_send_scheduled_transactions_new_erc.py "
+            )
+        if numprocesses:
+            command = f"{command} --numprocesses {numprocesses} --dist loadgroup"
+
+    elif name == "basic_extended":
+        # run basic excluding tests for ERC20SPLNew contract
         if network == "mainnet":
             command = "py.test integration/tests/basic -m mainnet"
         else:
@@ -608,7 +660,7 @@ def run(
             raise click.ClickException(
                 red("Please set the `CHROME_EXT_PASSWORD` environment variable (password for wallets).")
             )
-        command = "py.test ui/tests"
+        command = "py.test ui/tests/website_tests"
         if ui_item != "all":
             command = command + f"/test_{ui_item}.py"
     else:
@@ -646,8 +698,8 @@ def run(
 
 @cli.command(
     help="OZ actions:\n"
-         "report - summarize openzeppelin tests results\n"
-         "analyze - analyze openzeppelin tests results"
+    "report - summarize openzeppelin tests results\n"
+    "analyze - analyze openzeppelin tests results"
 )
 @click.argument(
     "name",
@@ -740,7 +792,7 @@ locust_run_time = click.option(
     "--run-time",
     type=int,
     help="Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.). "
-         "Only used together without Locust Web UI. [default: always run]",
+    "Only used together without Locust Web UI. [default: always run]",
 )
 
 locust_tags = click.option(
@@ -787,7 +839,7 @@ def locust(ctx):
     help="NEON RPC entry point.",
     show_default=True,
 )
-def run(credentials, host, users, spawn_rate, run_time, tag, web_ui, locustfile, neon_rpc):
+def run_load(credentials, host, users, spawn_rate, run_time, tag, web_ui, locustfile, neon_rpc):
     """Run `Neon` pipeline performance test
 
     path it's sub-folder and file name  `loadtesting/locustfile.py`.
@@ -808,7 +860,7 @@ def run(credentials, host, users, spawn_rate, run_time, tag, web_ui, locustfile,
     if tag:
         command += f" --tags {' '.join(tag)}"
     if not web_ui:
-        command += f" --headless"
+        command += " --headless"
 
     cmd = subprocess.run(command, shell=True)
 
@@ -837,11 +889,11 @@ def prepare(credentials, host, users, spawn_rate, run_time, tag):
     if run_time:
         command += f" --run-time={run_time}"
     else:
-        command += f" --run-time=120"
+        command += " --run-time=120"
     if tag:
         command += f" --tags {' '.join(tag)}"
     else:
-        command += f" --tags prepare"
+        command += " --tags prepare"
 
     cmd = subprocess.run(command, shell=True)
 
@@ -924,8 +976,9 @@ def generate_allure_report():
 @cli.command(help="Send notification to slack")
 @click.option("-u", "--url", help="slack app endpoint url.")
 @click.option("-b", "--build_url", help="github action test build url.")
-@click.option("-n", "--network", type=click.Choice(EnvName), default=EnvName.NIGHT_STAND.value,
-              help="In which stand run tests")
+@click.option(
+    "-n", "--network", type=click.Choice(EnvName), default=EnvName.NIGHT_STAND.value, help="In which stand run tests"
+)
 @click.option("--test-group", help="Name of the failed test group")
 def send_notification(url, build_url, network, test_group: str):
     slack_notification = SlackNotification()
@@ -974,13 +1027,9 @@ def send_notification(url, build_url, network, test_group: str):
 @cli.command(name="get-balances", help="Get operator balances in NEON and SOL")
 @click.option("-n", "--network", default="night-stand", type=str, help="In which stand run tests")
 def get_operator_balances(network: str):
+    network_manager = NetworkManager()
     net = network_manager.get_network_object(network)
-    operator = Operator(
-        net["proxy_url"],
-        net["solana_url"],
-        net["spl_neon_mint"],
-        evm_loader=net["evm_loader"]
-    )
+    operator = Operator(net["proxy_url"], net["solana_url"], net["spl_neon_mint"], evm_loader=net["evm_loader"])
     neon_balance = operator.get_token_balance()
     sol_balance = operator.get_solana_balance()
     print(
@@ -995,16 +1044,11 @@ def infra():
     pass
 
 
-@infra.command(name="deploy", help="Deploy test infrastructure")
-@click.option("--current_branch", help="Branch of neon-tests repository")
-@click.option("--head_branch", default="", help="Feature branch name")
-@click.option("--base_branch", default="", help="Target branch of the pull request")
-@click.option("--use-real-price", required=False, default="0", help="Remove CONST_GAS_PRICE from proxy")
-def deploy(current_branch, head_branch, base_branch, use_real_price):
+def define_stand_env_by_branch(current_branch, head_branch, base_branch):
     # use feature branch or version tag as tag for proxy, evm and faucet images or use latest
     proxy_tag, evm_tag, faucet_tag = "", "", ""
 
-    if '/merge' not in current_branch and current_branch != "develop":
+    if "/merge" not in current_branch and current_branch != "develop":
         proxy_tag = current_branch if is_branch_exist(PROXY_GITHUB_URL, current_branch) else ""
         evm_tag = current_branch if is_branch_exist(NEON_EVM_GITHUB_URL, current_branch) else ""
         faucet_tag = current_branch if is_branch_exist(FAUCET_GITHUB_URL, current_branch) else ""
@@ -1031,12 +1075,54 @@ def deploy(current_branch, head_branch, base_branch, use_real_price):
     proxy_tag = "latest" if not proxy_tag else proxy_tag
     evm_tag = "latest" if not evm_tag else evm_tag
     faucet_tag = "latest" if not faucet_tag else faucet_tag
-    use_real_price = True if use_real_price == "1" else False
 
     evm_branch = evm_tag if evm_tag != "latest" else "develop"
     proxy_branch = proxy_tag if proxy_tag != "latest" else "develop"
 
-    infrastructure.deploy_infrastructure(evm_tag, proxy_tag, faucet_tag, evm_branch, proxy_branch, use_real_price)
+    return {
+        "evm_tag": evm_tag,
+        "proxy_tag": proxy_tag,
+        "faucet_tag": faucet_tag,
+        "evm_branch": evm_branch,
+        "proxy_branch": proxy_branch,
+    }
+
+
+@infra.command("get-stand-param")
+@click.option("--current_branch", help="Branch of neon-tests repository")
+@click.option("--head_branch", default="", help="Feature branch name")
+@click.option("--base_branch", default="", help="Target branch of the pull request")
+@click.option(
+    "--param",
+    default="",
+    help="One of the stand param like evm_tag, " "proxy_tag, faucet_tag, evm_branch, proxy_branch",
+)
+def get_stand_param(current_branch, head_branch, base_branch, param):
+    env = define_stand_env_by_branch(current_branch, head_branch, base_branch)
+    print(env[param])
+    return env[param]
+
+
+@infra.command(name="deploy", help="Deploy test infrastructure")
+@click.option("--current_branch", help="Branch of neon-tests repository")
+@click.option("--head_branch", default="", help="Feature branch name")
+@click.option("--base_branch", default="", help="Target branch of the pull request")
+@click.option("--use-real-price", required=False, default="0", help="Remove CONST_GAS_PRICE from proxy")
+@click.option("--devnet-solana-url", required=True, help="Solana devnet url")
+def deploy(current_branch, head_branch, base_branch, devnet_solana_url, use_real_price):
+    # use feature branch or version tag as tag for proxy, evm and faucet images or use latest
+    env = define_stand_env_by_branch(current_branch, head_branch, base_branch)
+    use_real_price = True if use_real_price == "1" else False
+
+    infrastructure.deploy_infrastructure(
+        env["evm_tag"],
+        env["proxy_tag"],
+        env["faucet_tag"],
+        env["evm_branch"],
+        env["proxy_branch"],
+        devnet_solana_url,
+        use_real_price,
+    )
 
 
 @infra.command(name="destroy", help="Destroy test infrastructure")
@@ -1085,12 +1171,12 @@ def dapps():
 @click.option("--evm_commit_sha", required=True)
 @click.option("--proxy_commit_sha", required=True)
 def save_dapps_cost_report_to_db(
-        directory: str,
-        repo: RepoType,
-        evm_tag: str,
-        proxy_tag: str,
-        evm_commit_sha: str,
-        proxy_commit_sha: str,
+    directory: str,
+    repo: RepoType,
+    evm_tag: str,
+    proxy_tag: str,
+    evm_commit_sha: str,
+    proxy_commit_sha: str,
 ):
     tag = evm_tag if repo == "evm" else proxy_tag
 
@@ -1153,11 +1239,11 @@ def save_dapps_cost_report_to_md(directory: str):
 @click.option("--version_branch", required=True)
 @click.option("--history_depth_limit", type=int, help="How many runs to include into statistical analysis")
 def compare_dapp_results(
-        repo: RepoType,
-        evm_tag: str,
-        proxy_tag: str,
-        version_branch: str,
-        history_depth_limit: int,
+    repo: RepoType,
+    evm_tag: str,
+    proxy_tag: str,
+    version_branch: str,
+    history_depth_limit: int,
 ):
     """
     >>> compared_service_tag
@@ -1170,26 +1256,15 @@ def compare_dapp_results(
     latest - develop branch
     """
     click.echo(f"compare_dapp_results: {locals()}")
-
-    compared_service_tag = evm_tag if repo == "evm" else proxy_tag
-    other_service_tag = evm_tag if repo == "proxy" else proxy_tag
     db = PostgresTestResultsHandler()
-
-    # define the tags against which the comparison will be done
-    previous_tags: list[str]
-
-    if re.fullmatch(GITHUB_TAG_PATTERN, compared_service_tag):
-        previous_tags = db.get_previous_tags(
-            repo=repo,
-            tag=compared_service_tag,
-            limit=history_depth_limit,
-        )
-    else:
-        if version_branch:
-            previous_tags = [version_branch]
-        else:
-            previous_tags = ["latest"]
-
+    compared_service_tag, other_service_tag, previous_tags = get_service_tags_for_cost_reports(
+        evm_tag=evm_tag,
+        proxy_tag=proxy_tag,
+        repo=repo,
+        db=db,
+        limit=history_depth_limit - 1,
+        version_branch=version_branch,
+    )
     click.echo(f"previous_tags: {previous_tags}")
 
     historical_data = db.get_historical_data(
@@ -1201,10 +1276,10 @@ def compare_dapp_results(
 
     # get commit sha for compared_service and other_service
     data_sample_row = historical_data[
-        (historical_data["repo"] == repo) &
-        (historical_data["neon_evm_tag"] == evm_tag) &
-        (historical_data["proxy_tag"] == proxy_tag)
-        ].iloc[0]
+        (historical_data["repo"] == repo)
+        & (historical_data["neon_evm_tag"] == evm_tag)
+        & (historical_data["proxy_tag"] == proxy_tag)
+    ].iloc[0]
 
     if repo == "evm":
         compared_service_commit_sha = data_sample_row["evm_commit_sha"]
@@ -1224,23 +1299,121 @@ def compare_dapp_results(
     test_results_handler.generate_and_save_plots_pdf(
         historical_data=historical_data,
         title_end=f"on {repo}:{compared_service_tag}{compared_service_sha_string}\n"
-                  f"with {other_service_name}:{other_service_tag}{other_service_sha_string}",
+        f"with {other_service_name}:{other_service_tag}{other_service_sha_string}",
         output_pdf="cost_reports.pdf",
     )
+
+
+@dapps.command("validate_cost_reports", help="Validate cost reports data")
+@click.option("--repo", type=click.Choice(tp.get_args(RepoType)), required=True)
+@click.option("--evm_tag", required=True)
+@click.option("--proxy_tag", required=True)
+@click.option("--version_branch", required=True)
+@click.option("--acc_count", type=int, help="Allowed absolute number of acceptable increase")
+@click.option("--trx_count", type=int, help="Allowed absolute number of acceptable increase")
+@click.option("--gas_estimated", type=int, help="Allowed absolute number of acceptable increase")
+@click.option("--gas_used", type=int, help="Allowed absolute number of acceptable increase")
+@click.option("--compute_units", type=int, help="Allowed absolute number of acceptable increase")
+@click.option("--output", type=str, help="Path to the JSON file where detected failures are saved")
+def validate_cost_reports(
+    repo: RepoType,
+    evm_tag: str,
+    proxy_tag: str,
+    version_branch: str,
+    acc_count: int,
+    trx_count: int,
+    gas_estimated: int,
+    gas_used: int,
+    compute_units: int,
+    output: str,
+):
+    """
+    Compares the cost report data for <repo>:<evm_tag|proxy_tag|version_branch>
+    with previous report data based on acceptable absolute increases in metrics.
+    Any detected increases exceeding the allowed thresholds are saved to the <output> file.
+
+    :param repo: Repository name.
+    :param evm_tag: EVM tag of the report data.
+    :param proxy_tag: Proxy tag of the report data.
+    :param version_branch: Maximum acceptable absolute increase in the metric version_branch.
+    :param acc_count: Maximum acceptable absolute increase in the metric acc_count.
+    :param trx_count: Maximum acceptable absolute increase in the metric trx_count.
+    :param gas_estimated: Maximum acceptable absolute increase in the metric gas_estimated.
+    :param gas_used: Maximum acceptable absolute increase in the metric gas_used.
+    :param compute_units: Maximum acceptable absolute increase in the metric compute_units.
+    :param output: Path to the JSON file where detected failures are saved.
+    """
+    db = PostgresTestResultsHandler()
+    compared_service_tag, other_service_tag, previous_tags = get_service_tags_for_cost_reports(
+        evm_tag=evm_tag,
+        proxy_tag=proxy_tag,
+        repo=repo,
+        db=db,
+        limit=1,
+        version_branch=version_branch,
+    )
+    click.echo(f"previous_tags: {previous_tags}")
+
+    historical_data = db.get_historical_data(
+        depth=2,
+        repo=repo,
+        latest_tag=compared_service_tag,
+        previous_tags=previous_tags,
+    )
+
+    all_metric_names = "acc_count", "trx_count", "gas_estimated", "gas_used", "compute_units"
+    dapp_names = historical_data["dapp_name"].unique()
+
+    failure = tp.TypedDict("failure", {"dapp": str, "action": str, "metric": str, "increase": int})
+    failures: list[failure] = []
+
+    for dapp_name in dapp_names:
+        data_for_dapp = historical_data[historical_data["dapp_name"] == dapp_name]
+        actions = data_for_dapp["action"].unique()
+
+        for action in actions:
+            data_for_dapp_action = data_for_dapp[data_for_dapp["action"] == action]
+            metric_names = [col_name for col_name in data_for_dapp_action.columns if col_name in all_metric_names]
+
+            for metric_name in metric_names:
+                metric_values = data_for_dapp_action[metric_name]
+                historical_value = metric_values.iloc[0]
+                latest_value = metric_values.iloc[-1]
+
+                if not pd.isna(historical_value) and not pd.isna(latest_value):
+                    actual_change = latest_value - historical_value
+                    max_acceptable_change = locals()[metric_name]
+
+                    if actual_change > max_acceptable_change:
+                        failure_dict: failure = {
+                            "dapp": dapp_name,
+                            "action": action,
+                            "metric": metric_name,
+                            "increase": actual_change,
+                        }
+                        failures.append(failure_dict)
+
+    if failures:
+        df = pd.DataFrame(failures)
+        md = df.to_markdown(index=False)
+
+        with open(output, "w") as f:
+            json.dump(md, f)
 
 
 @dapps.command("add_pr_comment", help="Add PR comment with dApp cost reports")
 @click.option("--pr_url_for_report", default="", help="Url to send the report as comment for PR")
 @click.option("--token", default="", help="github token")
 @click.option("--md_file", help="File with markdown for the comment")
-def add_pr_comment(pr_url_for_report: str, token: str, md_file: str):
+@click.option("--title", default="", help="Comment title")
+def add_pr_comment(pr_url_for_report: str, token: str, md_file: str, title: str):
     gh_client = GithubClient(token=token)
-    gh_client.delete_last_comment(pr_url_for_report)
+    gh_client.delete_last_comment(pr_url=pr_url_for_report, title=title)
 
     with open(md_file) as f:
         markdown = f.read()
 
-    gh_client.add_comment_to_pr(pr_url_for_report, markdown)
+    gh_client.add_comment_to_pr(url=pr_url_for_report, msg=markdown, title=title)
 
 
 @cli.group()
@@ -1253,8 +1426,8 @@ def k6(ctx):
 @click.option("-t", "--tag", default="05e0ce5", help="Eth plugin tag or commit sha to use")
 @catch_traceback
 def build(tag):
-    xk6_install = 'go install go.k6.io/xk6/cmd/xk6@latest'
-    xk6_build = f'xk6 build --with github.com/szkiba/xk6-prometheus --with github.com/neonlabsorg/xk6-ethereum@{tag}'
+    xk6_install = "go install go.k6.io/xk6/cmd/xk6@latest"
+    xk6_build = f"xk6 build --with github.com/szkiba/xk6-prometheus --with github.com/neonlabsorg/xk6-ethereum@{tag}"
 
     command_install = subprocess.run(xk6_install, shell=True)
 
@@ -1267,20 +1440,25 @@ def build(tag):
 
 
 @k6.command("run", help="Run k6 performance test.")
-@click.option("-n", "--network",required=True, default="local", help="Which network to use for envs assignment")
-@click.option("-s", "--script", required=True, default="./loadtesting/k6/tests/sendNeon.test.js", help="Path to k6 script")
-@click.option("-u", "--users", default=None, required=True, help="Number of users (have to be generated before load test run)")
+@click.option("-n", "--network", required=True, default="local", help="Which network to use for envs assignment")
+@click.option(
+    "-s", "--script", required=True, default="./loadtesting/k6/tests/sendNeon.test.js", help="Path to k6 script"
+)
+@click.option(
+    "-u", "--users", default=None, required=True, help="Number of users (have to be generated before load test run)"
+)
 @click.option("-b", "--balance", default=None, required=True, help="Initial balance of accounts in Neon")
-@click.option("-a", "--bank_account", default=None, required=False, help="Bank account address")
+@click.option("-a", "--bank_account", default=None, required=False, help="Eth bank account private key")
 @catch_traceback
-def run(network, script, users, balance, bank_account):
+def run_load_k6(network, script, users, balance, bank_account):
+    network_manager = NetworkManager()
     network_object = network_manager.get_network_object(network)
     web3_client = NeonChainWeb3Client(proxy_url=network_object["proxy_url"])
-    faucet = Faucet(faucet_url=network_object['faucet_url'], web3_client=web3_client)
+    faucet = Faucet(faucet_url=network_object["faucet_url"], web3_client=web3_client)
     account_manager = EthAccounts(web3_client, faucet, bank_account)
 
     print("Compiling ERC20 contract...")
-    command_erc20 = f"solc --abi ./contracts/EIPs/ERC20/ERC20.sol -o ./loadtesting/k6/contracts/ERC20 --overwrite"
+    command_erc20 = "solc --abi ./contracts/EIPs/ERC20/ERC20.sol -o ./loadtesting/k6/contracts/ERC20 --overwrite"
     command_erc20_run = subprocess.run(command_erc20, shell=True)
     if command_erc20_run.returncode != 0:
         sys.exit(command_erc20_run.returncode)
@@ -1289,13 +1467,17 @@ def run(network, script, users, balance, bank_account):
     erc20 = deploy_erc20_contract(web3_client, faucet, account_manager.create_account(balance=int(balance)))
     print(f"ERC20 contract deployed at {erc20.contract.address} with owner {erc20.owner.address}")
 
+    block_contract = deploy_block_number_contract(account_manager)
+
     k6_prepare_accounts(erc20, account_manager, users, balance, 100)
     k6_set_envs(network, erc20, users, balance, bank_account)
+    os.environ["K6_BLOCK_ADDRESS"] = block_contract.address
 
     command = f"./k6 run {script} -o 'prometheus=namespace=k6'"
     command_run = subprocess.run(command, shell=True)
     if command_run.returncode != 0:
         sys.exit(command_run.returncode)
+
 
 if __name__ == "__main__":
     cli()

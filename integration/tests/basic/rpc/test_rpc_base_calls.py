@@ -1,9 +1,7 @@
-import time
 import typing as tp
 
 import pytest
 import web3
-from eth_utils import keccak
 
 import allure
 from integration.tests.basic.helpers import rpc_checks
@@ -76,16 +74,6 @@ UNSUPPORTED_METHODS = [
     "eth_getWork",
     "eth_hashrate",
 ]
-
-
-def get_event_signatures(abi: tp.List[tp.Dict]) -> tp.List[str]:
-    """Get topics as keccak256 from abi Events"""
-    topics = []
-    for event in filter(lambda item: item["type"] == "event", abi):
-        input_types = ",".join(i["type"] for i in event["inputs"])
-        signature = f"{event['name']}({input_types})"
-        topics.append(f"0x{keccak(signature.encode()).hex()}")
-    return topics
 
 
 @allure.feature("JSON-RPC validation")
@@ -260,9 +248,9 @@ class TestRpcBaseCalls:
     @pytest.mark.mainnet
     def test_eth_block_number_next_block_different(self, json_rpc_client):
         response = json_rpc_client.send_rpc(method="eth_blockNumber")
-        assert wait_condition(lambda: json_rpc_client.send_rpc(
-            method="eth_blockNumber")["result"] != response["result"], timeout_sec=10)
-
+        assert wait_condition(
+            lambda: json_rpc_client.send_rpc(method="eth_blockNumber")["result"] != response["result"], timeout_sec=10
+        )
 
     # Geth returns different error message for None NDEV-3169
     @pytest.mark.mainnet

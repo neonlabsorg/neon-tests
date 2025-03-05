@@ -55,7 +55,7 @@ class TestNeonRPCBaseCalls:
         gas_price = result["gasPrice"]
         assert int(gas_price, 16) > 100000000, f"gas price should be greater 100000000, got {int(gas_price, 16)}"
 
-    def test_neon_cli_version(self, json_rpc_client):
+    def test_neon_core_version(self, json_rpc_client):
         response = json_rpc_client.send_rpc(method="neon_coreVersion", params=[])
         pattern = r"Neon-Core-API/[vt]\d{1,2}.\d{1,2}.\d{1,2}.*"
         assert re.match(
@@ -92,9 +92,7 @@ class TestNeonRPCBaseCalls:
             ([],),
         ],
     )
-    def test_neon_get_solana_transaction_by_neon_transaction_negative(
-        self, params, json_rpc_client
-    ):
+    def test_neon_get_solana_transaction_by_neon_transaction_negative(self, params, json_rpc_client):
         response = json_rpc_client.send_rpc(method="neon_getSolanaTransactionByNeonTransaction", params=params)
         assert "error" in response, "error field not in response"
         assert "code" in response["error"]
@@ -113,8 +111,9 @@ class TestNeonRPCBaseCalls:
     def test_neon_get_native_token_list(self, pytestconfig, json_rpc_client):
         response = json_rpc_client.send_rpc(method="neon_getNativeTokenList")
         assert "error" not in response
-        assert len(response["result"]) == len(pytestconfig.environment.network_ids), \
-            f"Wrong list length. Initial -> {pytestconfig.environment.network_ids}. Actual -> {response['result']}"
+        assert len(response["result"]) == len(
+            pytestconfig.environment.network_ids
+        ), f"Wrong list length. Initial -> {pytestconfig.environment.network_ids}. Actual -> {response['result']}"
         # Check that all fields are present
         for item in response["result"]:
             assert "tokenChainId" in item
@@ -123,7 +122,7 @@ class TestNeonRPCBaseCalls:
             assert item["tokenMint"] is not None
             assert "tokenName" in item
             assert item["tokenName"] is not None
-        
+
         # Check that NEON token is present in the list
         tokens = [item["tokenName"] for item in response["result"]]
         assert "NEON" in tokens, f"NEON token is not in the list: {tokens}"

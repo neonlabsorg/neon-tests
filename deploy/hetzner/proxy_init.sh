@@ -30,27 +30,19 @@ export FAUCET_COMMIT=${faucet_model_commit}
 export DOCKERHUB_ORG_NAME=${dockerhub_org_name}
 export USE_REAL_GAS_PRICE=${use_real_price}
 export PROXY_IMAGE_NAME="neon-proxy.py"
+export DEVNET_SOLANA_URL=${devnet_solana_url}
 
 # Generate docker-compose override file
 cat > docker-compose-ci.override.yml <<EOF
-version: "3"
-
 services:
   solana:
     container_name: solana
+    environment:
+      DEVNET_SOLANA_URL: $DEVNET_SOLANA_URL
     healthcheck:
-      test: [ CMD-SHELL, "/echo done" ]
+      test: [ CMD-SHELL, "echo done" ]
     entrypoint: "/usr/bin/sleep 10000"
 
-  gas_tank:
-    container_name: gas_tank
-    entrypoint: "/usr/bin/sleep 10000"
-
-  neon_test_invoke_program_loader:
-    container_name: neon_test_invoke_program_loader
-    command: bash -c "echo done"
-
-services:
   proxy:
     container_name: proxy
     environment:
@@ -58,6 +50,9 @@ services:
       EXTRA_ARGS: "--num-workers 16"
     ports:
       - "9090:9090"
+    depends_on:
+      solana:
+        condition: service_started
 
   faucet:
     container_name: faucet
@@ -65,12 +60,18 @@ services:
       SOLANA_URL: $SOLANA_URL
     ports:
       - "3333:3333"
-
+    depends_on:
+      solana:
+        condition: service_started
   indexer:
     container_name: indexer
     environment:
       SOLANA_URL: $SOLANA_URL
-
+    depends_on:
+      solana:
+        condition: service_started
+      dbcreation:
+        condition: service_completed_successfully
   postgres:
     container_name: postgres
 
@@ -78,10 +79,6 @@ services:
     container_name: dbcreation
 EOF
 
-
-
-# Get list of services
-SERVICES=$(docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml config --services | grep -vP "solana|gas_tank|neon_test_invoke_program_loader")
 
 echo "CONST GAS PRICE VARIABLE IS: $USE_REAL_GAS_PRICE"
 if [[ -n $USE_REAL_GAS_PRICE ]] && [[ $USE_REAL_GAS_PRICE -eq "1" ]]; then
@@ -91,7 +88,7 @@ fi
 
 
 # Pull latest versions
-docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml pull $SERVICES
+docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml pull
 
 
 function wait_service() {
@@ -99,6 +96,7 @@ function wait_service() {
   local URL=$2
   local DATA=$3
   local RESULT=$4
+  local SHOW_DOCKER_LOGS_IF_FAIL=$5
 
   # Max attempts is 100 (each for 2 seconds)
   local MAX_COUNT=100
@@ -119,6 +117,21 @@ function wait_service() {
     ((CURRENT_ATTEMPT=CURRENT_ATTEMPT+1))
     sleep 2
   done;
+
+  if [[ $CURRENT_ATTEMPT -eq $MAX_COUNT ]]; then
+      echo ""
+      echo "Service $SERVICE failed to respond as expected after $MAX_COUNT attempts."
+      if [[ "$SHOW_DOCKER_LOGS_IF_FAIL" == "show_docker_logs_if_fail" ]]; then
+        docker ps -a
+        docker ps -a --format "{{.ID}} {{.Names}}" | while read -r id name; do
+          echo ""
+          echo "Logs for container: $name"
+          docker logs "$id"
+          echo ""
+        done
+      fi
+      exit 1
+  fi
 }
 
 # Check if Solana is available
@@ -127,14 +140,14 @@ SOLANA_RESULT='"ok"'
 wait_service "solana" $SOLANA_URL $SOLANA_DATA $SOLANA_RESULT
 
 # Up all services
-docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml up -d $SERVICES
+docker-compose -f docker-compose-ci.yml -f docker-compose-ci.override.yml up -d
 
 
 # Check if Proxy is available
 PROXY_URL="http://localhost:9090/solana"
-PROXY_DATA='{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
-PROXY_RESULT='"result"'
-wait_service "proxy" $PROXY_URL $PROXY_DATA $PROXY_RESULT
+PROXY_DATA='{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest", false],"id":1}'
+PROXY_RESULT='"number"'
+wait_service "proxy" $PROXY_URL "$PROXY_DATA" $PROXY_RESULT "show_docker_logs_if_fail"
 
 
-docker rm -f opt_solana_1
+docker rm -f solana

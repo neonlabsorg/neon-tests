@@ -16,10 +16,9 @@ from eth_utils import keccak
 from solders.pubkey import Pubkey
 from solcx import link_code
 import polling2
-from semantic_version import Version
+from solders.rpc.responses import GetTransactionResp
 
-
-T = tp.TypeVar('T')
+T = tp.TypeVar("T")
 
 
 @allure.step("Get contract abi")
@@ -58,7 +57,7 @@ def get_contract_interface(
     compiled = solcx.compile_files(
         [contract_path],
         output_values=["abi", "bin"],
-        solc_version=Version(version),
+        solc_version=version,
         import_remappings=import_remapping,
         allow_paths=["."],
         optimize=True,
@@ -95,19 +94,19 @@ def generate_text(min_len: int = 2, max_len: int = 200, simple: bool = True) -> 
 
 @allure.step("Wait condition")
 def wait_condition(
-        func_cond: tp.Callable[..., T],
-        timeout_sec: float = 15,
-        delay: float = 0.5,
-        args: tp.Tuple = (),
-        kwargs: tp.Optional[dict[str, tp.Any]] = None,
-        max_tries: tp.Optional[int] = None,
-        check_success: tp.Callable[[T], bool] = polling2.is_truthy,
-        step_function: tp.Callable[[float], float] = polling2.step_constant,
-        ignore_exceptions: tp.Tuple[Exception, ...] = (KeyError,),
-        poll_forever: bool = False,
-        collect_values: tp.Optional[Queue] = None,
-        log: int = logging.NOTSET,
-        log_error: int = logging.NOTSET
+    func_cond: tp.Callable[..., T],
+    timeout_sec: float = 15,
+    delay: float = 0.5,
+    args: tp.Tuple = (),
+    kwargs: tp.Optional[dict[str, tp.Any]] = None,
+    max_tries: tp.Optional[int] = None,
+    check_success: tp.Callable[[T], bool] = polling2.is_truthy,
+    step_function: tp.Callable[[float], float] = polling2.step_constant,
+    ignore_exceptions: tp.Tuple[Exception, ...] = (KeyError,),
+    poll_forever: bool = False,
+    collect_values: tp.Optional[Queue] = None,
+    log: int = logging.NOTSET,
+    log_error: int = logging.NOTSET,
 ):
     return polling2.poll(
         target=func_cond,
@@ -155,6 +154,16 @@ def get_selectors(abi_):
     return selectors
 
 
+def get_event_signatures(abi: tp.List[tp.Dict]) -> tp.List[str]:
+    """Get topics as keccak256 from abi Events"""
+    topics = []
+    for event in filter(lambda item: item["type"] == "event", abi):
+        input_types = ",".join(i["type"] for i in event["inputs"])
+        signature = f"{event['name']}({input_types})"
+        topics.append(f"0x{keccak(signature.encode()).hex()}")
+    return topics
+
+
 @allure.step("Create non-existing account address")
 def create_invalid_address(length=20) -> str:
     """Create non-existing account address"""
@@ -194,6 +203,23 @@ def solana_pubkey_to_bytes32(solana_pubkey):
     return byte_data
 
 
+def pubkey2neon_address(pubkey: Pubkey) -> bytes:
+    bytes_part = keccak(primitive=bytes(pubkey))[12:32]
+    return bytes_part
+
+
+def to_little_endian_byte(value: int) -> bytes:
+    return value.to_bytes(1, "little")
+
+
+def ether2bytes(ether: typing.Union[str, bytes]):
+    if isinstance(ether, str):
+        if ether.startswith("0x"):
+            return bytes.fromhex(ether[2:])
+        return bytes.fromhex(ether)
+    return ether
+
+
 def serialize_instruction(program_id: Pubkey, instruction) -> bytes:
     program_id_bytes = solana_pubkey_to_bytes32(program_id)
     serialized = program_id_bytes + len(instruction.accounts).to_bytes(8, "little")
@@ -208,10 +234,22 @@ def serialize_instruction(program_id: Pubkey, instruction) -> bytes:
 
 
 def case_snake_to_camel(snake_str: str) -> str:
-    components = snake_str.split('_')
-    camel_case = components[0].lower() + ''.join(x.title() for x in components[1:])
+    components = snake_str.split("_")
+    camel_case = components[0].lower() + "".join(x.title() for x in components[1:])
     return camel_case
 
 
 def padhex(s, size):
-    return '0x' + s[2:].zfill(size)
+    return "0x" + s[2:].zfill(size)
+
+
+def split_into_tuples(collection: tp.Collection[T], length: int) -> tuple[tuple[T, ...], ...]:
+    return tuple(tuple(collection[i : i + length]) for i in range(0, len(collection), length))
+
+
+def get_key_index_from_solana_tx(tx: GetTransactionResp, key: Pubkey) -> int:
+    for index, account_key in enumerate(tx.value.transaction.transaction.message.account_keys):
+        if account_key == key:
+            return index
+    else:
+        raise LookupError(f"Key {key} not found in transaction {tx.value}")

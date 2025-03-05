@@ -6,7 +6,6 @@ import uuid
 import allure
 import pytest
 from _pytest.config import Config
-from playwright.sync_api import Page
 
 from ui import libs
 
@@ -16,17 +15,21 @@ PLATFORM_NETWORKS = {
 }
 
 CHROME_TAR_PATH = pathlib.Path(__file__).absolute().parent / "extensions" / "data"
-CHROME_DATA_PATH = (
-    pathlib.Path(__file__).absolute().parent.parent / "chrome-data" / uuid.uuid4().hex
-)
+CHROME_DATA_PATH = pathlib.Path(__file__).absolute().parent.parent / "chrome-data" / uuid.uuid4().hex
 """CHROME_DATA_PATH is temporary local destination in project to untar chrome data directory and plugins"""
+
+
+@pytest.fixture(scope="session", autouse=True)
+def allure_environment():
+    """
+    Override the allure_environment fixture to disable it
+    """
+    pass
 
 
 @pytest.fixture(scope="session")
 def network(pytestconfig: tp.Any) -> tp.Optional[str]:
-    return PLATFORM_NETWORKS.get(
-        pytestconfig.getoption("--network"), PLATFORM_NETWORKS["devnet"]
-    )
+    return PLATFORM_NETWORKS.get(pytestconfig.getoption("--network"), PLATFORM_NETWORKS["devnet"])
 
 
 @pytest.fixture(scope="session")
@@ -64,10 +67,7 @@ def chrome_extensions_path(required_extensions: tp.Union[tp.List, str]) -> pathl
 @pytest.fixture(scope="function", autouse=True)
 def chrome_extension_user_data() -> pathlib.Path:
     """Extracting Chrome extension user data"""
-    user_data = (
-        libs.extract_tar_gz(CHROME_TAR_PATH / "user_data.tar.gz", CHROME_DATA_PATH)
-        / "user_data"
-    )
+    user_data = libs.extract_tar_gz(CHROME_TAR_PATH / "user_data.tar.gz", CHROME_DATA_PATH) / "user_data"
     yield user_data
     libs.rm_tree(user_data)
 
@@ -78,9 +78,7 @@ def chrome_extension_password() -> str:
     try:
         return os.environ["CHROME_EXT_PASSWORD"]
     except KeyError:
-        raise AssertionError(
-            "Please set the `CHROME_EXT_PASSWORD` environment variable (password for wallets)."
-        )
+        raise AssertionError("Please set the `CHROME_EXT_PASSWORD` environment variable (password for wallets).")
 
 
 @pytest.fixture
@@ -116,7 +114,7 @@ def use_persistent_context() -> bool:
 def pytest_exception_interact(node, call, report):
     """Attach allure screenshot"""
     context = False
-    if hasattr(node, "funcargs") and type(node.funcargs) == dict and node.funcargs.get("context"):
+    if hasattr(node, "funcargs") and type(node.funcargs) is dict and node.funcargs.get("context"):
         context = node.funcargs.get("context")
 
     if report.failed and context and context.pages:
@@ -132,6 +130,7 @@ def pytest_exception_interact(node, call, report):
                 )
             except Exception as e:
                 print("Fail to take screenshot: {}".format(e))
+
 
 # def save_screenshot_on_fail(request: pytest.FixtureRequest, page: Page):
 #     if request.session.testsfailed and not page.is_closed():
@@ -155,12 +154,8 @@ def pytest_generate_tests(metafunc: tp.Any) -> None:
 
 
 def pytest_configure(config: Config) -> None:
-    config.addinivalue_line(
-        "markers", "skip_browser(name): mark test to be skipped a specific browser"
-    )
-    config.addinivalue_line(
-        "markers", "only_browser(name): mark test to run only on a specific browser"
-    )
+    config.addinivalue_line("markers", "skip_browser(name): mark test to be skipped a specific browser")
+    config.addinivalue_line("markers", "only_browser(name): mark test to run only on a specific browser")
 
 
 def _get_skiplist(item: tp.Any, values: tp.List[str], value_name: str) -> tp.List[str]:
@@ -186,9 +181,7 @@ def pytest_runtest_setup(item: tp.Any) -> None:
     if not browser_name:
         return
 
-    skip_browsers_names = _get_skiplist(
-        item, ["chrome", "chromium", "firefox", "webkit"], "browser"
-    )
+    skip_browsers_names = _get_skiplist(item, ["chrome", "chromium", "firefox", "webkit"], "browser")
 
     if browser_name in skip_browsers_names:
         pytest.skip("skipped for this browser: {}".format(browser_name))
