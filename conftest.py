@@ -280,6 +280,24 @@ def neon_user(evm_loader: EvmLoader, bank_account, environment: EnvironmentConfi
 
 
 @pytest.fixture(scope="function")
+def neon_user_low_balance(evm_loader: EvmLoader, bank_account, environment: EnvironmentConfig) -> NeonUser:
+    user = NeonUser(environment.evm_loader, bank_account)
+    lamports = int(0.1 * LAMPORT_PER_SOL)
+
+    if environment.use_bank:
+        balance = evm_loader.get_solana_balance(user.solana_account.pubkey())
+        if balance < lamports:
+            evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
+    else:
+        evm_loader.request_airdrop(
+            pubkey=user.solana_account.pubkey(),
+            lamports=lamports,
+            commitment=Confirmed,
+        )
+    return user
+
+
+@pytest.fixture(scope="function")
 def neon_user_no_sols(pytestconfig, bank_account, faucet, environment) -> NeonUser:
     user = NeonUser(environment.evm_loader, bank_account)
     return user
