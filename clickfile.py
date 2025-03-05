@@ -1393,11 +1393,12 @@ def validate_cost_reports(
                         }
                         failures.append(failure_dict)
 
-    df = pd.DataFrame(failures)
-    md = df.to_markdown(index=False)
+    if failures:
+        df = pd.DataFrame(failures)
+        md = df.to_markdown(index=False)
 
-    with open(output, "w") as f:
-        json.dump(md, f)
+        with open(output, "w") as f:
+            json.dump(md, f)
 
 
 @dapps.command("add_pr_comment", help="Add PR comment with dApp cost reports")
