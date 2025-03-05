@@ -49,7 +49,8 @@ on:
         description: "Filter tests by mark: pytest -m ..."
 env:
   NETWORK: ${{ github.event.inputs.network || 'terraform' }}
-  NUMPROCESSES: ${{ github.event.inputs.numprocesses || 8 }}
+  NUMPROCESSES_LOCAL: ${{ github.event.inputs.numprocesses || 12 }}
+  NUMPROCESSES_DEVNET: ${{ github.event.inputs.numprocesses || 4 }}
   BUILD_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
   DEVNET_SOLANA_URL: "${{ secrets.SOLANA_URL }}"
   FAUCET_URL: "${{ secrets.DEVNET_FAUCET_URL }}"
@@ -236,9 +237,9 @@ jobs:
         timeout-minutes: 120
         run: |
           if [ "${{ github.event.schedule }}" == "0 1 * * 0,1,2,3,4" ]; then
-            CMD="python3 ./clickfile.py run basic_extended --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }} --case \"${{ github.event.inputs.pytest_k}}\" --marker \"${{ github.event.inputs.pytest_m}}\""
+            CMD="python3 ./clickfile.py run basic_extended --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES_LOCAL }} --case \"${{ github.event.inputs.pytest_k}}\" --marker \"${{ github.event.inputs.pytest_m}}\""
           else
-            CMD="python3 ./clickfile.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }} --case \"${{ github.event.inputs.pytest_k}}\" --marker \"${{ github.event.inputs.pytest_m}}\""
+            CMD="python3 ./clickfile.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES_DEVNET }} --case \"${{ github.event.inputs.pytest_k}}\" --marker \"${{ github.event.inputs.pytest_m}}\""
           fi
 
           if [[ "${{ env.GENERATE_COST_REPORT }}" == "true" ]]; then
