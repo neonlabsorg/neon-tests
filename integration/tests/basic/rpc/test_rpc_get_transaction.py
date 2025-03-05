@@ -354,7 +354,7 @@ class TestRpcGetTransaction:
             ["uint256"], [contract_data]
         )
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
@@ -453,6 +453,7 @@ class TestRpcGetTransaction:
             max_fee_per_gas=max_fee_per_gas,
             max_priority_fee_per_gas=max_priority_fee_per_gas,
             gas_limit=gas_limit,
+            chain_id=web3_client_sol.chain_id,
         )
 
         tree_acc_data = CreateTreeAccMultipleData(
@@ -473,10 +474,11 @@ class TestRpcGetTransaction:
             params = [hex(tx_receipt.blockNumber), transaction_index]
         elif params_case == "blockHashAndIndex_case":
             params = [tx_receipt.blockHash.hex(), transaction_index]
+
         elif params_case == "senderNonce_case":
             params = [neon_user.checksum_address, nonce]
 
-        resp = json_rpc_client.send_rpc(method=method, params=params, additional_path="/sol")
+        resp = json_rpc_client.send_rpc(method=method, params=params)
         EthEthGetScheduledTransactionByHashResult(**resp)
 
         result = resp["result"]
@@ -521,7 +523,7 @@ class TestRpcGetTransaction:
             ["uint256"], [contract_data]
         )
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
@@ -558,7 +560,7 @@ class TestRpcGetTransaction:
         )
         assert len(result["scheduledParentTransactionHashes"]) == 0
         assert len(result["scheduledChildTransactionHashes"]) == 0
-        assert result["status"] == "0x1", "Transaction status must be 0x1"
+        assert result["status"] == "0x0", "Transaction status must be 0x0"
         assert result["transactionHash"] == transaction_hash
         assert result["blockHash"] == tx_receipt.blockHash.hex()
         assert result["from"].upper() == tx_receipt["from"].upper()
@@ -580,7 +582,8 @@ class TestRpcGetTransaction:
         )
 
         trx_estimate_obj_list = [
-            ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data) for _ in range(3)
+            ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
+            for _ in range(3)
         ]
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), trx_estimate_obj_list)
         trxs = [
@@ -653,7 +656,7 @@ class TestRpcGetTransaction:
                     "status",
                 ],
             )
-            assert result["status"] == "0x1", "Transaction status must be 0x1"
+            assert result["status"] == "0x0", "Transaction status must be 0x0"
             assert result["transactionHash"] == trx_hashes[i]
             assert result["blockHash"] == receipts[i].blockHash.hex()
             assert result["from"].upper() == receipts[i]["from"].upper()

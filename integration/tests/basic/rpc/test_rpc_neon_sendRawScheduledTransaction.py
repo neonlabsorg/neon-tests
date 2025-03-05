@@ -1,6 +1,5 @@
 import allure
 import eth_abi
-import requests
 from eth_utils import abi
 
 from integration.tests.basic.helpers.errors import Error32602, Error32000
@@ -22,7 +21,7 @@ class TestNeonRPCSendRAWTransaction:
             ["uint256"], [contract_data]
         )
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
@@ -64,6 +63,7 @@ class TestNeonRPCSendRAWTransaction:
             max_fee_per_gas=max_fee_per_gas,
             max_priority_fee_per_gas=max_priority_fee_per_gas,
             gas_limit=gas_limit,
+            chain_id=web3_client_sol.chain_id,
         )
 
         tree_acc_data = CreateTreeAccMultipleData(
@@ -75,13 +75,15 @@ class TestNeonRPCSendRAWTransaction:
         resp = web3_client_sol.send_scheduled_transaction(tx0, check_result=True)
         assert is_hex(resp["result"])
 
-    def test_two_transactions_in_params(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
+    def test_two_transactions_in_params(
+        self, web3_client_sol, json_sol_rpc_client, neon_user, common_contract, evm_loader, treasury_pool
+    ):
         contract_data = 18
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
         )
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
@@ -90,16 +92,9 @@ class TestNeonRPCSendRAWTransaction:
             neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
         )
 
-        url = "http://127.0.0.1:9090/solana/sol"
-        resp = requests.post(
-            url,
-            json={
-                "jsonrpc": "2.0",
-                "method": "neon_sendRawScheduledTransaction",
-                "params": [tx.encode().hex(), tx.encode().hex()],
-                "id": 0,
-            },
-        ).json()
+        resp = json_sol_rpc_client.send_rpc(
+            method="neon_sendRawScheduledTransaction", params=[tx.encode().hex(), tx.encode().hex()]
+        )
 
         assert "error" in resp
         assert Error32602.CODE == resp["error"]["code"]
@@ -116,7 +111,7 @@ class TestNeonRPCSendRAWTransaction:
             ["uint256"], [contract_data]
         )
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
@@ -139,7 +134,7 @@ class TestNeonRPCSendRAWTransaction:
             ["uint256"], [contract_data]
         )
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
@@ -157,7 +152,7 @@ class TestNeonRPCSendRAWTransaction:
             ["uint256"], [contract_data]
         )
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
@@ -182,7 +177,7 @@ class TestNeonRPCSendRAWTransaction:
             ["uint256"], [contract_data]
         )
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)

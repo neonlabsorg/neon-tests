@@ -22,7 +22,7 @@ class TestNeonRPCEstimateScheduledGas:
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
         )
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         resp = web3_client_sol.estimate_scheduled(
             neon_user.solana_account.pubkey(), [trx_estimate_obj], check_result=False
         )
@@ -73,7 +73,7 @@ class TestNeonRPCEstimateScheduledGas:
         trx_estimate_obj_list = []
         for i in range(transaction_rate):
             trx_estimate_obj_list.append(
-                ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+                ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
             )
 
         resp = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), trx_estimate_obj_list)
@@ -125,13 +125,13 @@ class TestNeonRPCEstimateScheduledGas:
         trx_estimate_obj_list = []
         for i in range(transaction_rate):
             trx_estimate_obj_list.append(
-                ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+                ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
             )
 
         data_fail_tx = abi.function_signature_to_4byte_selector("doAssert()")
         trx_estimate_obj_list.append(
             ScheduledTrxEstimateRequest(
-                neon_user.checksum_address, revert_contract_caller.address, data_fail_tx, value=100000000
+                neon_user.checksum_address, revert_contract_caller.address, data_fail_tx.hex(), value=100000000
             )
         )
 
@@ -161,7 +161,9 @@ class TestNeonRPCEstimateScheduledGas:
         data = abi.function_signature_to_4byte_selector("setTextAndReceiveValue(string)") + eth_abi.encode(
             ["string"], [contract_data]
         )
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data, 10000)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, common_contract.address, data.hex(), 10000
+        )
         resp = web3_client_sol.estimate_scheduled(
             neon_user.solana_account.pubkey(), [trx_estimate_obj], check_result=False
         )
@@ -181,7 +183,7 @@ class TestNeonRPCEstimateScheduledGas:
             ["uint256"], [contract_data]
         )
         trx_estimate_obj = ScheduledTrxEstimateRequest(
-            neon_user_no_sols.checksum_address, common_contract.address, data
+            neon_user_no_sols.checksum_address, common_contract.address, data.hex()
         )
         resp = web3_client_sol.estimate_scheduled(neon_user_no_sols.solana_account.pubkey(), [trx_estimate_obj])
 
@@ -209,7 +211,7 @@ class TestNeonRPCEstimateScheduledGas:
         data = abi.function_signature_to_4byte_selector("settNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
         )
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         resp = web3_client_sol.estimate_scheduled(
             neon_user.solana_account.pubkey(), [trx_estimate_obj], check_result=False
         )
@@ -225,7 +227,7 @@ class TestNeonRPCEstimateScheduledGas:
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
         )
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         resp = web3_client.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj], check_result=False)
 
         assert "error" in resp, "error field not in response"
@@ -260,12 +262,12 @@ class TestNeonRPCEstimateScheduledGas:
         data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
             ["uint256"], [contract_data]
         )
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
 
         tx = {
             "fromAddress": trx_estimate_obj.from_address,
             "toAddress": trx_estimate_obj.to_address,
-            "data": trx_estimate_obj.data.hex(),
+            "data": trx_estimate_obj.data,
             "value": trx_estimate_obj.value,
             field: invalid_value,
         }

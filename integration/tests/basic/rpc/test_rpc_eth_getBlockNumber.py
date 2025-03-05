@@ -24,7 +24,7 @@ class TestNeonRPCGetBlockNumber:
             ["uint256"], [contract_data]
         )
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
@@ -64,7 +64,7 @@ class TestNeonRPCGetBlockNumber:
             ["uint256"], [contract_data]
         )
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
@@ -135,6 +135,7 @@ class TestNeonRPCGetBlockNumber:
             max_fee_per_gas=max_fee_per_gas,
             max_priority_fee_per_gas=max_priority_fee_per_gas,
             gas_limit=gas_limit,
+            chain_id=web3_client_sol.chain_id,
         )
 
         tree_acc_data = CreateTreeAccMultipleData(

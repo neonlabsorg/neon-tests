@@ -199,7 +199,7 @@ class TestRpcGetBlock:
             ["uint256"], [contract_data]
         )
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
