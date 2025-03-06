@@ -8,6 +8,9 @@ runs:
   using: composite
   steps:
       - uses: hashicorp/setup-terraform@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 16
       - name: Install python requirements
         if: always()
         id: requirements
