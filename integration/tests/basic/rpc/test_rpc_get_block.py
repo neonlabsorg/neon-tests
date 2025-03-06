@@ -172,7 +172,6 @@ class TestRpcGetBlock:
         else:
             EthGetBlockByHashResult(**response)
 
-    @pytest.mark.mainnet
     @pytest.mark.parametrize(
         "params_case, method, full_trx",
         [
@@ -224,5 +223,18 @@ class TestRpcGetBlock:
 
         if full_trx:
             EthGetScheduledTxBlockByHashFullResult(**resp)
+            transaction = resp["result"]["transactions"][0]
+            assert transaction["type"] == "0x80"
+            assert transaction["scheduledIndex"] == "0x0"
+            assert transaction["scheduledPayer"] == tx_receipt["from"]
+
+            assert transaction["scheduledSolanaPayer"] == str(neon_user.solana_account.pubkey())
+
+            transactions_with_sig = evm_loader.get_signatures_for_address(neon_user.solana_account.pubkey()).value
+            signatures = []
+            for tx in transactions_with_sig:
+                signatures.append(str(tx.signature))
+            assert transaction["scheduledSolanaSignature"] in signatures
+
         else:
             EthGetBlockByHashResult(**resp)

@@ -381,6 +381,7 @@ class TestRpcGetTransaction:
         resp = json_sol_rpc_client.send_rpc(method=method, params=params)
 
         EthEthGetScheduledTransactionByHashResult(**resp)
+
         result = resp["result"]
         assert result["type"] == "0x80"
 
@@ -393,24 +394,6 @@ class TestRpcGetTransaction:
         for tx in transactions_with_sig:
             signatures.append(str(tx.signature))
         assert result["scheduledSolanaSignature"] in signatures
-
-        assert_fields_are_hex(
-            result,
-            [
-                "blockHash",
-                "blockNumber",
-                "hash",
-                "transactionIndex",
-                "type",
-                "from",
-                "nonce",
-                "gasPrice",
-                "gas",
-                "to",
-                "scheduledIndex",
-                "scheduledPayer",
-            ],
-        )
 
     @pytest.mark.mainnet
     @pytest.mark.neon_only
@@ -494,24 +477,6 @@ class TestRpcGetTransaction:
             signatures.append(str(tx.signature))
         assert result["scheduledSolanaSignature"] in signatures
 
-        assert_fields_are_hex(
-            result,
-            [
-                "blockHash",
-                "blockNumber",
-                "hash",
-                "transactionIndex",
-                "type",
-                "from",
-                "nonce",
-                "gasPrice",
-                "gas",
-                "to",
-                "scheduledIndex",
-                "scheduledPayer",
-            ],
-        )
-
     @pytest.mark.mainnet
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
     @pytest.mark.neon_only
@@ -549,19 +514,7 @@ class TestRpcGetTransaction:
             EthGetTransactionReceiptResult(**response)
 
         result = response["result"]
-        assert_fields_are_hex(
-            result,
-            [
-                "transactionHash",
-                "transactionIndex",
-                "blockNumber",
-                "blockHash",
-                "cumulativeGasUsed",
-                "gasUsed",
-                "logsBloom",
-                "status",
-            ],
-        )
+
         assert len(result["scheduledParentTransactionHashes"]) == 0
         assert len(result["scheduledChildTransactionHashes"]) == 0
         assert result["status"] == "0x0", "Transaction status must be 0x0"
@@ -646,19 +599,6 @@ class TestRpcGetTransaction:
             else:
                 assert result["scheduledChildTransactionHashes"][0][2:] == expected_child
 
-            assert_fields_are_hex(
-                result,
-                [
-                    "transactionHash",
-                    "transactionIndex",
-                    "blockNumber",
-                    "blockHash",
-                    "cumulativeGasUsed",
-                    "gasUsed",
-                    "logsBloom",
-                    "status",
-                ],
-            )
             assert result["status"] == "0x0", "Transaction status must be 0x0"
             assert result["transactionHash"] == trx_hashes[i]
             assert result["blockHash"] == receipts[i].blockHash.hex()

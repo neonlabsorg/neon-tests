@@ -219,8 +219,10 @@ class TestNeonRPCEstimateScheduledGas:
         assert "error" in resp, "error field not in response"
         assert "code" in resp["error"]
         assert "message" in resp["error"], "message field not in response"
-        assert Error3.CODE == resp["error"]["code"]
-        assert Error3.EXECUTION_REVERTED == resp["error"]["message"]
+        assert Error3.CODE == resp["error"]["code"], f"error code must be {Error3.CODE} "
+        assert (
+            Error3.EXECUTION_REVERTED == resp["error"]["message"]
+        ), f"error message must be {Error3.EXECUTION_REVERTED}"
 
     def test_wrong_chain_id(self, web3_client, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
         contract_data = 18
@@ -233,8 +235,10 @@ class TestNeonRPCEstimateScheduledGas:
         assert "error" in resp, "error field not in response"
         assert "code" in resp["error"]
         assert "message" in resp["error"], "message field not in response"
-        assert Error32000.CODE == resp["error"]["code"]
-        assert Error32000.WRONG_CHAIN_ID == resp["error"]["message"]
+        assert Error32000.CODE == resp["error"]["code"], f"error code must be {Error32000.CODE} "
+        assert (
+            Error32000.WRONG_CHAIN_ID == resp["error"]["message"]
+        ), f"error message must be {Error32000.WRONG_CHAIN_ID}"
 
     @pytest.mark.parametrize(
         "field, invalid_value,error_code,error_msg",
@@ -276,5 +280,5 @@ class TestNeonRPCEstimateScheduledGas:
         resp = json_rpc_client.send_rpc(method="neon_estimateScheduledGas", params=params)
 
         assert "error" in resp, "error field not in response"
-        assert resp["error"]["code"] == error_code
-        assert resp["error"]["message"] == error_msg
+        assert resp["error"]["code"] == error_code, f"error code must be {error_code} "
+        assert resp["error"]["message"] == error_msg, f"error message must be {error_msg}"
