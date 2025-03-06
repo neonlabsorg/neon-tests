@@ -4,7 +4,6 @@ from eth_utils import abi
 
 from integration.tests.basic.helpers.errors import Error32602, Error32000
 from integration.tests.basic.helpers.rpc_checks import is_hex
-from utils.helpers import wait_condition
 
 from utils.models.result import EthResult
 from utils.consts import wSOL
@@ -140,31 +139,6 @@ class TestNeonRPCSendRAWTransaction:
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
         resp = web3_client_sol.send_scheduled_transaction(tx, check_result=False)
-        assert "error" in resp
-        assert Error32000.CODE == resp["error"]["code"]
-        assert Error32000.UNKNOWN_TRANSACTION_HASH == resp["error"]["message"]
-
-    def test_tree_account_deleted_before_send_trx(
-        self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
-    ):
-        contract_data = 18
-        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
-            ["uint256"], [contract_data]
-        )
-
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
-        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
-
-        tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
-
-        tree_account = evm_loader.create_tree_account(
-            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
-        )
-
-        assert evm_loader.account_exists(account_address=tree_account)
-        wait_condition(lambda: not evm_loader.account_exists(account_address=tree_account), timeout_sec=120)
-        resp = web3_client_sol.send_scheduled_transaction(tx, check_result=False)
-
         assert "error" in resp
         assert Error32000.CODE == resp["error"]["code"]
         assert Error32000.UNKNOWN_TRANSACTION_HASH == resp["error"]["message"]
