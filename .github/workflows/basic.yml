@@ -97,10 +97,6 @@ jobs:
     needs: pre-commit-check
     if: always()
     steps:
-      - uses: hashicorp/setup-terraform@v3
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 16
       - name: Setup `terraform` by cron schedule
         id: setup_terraform_stand
         if: github.event.schedule=='0 1 * * 0,1,2,3,4'
@@ -110,8 +106,6 @@ jobs:
         if: github.event.schedule=='0 2 * * 0,1,2,3,4'
         run: |
           echo "NETWORK=devnet" >> $GITHUB_ENV
-      - uses: actions/checkout@v4
-
       - name: "Prepare terraform stand"
         id: prepare_terraform
         if: ${{ env.NETWORK == 'terraform' }}
@@ -285,11 +279,6 @@ jobs:
     needs: [ prepare-env-proxy, run-proxy-tests]
     if: always() && needs.prepare-env-proxy.outputs.network == 'terraform'
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 16
       - name: "Destroy stand"
         env:
           AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}

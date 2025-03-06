@@ -4,12 +4,11 @@ inputs:
   ci_stands_key_hcloud:
     description: 'Private key for hcloud'
     required: true
-  devnet_solana_url:
-    description: 'Solana url for devnet'
-    required: true
 runs:
   using: composite
   steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
       - name: Install python requirements
         if: always()
         id: requirements
