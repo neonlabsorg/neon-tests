@@ -77,7 +77,6 @@ class TestScheduledTrx:
         assert pending_trx[hex(nonce)][0]["status"] == "Done"
         assert pending_trx[hex(nonce)][0]["hash"][2:] == trxs[0].hash().hex()
 
-    @pytest.mark.skip("NDEV-3615")
     def test_multiple_scheduled_trx_with_failed_trx(
         self, web3_client_sol, neon_user, treasury_pool, revert_contract_caller, event_caller_contract, evm_loader
     ):
