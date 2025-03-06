@@ -25,6 +25,7 @@ from utils.models.result import (
     EthGetTransactionReceiptResult,
     EthResult,
     EthEthGetScheduledTransactionByHashResult,
+    NeonGetTransactionResult,
 )
 from utils.scheduled_trx import ScheduledTrxEstimateRequest, ScheduledTransaction, CreateTreeAccMultipleData
 from utils.web3client import NeonChainWeb3Client
@@ -483,7 +484,6 @@ class TestRpcGetTransaction:
 
         result = resp["result"]
         assert result["type"] == "0x80"
-
         assert result["scheduledIndex"] == "0x0"
         assert result["scheduledPayer"] == tx_receipt["from"]
         assert result["scheduledSolanaPayer"] == str(neon_user.solana_account.pubkey())
@@ -538,12 +538,16 @@ class TestRpcGetTransaction:
         transaction_hash = tx_receipt.transactionHash.hex()
 
         params = [transaction_hash]
-        if method.startswith("neon_"):
-            params.append("ethereum")
 
         response = json_rpc_client.send_rpc(method=method, params=params)
         assert "error" not in response
         assert "result" in response, AssertMessage.DOES_NOT_CONTAIN_RESULT
+
+        if method.startswith("neon_"):
+            NeonGetTransactionResult(**response)
+        else:
+            EthGetTransactionReceiptResult(**response)
+
         result = response["result"]
         assert_fields_are_hex(
             result,
@@ -567,7 +571,6 @@ class TestRpcGetTransaction:
         assert result["to"].upper() == tx_receipt["to"].upper()
         assert result["contractAddress"] is None
         assert result["logs"] == []
-        EthGetTransactionReceiptResult(**response)
 
     @pytest.mark.mainnet
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
