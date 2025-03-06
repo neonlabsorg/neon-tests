@@ -106,6 +106,8 @@ jobs:
         if: github.event.schedule=='0 2 * * 0,1,2,3,4'
         run: |
           echo "NETWORK=devnet" >> $GITHUB_ENV
+      - uses: actions/checkout@v4
+
       - name: "Prepare terraform stand"
         id: prepare_terraform
         if: ${{ env.NETWORK == 'terraform' }}
@@ -279,6 +281,7 @@ jobs:
     needs: [ prepare-env-proxy, run-proxy-tests]
     if: always() && needs.prepare-env-proxy.outputs.network == 'terraform'
     steps:
+      - uses: actions/checkout@v4
       - name: "Destroy stand"
         env:
           AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}

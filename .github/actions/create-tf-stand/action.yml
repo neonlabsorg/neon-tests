@@ -25,7 +25,6 @@ runs:
   using: composite
 
   steps:
-      - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
       - name: Install python requirements
         id: requirements
