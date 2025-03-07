@@ -1,6 +1,12 @@
 name: "Prepare Click"
 description: "Install python and Click"
 
+inputs:
+  working-directory:
+    description: 'Working directory for the commands'
+    required: false
+    default: '.'
+
 runs:
   using: composite
   steps:
@@ -8,7 +14,14 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: "3.9"
+    - name: Change the working directory
+      shell: bash
+      run: |
+        pwd
+        cd ${{ inputs.working-directory }}
+        pwd
     - name: "Install python requirements"
       run: |
+        pwd
         pip3 install --upgrade -r deploy/requirements/click.txt
       shell: bash
