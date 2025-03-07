@@ -41,7 +41,7 @@ runs:
         node-version: 16
     - name: Install python requirements
       id: requirements
-      uses: neonlabsorg/neon-tests/.github/actions/python-requirements
+      uses: ./.github/actions/python-requirements
     - name: Deploy stand with terraform
       id: deploy
       env:
