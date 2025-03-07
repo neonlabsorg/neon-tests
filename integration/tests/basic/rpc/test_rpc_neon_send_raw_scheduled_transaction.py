@@ -55,6 +55,7 @@ class TestNeonRPCSendRAWTransaction:
             resp["error"]["data"]["errors"][0] == "Method neon_sendRawScheduledTransaction expect 1 parameters, got 2."
         )
 
+    @pytest.mark.xfail(reason="NDEV-3609")
     def test_repeat_call_with_same_trx_hash(
         self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
     ):
@@ -69,8 +70,8 @@ class TestNeonRPCSendRAWTransaction:
         )
 
         web3_client_sol.send_scheduled_transaction(tx, check_result=False)
-        # resp_in_row = web3_client_sol.send_scheduled_transaction(tx, check_result=False)
-        # Todo should we need error or that's ok to send, if tex will not be init by solana
+        resp_for_second_sent_no_waiting = web3_client_sol.send_scheduled_transaction(tx, check_result=False)
+        assert "error" in resp_for_second_sent_no_waiting, "must be error for second sending the same transaction"
 
         web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)  # wait until first tx finished
         resp_after_waiting = web3_client_sol.send_scheduled_transaction(tx, check_result=False)

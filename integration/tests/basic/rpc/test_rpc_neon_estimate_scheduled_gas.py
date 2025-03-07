@@ -7,6 +7,7 @@ import solders.system_program as sp
 from integration.tests.basic.helpers.errors import Error32602, Error32000, Error3, Error32603
 
 from integration.tests.basic.helpers.rpc_checks import assert_fields_are_hex
+from utils.consts import LAMPORT_PER_SOL
 from utils.helpers import decode_function_signature
 from utils.models.result import EstimateScheduledGas
 from utils.scheduled_trx import ScheduledTrxEstimateRequest
@@ -14,7 +15,7 @@ from utils.scheduled_trx import ScheduledTrxEstimateRequest
 
 @allure.feature("JSON-RPC validation")
 @allure.story("Verify JSON-RPC neon_estimateScheduledGas work")
-@pytest.mark.neon_only  # TODO need it ?
+@pytest.mark.neon_only
 class TestNeonRPCEstimateScheduledGas:
 
     def test_estimate_one_transaction(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
@@ -149,13 +150,22 @@ class TestNeonRPCEstimateScheduledGas:
         assert Error32602.INVALID_TRANSACTIONID == resp["error"]["message"]
 
     def test_send_value_greater_than_balance(
-        self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
+        self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, event_caller_sol_chain
     ):
-        balance = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
-        data = decode_function_signature("setTextAndReceiveValue(string)", ["test text"])
-        trx_estimate_obj = ScheduledTrxEstimateRequest(
-            neon_user.checksum_address, common_contract.address, data, balance + 100000
+        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+            neon_user.solana_account,
+            "0x" + neon_user.neon_address.hex(),
+            int(1 * LAMPORT_PER_SOL),
         )
+
+        balance = web3_client_sol.get_balance(neon_user.checksum_address)
+        call_data = decode_function_signature("indexedArgs()")
+        value = balance + 1
+
+        trx_estimate_obj = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, event_caller_sol_chain.address, call_data, value=value
+        )
+
         resp = web3_client_sol.estimate_scheduled(
             neon_user.solana_account.pubkey(), [trx_estimate_obj], check_result=False
         )
@@ -164,9 +174,7 @@ class TestNeonRPCEstimateScheduledGas:
         assert "code" in resp["error"]
         assert "message" in resp["error"], "message field not in response"
         assert resp["error"]["code"] == Error32603.CODE, f"code must be {Error32603.CODE}"
-        assert (
-            resp["error"]["message"] == Error32603.INTERNAL_ERROR
-        ), f"message must be {Error32603.INTERNAL_ERROR}"  # TODO WHy ?
+        assert resp["error"]["message"] == Error32603.INTERNAL_ERROR, f"message must be {Error32603.INTERNAL_ERROR}"
 
     def test_sender_has_no_sols(self, web3_client_sol, common_contract, evm_loader, treasury_pool, neon_user_no_sols):
         chain_id = web3_client_sol.chain_id
@@ -177,7 +185,6 @@ class TestNeonRPCEstimateScheduledGas:
         )
         resp = web3_client_sol.estimate_scheduled(neon_user_no_sols.solana_account.pubkey(), [trx_estimate_obj])
 
-        # TODO WHy no error?
         assert (
             len(resp["gasList"]) == 1
         ), f'Amount of transactions must be 1, but actual amount = {len(resp["gasList"])}'
@@ -196,10 +203,10 @@ class TestNeonRPCEstimateScheduledGas:
         ), f'Amount of accounts must be 6, but actual amount = {len(resp["accountList"])}'
 
     def test_no_function_in_called_contract(
-        self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
+        self, web3_client_sol, neon_user, revert_contract_caller, evm_loader, treasury_pool
     ):
         data = decode_function_signature("setNumber(uint256)", [18])
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, revert_contract_caller.address, data)
         resp = web3_client_sol.estimate_scheduled(
             neon_user.solana_account.pubkey(), [trx_estimate_obj], check_result=False
         )

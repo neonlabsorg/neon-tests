@@ -16,7 +16,7 @@ from integration.tests.basic.helpers.rpc_checks import (
 )
 from utils.accounts import EthAccounts
 from utils.consts import Unit, wSOL
-from utils.helpers import gen_hash_of_block
+from utils.helpers import gen_hash_of_block, decode_function_signature
 from utils.models.error import EthError, EthError32602
 from utils.models.result import (
     EthGetBlockByNumberAndIndexNoneResult,
@@ -406,7 +406,7 @@ class TestRpcGetTransaction:
     )
     def test_neon_get_reverted_scheduled_transaction_by_some_params(
         self,
-        json_rpc_client,
+        json_sol_rpc_client,
         web3_client_sol,
         neon_user,
         treasury_pool,
@@ -421,7 +421,6 @@ class TestRpcGetTransaction:
         call_data = abi.function_signature_to_4byte_selector("doAssert()")
 
         gas_limit = 3000000
-        # base_fee_per_gas = web3_client_sol.base_fee_per_gas()
         max_priority_fee_per_gas = 2500000000
         max_fee_per_gas = web3_client_sol.get_max_fee_per_gas()
 
@@ -460,7 +459,7 @@ class TestRpcGetTransaction:
         elif params_case == "senderNonce_case":
             params = [neon_user.checksum_address, nonce]
 
-        resp = json_rpc_client.send_rpc(method=method, params=params)
+        resp = json_sol_rpc_client.send_rpc(method=method, params=params)
         EthEthGetScheduledTransactionByHashResult(**resp)
 
         result = resp["result"]
@@ -525,43 +524,67 @@ class TestRpcGetTransaction:
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
     @pytest.mark.neon_only
     def test_get_multiple_scheduled_transaction_receipt(
-        self, method, json_rpc_client, neon_user, common_contract, web3_client_sol, evm_loader, treasury_pool
+        self, json_rpc_client, neon_user, common_contract, web3_client_sol, evm_loader, treasury_pool, method
     ):
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
-        contract_data = 18
-        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
-            ["uint256"], [contract_data]
+
+        gas_limit = 30000000
+        max_priority_fee_per_gas = 2500000000
+        max_fee_per_gas = web3_client_sol.get_max_fee_per_gas()
+
+        data = decode_function_signature("setNumber(uint256)", [18])
+        tx0 = ScheduledTransaction(
+            neon_user.neon_address,
+            None,
+            nonce,
+            index=0,
+            target=common_contract.address,
+            call_data=data,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            gas_limit=gas_limit,
+            chain_id=web3_client_sol.chain_id,
         )
 
-        trx_estimate_obj_list = [
-            ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
-            for _ in range(3)
-        ]
-        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), trx_estimate_obj_list)
-        trxs = [
-            ScheduledTransaction.from_estimate_result(i, req, estimate_result)
-            for i, req in enumerate(trx_estimate_obj_list)
-        ]
+        tx1 = ScheduledTransaction(
+            neon_user.neon_address,
+            None,
+            nonce,
+            index=1,
+            target=common_contract.address,
+            call_data=data,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            gas_limit=gas_limit,
+            chain_id=web3_client_sol.chain_id,
+        )
+        tx2 = ScheduledTransaction(
+            neon_user.neon_address,
+            None,
+            nonce,
+            index=2,
+            target=common_contract.address,
+            call_data=data,
+            max_fee_per_gas=max_fee_per_gas,
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
+            gas_limit=gas_limit,
+            chain_id=web3_client_sol.chain_id,
+        )
 
         tree_acc_data = CreateTreeAccMultipleData(
-            nonce=nonce,
-            max_fee_per_gas=estimate_result["maxFeePerGas"],
-            max_priority_fee_per_gas=estimate_result["maxPriorityFeePerGas"],
+            nonce=nonce, max_fee_per_gas=max_fee_per_gas, max_priority_fee_per_gas=max_priority_fee_per_gas
         )
-        tree_acc_data.add_trx(trxs[0], 1, 0)
-        tree_acc_data.add_trx(trxs[1], 2, 1)
-        tree_acc_data.add_trx(trxs[2], 0xFFFF, 1)
+        tree_acc_data.add_trx(tx0, 1, 0)
+        tree_acc_data.add_trx(tx1, 2, 1)
+        tree_acc_data.add_trx(tx2, 0xFFFF, 1)
 
         evm_loader.create_tree_account_multiple(
-            neon_user,
-            treasury_pool,
-            tree_acc_data.data,
-            wSOL["address_spl"],
-            chain_id=web3_client_sol.chain_id,
-            payer_nonce=nonce,
+            neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"], chain_id=web3_client_sol.chain_id
         )
-        web3_client_sol.send_all_scheduled_transactions(trxs)
 
+        web3_client_sol.send_all_scheduled_transactions([tx0, tx1, tx2])
+
+        trxs = [tx0, tx1, tx2]
         receipts = [web3_client_sol.wait_for_transaction_receipt(trx.hash(), timeout=180) for trx in trxs]
         trx_hashes = [r.transactionHash.hex() for r in receipts]
 
@@ -580,6 +603,7 @@ class TestRpcGetTransaction:
         responses = [call_rpc(tx_hash) for tx_hash in trx_hashes]
 
         for i, response in enumerate(responses):
+            EthGetTransactionReceiptResult(**response)
             assert "error" not in response
             assert "result" in response, AssertMessage.DOES_NOT_CONTAIN_RESULT
             result = response["result"]
@@ -595,13 +619,13 @@ class TestRpcGetTransaction:
             else:
                 assert result["scheduledChildTransactionHashes"][0][2:] == expected_child
 
-            assert result["status"] == "0x0", "Transaction status must be 0x0"  # TODO
+            assert result["status"] == "0x1", "Transaction status must be 0x1"
             assert result["transactionHash"] == trx_hashes[i]
 
             assert result["blockHash"] == receipts[i].blockHash.hex()
 
-            assert result["from"].upper() == neon_user.checksum_address
-            assert result["to"].upper() == common_contract.address
+            assert result["from"].upper() == neon_user.checksum_address.upper()
+            assert result["to"].upper() == common_contract.address.upper()
 
             assert result["contractAddress"] is None
             assert result["logs"] == []

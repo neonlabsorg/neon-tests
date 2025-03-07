@@ -7,6 +7,27 @@ from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData,
 
 class TestRPCNeonGetPendingTransactions:
 
+    def test_neon_get_pending_scheduled_transaction_done(
+        self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
+    ):
+        nonce = hex(web3_client_sol.get_nonce(neon_user.checksum_address))
+        data = decode_function_signature("setNumber(uint256)", [18])
+
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+
+        tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
+
+        evm_loader.create_tree_account(
+            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
+        )
+
+        web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
+
+        pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
+        status = pending_trx[nonce][0]["status"]
+        assert status == "Done", f"status must be 0x1, got {status}"
+
     def test_neon_get_pending_scheduled_transaction_no_tx_body(
         self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
     ):
@@ -20,34 +41,13 @@ class TestRPCNeonGetPendingTransactions:
         evm_loader.create_tree_account(
             neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
         )
+
         pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
         nonce = hex(web3_client_sol.get_nonce(neon_user.checksum_address))
-        assert pending_trx[nonce][0]["status"] == "NoTransactionBody"
+        status = pending_trx[nonce][0]["status"]
+        assert status == "NoTransactionBody", f"status must be NoTransactionBody, got {status}"
 
-    def test_neon_get_pending_scheduled_transaction_no_sols(
-        self, web3_client_sol, neon_user_low_balance, common_contract, evm_loader, treasury_pool, pytestconfig
-    ):
-
-        data = decode_function_signature("setNumber(uint256)", [18])
-        trx_estimate_obj = ScheduledTrxEstimateRequest(
-            neon_user_low_balance.checksum_address, common_contract.address, data
-        )
-        estimate_result = web3_client_sol.estimate_scheduled(
-            neon_user_low_balance.solana_account.pubkey(), [trx_estimate_obj]
-        )
-
-        tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
-
-        evm_loader.create_tree_account(
-            neon_user_low_balance, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
-        )
-        web3_client_sol.send_all_scheduled_transactions([tx])
-        pending_trx = web3_client_sol.get_pending_transactions(neon_user_low_balance.checksum_address)
-
-        nonce = hex(web3_client_sol.get_nonce(neon_user_low_balance.checksum_address))
-        assert pending_trx[nonce][0]["status"] == "NoTransactionBody"  # TODO Why this status ?
-
-    def test_multiple_scheduled_trx_with_failed_trx_skipped(
+    def test_multiple_scheduled_trx_with_failed_trx_skipped_and_wait_for_parent_tx(
         self,
         web3_client_sol,
         neon_user,
@@ -59,9 +59,8 @@ class TestRPCNeonGetPendingTransactions:
     ):
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
 
-        base_fee_per_gas = web3_client_sol.base_fee_per_gas()
         max_priority_fee_per_gas = 2500000000
-        max_fee_per_gas = base_fee_per_gas * 2 + max_priority_fee_per_gas
+        max_fee_per_gas = web3_client_sol.get_max_fee_per_gas()
 
         gas_limit = 30000000
         call_data_trx0 = abi.function_signature_to_4byte_selector("doAssert()")
