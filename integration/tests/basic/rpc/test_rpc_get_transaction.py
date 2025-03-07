@@ -327,7 +327,6 @@ class TestRpcGetTransaction:
             {"hash": "transactionHash"},
         )
 
-    @pytest.mark.mainnet
     @pytest.mark.neon_only
     @pytest.mark.parametrize(
         "params_case, method",
@@ -395,7 +394,6 @@ class TestRpcGetTransaction:
             signatures.append(str(tx.signature))
         assert result["scheduledSolanaSignature"] in signatures
 
-    @pytest.mark.mainnet
     @pytest.mark.neon_only
     @pytest.mark.parametrize(
         "params_case, method",
@@ -406,7 +404,7 @@ class TestRpcGetTransaction:
             ("senderNonce_case", "neon_getTransactionBySenderNonce"),
         ],
     )
-    def test_neon_get_reverted_scheduled_transaction_by_hash(
+    def test_neon_get_reverted_scheduled_transaction_by_some_params(
         self,
         json_rpc_client,
         web3_client_sol,
@@ -423,9 +421,9 @@ class TestRpcGetTransaction:
         call_data = abi.function_signature_to_4byte_selector("doAssert()")
 
         gas_limit = 3000000
-        base_fee_per_gas = web3_client_sol.base_fee_per_gas()
+        # base_fee_per_gas = web3_client_sol.base_fee_per_gas()
         max_priority_fee_per_gas = 2500000000
-        max_fee_per_gas = base_fee_per_gas * 2 + max_priority_fee_per_gas
+        max_fee_per_gas = web3_client_sol.get_max_fee_per_gas()
 
         tx0 = ScheduledTransaction(
             neon_user.neon_address,
@@ -477,7 +475,6 @@ class TestRpcGetTransaction:
             signatures.append(str(tx.signature))
         assert result["scheduledSolanaSignature"] in signatures
 
-    @pytest.mark.mainnet
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
     @pytest.mark.neon_only
     def test_get_scheduled_transaction_receipt(
@@ -525,7 +522,6 @@ class TestRpcGetTransaction:
         assert result["contractAddress"] is None
         assert result["logs"] == []
 
-    @pytest.mark.mainnet
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
     @pytest.mark.neon_only
     def test_get_multiple_scheduled_transaction_receipt(
@@ -599,11 +595,14 @@ class TestRpcGetTransaction:
             else:
                 assert result["scheduledChildTransactionHashes"][0][2:] == expected_child
 
-            assert result["status"] == "0x0", "Transaction status must be 0x0"
+            assert result["status"] == "0x0", "Transaction status must be 0x0"  # TODO
             assert result["transactionHash"] == trx_hashes[i]
+
             assert result["blockHash"] == receipts[i].blockHash.hex()
-            assert result["from"].upper() == receipts[i]["from"].upper()
-            assert result["to"].upper() == receipts[i]["to"].upper()
+
+            assert result["from"].upper() == neon_user.checksum_address
+            assert result["to"].upper() == common_contract.address
+
             assert result["contractAddress"] is None
             assert result["logs"] == []
             EthGetTransactionReceiptResult(**response)

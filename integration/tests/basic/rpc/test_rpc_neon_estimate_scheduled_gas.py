@@ -1,6 +1,5 @@
 import allure
 import pytest
-import eth_abi
 from solders.pubkey import Pubkey
 
 from eth_utils import abi
@@ -8,21 +7,20 @@ import solders.system_program as sp
 from integration.tests.basic.helpers.errors import Error32602, Error32000, Error3, Error32603
 
 from integration.tests.basic.helpers.rpc_checks import assert_fields_are_hex
+from utils.helpers import decode_function_signature
 from utils.models.result import EstimateScheduledGas
 from utils.scheduled_trx import ScheduledTrxEstimateRequest
 
 
 @allure.feature("JSON-RPC validation")
 @allure.story("Verify JSON-RPC neon_estimateScheduledGas work")
-@pytest.mark.neon_only
+@pytest.mark.neon_only  # TODO need it ?
 class TestNeonRPCEstimateScheduledGas:
 
     def test_estimate_one_transaction(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
-        contract_data = 18
-        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
-            ["uint256"], [contract_data]
-        )
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
+
+        data = decode_function_signature("setNumber(uint256)", [18])
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
         resp = web3_client_sol.estimate_scheduled(
             neon_user.solana_account.pubkey(), [trx_estimate_obj], check_result=False
         )
@@ -34,15 +32,14 @@ class TestNeonRPCEstimateScheduledGas:
             len(result["gasList"]) == 1
         ), f'Amount of transactions must be 1, but actual amount = {len(result["gasList"])}'
 
-        assert result["nonce"] == hex(web3_client_sol.get_nonce(neon_user.checksum_address))
-
+        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
+        assert result["nonce"] == hex(nonce)
         assert result["maxFeePerGas"] > result["maxPriorityFeePerGas"], (
             f"maxFeePerGas must be greater than maxPriorityFeePerGas, "
             f'but maxFeePerGas = {result["maxFeePerGas"]} and maxPriorityFeePerGas = {result["maxPriorityFeePerGas"]}'
         )
 
         assert result["chainId"] == hex(chain_id), f'ChainID must be {chain_id}, but actual = {result["chainId"]}'
-
         assert (
             len(result["accountList"]) == 6
         ), f'Amount of accounts must be 6, but actual amount = {len(result["accountList"])}'
@@ -51,8 +48,9 @@ class TestNeonRPCEstimateScheduledGas:
         treasury_index = int(result["treasuryIndex"], 16)
         treasury_address = str(evm_loader.create_treasury_pool_address(treasury_index))
 
-        payer_nonce = evm_loader.get_neon_nonce(neon_user.neon_address, chain_id).to_bytes(8, "little")
-        tree_account = evm_loader.create_tree_account_address(neon_user.neon_address, payer_nonce, chain_id)
+        tree_account = evm_loader.create_tree_account_address(
+            neon_user.neon_address, nonce.to_bytes(8, "little"), chain_id
+        )
         authority_pool = Pubkey.find_program_address([b"Deposit"], evm_loader.loader_id)[0]
 
         assert result["accountList"][0] == str(neon_user.solana_account.pubkey())
@@ -63,24 +61,23 @@ class TestNeonRPCEstimateScheduledGas:
         assert result["accountList"][5] == str(sp.ID)
 
     def test_send_multiple_transactions(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
-        contract_data = 18
         transaction_rate = 4
         chain_id = web3_client_sol.chain_id
 
-        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
-            ["uint256"], [contract_data]
-        )
+        data = decode_function_signature("setNumber(uint256)", [18])
         trx_estimate_obj_list = []
         for i in range(transaction_rate):
             trx_estimate_obj_list.append(
-                ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
+                ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
             )
 
         resp = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), trx_estimate_obj_list)
         assert (
             len(resp["gasList"]) == transaction_rate
         ), f"Amount of transactions must be 1, but actual amount = {transaction_rate}"
-        assert resp["nonce"] == "0x0"
+
+        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
+        assert resp["nonce"] == hex(nonce)
         assert resp["maxFeePerGas"] > resp["maxPriorityFeePerGas"], (
             f"maxFeePerGas must be greater than maxPriorityFeePerGas, "
             f'but maxFeePerGas = {resp["maxFeePerGas"]} and maxPriorityFeePerGas = {resp["maxPriorityFeePerGas"]}'
@@ -95,8 +92,9 @@ class TestNeonRPCEstimateScheduledGas:
         treasury_index = int(resp["treasuryIndex"], 16)
         treasury_address = str(evm_loader.create_treasury_pool_address(treasury_index))
 
-        payer_nonce = evm_loader.get_neon_nonce(neon_user.neon_address, chain_id).to_bytes(8, "little")
-        tree_account = evm_loader.create_tree_account_address(neon_user.neon_address, payer_nonce, chain_id)
+        tree_account = evm_loader.create_tree_account_address(
+            neon_user.neon_address, nonce.to_bytes(8, "little"), chain_id
+        )
         authority_pool = Pubkey.find_program_address([b"Deposit"], evm_loader.loader_id)[0]
 
         assert resp["accountList"][0] == str(neon_user.solana_account.pubkey())
@@ -116,16 +114,12 @@ class TestNeonRPCEstimateScheduledGas:
         common_contract,
         evm_loader,
     ):
-        contract_data = 18
         transaction_rate = 3
-
-        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
-            ["uint256"], [contract_data]
-        )
+        data = decode_function_signature("setNumber(uint256)", [18])
         trx_estimate_obj_list = []
         for i in range(transaction_rate):
             trx_estimate_obj_list.append(
-                ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
+                ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
             )
 
         data_fail_tx = abi.function_signature_to_4byte_selector("doAssert()")
@@ -157,12 +151,10 @@ class TestNeonRPCEstimateScheduledGas:
     def test_send_value_greater_than_balance(
         self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
     ):
-        contract_data = "test text"
-        data = abi.function_signature_to_4byte_selector("setTextAndReceiveValue(string)") + eth_abi.encode(
-            ["string"], [contract_data]
-        )
+        balance = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
+        data = decode_function_signature("setTextAndReceiveValue(string)", ["test text"])
         trx_estimate_obj = ScheduledTrxEstimateRequest(
-            neon_user.checksum_address, common_contract.address, data.hex(), 10000
+            neon_user.checksum_address, common_contract.address, data, balance + 100000
         )
         resp = web3_client_sol.estimate_scheduled(
             neon_user.solana_account.pubkey(), [trx_estimate_obj], check_result=False
@@ -172,34 +164,33 @@ class TestNeonRPCEstimateScheduledGas:
         assert "code" in resp["error"]
         assert "message" in resp["error"], "message field not in response"
         assert resp["error"]["code"] == Error32603.CODE, f"code must be {Error32603.CODE}"
-        assert resp["error"]["message"] == Error32603.INTERNAL_ERROR, f"message must be {Error32603.INTERNAL_ERROR}"
+        assert (
+            resp["error"]["message"] == Error32603.INTERNAL_ERROR
+        ), f"message must be {Error32603.INTERNAL_ERROR}"  # TODO WHy ?
 
     def test_sender_has_no_sols(self, web3_client_sol, common_contract, evm_loader, treasury_pool, neon_user_no_sols):
-
-        contract_data = 18
         chain_id = web3_client_sol.chain_id
+        data = decode_function_signature("setNumber(uint256)", [18])
 
-        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
-            ["uint256"], [contract_data]
-        )
         trx_estimate_obj = ScheduledTrxEstimateRequest(
-            neon_user_no_sols.checksum_address, common_contract.address, data.hex()
+            neon_user_no_sols.checksum_address, common_contract.address, data
         )
         resp = web3_client_sol.estimate_scheduled(neon_user_no_sols.solana_account.pubkey(), [trx_estimate_obj])
 
+        # TODO WHy no error?
         assert (
             len(resp["gasList"]) == 1
         ), f'Amount of transactions must be 1, but actual amount = {len(resp["gasList"])}'
-        assert resp["nonce"] == "0x0"
+
+        nonce = web3_client_sol.get_nonce(neon_user_no_sols.checksum_address)
+        assert resp["nonce"] == hex(nonce)
         assert resp["maxFeePerGas"] > resp["maxPriorityFeePerGas"], (
             f"maxFeePerGas must be greater than maxPriorityFeePerGas, "
             f'but maxFeePerGas = {resp["maxFeePerGas"]} and maxPriorityFeePerGas = {resp["maxPriorityFeePerGas"]}'
         )
 
         assert_fields_are_hex(resp, ["chainId", "maxFeePerGas", "maxPriorityFeePerGas", "nonce", "treasuryIndex"])
-
         assert resp["chainId"] == hex(chain_id), f'ChainID must be {chain_id}, but actual = {resp["chainId"]}'
-
         assert (
             len(resp["accountList"]) == 6
         ), f'Amount of accounts must be 6, but actual amount = {len(resp["accountList"])}'
@@ -207,11 +198,8 @@ class TestNeonRPCEstimateScheduledGas:
     def test_no_function_in_called_contract(
         self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
     ):
-        contract_data = 18
-        data = abi.function_signature_to_4byte_selector("settNumber(uint256)") + eth_abi.encode(
-            ["uint256"], [contract_data]
-        )
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
+        data = decode_function_signature("setNumber(uint256)", [18])
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
         resp = web3_client_sol.estimate_scheduled(
             neon_user.solana_account.pubkey(), [trx_estimate_obj], check_result=False
         )
@@ -225,11 +213,8 @@ class TestNeonRPCEstimateScheduledGas:
         ), f"error message must be {Error3.EXECUTION_REVERTED}"
 
     def test_wrong_chain_id(self, web3_client, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
-        contract_data = 18
-        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
-            ["uint256"], [contract_data]
-        )
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
+        data = decode_function_signature("setNumber(uint256)", [18])
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
         resp = web3_client.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj], check_result=False)
 
         assert "error" in resp, "error field not in response"
@@ -262,11 +247,8 @@ class TestNeonRPCEstimateScheduledGas:
         error_msg,
     ):
 
-        contract_data = 18
-        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
-            ["uint256"], [contract_data]
-        )
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
+        data = decode_function_signature("setNumber(uint256)", [18])
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
 
         tx = {
             "fromAddress": trx_estimate_obj.from_address,
@@ -278,7 +260,10 @@ class TestNeonRPCEstimateScheduledGas:
         params = {"scheduledSolanaPayer": str(neon_user.solana_account.pubkey()), "transactions": [tx]}
 
         resp = json_rpc_client.send_rpc(method="neon_estimateScheduledGas", params=params)
-
         assert "error" in resp, "error field not in response"
         assert resp["error"]["code"] == error_code, f"error code must be {error_code} "
         assert resp["error"]["message"] == error_msg, f"error message must be {error_msg}"
+
+    # Todo what?
+    def test_child_transaction(self):
+        pass

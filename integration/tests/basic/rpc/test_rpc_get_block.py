@@ -1,4 +1,3 @@
-import eth_abi
 import pytest
 
 import allure
@@ -9,7 +8,7 @@ from integration.tests.basic.helpers.errors import Error32602
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
 from utils.consts import wSOL
-from utils.helpers import gen_hash_of_block
+from utils.helpers import gen_hash_of_block, decode_function_signature
 from utils.models.error import EthError32602
 from utils.models.result import (
     EthGetBlockByHashResult,
@@ -18,7 +17,6 @@ from utils.models.result import (
 )
 from utils.scheduled_trx import ScheduledTrxEstimateRequest, ScheduledTransaction
 from utils.web3client import NeonChainWeb3Client
-from eth_utils import abi
 
 
 @allure.feature("JSON-RPC validation")
@@ -193,12 +191,9 @@ class TestRpcGetBlock:
         method,
         full_trx,
     ):
-        contract_data = 18
-        data = abi.function_signature_to_4byte_selector("setNumber(uint256)") + eth_abi.encode(
-            ["uint256"], [contract_data]
-        )
 
-        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data.hex())
+        data = decode_function_signature("setNumber(uint256)", [18])
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
@@ -226,15 +221,10 @@ class TestRpcGetBlock:
             transaction = resp["result"]["transactions"][0]
             assert transaction["type"] == "0x80"
             assert transaction["scheduledIndex"] == "0x0"
-            assert transaction["scheduledPayer"] == tx_receipt["from"]
-
+            assert transaction["scheduledPayer"] == neon_user.checksum_address
             assert transaction["scheduledSolanaPayer"] == str(neon_user.solana_account.pubkey())
 
-            transactions_with_sig = evm_loader.get_signatures_for_address(neon_user.solana_account.pubkey()).value
-            signatures = []
-            for tx in transactions_with_sig:
-                signatures.append(str(tx.signature))
-            assert transaction["scheduledSolanaSignature"] in signatures
-
+            transactions_with_sig = web3_client_sol.get_solana_trx_by_neon(tx_receipt.transactionHash.hex())
+            assert transaction["scheduledSolanaSignature"] in transactions_with_sig["result"]
         else:
             EthGetBlockByHashResult(**resp)
