@@ -11,7 +11,7 @@ from spl.token.instructions import (
     get_associated_token_address,
 )
 
-from utils.erc20wrapper import REMAPPING_ZEPPELIN
+from utils.consts import REMAPPING_ZEPPELIN
 from utils.erc721ForMetaplex import ERC721ForMetaplex
 from utils.web3client import NeonChainWeb3Client
 
@@ -87,18 +87,6 @@ def invalid_nft_receiver(web3_client_session, faucet, accounts):
         "EIPs/ERC721/ERC721InvalidReceiver", "0.8.10", accounts[0], contract_name="ERC721Receiver"
     )
     return contract
-
-
-@pytest.fixture(scope="class")
-def multiple_actions_erc20(web3_client_session, accounts, erc20_spl_mintable):
-    contract, contract_deploy_tx = web3_client_session.deploy_and_get_contract(
-        "EIPs/ERC20/MultipleActions",
-        "0.8.24",
-        accounts[0],
-        contract_name="MultipleActionsERC20",
-        constructor_args=["Test TTT", "TTT", 18],
-    )
-    return accounts[0], contract
 
 
 @pytest.fixture(scope="class")

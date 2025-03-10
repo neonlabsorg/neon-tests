@@ -22,7 +22,7 @@ from clickfile import EnvName
 from conftest import EnvironmentConfig
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
-from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS
+from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS_USDT
 from utils.erc20 import ERC20
 from utils.erc20wrapper import ERC20Wrapper, ERC20NewWrapper
 from utils.evm_loader import EvmLoader
@@ -31,6 +31,7 @@ from utils.operator import Operator
 from utils.prices import get_sol_price_with_retry
 from utils.solana_client import SolanaClient
 from utils.web3client import NeonChainWeb3Client, Web3Client
+from .basic.helpers.chains import make_nonce_the_biggest_for_chain
 
 log = logging.getLogger(__name__)
 
@@ -74,12 +75,6 @@ def web3_client_sol(environment: EnvironmentConfig) -> tp.Union[Web3Client, None
 def web3_client_usdt(environment: EnvironmentConfig) -> tp.Union[Web3Client, None]:
     if "usdt" in environment.network_ids:
         return Web3Client(f"{environment.proxy_url}/usdt")
-
-
-@pytest.fixture(scope="session")
-def web3_client_eth(environment: EnvironmentConfig) -> tp.Union[Web3Client, None]:
-    if "eth" in environment.network_ids:
-        return Web3Client(f"{environment.proxy_url}/eth")
 
 
 @pytest.fixture(scope="session")
@@ -341,7 +336,6 @@ def account_with_all_tokens(
     solana_account,
     web3_client_session,
     web3_client_usdt,
-    web3_client_eth,
     web3_client_sol,
     environment: EnvironmentConfig,
     faucet,
@@ -364,27 +358,21 @@ def account_with_all_tokens(
             neon_account,
             lamports,
         )
-    for client in [web3_client_usdt, web3_client_eth]:
-        if client:
-            if client == web3_client_usdt:
-                mint = MULTITOKEN_MINTS["USDT"]
-            else:
-                mint = MULTITOKEN_MINTS["ETH"]
-            token_mint = Pubkey.from_string(mint)
+    token_mint = Pubkey.from_string(MULTITOKEN_MINTS_USDT)
 
-            evm_loader.mint_spl_to(
-                token_mint,
-                solana_account,
-                1000000000000000,
-            )
+    evm_loader.mint_spl_to(
+        token_mint,
+        solana_account,
+        1000000000000000,
+    )
 
-            evm_loader.sent_token_from_solana_to_neon(
-                solana_account,
-                token_mint,
-                neon_account,
-                100000000,
-                client.eth.chain_id,
-            )
+    evm_loader.sent_token_from_solana_to_neon(
+        solana_account,
+        token_mint,
+        neon_account,
+        100000000,
+        web3_client_usdt.chain_id,
+    )
     return neon_account
 
 
@@ -439,7 +427,8 @@ def event_caller_contract(web3_client, accounts) -> tp.Any:
 
 
 @pytest.fixture(scope="class")
-def event_caller_sol_chain(web3_client_sol, account_with_all_tokens) -> tp.Any:
+def event_caller_sol_chain(web3_client_sol, account_with_all_tokens, web3_client) -> tp.Any:
+    make_nonce_the_biggest_for_chain(account_with_all_tokens, web3_client_sol, [web3_client])
     event_caller, _ = web3_client_sol.deploy_and_get_contract("common/EventCaller", "0.8.12", account_with_all_tokens)
     yield event_caller
 
@@ -564,6 +553,13 @@ def counter_contract(web3_client, accounts) -> Contract:
 
 
 @pytest.fixture(scope="class")
+def counter_contract_sol_chain(web3_client_sol, account_with_all_tokens, web3_client) -> tp.Any:
+    make_nonce_the_biggest_for_chain(account_with_all_tokens, web3_client_sol, [web3_client])
+    contract, _ = web3_client_sol.deploy_and_get_contract("common/Counter", "0.8.10", account_with_all_tokens)
+    yield contract
+
+
+@pytest.fixture(scope="class")
 def nested_call_contracts(accounts, web3_client) -> tp.Generator[tuple[Contract, Contract, Contract], None, None]:
     contract_a, _ = web3_client.deploy_and_get_contract(
         "common/NestedCallsChecker", "0.8.12", accounts[0], contract_name="A"
@@ -605,6 +601,18 @@ def expected_error_checker(accounts, web3_client) -> tp.Generator[Contract, None
         "common/ExpectedErrorsChecker", "0.8.12", accounts[0], contract_name="A"
     )
     yield contract
+
+
+@pytest.fixture(scope="class")
+def multiple_actions_erc20(web3_client_session, accounts, erc20_spl_mintable):
+    contract, contract_deploy_tx = web3_client_session.deploy_and_get_contract(
+        "EIPs/ERC20/MultipleActions",
+        "0.8.24",
+        accounts[0],
+        contract_name="MultipleActionsERC20",
+        constructor_args=["Test TTT", "TTT", 18],
+    )
+    return accounts[0], contract
 
 
 @pytest.fixture(scope="class")
