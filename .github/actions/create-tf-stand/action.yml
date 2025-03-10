@@ -29,12 +29,6 @@ runs:
   using: composite
 
   steps:
-    - name: Change the working directory
-      shell: bash
-      run: |
-        pwd
-        cd ${{ inputs.working-directory }}
-        pwd
     - uses: hashicorp/setup-terraform@v3
     - uses: actions/setup-node@v4
       with:
@@ -43,9 +37,14 @@ runs:
       shell: bash
       run: |
         pwd
+    - name: Define path to python requirements action.yml
+      id: set-reqs-action-yml
+      run: |
+        reqs_action_yml = ${{ inputs.working-directory }}/.github/actions/python-requirements
+        echo "reqs_action_yml=$reqs_action_yml" | tee -a $GITHUB_ENV
     - name: Install python requirements
       id: requirements
-      uses: ./.github/actions/python-requirements
+      uses: ${{ env.reqs_action_yml }}
       with:
         working-directory: ${{ inputs.working-directory }}
     - name: Deploy stand with terraform
