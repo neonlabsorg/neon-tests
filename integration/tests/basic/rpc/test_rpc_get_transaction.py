@@ -388,11 +388,8 @@ class TestRpcGetTransaction:
         assert result["scheduledPayer"] == tx_receipt["from"]
         assert result["scheduledSolanaPayer"] == str(neon_user.solana_account.pubkey())
 
-        transactions_with_sig = evm_loader.get_signatures_for_address(neon_user.solana_account.pubkey()).value
-        signatures = []
-        for tx in transactions_with_sig:
-            signatures.append(str(tx.signature))
-        assert result["scheduledSolanaSignature"] in signatures
+        transactions_with_sig = web3_client_sol.get_solana_trx_by_neon(tx_receipt.transactionHash.hex())
+        assert result["scheduledSolanaSignature"] in transactions_with_sig["result"]
 
     @pytest.mark.neon_only
     @pytest.mark.parametrize(
@@ -468,11 +465,8 @@ class TestRpcGetTransaction:
         assert result["scheduledPayer"] == tx_receipt["from"]
         assert result["scheduledSolanaPayer"] == str(neon_user.solana_account.pubkey())
 
-        transactions_with_sig = evm_loader.get_signatures_for_address(neon_user.solana_account.pubkey()).value
-        signatures = []
-        for tx in transactions_with_sig:
-            signatures.append(str(tx.signature))
-        assert result["scheduledSolanaSignature"] in signatures
+        transactions_with_sig = web3_client_sol.get_solana_trx_by_neon(tx_receipt.transactionHash.hex())
+        assert result["scheduledSolanaSignature"] in transactions_with_sig["result"]
 
     @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
     @pytest.mark.neon_only

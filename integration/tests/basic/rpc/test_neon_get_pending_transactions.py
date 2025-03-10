@@ -23,14 +23,14 @@ class TestRPCNeonGetPendingTransactions:
         )
 
         web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
-
         pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
         status = pending_trx[nonce][0]["status"]
-        assert status == "Done", f"status must be 0x1, got {status}"
+        assert status == "Done", f"status must be Done, got {status}"
 
     def test_neon_get_pending_scheduled_transaction_no_tx_body(
         self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
     ):
+        nonce = hex(web3_client_sol.get_nonce(neon_user.checksum_address))
         data = decode_function_signature("setNumber(uint256)", [18])
 
         trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
@@ -43,7 +43,6 @@ class TestRPCNeonGetPendingTransactions:
         )
 
         pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
-        nonce = hex(web3_client_sol.get_nonce(neon_user.checksum_address))
         status = pending_trx[nonce][0]["status"]
         assert status == "NoTransactionBody", f"status must be NoTransactionBody, got {status}"
 
