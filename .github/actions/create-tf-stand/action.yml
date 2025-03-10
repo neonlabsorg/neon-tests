@@ -33,19 +33,9 @@ runs:
     - uses: actions/setup-node@v4
       with:
         node-version: 16
-    - name: pwd
-      shell: bash
-      run: |
-        pwd
-    - name: Define path to python requirements action.yml
-      id: set-reqs-action-yml
-      shell: bash
-      run: |
-        reqs_action_yml = ${{ inputs.working-directory }}/.github/actions/python-requirements
-        echo "reqs_action_yml=$reqs_action_yml" | tee -a $GITHUB_ENV
     - name: Install python requirements
       id: requirements
-      uses: ${{ env.reqs_action_yml }}
+      uses: neonlabsorg/neon-tests/.github/actions/python-requirements@NDEV-3568-neon-js-test-on-hetzner
       with:
         working-directory: ${{ inputs.working-directory }}
     - name: Deploy stand with terraform
