@@ -41,7 +41,7 @@ runs:
             --head_branch ${{ github.head_ref }} \
             --base_branch ${{ github.base_ref }} \
             --use-real-price ${{inputs.use_real_price}} \
-            --devnet-solana-url ${{env.DEVNET_SOLANA_URL}}
+            --devnet-solana-url ${{ secrets.SOLANA_URL }}
       - uses: actions/upload-artifact@v4
         with:
           name: tf-state
