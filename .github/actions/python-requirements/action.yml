@@ -14,17 +14,7 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: "3.10"
-    - name: Change the working directory
-      shell: bash
-      run: |
-        pwd
-        cd ${{ inputs.working-directory }}
-        pwd
-    - name: pwd
-      shell: bash
-      run: |
-        pwd
     - name: "Install python requirements"
       run: |
-        pip3 install --upgrade -r deploy/requirements/click.txt
+        pip3 install --upgrade -r ${{ inputs.working-directory }}/deploy/requirements/click.txt
       shell: bash
