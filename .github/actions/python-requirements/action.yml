@@ -17,7 +17,13 @@ runs:
     - name: Change the working directory
       shell: bash
       run: |
+        pwd
         cd ${{ inputs.working-directory }}
+        pwd
+    - name: pwd
+      shell: bash
+      run: |
+        pwd
     - name: "Install python requirements"
       run: |
         pip3 install --upgrade -r deploy/requirements/click.txt
