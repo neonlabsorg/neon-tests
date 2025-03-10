@@ -39,7 +39,7 @@ runs:
         node-version: 16
     - name: Install python requirements
       id: requirements
-      uses: ./.github/actions/python-requirements
+      uses: ${{ inputs.working-directory }}/.github/actions/python-requirements
       with:
         working-directory: ${{ inputs.working-directory }}
     - name: Deploy stand with terraform
