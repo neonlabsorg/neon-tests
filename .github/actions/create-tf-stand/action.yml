@@ -32,14 +32,19 @@ runs:
     - name: Change the working directory
       shell: bash
       run: |
+        pwd
         cd ${{ inputs.working-directory }}
+        pwd
     - uses: hashicorp/setup-terraform@v3
     - uses: actions/setup-node@v4
       with:
         node-version: 16
+    - name: pwd
+      run: |
+        pwd
     - name: Install python requirements
       id: requirements
-      uses: ${{ inputs.working-directory }}/.github/actions/python-requirements
+      uses: ./.github/actions/python-requirements
       with:
         working-directory: ${{ inputs.working-directory }}
     - name: Deploy stand with terraform
