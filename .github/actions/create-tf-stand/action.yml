@@ -39,6 +39,7 @@ runs:
         pwd
     - name: Define path to python requirements action.yml
       id: set-reqs-action-yml
+      shell: bash
       run: |
         reqs_action_yml = ${{ inputs.working-directory }}/.github/actions/python-requirements
         echo "reqs_action_yml=$reqs_action_yml" | tee -a $GITHUB_ENV
