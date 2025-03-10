@@ -44,6 +44,7 @@ runs:
         HETZNER_INSTANCE_TYPES: ${{ inputs.hetzner_instance_types }}
       shell: bash
       run: |
+        cd ${{ inputs.working-directory }}
         echo "USE PRICE: ${{ inputs.use_real_price }}"
         ssh_key='/tmp/ci-stands'
         echo "${{ inputs.ci_stands_key_hcloud  }}" >> ${ssh_key} && chmod 400 ${ssh_key}
@@ -55,7 +56,7 @@ runs:
     - uses: actions/upload-artifact@v4
       with:
         name: tf-state
-        path: deploy/hetzner/
+        path: ${{ inputs.working-directory }}/deploy/hetzner/
     - name: Set outputs
       id: share
       env:
@@ -63,13 +64,14 @@ runs:
         PROXY_IP: ${{ env.PROXY_IP }}
       shell: bash
       run: |
-          proxy_url=`python ./clickfile.py infra print-network-param -n 'terraform' -p 'proxy_url'`
-          echo "proxy_url=$proxy_url"
-          echo "solana_ip=${{ env.SOLANA_IP }}"
-          echo "proxy_ip=${{ env.PROXY_IP }}"
-          echo "proxy_url=$proxy_url" >> $GITHUB_OUTPUT
-          echo "proxy_ip=${{ env.PROXY_IP }}" >> $GITHUB_OUTPUT
-          echo "solana_ip=${{ env.SOLANA_IP }}" >> $GITHUB_OUTPUT
+        cd ${{ inputs.working-directory }}
+        proxy_url=`python ./clickfile.py infra print-network-param -n 'terraform' -p 'proxy_url'`
+        echo "proxy_url=$proxy_url"
+        echo "solana_ip=${{ env.SOLANA_IP }}"
+        echo "proxy_ip=${{ env.PROXY_IP }}"
+        echo "proxy_url=$proxy_url" >> $GITHUB_OUTPUT
+        echo "proxy_ip=${{ env.PROXY_IP }}" >> $GITHUB_OUTPUT
+        echo "solana_ip=${{ env.SOLANA_IP }}" >> $GITHUB_OUTPUT
     - name: Run Solana docker compose
       uses: appleboy/ssh-action@v1.2.1
       with:
@@ -77,6 +79,7 @@ runs:
         username: root
         key: ${{ inputs.ci_stands_key_hcloud  }}
         script: |
+          cd ${{ inputs.working-directory }}
           chmod a+x /tmp/solana_init.sh
           sudo /tmp/solana_init.sh
 
@@ -90,6 +93,7 @@ runs:
         key: ${{ inputs.ci_stands_key_hcloud  }}
         envs: SOLANA_IP
         script: |
+          cd ${{ inputs.working-directory }}
           echo $SOLANA_IP > /tmp/solana_host
           chmod a+x /tmp/proxy_init.sh
           sudo /tmp/proxy_init.sh

@@ -11,10 +11,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Change the working directory
-      shell: bash
-      run: |
-        cd ${{ inputs.working-directory }}
     - uses: hashicorp/setup-terraform@v3
     - uses: actions/setup-node@v4
       with:
@@ -22,7 +18,7 @@ runs:
     - name: Install python requirements
       if: always()
       id: requirements
-      uses: ./.github/actions/python-requirements
+      uses: neonlabsorg/neon-tests/.github/actions/python-requirements@NDEV-3568-neon-js-test-on-hetzner
       with:
         working-directory: ${{ inputs.working-directory }}
     - name: Prepare server for destroy terraform stand
@@ -33,15 +29,18 @@ runs:
         echo "${{ inputs.ci_stands_key_hcloud  }}" >> ${ssh_key} && chmod 400 ${ssh_key}
     - name: Download docker logs
       shell: bash
-      run: python3 ./clickfile.py infra download-logs
+      run: |
+        cd ${{ inputs.working-directory }}
+        python3 ./clickfile.py infra download-logs
     - name: Destroy stand with terraform
       shell: bash
       id: destroy
       if: always()
       run: |
+        cd ${{ inputs.working-directory }}
         python3 ./clickfile.py infra destroy
     - uses: actions/upload-artifact@v4
       if: always()
       with:
         name: Docker logs
-        path: ./logs/*
+        path: ${{ inputs.working-directory }}/logs/*
