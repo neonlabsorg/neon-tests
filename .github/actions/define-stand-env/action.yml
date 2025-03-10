@@ -59,8 +59,8 @@ runs:
         env:
           SOLANA_IP: ${{ env.SOLANA_IP || inputs.solana_ip }}
           PROXY_IP: ${{ env.PROXY_IP || inputs.proxy_ip }}
-          DEVNET_FAUCET_URL: ${{ inputs.devnet_faucet_url }}
-          DEVNET_SOLANA_URL: ${{ inputs.devnet_solana_url }}
+          DEVNET_FAUCET_URL: ${{ secrets.DEVNET_FAUCET_URL }}
+          DEVNET_SOLANA_URL: ${{ secrets.SOLANA_URL }}
 
         shell: bash
         run: |
