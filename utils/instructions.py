@@ -1,6 +1,6 @@
 import typing as tp
 from hashlib import sha256
-
+import pprint
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 import solders.system_program as sp
@@ -298,20 +298,38 @@ def make_CreateBalanceAccount(
     ether_address: bytes,
     account_pubkey: Pubkey,
     contract_pubkey: Pubkey,
+    additional_accounts: tp.List[Pubkey],
     chain_id,
 ) -> Instruction:
-    print("createBalanceAccount: {}".format(account_pubkey))
-
+    #print("createBalanceAccount::sender_pubkey: {}".format(sender_pubkey))
+    #print("createBalanceAccount::sp.ID: {}".format(sp.ID))
+    #print("createBalanceAccount::account_pubkey: {}".format(account_pubkey))
+    #print("createBalanceAccount::contract_pubkey: {}".format(contract_pubkey))
     data = bytes([0x30]) + ether_address + chain_id.to_bytes(8, "little")
+
+    accounts = [
+        AccountMeta(pubkey=sender_pubkey, is_signer=True, is_writable=True),
+        AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False), # standart solana program
+        AccountMeta(pubkey=account_pubkey, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=contract_pubkey, is_signer=False, is_writable=True),
+        # 2025-02-19T09:20:29.883238Z DEBUG rocksdb_sync::event_processor: Process update_account 1:8:763151 STARTUP ACCOUNT: eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU -> HcdyhuvGEWCpZ2JPHT5qWRm9kfZdtW4SZK346zfzM9No lamports: 1385040 len: 71 data: 0x0c2fce016b30a4c021002fb0c87a5ec97c546ff8d5fd00000000000000000030
+
+        # ! актуально для апдейтов контрактов
+        # для ячеек просто добавляем аккаунты на апдейт
+        # для контрактов добавляем два аккаунта : 1. тот который мы апдейтим: HcdyhuvGEWCpZ2JPHT5qWRm9kfZdtW4SZK346zfzM9No
+        #                                         2. считается как account_pubkey от данных pubkey(address(0x0c2fce016b30a4c021002fb0c87a5ec97c546ff8d5fd00000000000000000030))
+        # ! порядок не важен
+
+    ]
+    for add_acc in additional_accounts:
+        #print("Additional account ", add_acc)
+        accounts.append(
+            AccountMeta(pubkey=add_acc, is_signer=False, is_writable=True),
+        )
     return Instruction(
         program_id=evm_loader_id,
         data=data,
-        accounts=[
-            AccountMeta(pubkey=sender_pubkey, is_signer=True, is_writable=True),
-            AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
-            AccountMeta(pubkey=account_pubkey, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=contract_pubkey, is_signer=False, is_writable=True),
-        ],
+        accounts=accounts,
     )
 
 

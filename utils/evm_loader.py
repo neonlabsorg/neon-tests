@@ -7,6 +7,7 @@ from typing import Union
 
 import spl
 import typing as tp
+import pprint
 
 from eth_account.signers.local import LocalAccount
 from eth_keys import keys as eth_keys
@@ -17,7 +18,7 @@ from solders.pubkey import Pubkey
 import solders.system_program as sp
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
-from solana.transaction import Transaction
+from solana.transaction import AccountMeta, Transaction
 from solders.rpc.responses import SendTransactionResp, GetTransactionResp
 from spl.token.instructions import get_associated_token_address, MintToParams, ApproveParams, approve
 from spl.token.constants import TOKEN_PROGRAM_ID
@@ -83,18 +84,18 @@ class EvmLoader(SolanaClient):
         self.sol_chain_id = sol_chain_id
         self.neon_token_mint_id = Pubkey.from_string(neon_token_mint_str)
 
-    def create_balance_account(self, ether: Union[str, bytes], sender, chain_id: int | None = None) -> Pubkey:
+    def create_balance_account(self, ether: Union[str, bytes], sender, chain_id: int | None = None, additional: tp.List[Pubkey] = []) -> Pubkey:
         chain_id = chain_id or self.chain_id
 
         account_pubkey = self.ether2balance(ether, chain_id)
-        if not self.account_exists(account_pubkey):
+        #if not self.account_exists(account_pubkey) or additional:
+        if True:
             contract_pubkey = Pubkey.from_string(self.ether2program(ether)[0])
-            trx = Transaction()
-            trx.add(
-                make_CreateBalanceAccount(
-                    self.loader_id, sender.pubkey(), ether2bytes(ether), account_pubkey, contract_pubkey, chain_id
-                )
+            instruction = make_CreateBalanceAccount(
+                self.loader_id, sender.pubkey(), ether2bytes(ether), account_pubkey, contract_pubkey, additional, chain_id
             )
+            # pprint.pp(instruction)
+            trx = TransactionWithComputeBudget(sender, instructions = [instruction])
             self.send_tx_and_check_status_ok(trx, sender)
         return account_pubkey
 
@@ -602,18 +603,19 @@ class EvmLoader(SolanaClient):
 
         return receipt
 
-    def make_new_user(self, sender: Keypair) -> Caller:
+    def make_new_user(self, sender: Keypair, additional: tp.List[Pubkey] = []) -> Caller:
+        pprint.pp(sender)
         key = Keypair()
-        if self.get_solana_balance(key.pubkey()) == 0:
-            self.request_airdrop(key.pubkey(), 1000 * 10**9, commitment=Confirmed)
+        #if self.get_solana_balance(key.pubkey()) == 0:
+        #    self.request_airdrop(key.pubkey(), 1000 * 10**9, commitment=Confirmed)
         caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
         caller_solana = self.ether2program(caller_ether)[0]
         caller_balance = self.ether2balance(caller_ether)
         caller_token = get_associated_token_address(caller_balance, self.neon_token_mint_id)
-
+        pprint.pp(caller_ether.hex())
         if self.get_solana_balance(caller_balance) == 0:
             print(f"Create Neon account {caller_ether.hex()} for user {caller_balance}")
-            self.create_balance_account(caller_ether, sender)
+            self.create_balance_account(caller_ether, sender, additional=additional)
 
         print("Account solana address:", key.pubkey())
         print(
