@@ -217,7 +217,10 @@ class TestRpcGetBlock:
         )
 
         if full_trx:
+            scheduled_trxs = list(filter(lambda obj: obj["type"] == "0x80", resp["result"]["transactions"]))
+            resp["result"]["transactions"] = scheduled_trxs
             EthGetScheduledTxBlockByHashFullResult(**resp)
+
             transaction = resp["result"]["transactions"][0]
             assert transaction["type"] == "0x80"
             assert transaction["scheduledIndex"] == "0x0"
