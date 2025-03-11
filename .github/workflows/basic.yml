@@ -114,15 +114,6 @@ jobs:
     env:
       NETWORK: ${{ needs.set-network.outputs.network }}
     steps:
-      - name: Setup `terraform` by cron schedule
-        id: setup_terraform_stand
-        if: github.event.schedule=='0 1 * * 0,1,2,3,4'
-        run: |
-          echo "NETWORK=terraform" >> $GITHUB_ENV
-      - name: Setup `devnet` by cron schedule
-        if: github.event.schedule=='0 2 * * 0,1,2,3,4'
-        run: |
-          echo "NETWORK=devnet" >> $GITHUB_ENV
       - uses: actions/checkout@v4
 
       - name: "Prepare terraform stand"
