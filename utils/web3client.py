@@ -619,19 +619,18 @@ class Web3Client:
         return resp["result"]
 
     @allure.step("Estimate list of scheduled transactions")
-    def estimate_scheduled(
-        self, solana_payer: Pubkey, trx_list: tp.List[ScheduledTrxEstimateRequest], check_result: bool = True
-    ) -> dict:
+    def estimate_scheduled(self, solana_payer: Pubkey, trx_list_estimate: tp.List[ScheduledTrxEstimateRequest]) -> dict:
         transactions = []
-        for trx in trx_list:
-            trx = {
+        for trx in trx_list_estimate:
+            transaction = {
                 "fromAddress": trx.from_address,
                 "toAddress": trx.to_address,
                 "data": trx.data,
                 "value": trx.value,
-                "childTransaction": trx.child_transaction,  # TODO На это
             }
-            transactions.append(trx)
+            if trx.child_transaction:
+                transaction["childTransaction"] = trx.child_transaction
+            transactions.append(transaction)
         params = {"scheduledSolanaPayer": str(solana_payer), "transactions": transactions}
         json = {
             "jsonrpc": "2.0",
@@ -643,10 +642,8 @@ class Web3Client:
             self._proxy_url,
             json=json,
         ).json()
-        if check_result:
-            assert "result" in resp, f"Failed to estimate transactions: {resp}"
-            return resp["result"]
-        return resp
+        assert "result" in resp, f"Failed to estimate transactions: {resp}"
+        return resp["result"]
 
 
 class NeonChainWeb3Client(Web3Client):
