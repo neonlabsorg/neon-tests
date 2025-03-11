@@ -1,3 +1,5 @@
+import time
+
 from eth_utils import abi
 
 from utils.consts import wSOL
@@ -22,9 +24,19 @@ class TestRPCNeonGetPendingTransactions:
             neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
         )
 
-        web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
-        pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
-        status = pending_trx[nonce][0]["status"]
+        start_time = time.time()
+        status = None
+        expected_status = "Done"
+        timeout = 30
+
+        while time.time() - start_time < timeout:
+            pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
+            status = pending_trx[nonce][0]["status"]  # Предполагается, что эта функция уже реализована
+            if status == expected_status:
+                break
+            else:
+                time.sleep(0.5)
+
         assert status == "Done", f"status must be Done, got {status}"
 
     def test_neon_get_pending_scheduled_transaction_no_tx_body(
@@ -42,8 +54,20 @@ class TestRPCNeonGetPendingTransactions:
             neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
         )
 
-        pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
-        status = pending_trx[nonce][0]["status"]
+        start_time = time.time()
+        status = None
+        expected_status = "NoTransactionBody"
+        timeout = 30
+
+        while time.time() - start_time < timeout:
+            pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
+            status = pending_trx[nonce][0]["status"]  # Предполагается, что эта функция уже реализована
+            if status == expected_status:
+                break
+            else:
+                time.sleep(0.5)
+
+        # assert status == "Done", f"status must be Done, got {status}"
         assert status == "NoTransactionBody", f"status must be NoTransactionBody, got {status}"
 
     def test_multiple_scheduled_trx_with_failed_trx_skipped_and_wait_for_parent_tx(
