@@ -9,14 +9,13 @@ from spl.token.instructions import get_associated_token_address, create_associat
 from web3.types import TxReceipt
 from spl.token.constants import TOKEN_PROGRAM_ID
 
-from clickfile import EXTERNAL_CONTRACT_PATH
 from . import web3client, stats_collector
 from .evm_loader import EvmLoader
 from .metaplex import create_metadata_instruction_data, create_metadata_instruction
 from .neon_user import NeonUser
+from .consts import REMAPPING_ZEPPELIN
 
 INIT_TOKEN_AMOUNT = 1000000000000000
-REMAPPING_ZEPPELIN = {"@openzeppelin": str(EXTERNAL_CONTRACT_PATH / "neon-contracts/node_modules/@openzeppelin")}
 
 
 class ERC20Wrapper:
@@ -384,7 +383,14 @@ class ERC20NewWrapper:
             address = address.address
         return self.contract.functions.getTokenMintATA(address).call()
 
-    def pop_up_balance(self, evm_loader: EvmLoader, recipient: NeonUser, pda_amount: int, ata_amount: int) -> None:
+    def pop_up_balance(
+        self,
+        evm_loader: EvmLoader,
+        recipient: NeonUser,
+        pda_amount: int,
+        ata_amount: int,
+        approve_ata_amount: int = None,
+    ) -> None:
         """
         Top up a recipient's token balances by transferring tokens to both their PDA and ATA accounts.
 
@@ -392,6 +398,7 @@ class ERC20NewWrapper:
         recipient: The target user object receiving the token top-up.
         pda_amount (int): The number of tokens to transfer to the recipient's PDA account.
         ata_amount (int): The number of tokens to transfer to the recipient's ATA account.
+        approve_ata_amount (int): The number of tokens to approve for delegate contract address.
 
         Returns: None
 
@@ -415,6 +422,7 @@ class ERC20NewWrapper:
                     recipient.solana_account.pubkey(), recipient.solana_account.pubkey(), mint
                 )
             )
+            approve_ata_amount = approve_ata_amount or ata_amount
             trx.add(
                 approve(
                     ApproveParams(
@@ -422,7 +430,7 @@ class ERC20NewWrapper:
                         source=ata_account,
                         delegate=solana_contract_account,
                         owner=recipient.solana_account.pubkey(),
-                        amount=ata_amount,
+                        amount=approve_ata_amount,
                     )
                 )
             )
