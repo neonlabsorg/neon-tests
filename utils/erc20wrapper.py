@@ -202,7 +202,6 @@ class ERC20NewWrapper:
         bank_account=None,
     ) -> None:
         self.solana_associated_token_acc = None
-        self.token_mint = None
         self.solana_acc = solana_account
         self.evm_loader_id = evm_loader_id
         self.web3_client = web3_client
@@ -222,7 +221,6 @@ class ERC20NewWrapper:
         self.decimals = decimals
         self.sol_client = sol_client
         self.contract_address = contract_address
-        self.token_mint: Token
         self.solana_associated_token_acc: Pubkey
 
         if not self.contract_address:
@@ -237,6 +235,7 @@ class ERC20NewWrapper:
             solc_version="0.8.28",
             import_remapping=REMAPPING_ZEPPELIN,
         )
+        self.token_mint = Pubkey(self.contract.functions.tokenMint().call())
 
     @property
     def address(self):
@@ -408,18 +407,17 @@ class ERC20NewWrapper:
         # This transfers 1000 tokens to the recipient's PDA and 500 tokens to their ATA.
         """
 
-        mint = Pubkey(self.contract.functions.tokenMint().call())
         if pda_amount:
             self.transfer(self.account, recipient.checksum_address, pda_amount)  # PDA top up
 
         if ata_amount is not None:
-            ata_account = get_associated_token_address(recipient.solana_account.pubkey(), mint)
+            ata_account = get_associated_token_address(recipient.solana_account.pubkey(), self.token_mint)
             solana_contract_account = Pubkey.from_string(evm_loader.ether2program(self.contract.address)[0])
 
             trx = Transaction()
             trx.add(
                 create_associated_token_account(
-                    recipient.solana_account.pubkey(), recipient.solana_account.pubkey(), mint
+                    recipient.solana_account.pubkey(), recipient.solana_account.pubkey(), self.token_mint
                 )
             )
             approve_ata_amount = approve_ata_amount or ata_amount
