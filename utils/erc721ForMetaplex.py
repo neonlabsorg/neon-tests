@@ -19,25 +19,13 @@ class ERC721ForMetaplex:
         contract_address=None,
     ):
         self.web3_client = web3_client
-        self.account = account or web3_client.create_account()
-        faucet.request_neon(self.account.address, 600)
+        self.account = account or web3_client.create_account_with_balance()
         if contract_address:
             self.contract = web3_client.get_deployed_contract(
                 contract_address, contract_file=contract, contract_name=contract_name
             )
         else:
             self.contract = self.deploy(contract, contract_name)
-
-    @allure.step("Make tx object")
-    def make_tx_object(self, from_address, gasPrice=None, gas=None):
-        tx = {
-            "from": from_address,
-            "nonce": self.web3_client.eth.get_transaction_count(from_address),
-            "gasPrice": gasPrice if gasPrice is not None else self.web3_client.gas_price(),
-        }
-        if gas is not None:
-            tx["gas"] = gas
-        return tx
 
     @allure.step("Deploy contract")
     def deploy(self, contract, contract_name):
@@ -50,7 +38,7 @@ class ERC721ForMetaplex:
     @stats_collector.cost_report_from_receipt
     def mint(self, seed, to_address, uri, gas_price=None, gas=None, signer=None) -> int:
         signer = self.account if signer is None else signer
-        tx = self.make_tx_object(signer.address, gas_price, gas)
+        tx = self.web3_client.make_raw_tx(signer, gas_price=gas_price, gas=gas)
         instruction_tx = self.contract.functions.mint(seed, to_address, uri).build_transaction(tx)
         resp = self.web3_client.send_transaction(signer, instruction_tx)
         ERC721ForMetaplex.receipt = resp  # save for @stats_collector.cost_report_from_receipt
