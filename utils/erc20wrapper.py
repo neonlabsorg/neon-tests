@@ -1,4 +1,3 @@
-from spl.token.client import Token
 from eth_account.signers.local import LocalAccount
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
@@ -35,7 +34,6 @@ class ERC20Wrapper:
         bank_account=None,
     ):
         self.solana_associated_token_acc = None
-        self.token_mint = None
         self.solana_acc = solana_account
         self.evm_loader_id = evm_loader_id
         self.web3_client = web3_client
@@ -54,13 +52,13 @@ class ERC20Wrapper:
         self.decimals = decimals
         self.sol_client = sol_client
         self.contract_address = contract_address
-        self.token_mint: Token
         self.solana_associated_token_acc: Pubkey
 
         if not contract_address:
             self.contract_address = self.deploy_wrapper(mintable)
 
         self.contract = self.web3_client.get_deployed_contract(self.contract_address, "EIPs/ERC20/IERC20ForSpl")
+        self.token_mint = Pubkey(self.contract.functions.tokenMint().call())
 
     @property
     def address(self):
