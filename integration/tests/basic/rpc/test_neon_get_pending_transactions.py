@@ -18,18 +18,18 @@ class TestRPCNeonGetPendingTransactions:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(
+        tree_account = evm_loader.create_tree_account(
             neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
         )
 
         expected_status = "Done"
         wait_condition(
             lambda: web3_client_sol.get_pending_transactions(neon_user.checksum_address)[nonce][0]["status"]
-            == expected_status
+            == expected_status,
+            delay=2,
+            timeout_sec=60,
         )
-        pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
-        status = pending_trx[nonce][0]["status"]
-        assert status == expected_status, f"status must be {expected_status}, got {status}"
+        wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=2)
 
     def test_neon_get_pending_scheduled_transaction_no_tx_body(
         self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
@@ -46,18 +46,18 @@ class TestRPCNeonGetPendingTransactions:
             nonce=nonce,
         )
         tree_acc_data.add_trx(tx, 0xFFFF, 0)
-        evm_loader.create_tree_account_multiple(
+        tree_account = evm_loader.create_tree_account_multiple(
             neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"], chain_id=web3_client_sol.chain_id
         )
         expected_status = "NoTransactionBody"
         wait_condition(
             lambda: web3_client_sol.get_pending_transactions(neon_user.checksum_address)[nonce][0]["status"]
-            == expected_status
+            == expected_status,
+            timeout_sec=60,
+            delay=2,
+            log=10,
         )
-
-        pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
-        status = pending_trx[nonce][0]["status"]
-        assert status == expected_status, f"status must be {expected_status}, got {status}"
+        wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=1)
 
     def test_multiple_scheduled_trx_with_failed_trx_skipped_and_wait_for_parent_tx(
         self,
@@ -148,6 +148,7 @@ class TestRPCNeonGetPendingTransactions:
         assert resp1["status"] == 0
         resp2 = web3_client_sol.wait_for_transaction_receipt(tx1.hash())
         assert resp2["status"] == 0
+
         pending_trx = web3_client_sol.get_pending_transactions(neon_user.checksum_address)
         assert len(pending_trx) >= 1
         assert pending_trx[hex(nonce)][0]["status"] == "Done"

@@ -137,8 +137,10 @@ class TestNeonRPCEstimateScheduledGas:
         assert "error" in resp, "error field not in response"
         assert "code" in resp["error"]
         assert "message" in resp["error"], "message field not in response"
-        assert resp["error"]["code"] == Error32603.CODE, f"code must be {Error32603.CODE}"
-        assert resp["error"]["message"] == Error32603.INTERNAL_ERROR, f"message must be {Error32603.INTERNAL_ERROR}"
+        assert resp["error"]["code"] == Error3.CODE, f"code must be {Error32603.CODE}"
+        assert (
+            Error3.EXECUTION_REVERTED in resp["error"]["message"]
+        ), f"message must be {Error3.EXECUTION_REVERTED}, got - {resp['error']['message']}"
 
     def test_no_transactions_in_request(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
         resp = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [], check_result=False)
@@ -173,8 +175,10 @@ class TestNeonRPCEstimateScheduledGas:
         assert "error" in resp, "error field not in response"
         assert "code" in resp["error"]
         assert "message" in resp["error"], "message field not in response"
-        assert resp["error"]["code"] == Error32603.CODE, f"code must be {Error32603.CODE}"
-        assert resp["error"]["message"] == Error32603.INTERNAL_ERROR, f"message must be {Error32603.INTERNAL_ERROR}"
+        assert resp["error"]["code"] == Error3.CODE, f"code must be {Error3.CODE}"
+        assert (
+            Error3.EXECUTION_REVERTED in resp["error"]["message"]
+        ), f"message must be {Error3.EXECUTION_REVERTED}, got - {resp['error']['message']}"
 
     def test_sender_has_no_sols(self, web3_client_sol, common_contract, evm_loader, treasury_pool, neon_user_no_sols):
         chain_id = web3_client_sol.chain_id

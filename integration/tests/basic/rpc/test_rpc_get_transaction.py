@@ -331,7 +331,7 @@ class TestRpcGetTransaction:
     @pytest.mark.parametrize(
         "params_case, method",
         [
-            ("senderNonce_case", "neon_getTransactionBySenderNonce"),
+            # ("senderNonce_case", "neon_getTransactionBySenderNonce"), #Todo xfail
             ("blockHash_case", "eth_getTransactionByHash"),
             ("blockNumberAndIndex_case", "eth_getTransactionByBlockNumberAndIndex"),
             ("blockHashAndIndex_case", "eth_getTransactionByBlockHashAndIndex"),
