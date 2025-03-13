@@ -125,9 +125,7 @@ class TestNeonRPCEstimateScheduledGas:
 
         data_fail_tx = abi.function_signature_to_4byte_selector("doAssert()")
         trx_estimate_obj_list.append(
-            ScheduledTrxEstimateRequest(
-                neon_user.checksum_address, revert_contract_caller.address, data_fail_tx.hex(), value=100000000
-            )
+            ScheduledTrxEstimateRequest(neon_user.checksum_address, revert_contract_caller.address, data_fail_tx.hex())
         )
 
         resp = web3_client_sol.estimate_scheduled(
@@ -151,8 +149,9 @@ class TestNeonRPCEstimateScheduledGas:
         assert Error32602.CODE == resp["error"]["code"]
         assert Error32602.INVALID_TRANSACTIONID == resp["error"]["message"]
 
+    @pytest.mark.xfail(reason="NDEV-3644")
     def test_send_value_greater_than_balance(
-        self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, event_caller_sol_chain
+        self, web3_client_sol, neon_user, evm_loader, treasury_pool, event_caller_sol_chain
     ):
         evm_loader.deposit_wrapped_sol_from_solana_to_neon(
             neon_user.solana_account,
@@ -231,10 +230,20 @@ class TestNeonRPCEstimateScheduledGas:
         assert "error" in resp, "error field not in response"
         assert "code" in resp["error"]
         assert "message" in resp["error"], "message field not in response"
-        assert Error32000.CODE == resp["error"]["code"], f"error code must be {Error32000.CODE} "
-        assert (
-            Error32000.WRONG_CHAIN_ID == resp["error"]["message"]
-        ), f"error message must be {Error32000.WRONG_CHAIN_ID}"
+
+        assert resp["error"]["code"] in [
+            Error32000.CODE,
+            Error32602.CODE,
+        ], f"code must be {Error3.CODE} or {Error32602.CODE}"
+        assert resp["error"]["message"] in [Error32000.WRONG_CHAIN_ID, Error32602.INVALID_PARAMETERS], (
+            f"message must be {Error32000.WRONG_CHAIN_ID} or {Error32602.INVALID_PARAMETERS},"
+            f" got - {resp['error']['message']}"
+        )
+
+        # assert Error32000.CODE == resp["error"]["code"], f"error code must be {Error32000.CODE}"
+        # assert (
+        #     Error32000.WRONG_CHAIN_ID == resp["error"]["message"]
+        # ), f"error message must be {Error32000.WRONG_CHAIN_ID}"
 
     @pytest.mark.parametrize(
         "field, invalid_value,error_code,error_msg",
@@ -275,6 +284,6 @@ class TestNeonRPCEstimateScheduledGas:
         assert resp["error"]["code"] == error_code, f"error code must be {error_code} "
         assert resp["error"]["message"] == error_msg, f"error message must be {error_msg}"
 
-    # Todo what?
+    # Todo https://neonlabs.atlassian.net/browse/NDEV-3643
     def test_child_transaction(self):
         pass

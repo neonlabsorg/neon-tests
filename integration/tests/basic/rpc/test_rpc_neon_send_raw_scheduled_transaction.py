@@ -114,14 +114,14 @@ class TestNeonRPCSendRAWTransaction:
         assert Error32000.CODE == resp["error"]["code"]
         assert Error32000.WRONG_CHAIN_ID == resp["error"]["message"]
 
-    def test_bad_hash_of_trx(self, json_sol_rpc_client):
+    def test_bad_empty_hash_of_trx(self, json_sol_rpc_client):
         resp = json_sol_rpc_client.send_rpc(method="neon_sendRawScheduledTransaction", params=[""])
         assert "error" in resp
         assert Error32602.CODE == resp["error"]["code"]
         assert Error32602.WRONG_TRANSACTION_FORMAT == resp["error"]["message"]
 
     @pytest.mark.parametrize("case", ("empty_param", "broken_param"))
-    def test_bad_hash_of_trx_2(
+    def test_bad_hash_of_trx(
         self, json_sol_rpc_client, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool, case
     ):
         data = decode_function_signature("setNumber(uint256)", [18])
