@@ -4,6 +4,7 @@ from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
+from spl.token.client import Token
 from spl.token.instructions import get_associated_token_address, create_associated_token_account, approve, ApproveParams
 from web3.types import TxReceipt
 from spl.token.constants import TOKEN_PROGRAM_ID
@@ -34,6 +35,7 @@ class ERC20Wrapper:
         bank_account=None,
     ):
         self.solana_associated_token_acc = None
+        self.token_mint: Token
         self.solana_acc = solana_account
         self.evm_loader_id = evm_loader_id
         self.web3_client = web3_client
@@ -58,7 +60,7 @@ class ERC20Wrapper:
             self.contract_address = self.deploy_wrapper(mintable)
 
         self.contract = self.web3_client.get_deployed_contract(self.contract_address, "EIPs/ERC20/IERC20ForSpl")
-        self.token_mint = Pubkey(self.contract.functions.tokenMint().call())
+        self.token_mint_pubkey = Pubkey(self.contract.functions.tokenMint().call())
 
     @property
     def address(self):
@@ -233,7 +235,7 @@ class ERC20NewWrapper:
             solc_version="0.8.28",
             import_remapping=REMAPPING_ZEPPELIN,
         )
-        self.token_mint = Pubkey(self.contract.functions.tokenMint().call())
+        self.token_mint_pubkey = Pubkey(self.contract.functions.tokenMint().call())
 
     @property
     def address(self):
@@ -409,13 +411,13 @@ class ERC20NewWrapper:
             self.transfer(self.account, recipient.checksum_address, pda_amount)  # PDA top up
 
         if ata_amount is not None:
-            ata_account = get_associated_token_address(recipient.solana_account.pubkey(), self.token_mint)
+            ata_account = get_associated_token_address(recipient.solana_account.pubkey(), self.token_mint_pubkey)
             solana_contract_account = Pubkey.from_string(evm_loader.ether2program(self.contract.address)[0])
 
             trx = Transaction()
             trx.add(
                 create_associated_token_account(
-                    recipient.solana_account.pubkey(), recipient.solana_account.pubkey(), self.token_mint
+                    recipient.solana_account.pubkey(), recipient.solana_account.pubkey(), self.token_mint_pubkey
                 )
             )
             approve_ata_amount = approve_ata_amount or ata_amount

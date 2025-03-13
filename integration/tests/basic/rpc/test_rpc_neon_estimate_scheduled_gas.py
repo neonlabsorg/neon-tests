@@ -22,7 +22,9 @@ class TestNeonRPCEstimateScheduledGas:
         ata_amount = 1_000
         erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, ata_amount)
 
-        my_ata = get_associated_token_address(neon_user.solana_account.pubkey(), erc20_spl_mintable_new.token_mint)
+        my_ata = get_associated_token_address(
+            neon_user.solana_account.pubkey(), erc20_spl_mintable_new.token_mint_pubkey
+        )
         solana_contract_account = Pubkey.from_string(
             evm_loader.ether2program(erc20_spl_mintable_new.contract.address)[0]
         )
@@ -30,7 +32,9 @@ class TestNeonRPCEstimateScheduledGas:
         trx = Transaction()
         trx.add(
             create_associated_token_account(
-                neon_user.solana_account.pubkey(), neon_user.solana_account.pubkey(), erc20_spl_mintable_new.token_mint
+                neon_user.solana_account.pubkey(),
+                neon_user.solana_account.pubkey(),
+                erc20_spl_mintable_new.token_mint_pubkey,
             )
         )
         trx.add(
@@ -76,7 +80,9 @@ class TestNeonRPCEstimateScheduledGas:
         ata_amount = 1_000
         erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, ata_amount)
 
-        my_ata = get_associated_token_address(neon_user.solana_account.pubkey(), erc20_spl_mintable_new.token_mint)
+        my_ata = get_associated_token_address(
+            neon_user.solana_account.pubkey(), erc20_spl_mintable_new.token_mint_pubkey
+        )
 
         data1 = decode_function_signature(
             "transferSolanaFrom(address,bytes32,uint64)",
