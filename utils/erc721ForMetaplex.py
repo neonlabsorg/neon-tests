@@ -49,7 +49,7 @@ class ERC721ForMetaplex:
     @allure.step("Safe mint")
     def safe_mint(self, seed, to_address, uri, data=None, gas_price=None, gas=None, signer=None):
         signer = self.account if signer is None else signer
-        tx = self.make_tx_object(signer.address, gas_price, gas)
+        tx = self.web3_client.make_raw_tx(signer.address, gas_price=gas_price, gas=gas)
         if data is None:
             instruction_tx = self.contract.functions.safeMint(seed, to_address, uri).build_transaction(tx)
         else:
@@ -62,7 +62,7 @@ class ERC721ForMetaplex:
     @allure.step("Transfer from")
     @stats_collector.cost_report_from_receipt
     def transfer_from(self, address_from, address_to, token_id, signer, gas_price=None, gas=None) -> TxReceipt:
-        tx = self.make_tx_object(signer.address, gas_price, gas)
+        tx = self.web3_client.make_raw_tx(signer, gas_price=gas_price, gas=gas)
         instruction_tx = self.contract.functions.transferFrom(address_from, address_to, token_id).build_transaction(tx)
         resp = self.web3_client.send_transaction(signer, instruction_tx)
         return resp
@@ -71,7 +71,7 @@ class ERC721ForMetaplex:
     def safe_transfer_from(
         self, address_from, address_to, token_id, signer, data=None, gas_price=None, gas=None
     ) -> TxReceipt:
-        tx = self.make_tx_object(signer.address, gas_price, gas)
+        tx = self.web3_client.make_raw_tx(signer, gas_price=gas_price, gas=gas)
         if data is None:
             instruction_tx = self.contract.functions.safeTransferFrom(
                 address_from, address_to, token_id
@@ -86,21 +86,21 @@ class ERC721ForMetaplex:
     @allure.step("Approve")
     @stats_collector.cost_report_from_receipt
     def approve(self, address_to, token_id, signer, gas_price=None, gas=None) -> TxReceipt:
-        tx = self.make_tx_object(signer.address, gas_price, gas)
+        tx = self.web3_client.make_raw_tx(signer, gas_price=gas_price, gas=gas)
         instruction_tx = self.contract.functions.approve(address_to, token_id).build_transaction(tx)
         resp = self.web3_client.send_transaction(signer, instruction_tx)
         return resp
 
     @allure.step("Set approval for all")
     def set_approval_for_all(self, operator, approved, signer, gas_price=None, gas=None) -> TxReceipt:
-        tx = self.make_tx_object(signer.address, gas_price, gas)
+        tx = self.web3_client.make_raw_tx(signer, gas_price=gas_price, gas=gas)
         instruction_tx = self.contract.functions.setApprovalForAll(operator, approved).build_transaction(tx)
         resp = self.web3_client.send_transaction(signer, instruction_tx)
         return resp
 
     @allure.step("Transfer solana from")
     def transfer_solana_from(self, from_address, to_address, token_id, signer, gas_price=None, gas=None) -> TxReceipt:
-        tx = self.make_tx_object(signer.address, gas_price, gas)
+        tx = self.web3_client.make_raw_tx(signer, gas_price=gas_price, gas=gas)
         instruction_tx = self.contract.functions.transferSolanaFrom(
             from_address, to_address, token_id
         ).build_transaction(tx)
