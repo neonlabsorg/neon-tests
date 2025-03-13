@@ -3,9 +3,9 @@ import random
 import base58
 import pytest
 from solana.rpc.commitment import Confirmed
+from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from web3.contract import Contract
-from solders.keypair import Keypair
 
 from utils.accounts import EthAccounts
 from utils.helpers import wait_condition
@@ -148,7 +148,8 @@ class TestQueryAccountLib:
                 lamports=additional_lamports,
                 commitment=Confirmed,
             )
-        expected_lamports_after = expected_lamports_before + additional_lamports
+        account_info = sol_client.get_account_info(new_solana_account.pubkey(), commitment=Confirmed)
+        expected_lamports_after = account_info.value.lamports
 
         success, actual_lamports_after = query_account_caller_contract.functions.queryLamports(
             solana_account_address_uint256
