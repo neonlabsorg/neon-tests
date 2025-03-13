@@ -8,7 +8,7 @@ from integration.tests.basic.helpers.errors import Error32602
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
 from utils.consts import wSOL
-from utils.helpers import gen_hash_of_block, decode_function_signature
+from utils.helpers import gen_hash_of_block, decode_function_signature, wait_condition
 from utils.models.error import EthError32602
 from utils.models.result import (
     EthGetBlockByHashResult,
@@ -198,7 +198,7 @@ class TestRpcGetBlock:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(
+        tree_account = evm_loader.create_tree_account(
             neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
         )
 
@@ -215,6 +215,8 @@ class TestRpcGetBlock:
             method=method,
             params=params,
         )
+
+        wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=2)
 
         if full_trx:
             scheduled_trxs = list(filter(lambda obj: obj["type"] == "0x80", resp["result"]["transactions"]))
