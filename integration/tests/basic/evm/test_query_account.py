@@ -132,9 +132,10 @@ class TestQueryAccountLib:
 
         solana_account_address_uint256 = int.from_bytes(new_solana_account.pubkey(), byteorder="big")
 
-        success, actual_lamports_before = query_account_caller_contract.functions.queryLamports(
-            solana_account_address_uint256
-        ).call()
+        success, actual_lamports_before = wait_condition(
+            func_cond=query_account_caller_contract.functions.queryLamports(solana_account_address_uint256).call,
+            timeout_sec=30,
+        )
 
         assert success is True
         assert actual_lamports_before == expected_lamports_before
