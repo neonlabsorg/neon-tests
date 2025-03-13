@@ -365,12 +365,11 @@ jobs:
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
           IMAGE: ${{ github.repository_owner }}/curve_tests:f2cc5c3c2fb70deaaa1cd1e6e39f3c07f33bbc3b
-          DOCKER_HUB_ORG_NAME: ${{ github.repository_owner }}
         run: |
           docker pull ${{ env.IMAGE }}
           docker run -i -d --name curve-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
           test -t 1 && USE_TTY="-t"
-          docker exec -i ${USE_TTY} curve-${{ github.run_number }} \
+          docker exec -i ${USE_TTY} -e DOCKER_HUB_ORG_NAME=${{ github.repository_owner }} curve-${{ github.run_number }} \
             python3.9 get_neon_contracts.py
           docker exec -i ${USE_TTY} curve-${{ github.run_number }} \
               brownie networks add live neon host="${{ env.PROXY_URL }}" chainid=${{env.NETWORK_ID}}  explorer=https://neonscan.org timeout=60
