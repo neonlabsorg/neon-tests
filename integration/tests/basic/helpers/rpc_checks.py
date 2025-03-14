@@ -133,7 +133,7 @@ def assert_block_fields(
                         transaction["input"]
                     ), f"field '{'input'}' is not correct. Actual : {transaction['input']}"
                 else:
-                    assert transaction["input"] == "0x"
+                    assert transaction["input"] == "0x", f"wait '0x', got {transaction['input']} "
             if scheduled_tx:
                 assert transaction["type"] == "0x80"
 
