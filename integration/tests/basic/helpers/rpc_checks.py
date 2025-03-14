@@ -45,7 +45,6 @@ def assert_block_fields(
     full_trx: bool,
     tx_receipt: tp.Optional[types.TxReceipt],
     pending: bool = False,
-    scheduled_tx: bool = False,
 ):
     assert "error" not in response
     assert "result" in response, AssertMessage.DOES_NOT_CONTAIN_RESULT
@@ -102,6 +101,9 @@ def assert_block_fields(
                 transaction["hash"] for transaction in transactions
             ], "Created transaction should be in block"
         for transaction in transactions:
+            scheduled_tx = False
+            if transaction["type"] == "0x80":
+                scheduled_tx = True
             expected_hex_fields = [
                 "hash",
                 "nonce",
