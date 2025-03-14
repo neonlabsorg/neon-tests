@@ -46,7 +46,11 @@ runs:
         image_name=${{ inputs.image_name }}
         delimeter=$(printf "%0.s-" {1..30})
         echo " ${delimeter} Build new docker image ${image_name} ${delimeter}"
-        docker build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
+
+        docker buildx create --use --name builder || docker buildx use build
+        docker buildx build . \
+            --no-cache \
+            --tag ${image_name}:${{ inputs.image_tag }} \
             --build-arg OZ_TAG='${{ inputs.oz_tag }}' \
             --build-arg CONTRACTS_BRANCH="${{ steps.feature_branch.outputs.value || 'develop'}}" \
             --build-arg DOCKER_HUB_ORG_NAME="${{env.DOCKER_HUB_ORG_NAME}}"
