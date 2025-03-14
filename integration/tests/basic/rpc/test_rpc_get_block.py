@@ -14,6 +14,7 @@ from utils.models.result import (
     EthGetBlockByHashResult,
     EthGetBlockByHashFullResult,
     EthGetScheduledTxBlockByHashFullResult,
+    EthResult,
 )
 from utils.scheduled_trx import ScheduledTrxEstimateRequest, ScheduledTransaction
 from utils.web3client import NeonChainWeb3Client
@@ -202,7 +203,9 @@ class TestRpcGetBlock:
             neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
         )
 
-        web3_client_sol.send_scheduled_transaction(tx, check_result=True)
+        response = web3_client_sol.send_scheduled_transaction(tx, check_result=True)
+        EthResult(**response)
+
         tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
 
         params = None
@@ -223,7 +226,7 @@ class TestRpcGetBlock:
             resp["result"]["transactions"] = scheduled_trxs
             EthGetScheduledTxBlockByHashFullResult(**resp)
 
-            transaction = resp["result"]["transactions"][0]
+            transaction = list(filter(lambda obj: obj["input"] == trx_estimate_obj.data, scheduled_trxs))[0]
             assert transaction["type"] == "0x80"
             assert transaction["scheduledIndex"] == "0x0"
             assert transaction["scheduledPayer"] == neon_user.checksum_address

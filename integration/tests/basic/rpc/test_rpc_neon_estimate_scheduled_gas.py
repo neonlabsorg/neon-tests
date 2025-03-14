@@ -231,19 +231,10 @@ class TestNeonRPCEstimateScheduledGas:
         assert "code" in resp["error"]
         assert "message" in resp["error"], "message field not in response"
 
-        assert resp["error"]["code"] in [
-            Error32000.CODE,
-            Error32602.CODE,
-        ], f"code must be {Error3.CODE} or {Error32602.CODE}"
-        assert resp["error"]["message"] in [Error32000.WRONG_CHAIN_ID, Error32602.INVALID_PARAMETERS], (
-            f"message must be {Error32000.WRONG_CHAIN_ID} or {Error32602.INVALID_PARAMETERS},"
-            f" got - {resp['error']['message']}"
-        )
-
-        # assert Error32000.CODE == resp["error"]["code"], f"error code must be {Error32000.CODE}"
-        # assert (
-        #     Error32000.WRONG_CHAIN_ID == resp["error"]["message"]
-        # ), f"error message must be {Error32000.WRONG_CHAIN_ID}"
+        assert Error32000.CODE == resp["error"]["code"], f"error code must be {Error32000.CODE}"
+        assert (
+            Error32000.WRONG_CHAIN_ID == resp["error"]["message"]
+        ), f"error message must be {Error32000.WRONG_CHAIN_ID}"
 
     @pytest.mark.parametrize(
         "field, invalid_value,error_code,error_msg",
