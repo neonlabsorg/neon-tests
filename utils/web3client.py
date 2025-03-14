@@ -270,6 +270,7 @@ class Web3Client:
     ) -> web3.types.TxReceipt:
         signed_tx = self._web3.eth.account.sign_transaction(transaction, account.key)
         transaction_hash = self._web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        allure.attach(f"Transaction hash: {transaction_hash.hex()}", "Transaction hash", allure.attachment_type.TEXT)
         return self._web3.eth.wait_for_transaction_receipt(transaction_hash, timeout=timeout)
 
     @allure.step("Send the scheduled transaction")
@@ -619,17 +620,18 @@ class Web3Client:
         return resp["result"]
 
     @allure.step("Estimate list of scheduled transactions")
-    def estimate_scheduled(self, solana_payer: Pubkey, trx_list: tp.List[ScheduledTrxEstimateRequest]) -> dict:
+    def estimate_scheduled(self, solana_payer: Pubkey, trx_list_estimate: tp.List[ScheduledTrxEstimateRequest]) -> dict:
         transactions = []
-        for trx in trx_list:
-            trx = {
+        for trx in trx_list_estimate:
+            transaction = {
                 "fromAddress": trx.from_address,
                 "toAddress": trx.to_address,
                 "data": trx.data,
                 "value": trx.value,
-                "childTransaction": trx.child_transaction,
             }
-            transactions.append(trx)
+            if trx.child_transaction:
+                transaction["childTransaction"] = trx.child_transaction
+            transactions.append(transaction)
         params = {"scheduledSolanaPayer": str(solana_payer), "transactions": transactions}
         json = {
             "jsonrpc": "2.0",
