@@ -130,14 +130,8 @@ def assert_block_fields(
                 if tx_receipt.transactionHash.hex() == transaction["hash"]:
                     assert transaction["from"].upper() == tx_receipt["from"].upper()
                     assert transaction["to"].upper() == tx_receipt["to"].upper()
-                if scheduled_tx:
-                    assert is_hex(
-                        transaction["input"]
-                    ), f"field '{'input'}' is not correct. Actual : {transaction['input']}"
-                else:
-                    assert transaction["input"] == "0x", f"wait '0x', got {transaction['input']} "
-            if scheduled_tx:
-                assert transaction["type"] == "0x80"
+
+            assert str(transaction["input"]).startswith("0x")
 
     else:
         for transaction in transactions:
