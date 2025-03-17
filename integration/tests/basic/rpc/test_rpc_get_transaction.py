@@ -369,10 +369,8 @@ class TestRpcGetTransaction:
         wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=2)
 
         EthEthGetScheduledTransactionByHashResult(**resp)
-
         result = resp["result"]
         assert result["type"] == "0x80"
-
         assert result["scheduledIndex"] == "0x0"
         assert result["scheduledPayer"].upper() == neon_user.checksum_address.upper()
         assert result["scheduledSolanaPayer"] == str(neon_user.solana_account.pubkey())
@@ -403,21 +401,23 @@ class TestRpcGetTransaction:
 
         web3_client_sol.send_scheduled_transaction(tx, check_result=True)
         tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
-        nonce = self.web3_client.get_nonce(neon_user.checksum_address)
 
+        nonce = self.web3_client.get_nonce(neon_user.checksum_address)
         params = [neon_user.checksum_address, nonce]
+
         resp = json_sol_rpc_client.send_rpc(method="neon_getTransactionBySenderNonce", params=params)
 
-        EthEthGetScheduledTransactionByHashResult(**resp)
-        result = resp["result"]
-        assert result["type"] == "0x80"
-
-        assert result["scheduledIndex"] == "0x0"
-        assert result["scheduledPayer"].upper() == neon_user.checksum_address.upper()
-        assert result["scheduledSolanaPayer"] == str(neon_user.solana_account.pubkey())
-
-        transactions_with_sig = web3_client_sol.get_solana_trx_by_neon(tx_receipt.transactionHash.hex())
-        assert result["scheduledSolanaSignature"] in transactions_with_sig["result"]
+        with allure.step("validate schedule transaction"):
+            EthEthGetScheduledTransactionByHashResult(**resp)
+            result = resp["result"]
+            assert result["type"] == "0x80"
+            assert result["scheduledIndex"] == "0x0"
+            assert result["scheduledPayer"].upper() == neon_user.checksum_address.upper()
+            assert result["scheduledSolanaPayer"] == str(
+                neon_user.solana_account.pubkey()
+            ), f"waited {result['scheduledSolanaPayer']}, got {str(neon_user.solana_account.pubkey())}"
+            transactions_with_sig = web3_client_sol.get_solana_trx_by_neon(tx_receipt.transactionHash.hex())
+            assert result["scheduledSolanaSignature"] in transactions_with_sig["result"]
 
     @pytest.mark.neon_only
     @pytest.mark.parametrize(
@@ -489,13 +489,11 @@ class TestRpcGetTransaction:
         wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=2)
 
         EthEthGetScheduledTransactionByHashResult(**resp)
-
         result = resp["result"]
         assert result["type"] == "0x80"
         assert result["scheduledIndex"] == "0x0"
         assert result["scheduledPayer"].upper() == neon_user.checksum_address.upper()
         assert result["scheduledSolanaPayer"] == str(neon_user.solana_account.pubkey())
-
         transactions_with_sig = web3_client_sol.get_solana_trx_by_neon(tx_receipt.transactionHash.hex())
         assert result["scheduledSolanaSignature"] in transactions_with_sig["result"]
 
