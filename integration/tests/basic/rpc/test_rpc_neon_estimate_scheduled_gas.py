@@ -149,7 +149,6 @@ class TestNeonRPCEstimateScheduledGas:
         assert Error32602.CODE == resp["error"]["code"]
         assert Error32602.INVALID_TRANSACTIONID == resp["error"]["message"]
 
-    @pytest.mark.skip(reason="NDEV-3644")
     def test_send_value_greater_than_balance(
         self, web3_client_sol, neon_user, evm_loader, treasury_pool, event_caller_sol_chain
     ):
@@ -161,7 +160,7 @@ class TestNeonRPCEstimateScheduledGas:
 
         balance = web3_client_sol.get_balance(neon_user.checksum_address)
         call_data = decode_function_signature("indexedArgs()")
-        value = balance + 1
+        value = balance + 10
 
         trx_estimate_obj = ScheduledTrxEstimateRequest(
             neon_user.checksum_address, event_caller_sol_chain.address, call_data, value=value
