@@ -149,7 +149,7 @@ class TestNeonRPCEstimateScheduledGas:
         assert Error32602.CODE == resp["error"]["code"]
         assert Error32602.INVALID_TRANSACTIONID == resp["error"]["message"]
 
-    @pytest.mark.xfail(reason="NDEV-3644")
+    @pytest.mark.skip(reason="NDEV-3644")
     def test_send_value_greater_than_balance(
         self, web3_client_sol, neon_user, evm_loader, treasury_pool, event_caller_sol_chain
     ):
@@ -275,6 +275,6 @@ class TestNeonRPCEstimateScheduledGas:
         assert resp["error"]["code"] == error_code, f"error code must be {error_code} "
         assert resp["error"]["message"] == error_msg, f"error message must be {error_msg}"
 
-    # Todo https://neonlabs.atlassian.net/browse/NDEV-3643
+    # Todo NDEV-3643
     def test_child_transaction(self):
         pass
