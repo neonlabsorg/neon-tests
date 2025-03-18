@@ -233,8 +233,8 @@ class TestScheduledTrx:
         trx_count = 6
         call_data = []
         for i in range(trx_count):
-            v1 = random.randint(1, 100)
-            v2 = random.randint(1, 100)
+            v1 = random.randint(1, 10)
+            v2 = random.randint(v1, 20)
             call_data.append(
                 abi.function_signature_to_4byte_selector("addDataToMapping(uint256,uint256)")
                 + eth_abi.encode(["uint256", "uint256"], [v1, v2])
