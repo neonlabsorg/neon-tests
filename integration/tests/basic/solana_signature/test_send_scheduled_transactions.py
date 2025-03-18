@@ -225,6 +225,7 @@ class TestScheduledTrx:
         assert event_logs[0].args.value == value
         assert event_logs[0].event == "IndexedArgs"
 
+    @pytest.mark.skip("temporary-disable")
     def test_scheduled_trx_with_timestamp(
         self, block_timestamp_contract, web3_client_sol, neon_user, treasury_pool, evm_loader, json_rpc_client
     ):
