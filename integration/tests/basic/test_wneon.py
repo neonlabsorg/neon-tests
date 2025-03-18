@@ -2,9 +2,9 @@ import random
 
 import pytest
 import web3
+from solana.rpc.commitment import Confirmed
 from solana.rpc.types import Commitment, TxOpts
 from solana.transaction import Transaction
-from solders.rpc.responses import GetTransactionResp
 from solders.signature import Signature
 from spl.token.client import Token as SplToken
 from spl.token.constants import TOKEN_PROGRAM_ID
@@ -60,10 +60,8 @@ class TestWNeon:
         neon_balance_after, wneon_balance_after = self.get_balances(wneon, recipient_account.address)
         assert wneon_balance_after == deposit_amount
         assert (
-            web3.Web3.from_wei(neon_balance_before, "ether")
-            - deposit_amount
-            - web3.Web3.from_wei(neon_balance_after, "ether")
-            < 1
+            neon_balance_before - self.web3_client._web3.to_wei(deposit_amount, "ether") - neon_balance_after
+            == receipt["gasUsed"] * receipt["effectiveGasPrice"]
         )
 
         deposit_amount2 = random.randint(1, 5)
@@ -112,14 +110,10 @@ class TestWNeon:
         assert receipt["status"] == 1
 
         solana_trx = self.web3_client.get_solana_trx_by_neon(receipt["transactionHash"].hex())
-        wait_condition(
-            lambda: self.sol_client.get_transaction(
-                Signature.from_string(solana_trx["result"][0]),
-            )
-            != GetTransactionResp(None),
-            timeout_sec=30,
+
+        solana_resp = self.sol_client.get_transaction(
+            Signature.from_string(solana_trx["result"][0]), commitment=Confirmed
         )
-        solana_resp = self.sol_client.get_transaction(Signature.from_string(solana_trx["result"][0]))
         sol_accounts = solana_resp.value.transaction.transaction.message.account_keys
         assert self.SPL_TOKEN_PROGRAM_ID not in sol_accounts
 

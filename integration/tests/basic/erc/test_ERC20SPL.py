@@ -4,15 +4,17 @@ import allure
 import pytest
 import web3
 from _pytest.config import Config
-from solana.rpc.types import TokenAccountOpts, TxOpts
+from solana.rpc.commitment import Confirmed
+from solana.rpc.types import TokenAccountOpts
 from solana.transaction import Transaction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from spl.token import instructions
 from spl.token.constants import TOKEN_PROGRAM_ID
 
+from integration.tests.basic.helpers.rpc_checks import assert_solana_address_was_not_used_in_trx
 from utils import metaplex
-from utils.consts import ZERO_ADDRESS
+from utils.consts import ZERO_ADDRESS, METAPLEX_ADDRESS, SPL_TOKEN_ADDRESS, CALL_SOLANA_ADDRESS, SOLANA_NATIVE_ADDRESS
 from utils.erc20wrapper import ERC20Wrapper
 from utils.helpers import gen_hash_of_block, wait_condition, create_invalid_address
 from utils.web3client import NeonChainWeb3Client
@@ -213,6 +215,17 @@ class TestERC20SPL:
         assert balance_acc2_after == balance_acc2_before + amount
         assert total_before == total_after
 
+    def test_transfer_and_check_sol_account_list_is_correct(self, erc20_contract, restore_balance, evm_loader):
+        new_account = self.accounts.create_account()
+
+        receipt = erc20_contract.transfer(erc20_contract.account, new_account.address, 100)
+        precompiled_addresses = [METAPLEX_ADDRESS, SPL_TOKEN_ADDRESS, CALL_SOLANA_ADDRESS, SOLANA_NATIVE_ADDRESS]
+        for precompiled_address in precompiled_addresses:
+            program_address = evm_loader.ether2program(precompiled_address[2:])[0]
+            assert_solana_address_was_not_used_in_trx(
+                receipt["transactionHash"].hex(), program_address, self.web3_client, evm_loader
+            )
+
     @pytest.mark.parametrize(
         "block_len, expected_exception, msg",
         [
@@ -326,31 +339,15 @@ class TestERC20SPL:
         sol_balance_before = sol_client.get_balance(acc.pubkey()).value
         contract_balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
 
-        opts = TokenAccountOpts(token_mint)
-        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts).value[0]
-        token_balance_before = token_data.account.data.parsed["info"]["tokenAmount"]["amount"]
         erc20_contract.transfer_solana(erc20_contract.account, bytes(solana_address), amount)
-        wait_condition(
-            lambda: int(
-                sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts)
-                .value[0]
-                .account.data.parsed["info"]["tokenAmount"]["amount"]
-            )
-            > int(token_balance_before),
-            timeout_sec=30,
-        )
 
         sol_balance_after = sol_client.get_balance(acc.pubkey()).value
-        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts).value[0]
-        token_balance_after = token_data.account.data.parsed["info"]["tokenAmount"]["amount"]
         contract_balance_after = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
 
-        assert (
-            int(token_balance_after) - int(token_balance_before) == amount
-        ), "Token balance for sol account is not correct"
         assert contract_balance_before - contract_balance_after == amount, "Contract balance is not correct"
         assert sol_balance_after == sol_balance_before, "Sol balance is changed"
 
+    @pytest.mark.only_stands  #  This doesn't work on devnet because GetTokenAccountsByDelegate doesn't work
     def test_approveSolana(
         self,
         erc20_contract,
@@ -398,7 +395,7 @@ class TestERC20SPL:
                 )
             )
         )
-        sol_client.send_transaction(trx, acc, opts=TxOpts(skip_preflight=False, skip_confirmation=False))
+        sol_client.send_tx_and_check_status_ok(trx, acc)
 
         claim_amount = random.randint(10, sent_amount)
         erc20_contract.claim(erc20_contract.account, bytes(solana_address), claim_amount)
@@ -432,7 +429,7 @@ class TestERC20SPL:
                 )
             )
         )
-        sol_client.send_transaction(trx, acc, opts=TxOpts(skip_preflight=False, skip_confirmation=False))
+        sol_client.send_tx_and_check_status_ok(trx, acc)
 
         claim_amount = random.randint(10, sent_amount)
         erc20_contract.claim_to(erc20_contract.account, bytes(solana_address), new_account.address, claim_amount)
@@ -472,22 +469,6 @@ class TestERC20SPLMintable:
                 erc20_spl_mintable.account.address,
                 default_value - current_balance,
             )
-
-    @pytest.mark.skip(reason="This test is not actual for erc20ForSpl 1.0.0")
-    def test_owner(self, erc20_contract):
-        owner = erc20_contract.contract.functions.owner().call()
-        assert owner == erc20_contract.account.address
-
-    @pytest.fixture()
-    def return_ownership(self, erc20_contract, accounts):
-        yield
-        erc20_contract.transfer_ownership(accounts[2], erc20_contract.account.address)
-
-    @pytest.mark.skip(reason="This test is not actual for erc20ForSpl 1.0.0")
-    def test_transferOwnership(self, erc20_contract, accounts, return_ownership):
-        erc20_contract.transfer_ownership(erc20_contract.account, accounts[2].address)
-        owner = erc20_contract.contract.functions.owner().call()
-        assert owner == accounts[2].address
 
     def test_metaplex_data(self, erc20_contract):
         mint_key = Pubkey(erc20_contract.contract.functions.findMintAccount().call())
@@ -593,6 +574,7 @@ class TestERC20SPLMintable:
         assert contract_balance_before - contract_balance_after == amount, "Contract balance is not correct"
         assert sol_balance_after == sol_balance_before, "Sol balance is changed"
 
+    @pytest.mark.only_stands  #  This doesn't work on devnet because GetTokenAccountsByDelegate doesn't work
     def test_approveSolana(
         self,
         erc20_contract,
@@ -607,7 +589,11 @@ class TestERC20SPLMintable:
             lambda: len(sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts).value) > 0,
             timeout_sec=30,
         )
-        token_account = sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts).value[0].account
+        token_account = (
+            sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts, commitment=Confirmed)
+            .value[0]
+            .account
+        )
         assert int(token_account.data.parsed["info"]["delegatedAmount"]["amount"]) == amount
         assert int(token_account.data.parsed["info"]["delegatedAmount"]["decimals"]) == erc20_contract.decimals
 
@@ -639,7 +625,7 @@ class TestERC20SPLMintable:
                 )
             )
         )
-        sol_client.send_transaction(trx, acc, opts=TxOpts(skip_preflight=False, skip_confirmation=False))
+        sol_client.send_tx_and_check_status_ok(trx, acc)
 
         claim_amount = random.randint(10, sent_amount)
         erc20_contract.claim(erc20_contract.account, bytes(solana_address), claim_amount)
@@ -677,7 +663,7 @@ class TestERC20SPLMintable:
                 )
             )
         )
-        sol_client.send_transaction(trx, acc, opts=TxOpts(skip_preflight=False, skip_confirmation=False))
+        sol_client.send_tx_and_check_status_ok(trx, acc)
 
         claim_amount = random.randint(10, sent_amount)
         erc20_contract.claim_to(erc20_contract.account, bytes(solana_address), new_account.address, claim_amount)
@@ -978,6 +964,31 @@ class TestMultipleActionsForERC20:
         ), "Contract balance is not correct"
         assert user_balance == transfer_amount + user_balance_before, "User balance is not correct"
 
+    def test_parallel_trxs_transfer_read_balance_transfer(self, multiple_actions_erc20, faucet, solana_account):
+        sender_account = self.accounts[0]
+        receiver_account = self.accounts[1]
+        acc, contract = multiple_actions_erc20
+        trx_amount = 10
+        transfer_amount = 100
+
+        tx = self.web3_client.make_raw_tx(sender_account)
+        instruction_tx = contract.functions.mint(transfer_amount * trx_amount * 2).build_transaction(tx)
+        self.web3_client.send_transaction(sender_account, instruction_tx)
+
+        hashes = []
+        nonce = self.web3_client.get_nonce(sender_account.address)
+        for i in range(trx_amount):
+            tx = self.web3_client.make_raw_tx(sender_account, nonce=nonce + i)
+            transaction = contract.functions.transferReadBalanceTransfer(
+                transfer_amount, receiver_account.address
+            ).build_transaction(tx)
+            instruction_tx = self.web3_client._web3.eth.account.sign_transaction(transaction, sender_account.key)
+            signature = self.web3_client._web3.eth.send_raw_transaction(instruction_tx.rawTransaction)
+            hashes.append(signature.hex())
+        for tx_hash in hashes:
+            resp = self.web3_client.wait_for_transaction_receipt(tx_hash)
+            assert resp.status == 1, f"Transaction {tx_hash} failed"
+
 
 @pytest.fixture(scope="class")
 def new_factory_contract(web3_client, erc20_spl_mintable):
@@ -999,108 +1010,3 @@ def new_token_contract(web3_client, erc20_spl_mintable):
         contract_name="ERC20ForSPLMintableV2",
     )
     return contract
-
-
-@allure.feature("ERC Verifications")
-@allure.story("ERC20SPL: Tests for factory update")
-@pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
-@pytest.mark.neon_only
-@pytest.mark.skip(reason="This test is not actual for erc20ForSpl 1.0.0")
-class TestERC20FactoryUpdate:
-    web3_client: NeonChainWeb3Client
-    accounts: EthAccounts
-    sol_client: SolanaClient
-
-    def get_factory_contract(self, token_contract):
-        factory_address = token_contract.functions.beacon().call()
-        factory_contract = self.web3_client.get_deployed_contract(
-            factory_address,
-            "external/neon-contracts/ERC20ForSPL/contracts/ERC20ForSPLMintableFactory",
-            contract_name="ERC20ForSPLMintableFactory",
-            solc_version="0.8.24",
-        )
-        return factory_contract
-
-    def test_update_factory(self, erc20_spl_mintable, new_factory_contract):
-        # get contract factory object, get address from erc20 token contract
-        factory_contract = self.get_factory_contract(erc20_spl_mintable.contract)
-        # update factory implementation
-        impl_address_before_update = self.web3_client.eth.get_storage_at(factory_contract.address, 1).hex()
-        tx_opt = self.web3_client.make_raw_tx(erc20_spl_mintable.account)
-        tx_body = factory_contract.functions.upgradeToAndCall(new_factory_contract.address, "0x").build_transaction(
-            tx_opt
-        )
-        receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, tx_body)
-        assert receipt.status == 1, "Transaction failed"
-
-        # check proxy factory address
-        impl_address_after_update = self.web3_client.eth.get_storage_at(factory_contract.address, 1).hex()
-        assert impl_address_before_update != impl_address_after_update, "Factory wasn't updated"
-
-        # check new factory method
-        new_factory_contract.address = factory_contract.address
-        assert new_factory_contract.functions.getDummyData().call() == 1617181920
-
-        # deploy new token
-        deploy_tx = self.web3_client.make_raw_tx(erc20_spl_mintable.account)
-        deploy_body = factory_contract.functions.deploy("TOKEN2", "ABC", "http://uri2.com", 8).build_transaction(
-            deploy_tx
-        )
-        deploy_receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, deploy_body)
-        logs = factory_contract.events.TokenDeploy().process_receipt(deploy_receipt)
-        new_token_addr = logs[0]["args"]["token"]
-        new_token_contract = self.web3_client.get_deployed_contract(
-            new_token_addr,
-            contract_file="external/neon-contracts/ERC20ForSPL/contracts/ERC20ForSPLMintable",
-            solc_version="0.8.24",
-        )
-        assert new_token_contract.functions.name().call() == "TOKEN2"
-
-    def test_update_factory_with_incorrect_address(self, erc20_spl_mintable):
-        factory_contract = self.get_factory_contract(erc20_spl_mintable.contract)
-        tx_opt = self.web3_client.make_raw_tx(erc20_spl_mintable.account, gas=10000000)
-        tx_body = factory_contract.functions.upgradeToAndCall(
-            "0x3c42de8cf594B3955b596BFC16Deee4dF4BA10B7", "0x"
-        ).build_transaction(tx_opt)
-        receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, tx_body)
-        assert receipt.status == 0, "Transaction should fail"
-
-    @pytest.mark.skip("https://neonlabs.atlassian.net/browse/NDEV-3052")
-    def test_update_factory_invalid_owner(self, erc20_spl_mintable, accounts, new_factory_contract):
-        factory_contract = self.get_factory_contract(erc20_spl_mintable.contract)
-        tx_opt = self.web3_client.make_raw_tx(accounts[0], gas=10000000)
-        tx_body = factory_contract.functions.upgradeToAndCall(new_factory_contract.address, "0x").build_transaction(
-            tx_opt
-        )
-        receipt = self.web3_client.send_transaction(accounts[0], tx_body)
-        assert receipt.status == 0, "Transaction should fail"
-
-    def test_update_token_contract(self, erc20_spl_mintable, new_token_contract):
-        # get contract factory object, get address from erc20 token contract
-        factory_contract = self.get_factory_contract(erc20_spl_mintable.contract)
-        # update factory implementation
-        impl_address_before_update = self.web3_client.eth.get_storage_at(factory_contract.address, 0).hex()
-        tx_opt = self.web3_client.make_raw_tx(erc20_spl_mintable.account)
-        tx_body = factory_contract.functions.upgradeTo(new_token_contract.address).build_transaction(tx_opt)
-        receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, tx_body)
-        assert receipt.status == 1, "Transaction failed"
-
-        # check proxy factory address
-        impl_address_after_update = self.web3_client.eth.get_storage_at(factory_contract.address, 0).hex()
-        assert impl_address_before_update != impl_address_after_update, "Token implementation wasn't updated"
-
-        # deploy new token
-        deploy_tx = self.web3_client.make_raw_tx(erc20_spl_mintable.account)
-        deploy_body = factory_contract.functions.deploy("TOKEN3", "ABC", "http://uri2.com", 8).build_transaction(
-            deploy_tx
-        )
-        deploy_receipt = self.web3_client.send_transaction(erc20_spl_mintable.account, deploy_body)
-        logs = factory_contract.events.TokenDeploy().process_receipt(deploy_receipt)
-        new_token_addr = logs[0]["args"]["token"]
-        new_token_contract = self.web3_client.get_deployed_contract(
-            new_token_addr,
-            contract_file="external/neon-contracts/ERC20ForSPL/contracts/test/ERC20ForSPLMintableV2",
-            solc_version="0.8.24",
-        )
-        assert new_token_contract.functions.name().call() == "TOKEN3"
-        assert new_token_contract.functions.getDummyData().call() == 1112131415

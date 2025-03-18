@@ -1,30 +1,29 @@
 import json
+import pathlib
 import time
 import typing as tp
 import uuid
 
 import allure
 import requests
-import pathlib
-
 import solana.rpc.api
 import spl.token.client
-from solders.transaction_status import EncodedConfirmedTransactionWithStatusMeta
-from spl.token.client import Token
+from solana.rpc.commitment import Commitment, Confirmed
+from solana.rpc.types import TxOpts
+from solana.transaction import Transaction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
-from solana.rpc.commitment import Commitment, Finalized, Confirmed
-from solana.rpc.types import TxOpts
+from solders.rpc.errors import InternalErrorMessage
 from solders.rpc.responses import GetTransactionResp
+from solders.rpc.responses import RequestAirdropResp
 from solders.signature import Signature
 from solders.system_program import TransferParams, transfer, create_account, CreateAccountParams
-from solana.transaction import Transaction
-from solders.rpc.errors import InternalErrorMessage
-from solders.rpc.responses import RequestAirdropResp
+from solders.transaction_status import EncodedConfirmedTransactionWithStatusMeta
+from spl.token.client import Token
+from spl.token.constants import TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address, create_associated_token_account
 
 from utils.helpers import wait_condition
-from spl.token.constants import TOKEN_PROGRAM_ID
 
 
 class SolanaClient(solana.rpc.api.Client):
@@ -42,8 +41,9 @@ class SolanaClient(solana.rpc.api.Client):
         commitment: tp.Optional[Commitment] = None,
     ) -> RequestAirdropResp:
         airdrop_resp = None
+        balance_before = self.get_balance(pubkey).value
         for _ in range(5):
-            airdrop_resp = super().request_airdrop(pubkey, lamports, commitment=Finalized)
+            airdrop_resp = super().request_airdrop(pubkey, lamports, commitment=commitment)
             if isinstance(airdrop_resp, InternalErrorMessage):
                 time.sleep(10)
                 print(f"Get error from solana airdrop: {airdrop_resp}")
@@ -51,7 +51,7 @@ class SolanaClient(solana.rpc.api.Client):
                 break
         else:
             raise AssertionError(f"Can't get airdrop from solana: {airdrop_resp}")
-        wait_condition(lambda: self.get_balance(pubkey).value >= lamports, timeout_sec=30)
+        wait_condition(lambda: self.get_balance(pubkey).value >= lamports + balance_before, timeout_sec=30)
         return airdrop_resp
 
     def send_sol(self, from_: Keypair, to: Pubkey, amount_lamports: int):
@@ -101,7 +101,7 @@ class SolanaClient(solana.rpc.api.Client):
         receipt = self.get_transaction(sig)
         assert sig_status["result"]["value"][0]["status"] == {"Ok": None}, f"error:{sig_status}, receipt: {receipt}"
 
-    def send_tx(self, trx: Transaction, *signers: Keypair, wait_status=Confirmed):
+    def send_tx(self, trx: Transaction, *signers: Keypair, wait_status=Confirmed) -> GetTransactionResp:
         result = self.send_transaction(
             trx, *signers, opts=TxOpts(skip_confirmation=True, preflight_commitment=wait_status)
         )
@@ -163,7 +163,8 @@ class SolanaClient(solana.rpc.api.Client):
 
         token = spl.token.client.Token(self, mint, TOKEN_PROGRAM_ID, authority)
         token.payer = authority
-        token.mint_to(token_account, authority, amount)
+        opts = TxOpts(skip_preflight=True, skip_confirmation=False)
+        token.mint_to(token_account, authority, amount, opts=opts)
 
     def get_solana_balance(self, account: Pubkey):
         return self.get_balance(account, commitment=Confirmed).value
@@ -178,27 +179,8 @@ class SolanaClient(solana.rpc.api.Client):
                 from_pubkey=payer.pubkey(), to_pubkey=account.pubkey(), lamports=lamports, space=size, owner=owner
             )
         )
-        self.send_tx(trx.add(instr), payer, account)
+        self.send_tx_and_check_status_ok(trx.add(instr), payer, account)
         return account
-
-    @allure.step("Get Solana transaction with wait")
-    def get_transaction_with_wait(
-        self,
-        tx_sig: Signature,
-        encoding: str = "json",
-        commitment: tp.Optional[Commitment] = None,
-        max_supported_transaction_version: tp.Optional[int] = None,
-    ) -> GetTransactionResp:
-        tx = wait_condition(
-            func_cond=lambda: super(SolanaClient, self).get_transaction(
-                tx_sig=tx_sig,
-                encoding=encoding,
-                commitment=commitment,
-                max_supported_transaction_version=max_supported_transaction_version,
-            ),
-            check_success=lambda trx: trx.value is not None,
-        )
-        return tx
 
     def transaction_contains_call_to_program(
         self,
@@ -232,3 +214,8 @@ class SolanaClient(solana.rpc.api.Client):
                 return True
         else:
             return False
+
+    @allure.step("Get account keys for solana transaction")
+    def get_account_keys_for_transaction(self, sol_trx: str):
+        resp = self.get_transaction(Signature.from_string(sol_trx), commitment=Confirmed)
+        return resp.value.transaction.transaction.message.account_keys

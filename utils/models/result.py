@@ -203,6 +203,7 @@ class NeonGetLogsDetails(ForbidExtra):
     neonEventOrder: int
     neonIsHidden: bool
     neonIsReverted: bool
+    neonDataMessage: str | None
 
 
 class NeonGetLogs(EthResult):
@@ -259,6 +260,15 @@ class SolanaInstruction(ForbidExtra):
     solanaProgram: str
     solanaInstructionIndex: int
     solanaInnerInstructionIndex: Union[int, None]
+
+
+class SolanaAddressLookupTableInstruction(SolanaInstruction):
+    lookupTableAddress: str
+    lookupTableInstructionCode: int
+    lookupTableInstructionName: str
+
+
+class SolanaNeonProgramInstruction(SolanaInstruction):
     svmHeapSizeLimit: int
     svmCyclesLimit: int
     svmCyclesUsed: int
@@ -279,13 +289,33 @@ class SolanaTransaction(ForbidExtra):
     solanaBlockSlot: int
     solanaLamportExpense: int
     neonOperatorAddress: str
-    solanaInstructions: List[SolanaInstruction]
+    solanaInstructions: List[Union[SolanaAddressLookupTableInstruction, SolanaNeonProgramInstruction]]
 
 
 class NeonCostsDetails(ForbidExtra):
     neonOperatorAddress: str
     solanaLamportExpense: int
     neonAlanIncome: int
+
+
+class NeonCancelDetails(ForbidExtra):
+    solanaTransactionSignature: str
+    solanaInstructionIndex: int
+    solanaInnerInstructionIndex: int | None
+    source: str
+    address: str
+    code: str
+    data: str
+    message: str
+
+
+class NeonRevertDetails(ForbidExtra):
+    solanaTransactionSignature: str
+    solanaInstructionIndex: int
+    solanaInnerInstructionIndex: int | None
+    address: str
+    data: str
+    message: str | None
 
 
 class NeonReceiptDetails(ForbidExtra):
@@ -309,8 +339,9 @@ class NeonReceiptDetails(ForbidExtra):
     solanaCompleteInstructionIndex: int
     solanaCompleteInnerInstructionIndex: Union[int, None]
     neonRawTransaction: HexString
-    neonIsCompleted: bool
     neonIsCanceled: bool
+    neonCancelData: NeonCancelDetails | None
+    neonRevertData: NeonRevertDetails | None
     solanaTransactions: List[SolanaTransaction]
     neonCosts: List[NeonCostsDetails]
     scheduledParentTransactionHashes: List[HexString]
