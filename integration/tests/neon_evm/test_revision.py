@@ -685,6 +685,7 @@ class TestAccountRevision:
         assert evm_loader.get_neon_balance(contract.eth_address) == 900
         assert evm_loader.get_neon_balance(sender_with_tokens.eth_address) == sender_balance_before + 100
 
+    # todo test ci
     @pytest.mark.parametrize(
         "func_signature, amount_emulated_accounts",
         [("powNumberInnerAndRollback1(uint256)", 2), ("powNumberOuterAndRollback2(uint256)", 3)],
