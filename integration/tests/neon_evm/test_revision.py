@@ -776,8 +776,8 @@ class TestAccountRevision:
         sender_with_tokens,
         neon_api_client,
         treasury_pool,
-        holder_acc,
         new_holder_acc,
+        new_holder_acc_2,
     ):
 
         # First tx prepare
@@ -792,14 +792,14 @@ class TestAccountRevision:
         signed_tx = make_contract_call_trx(evm_loader, sender_with_tokens, lender_contract, func_signature, func1_args)
 
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
-        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc_2, operator_keypair)
 
         for i in range(2):
             evm_loader.send_transaction_step_from_account(
                 operator_keypair,
                 operator_balance_pubkey,
                 treasury_pool,
-                holder_acc,
+                new_holder_acc_2,
                 emulated_accounts,
                 EVM_STEPS,
                 operator_keypair,
@@ -831,7 +831,7 @@ class TestAccountRevision:
                 operator_keypair,
                 operator_balance_pubkey,
                 treasury_pool,
-                holder_acc,
+                new_holder_acc_2,
                 emulated_accounts,
                 EVM_STEPS,
                 operator_keypair,
