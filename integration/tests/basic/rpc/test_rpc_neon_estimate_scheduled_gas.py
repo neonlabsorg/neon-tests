@@ -6,10 +6,11 @@ from eth_utils import abi
 import solders.system_program as sp
 from integration.tests.basic.helpers.errors import Error32602, Error32000, Error3, Error32603
 
-from integration.tests.basic.helpers.rpc_checks import assert_fields_are_hex
+from integration.tests.basic.helpers.rpc_checks import assert_fields_are_hex, is_hex
 from utils.consts import LAMPORT_PER_SOL
 from utils.helpers import decode_function_signature
 from utils.models.result import EstimateScheduledGas
+from utils.neon_user import NeonUser
 from utils.scheduled_trx import ScheduledTrxEstimateRequest
 
 
@@ -274,6 +275,243 @@ class TestNeonRPCEstimateScheduledGas:
         assert resp["error"]["code"] == error_code, f"error code must be {error_code} "
         assert resp["error"]["message"] == error_msg, f"error message must be {error_msg}"
 
-    # Todo NDEV-3643
-    def test_child_transaction(self):
-        pass
+
+@allure.feature("JSON-RPC validation")
+@allure.story("Verify JSON-RPC neon_estimateScheduledGas work")
+@pytest.mark.neon_only
+class TestNeonRPCEstimateScheduledGasChildTrx:
+
+    def test_one_transaction_no_child(
+        self,
+        web3_client_sol,
+        neon_user,
+        erc20_spl_mintable_new,
+        evm_loader,
+        treasury_pool,
+    ):
+        # ┌───────┐  ┌───────────┐
+        # │ t0 ✓  ├─>┤ 0xFFFF    │
+        # │ s=0   │  │           │
+        # └───────┘  └───────────┘
+
+        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, 800)
+
+        top_up_in_trx = 400
+
+        data_0 = decode_function_signature(
+            "transferFrom(address,address,uint256)",
+            [erc20_spl_mintable_new.account.address, neon_user.checksum_address, top_up_in_trx],
+        )
+
+        trx_estimate_0 = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, erc20_spl_mintable_new.address, data_0, child_transaction="0xFFFF"
+        )
+        trx_estimate_obj_list = [trx_estimate_0]
+        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), trx_estimate_obj_list)
+
+        assert len(estimate_result["gasList"]) == 1
+        assert is_hex(estimate_result["gasList"][0])
+
+    def test_wrong_transactions_order_in_request(
+        self,
+        web3_client_sol,
+        neon_user,
+        erc20_spl_mintable_new,
+        evm_loader,
+        treasury_pool,
+    ):
+        # ┌───────┐  ┌──────┐  ┌───────┐
+        # │ t2 ✓  ├─>┤ t0 ✓ │─>│ t1 ✓  ├
+        # │ s=0   │  │ s=1  │  │ s=2   │
+        # └───────┘  └──────┘  └───────┘
+        recipient = NeonUser(evm_loader.loader_id)
+        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, 800)
+        top_up_in_trx = 400
+        amount_to_recipient = 400
+
+        data_0 = data_2 = decode_function_signature(
+            "transferFrom(address,address,uint256)",
+            [erc20_spl_mintable_new.account.address, neon_user.checksum_address, top_up_in_trx],
+        )
+        data_1 = decode_function_signature(
+            "transfer(address,uint256)", [recipient.checksum_address, amount_to_recipient]
+        )
+
+        trx_estimate_0 = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, erc20_spl_mintable_new.address, data_0, child_transaction=hex(1)
+        )
+        trx_estimate_1 = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, erc20_spl_mintable_new.address, data_1, child_transaction=hex(2)
+        )
+        trx_estimate_2 = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, erc20_spl_mintable_new.address, data_2, child_transaction="0xFFFF"
+        )
+
+        trx_estimate_obj_list = [trx_estimate_2, trx_estimate_0, trx_estimate_1]
+
+        estimate_result = web3_client_sol.estimate_scheduled(
+            neon_user.solana_account.pubkey(), trx_estimate_obj_list, check_result=False
+        )
+
+        assert estimate_result["error"]["code"] == Error32603.CODE
+        assert estimate_result["error"]["message"] == Error32603.INTERNAL_ERROR
+        assert estimate_result["error"]["data"]["errors"][0] == "childTransaction 1 in 1 should be more than 1"
+
+    def test_non_existent_child_idx(
+        self,
+        web3_client_sol,
+        neon_user,
+        erc20_spl_mintable_new,
+        evm_loader,
+        treasury_pool,
+    ):
+        # ┌──────┐  ┌───────┐
+        # ┤ t0 ✓ │─>│ t1 ✓  ├
+        # │ s=1  │  │ s=2   │
+        # └──────┘  └───────┘
+        recipient = NeonUser(evm_loader.loader_id)
+        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, 800)
+        top_up_in_trx = 400
+        amount_to_recipient = 400
+
+        data_0 = decode_function_signature(
+            "transferFrom(address,address,uint256)",
+            [erc20_spl_mintable_new.account.address, neon_user.checksum_address, top_up_in_trx],
+        )
+        data_1 = decode_function_signature(
+            "transfer(address,uint256)", [recipient.checksum_address, amount_to_recipient]
+        )
+
+        trx_estimate_0 = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, erc20_spl_mintable_new.address, data_0, child_transaction=hex(1)
+        )
+        trx_estimate_1 = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, erc20_spl_mintable_new.address, data_1, child_transaction=hex(2)
+        )
+
+        trx_estimate_obj_list = [trx_estimate_0, trx_estimate_1]
+
+        estimate_result = web3_client_sol.estimate_scheduled(
+            neon_user.solana_account.pubkey(), trx_estimate_obj_list, check_result=False
+        )
+
+        assert estimate_result["error"]["code"] == Error32603.CODE
+        assert estimate_result["error"]["message"] == Error32603.INTERNAL_ERROR
+        assert estimate_result["error"]["data"]["errors"][0] == "childTransaction 2 in 1 should be less than 2"
+
+    def test_invalid_type_child_transaction_field(
+        self,
+        web3_client_sol,
+        neon_user,
+        erc20_spl_mintable_new,
+        evm_loader,
+        treasury_pool,
+    ):
+        # ┌──────┐  ┌───────┐
+        # ┤ t0 ✓ │─>│ t1 ✓  ├
+        # │ s=1  │  │ s=2   │
+        # └──────┘  └───────┘
+        recipient = NeonUser(evm_loader.loader_id)
+        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, 800)
+        top_up_in_trx = 400
+        amount_to_recipient = 400
+
+        data_0 = decode_function_signature(
+            "transferFrom(address,address,uint256)",
+            [erc20_spl_mintable_new.account.address, neon_user.checksum_address, top_up_in_trx],
+        )
+        data_1 = decode_function_signature(
+            "transfer(address,uint256)", [recipient.checksum_address, amount_to_recipient]
+        )
+
+        trx_estimate_0 = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, erc20_spl_mintable_new.address, data_0, child_transaction="1.0"
+        )
+        trx_estimate_1 = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, erc20_spl_mintable_new.address, data_1, child_transaction="0xFFFF"
+        )
+
+        trx_estimate_obj_list = [trx_estimate_0, trx_estimate_1]
+
+        estimate_result = web3_client_sol.estimate_scheduled(
+            neon_user.solana_account.pubkey(), trx_estimate_obj_list, check_result=False
+        )
+
+        assert estimate_result["error"]["code"] == Error32602.CODE
+        assert estimate_result["error"]["message"] == Error32602.INVALID_PARAMETERS
+        assert "Value error" in estimate_result["error"]["data"]["errors"][0]
+
+    def test_estimate_child_transaction_reverted(
+        self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool, revert_contract
+    ):
+        # ┌──────┐  ┌───────────┐
+        # ┤ t0 ✓ │─>│ t1, revert├
+        # │ s=1  │  │ s=0,      │
+        # └──────┘  └───────────┘
+        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, 800)
+        top_up_in_trx = 400
+
+        data_0 = decode_function_signature(
+            "transferFrom(address,address,uint256)",
+            [erc20_spl_mintable_new.account.address, neon_user.checksum_address, top_up_in_trx],
+        )
+        data_1 = decode_function_signature("doAssert()")
+
+        trx_estimate_0 = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, erc20_spl_mintable_new.address, data_0, child_transaction=hex(1)
+        )
+        trx_estimate_1 = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, revert_contract.address, data_1, child_transaction="0xFFFF"
+        )
+
+        trx_estimate_obj_list = [trx_estimate_0, trx_estimate_1]
+
+        estimate_result = web3_client_sol.estimate_scheduled(
+            neon_user.solana_account.pubkey(), trx_estimate_obj_list, check_result=False
+        )
+
+        assert estimate_result["error"]["code"] == Error3.CODE
+        assert Error3.EXECUTION_REVERTED in estimate_result["error"]["message"]
+
+    def test_estimate_child_call_opcode(
+        self,
+        web3_client_sol,
+        neon_user,
+        erc20_spl_mintable_new,
+        evm_loader,
+        treasury_pool,
+        common_caller_contract,
+        opcode_call_contract,
+        common_contract,
+    ):
+        # ┌──────┐  ┌───────────┐
+        # ┤ t0 ✓ │─>│ t1, revert├
+        # │ s=1  │  │ s=0,      │
+        # └──────┘  └───────────┘
+        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, 800)
+        top_up_in_trx = 400
+
+        data_0 = decode_function_signature(
+            "transferFrom(address,address,uint256)",
+            [erc20_spl_mintable_new.account.address, neon_user.checksum_address, top_up_in_trx],
+        )
+        data_1 = decode_function_signature(
+            "callSetTextReturnSenderAddr(address,string)", [common_contract.address, "test child text"]
+        )
+
+        trx_estimate_0 = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, erc20_spl_mintable_new.address, data_0, child_transaction=hex(1)
+        )
+        trx_estimate_1 = ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, opcode_call_contract.address, data_1, child_transaction="0xFFFF"
+        )
+
+        trx_estimate_obj_list = [trx_estimate_0, trx_estimate_1]
+
+        estimate_result = web3_client_sol.estimate_scheduled(
+            neon_user.solana_account.pubkey(), trx_estimate_obj_list, check_result=False
+        )
+
+        assert len(estimate_result["result"]["gasList"]) == 2
+        assert is_hex(estimate_result["gasList"][0])
+        assert is_hex(estimate_result["gasList"][1])

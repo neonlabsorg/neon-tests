@@ -787,3 +787,14 @@ def diamond(web3_client_session, diamond_init, facet_cuts, accounts):
         constructor_args=[facet_cuts, diamond_args],
     )
     return contract
+
+
+@pytest.fixture(scope="class")
+def opcode_call_contract(web3_client_session, accounts):
+    contract, _ = web3_client_session.deploy_and_get_contract(
+        "opcodes/Call",
+        "0.8.10",
+        accounts[0],
+        contract_name="Caller",
+    )
+    return contract
