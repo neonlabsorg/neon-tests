@@ -1,6 +1,14 @@
-from enum import Enum
+from pathlib import Path
+import typing as tp
 
+from enum import Enum
+from utils.types import TestGroup
 from solders.pubkey import Pubkey
+
+
+EXTERNAL_CONTRACT_PATH = Path.cwd() / "contracts" / "external"
+REMAPPING_ZEPPELIN = {"@openzeppelin": str(EXTERNAL_CONTRACT_PATH / "neon-contracts/node_modules/@openzeppelin")}
+TEST_GROUPS: tp.Tuple[TestGroup, ...] = tp.get_args(TestGroup)
 
 OPERATOR_KEYPAIR_PATH = "deploy/operator-keypairs"
 LAMPORT_PER_SOL = 1_000_000_000
@@ -47,8 +55,22 @@ class Unit(Enum):
         return self.value
 
 
+class EnvName(str, Enum):
+    NIGHT_STAND = "night-stand"
+    RELEASE_STAND = "release-stand"
+    MAINNET = "mainnet"
+    DEVNET = "devnet"
+    TESTNET = "testnet"
+    LOCAL = "local"
+    TERRAFORM = "terraform"
+    GETH = "geth"
+    TRACER_CI = "tracer_ci"
+    CUSTOM = "custom"
+    DOCKER_NET = "docker_net"
+
+
 class InputTestConstants(Enum):
-    NEW_USER_REQUEST_AMOUNT = 800
+    NEW_USER_REQUEST_AMOUNT = 20000
     DEFAULT_TRANSFER_AMOUNT = 0.1
     SAMPLE_AMOUNT = 0.5
     ROUND_DIGITS = 3
@@ -64,10 +86,7 @@ wSOL = {
     "logo_uri": "",
 }
 
-MULTITOKEN_MINTS = {
-    "USDT": "2duuuuhNJHUYqcnZ7LKfeufeeTBgSJdftf2zM3cZV6ym",
-    "ETH": "EwJYd3UAFAgzodVeHprB2gMQ68r4ZEbbvpoVzCZ1dGq5",
-}
+MULTITOKEN_MINTS_USDT = "2duuuuhNJHUYqcnZ7LKfeufeeTBgSJdftf2zM3cZV6ym"
 
 
 class InstructionTags(bytes, Enum):
@@ -96,3 +115,5 @@ class InstructionTags(bytes, Enum):
     SCHEDULED_TRANSACTION_CREATE = b"\x4A"
     SCHEDULED_TRANSACTION_CREATE_MULTIPLE = b"\x4B"
     SCHEDULED_TRANSACTION_DESTROY = b"\x4C"
+    SET_COMPUTE_UNIT_PRICE = b"\x03"
+    SET_COMPUTE_UNIT_LIMIT = b"\x02"
