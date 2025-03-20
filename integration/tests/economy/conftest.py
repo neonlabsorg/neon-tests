@@ -97,3 +97,13 @@ def mapping_actions_contract(account_with_all_tokens, client_and_price, web3_cli
         contract="common/Common", version="0.8.19", contract_name="MappingActions", account=account_with_all_tokens
     )
     return contract
+
+
+@pytest.fixture(scope="class")
+def increase_storage_contract(accounts, web3_client):
+    contract, _ = web3_client.deploy_and_get_contract(
+        contract="common/IncreaseStorage",
+        version="0.8.10",
+        account=accounts[0],
+    )
+    return contract

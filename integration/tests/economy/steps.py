@@ -8,7 +8,7 @@ from solana.rpc.core import RPCException
 from solders.rpc.responses import GetTransactionResp
 from solders.signature import Signature
 
-from integration.tests.economy.const import DECIMAL_CONTEXT, TX_COST
+from integration.tests.economy.const import DECIMAL_CONTEXT
 from utils.consts import LAMPORT_PER_SOL
 from utils.helpers import wait_condition, hasattr_recursive
 
@@ -37,14 +37,9 @@ def assert_profit(sol_diff, sol_price, token_diff, token_price, token_name):
         expense_usd,
         profit_percentage,
     )
+    logger.log(level=log_level, msg=msg)
     with allure.step(msg):
         assert revenue_usd > expense_usd, msg
-
-
-@allure.step("Get single transaction gas")
-def get_single_transaction_gas():
-    """One TX_COST to verify Solana signature plus another one TX_COST to pay to Governance"""
-    return TX_COST * 2
 
 
 @allure.step("Check transaction used ALT")
