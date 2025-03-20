@@ -23,6 +23,12 @@ inputs:
     description: 'list of Hcloud instaces used(one by one) to try to set up infra e.g. ccx33,ccx43,ccx53,cx42,ccx63'
     default: cpx51,cx52,cpx41,cx42,ccx33,ccx43
     required: false
+  docker_username:
+    description: 'docker hub username'
+    required: true
+  docker_password:
+    description: 'docker hub password'
+    required: true
 
 
 runs:
@@ -79,6 +85,7 @@ runs:
         username: root
         key: ${{ inputs.ci_stands_key_hcloud  }}
         script: |
+          echo "${{ inputs.docker_password }}" | docker login -u ${{ inputs.docker_username }} --password-stdin
           cd ${{ inputs.working-directory }}
           chmod a+x /tmp/solana_init.sh
           sudo /tmp/solana_init.sh
@@ -93,6 +100,7 @@ runs:
         key: ${{ inputs.ci_stands_key_hcloud  }}
         envs: SOLANA_IP
         script: |
+          echo "${{ inputs.docker_password }}" | docker login -u ${{ inputs.docker_username }} --password-stdin
           cd ${{ inputs.working-directory }}
           echo $SOLANA_IP > /tmp/solana_host
           chmod a+x /tmp/proxy_init.sh
