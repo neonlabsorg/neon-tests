@@ -68,8 +68,6 @@ runs:
       env:
         SOLANA_IP: ${{ env.SOLANA_IP }}
         PROXY_IP: ${{ env.PROXY_IP }}
-        DOCKER_USERNAME: ${{ inputs.docker_username }}
-        DOCKER_PASSWORD: ${{ inputs.docker_password }}
       shell: bash
       run: |
         cd ${{ inputs.working-directory }}
@@ -82,10 +80,14 @@ runs:
         echo "solana_ip=${{ env.SOLANA_IP }}" >> $GITHUB_OUTPUT
     - name: Run Solana docker compose
       uses: appleboy/ssh-action@v1.2.1
+      env:
+        DOCKER_USERNAME: ${{ inputs.docker_username }}
+        DOCKER_PASSWORD: ${{ inputs.docker_password }}
       with:
         host: ${{ env.SOLANA_IP }}
         username: root
         key: ${{ inputs.ci_stands_key_hcloud  }}
+        envs: SOLANA_IP,DOCKER_USERNAME,DOCKER_PASSWORD
         script: |
           cd ${{ inputs.working-directory }}
           chmod a+x /tmp/solana_init.sh
@@ -101,7 +103,7 @@ runs:
         host: ${{ env.PROXY_IP }}
         username: root
         key: ${{ inputs.ci_stands_key_hcloud  }}
-        envs: SOLANA_IP
+        envs: SOLANA_IP,DOCKER_USERNAME,DOCKER_PASSWORD
         script: |
           cd ${{ inputs.working-directory }}
           echo $SOLANA_IP > /tmp/solana_host
