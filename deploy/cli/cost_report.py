@@ -9,7 +9,6 @@ from typing import TypedDict
 import click
 import pandas as pd
 
-from clickfile import GITHUB_TAG_PATTERN
 from deploy.cli.infrastructure import get_solana_accounts_transactions_compute_units
 from deploy.cli.network_manager import NetworkManager
 from deploy.test_results_db.db_handler import PostgresTestResultsHandler
@@ -121,6 +120,8 @@ def get_service_tags_for_cost_reports(
     :param version_branch:
     :return:
     """
+    from clickfile import GITHUB_TAG_PATTERN
+
     compared_service_tag = evm_tag if repo == "evm" else proxy_tag
     other_service_tag = evm_tag if repo == "proxy" else proxy_tag
 
