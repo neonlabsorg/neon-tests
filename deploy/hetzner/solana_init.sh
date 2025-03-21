@@ -48,6 +48,7 @@ if [[ -n "$DOCKER_USERNAME" && -n "$DOCKER_PASSWORD" ]]; then
     echo "Docker login failed! Check your credentials."
   fi
 else
+  echo "Skip Docker login"
   echo "DOCKER_USERNAME and/or DOCKER_PASSWORD are not set!"
 fi
 
