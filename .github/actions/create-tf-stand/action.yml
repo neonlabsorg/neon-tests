@@ -89,11 +89,9 @@ runs:
         key: ${{ inputs.ci_stands_key_hcloud  }}
         envs: DOCKER_USERNAME,DOCKER_PASSWORD
         script: |
-          echo "DOCKER_USERNAME: $DOCKER_USERNAME"
-          echo "DOCKER_PASSWORD: $DOCKER_PASSWORD"
           cd ${{ inputs.working-directory }}
           chmod a+x /tmp/solana_init.sh
-          sudo /tmp/solana_init.sh
+          sudo -E /tmp/solana_init.sh
 
     - name: Run Poxy docker compose
       uses: appleboy/ssh-action@v1.2.1
@@ -110,4 +108,4 @@ runs:
           cd ${{ inputs.working-directory }}
           echo $SOLANA_IP > /tmp/solana_host
           chmod a+x /tmp/proxy_init.sh
-          sudo /tmp/proxy_init.sh
+          sudo -E /tmp/proxy_init.sh
