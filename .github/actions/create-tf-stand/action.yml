@@ -89,6 +89,8 @@ runs:
         key: ${{ inputs.ci_stands_key_hcloud  }}
         envs: DOCKER_USERNAME,DOCKER_PASSWORD
         script: |
+          echo "DOCKER_USERNAME: $DOCKER_USERNAME"
+          echo "DOCKER_PASSWORD: $DOCKER_PASSWORD"
           cd ${{ inputs.working-directory }}
           chmod a+x /tmp/solana_init.sh
           sudo /tmp/solana_init.sh
