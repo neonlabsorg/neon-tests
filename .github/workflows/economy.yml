@@ -65,14 +65,14 @@ jobs:
           HCLOUD_TOKEN: ${{secrets.HCLOUD_TOKEN}}
           TFSTATE_BUCKET: ${{vars.TFSTATE_BUCKET}}
           TFSTATE_KEY: ${{vars.TFSTATE_KEY_PREFIX}}-${{ github.run_number }}
-          TFSTATE_REGION: ${{vars.TFSTATE_REGION}}
-          docker_username: ${{ secrets.DOCKER_USERNAME }}
-          docker_password: ${{ secrets.DOCKER_PASSWORD }}
+          TFSTATE_REGION: ${{vars.TFSTATE_REGION}}          
         uses: ./.github/actions/create-tf-stand
         with:
           ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
           hetzner_instance_types: ${{vars.HETZNER_INSTANCE_TYPES}}
           use_real_price: "1"
+          docker_username: ${{ secrets.DOCKER_USERNAME }}
+          docker_password: ${{ secrets.DOCKER_PASSWORD }}
         timeout-minutes: 15
 
     outputs:
