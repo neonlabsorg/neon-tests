@@ -280,12 +280,6 @@ class TestNeonRPCEstimateScheduledGas:
         assert resp["error"]["code"] == error_code, f"error code must be {error_code} "
         assert resp["error"]["message"] == error_msg, f"error message must be {error_msg}"
 
-
-@allure.feature("JSON-RPC validation")
-@allure.story("Verify JSON-RPC neon_estimateScheduledGas work")
-@pytest.mark.neon_only
-class TestNeonRPCEstimateScheduledGasChildTrx:
-
     def test_one_transaction_no_child(
         self,
         web3_client_sol,
@@ -518,11 +512,8 @@ class TestNeonRPCEstimateScheduledGasChildTrx:
         )
 
         assert len(estimate_result["result"]["gasList"]) == 2
-        assert is_hex(estimate_result["gasList"][0])
-        assert is_hex(estimate_result["gasList"][1])
-
-
-class TestNeonRPCEstimateScheduledGasPreparatorySolTrx:
+        assert is_hex(estimate_result["result"]["gasList"][0])
+        assert is_hex(estimate_result["result"]["gasList"][1])
 
     def test_estimate_with_preparatory_solana_transactions(
         self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool
@@ -722,8 +713,9 @@ class TestNeonRPCEstimateScheduledGasPreparatorySolTrx:
             preparatory_solana_trxs=trx.instructions,
             check_result=False,
         )
-        assert len(resp["gasList"]) == 2, "Amount of transactions must be 2"
+        result = resp["result"]
+        assert len(result["gasList"]) == 2, "Amount of transactions must be 2"
 
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
-        assert resp["nonce"] == hex(nonce)
-        assert_fields_are_hex(resp, ["chainId", "maxFeePerGas", "maxPriorityFeePerGas", "nonce", "treasuryIndex"])
+        assert result["nonce"] == hex(nonce)
+        assert_fields_are_hex(result, ["chainId", "maxFeePerGas", "maxPriorityFeePerGas", "nonce", "treasuryIndex"])
