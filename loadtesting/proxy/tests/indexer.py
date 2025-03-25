@@ -1,7 +1,6 @@
 import logging
 import random
 
-
 from loadtesting.proxy.common.events import execute_before
 
 from locust import User, tag, task
@@ -48,16 +47,8 @@ class NeonTasksSet(NeonProxyTasksSet):
         self.nonce = self.web3_client.get_nonce(self.account)
         self.recipient = self.get_account()
 
-    def get_balances(self):
-        sender_balance = self.web3_client.get_balance(self.account.address)
-        recipient_balance = self.web3_client.get_balance(self.recipient.address)
-        return sender_balance, recipient_balance
-
     def get_account(self):
         return random.choice(self.user.environment.shared.accounts)
-
-    def create_account(self):
-        return self.web3_client.create_account()
 
     @task
     @execute_before("task_block_number")
@@ -75,7 +66,7 @@ class NeonTasksSet(NeonProxyTasksSet):
         return tx, self.web3_client.get_nonce(self.account)
 
 
-class ScheduledTxUser(User):
+class MultipleProfiles(User):
     tasks = {
         NeonTasksSet: 1,
         NeonIterativeTasksSet: 1,
