@@ -40,7 +40,7 @@ def prepare_one_contract_for_erc20(environment: env.Environment, **kwargs):
     erc20_wrapper.deploy_wrapper(True)
     erc20_wrapper.mint_tokens(eth_account, eth_account.address, 18446744073709551615)
 
-    environment.erc20_one = {"user": eth_account, "contract": erc20_wrapper, "accounts": []}
+    environment.erc20_one = {"contract": erc20_wrapper, "accounts": []}
 
     for _ in range(environment.parsed_options.num_users):
         print(f"Creating {_} eth like account...")
