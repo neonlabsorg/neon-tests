@@ -97,12 +97,12 @@ class TestAccountList:
         slot = evm_loader.get_slot().value
         signed_tx = make_contract_call_trx(evm_loader, user_account, contract, "getValues(uint256)", params=[slot])
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
-        emulate_result_2 = neon_api_client.emulate_contract_call(
+        emulate_result = neon_api_client.emulate_contract_call(
             user_account.eth_address.hex(), contract.eth_address.hex(), "getValues(uint256)", params=[slot]
         )
-        acc_from_emulation_2 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result_2["solana_accounts"]]
-        assert Pubkey.from_string("SysvarS1otHashes111111111111111111111111111") not in acc_from_emulation_2
-        resp_2 = evm_loader.execute_transaction_steps_from_account(
-            operator_keypair, treasury_pool, holder_acc, acc_from_emulation_2
+        acc_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+        assert Pubkey.from_string("SysvarS1otHashes111111111111111111111111111") not in acc_from_emulation
+        resp = evm_loader.execute_transaction_steps_from_account(
+            operator_keypair, treasury_pool, holder_acc, acc_from_emulation
         )
-        check_transaction_logs_have_text(solana_client=sol_client, trx=resp_2, text="exit_status=0x12")
+        check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x12")
