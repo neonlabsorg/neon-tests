@@ -42,7 +42,7 @@ def prepare_one_contract_for_erc20(environment: env.Environment, **kwargs):
 
     environment.erc20_one = {"user": eth_account, "contract": erc20_wrapper, "accounts": []}
 
-    for _ in range(50):
+    for _ in range(environment.parsed_options.num_users):
         print(f"Creating {_} eth like account...")
         acc = neon_client.create_account()
         erc20_wrapper.transfer(eth_account, acc, 10_000)
@@ -59,7 +59,7 @@ class ERC20SPLTasksSet(NeonProxyTasksSet):
         self.log = logging.getLogger("neon-consumer[%s]" % self.account.address[-8:])
 
         with USER_LOCK:
-            if not self.shared_accounts:
+            if not self.user.environment.erc20_one["accounts"]:
                 raise RuntimeError("Too little users")
             self.account = self.user.environment.erc20_one["accounts"].pop(0)
             self.check_balance(self.account)
@@ -81,10 +81,7 @@ class ERC20SPLTasksSet(NeonProxyTasksSet):
         recipient = self.get_account()
         LOG.info(f"Send erc20spl token from {self.account.address[:8]} to {recipient.address[:8]}")
         receipt = contract.transfer(self.account, recipient, 1)
-
         LOG.info(dict(receipt))
-
-        receipt["contract"] = {"address": contract.contract.address}
         assert receipt["status"] == 1, receipt
 
 
