@@ -102,9 +102,9 @@ class Transaction(BaseModel):
     transactionIndex: HexString
     value: HexString
     chainId: HexString
-    v: HexString
-    r: HexString
-    s: HexString
+    v: [HexString, None]
+    r: [HexString, None]
+    s: [HexString, None]
     type: HexString
 
 
