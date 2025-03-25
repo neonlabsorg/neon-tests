@@ -94,26 +94,11 @@ class TestAccountList:
             contract_name="BlockHashTest",
             version="0.8.10",
         )
-        # forming valid block for calculating hash
-        block_number = sol_client.get_blocks(0).value[1]
-        signed_tx = make_contract_call_trx(
-            evm_loader, user_account, contract, "getValues(uint256)", params=[block_number]
-        )
-        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
-        emulate_result = neon_api_client.emulate_contract_call(
-            user_account.eth_address.hex(), contract.eth_address.hex(), "getValues(uint256)", params=[block_number]
-        )
-        acc_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
-        resp = evm_loader.execute_transaction_steps_from_account(
-            operator_keypair, treasury_pool, holder_acc, acc_from_emulation
-        )
-
-        # calculating hash
-        slot_n = resp.value.slot
-        signed_tx = make_contract_call_trx(evm_loader, user_account, contract, "getValues(uint256)", params=[slot_n])
+        slot = evm_loader.get_slot().value
+        signed_tx = make_contract_call_trx(evm_loader, user_account, contract, "getValues(uint256)", params=[slot])
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
         emulate_result_2 = neon_api_client.emulate_contract_call(
-            user_account.eth_address.hex(), contract.eth_address.hex(), "getValues(uint256)", params=[slot_n]
+            user_account.eth_address.hex(), contract.eth_address.hex(), "getValues(uint256)", params=[slot]
         )
         acc_from_emulation_2 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result_2["solana_accounts"]]
         assert Pubkey.from_string("SysvarS1otHashes111111111111111111111111111") not in acc_from_emulation_2
