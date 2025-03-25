@@ -11,6 +11,18 @@ contract transfers {
         }
     }
 
+    function transferTokensAndRaiseError(uint256 amount, address[] memory recipients) public payable {
+        require(address(this).balance >= amount * recipients.length, "contract balance less then needed");
+        for (uint256 i = 0; i < recipients.length; i++) {
+            (bool success,) = recipients[i].call{value: amount}("");
+        }
+        uint a;
+        for (uint256 i = 0; i < 800; i++) { // some actions to make transaction iterative
+            a = a + i;
+        }
+        require(false, "Error raised");
+    }
+
     function donateTenPercent() public payable {
         if (address(this).balance >= 1000) {
             payable(msg.sender).transfer(address(this).balance / 10);
