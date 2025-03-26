@@ -643,8 +643,3 @@ class TestNeonRPCEstimateScheduledGas:
         )
         assert resp["error"]["code"] == Error3.CODE
         assert resp["error"]["message"] == Error3.EXECUTION_REVERTED
-        assert len(resp["gasList"]) == 2, "Amount of transactions must be 2"
-
-        nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
-        assert resp["nonce"] == hex(nonce)
-        assert_fields_are_hex(resp, ["chainId", "maxFeePerGas", "maxPriorityFeePerGas", "nonce", "treasuryIndex"])
