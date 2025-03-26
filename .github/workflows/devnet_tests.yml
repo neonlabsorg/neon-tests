@@ -53,7 +53,7 @@ jobs:
         run: |
           test_image_tag=`python ./clickfile.py get-stand-proxy-version -n ${{ env.NETWORK }}`
           echo "Test image tag: $test_image_tag"
-          echo "value=$test_image_tag" >> $GITHUB_ENV
+          echo "value=$test_image_tag" >> >> $GITHUB_OUTPUT
       - name: Run docker container
         run: |
           docker pull ${{ env.IMAGE }}:${{ steps.test_image_tag.outputs.value }}
