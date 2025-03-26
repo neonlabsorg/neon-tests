@@ -587,12 +587,11 @@ class TestNeonRPCEstimateScheduledGas:
         assert resp["error"]["message"] == Error32602.INVALID_PARAMETERS
         assert "Value error" in resp["error"]["data"]["errors"][0]
 
-    def test_estimate_with_preparatory_reverted_solana_transactions(
+    def test_estimate_with_preparatory_failed_solana_transaction(
         self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader
     ):
         recipient = NeonUser(evm_loader.loader_id)
         ata_amount = 0
-        wrong_ammount = 1000000000
         erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, ata_amount)
 
         my_ata = get_associated_token_address(
@@ -613,7 +612,7 @@ class TestNeonRPCEstimateScheduledGas:
         trx.add(
             approve(
                 ApproveParams(
-                    program_id=TOKEN_PROGRAM_ID,
+                    program_id=solana_contract_account,
                     source=my_ata,
                     delegate=solana_contract_account,
                     owner=neon_user.solana_account.pubkey(),
@@ -624,7 +623,7 @@ class TestNeonRPCEstimateScheduledGas:
 
         data1 = decode_function_signature(
             "transferSolanaFrom(address,bytes32,uint64)",
-            [erc20_spl_mintable_new.account.address, bytes(my_ata), wrong_ammount],
+            [erc20_spl_mintable_new.account.address, bytes(my_ata), ata_amount],
         )
         data2 = decode_function_signature("transfer(address,uint256)", [recipient.checksum_address, ata_amount])
 
@@ -641,5 +640,5 @@ class TestNeonRPCEstimateScheduledGas:
             preparatory_solana_trxs=trx.instructions,
             check_result=False,
         )
-        assert resp["error"]["code"] == Error3.CODE
-        assert resp["error"]["message"] == Error3.EXECUTION_REVERTED
+        assert resp["error"]["code"] == Error32603.CODE
+        assert resp["error"]["message"] == Error32603.INTERNAL_ERROR
