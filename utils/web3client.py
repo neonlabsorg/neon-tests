@@ -5,12 +5,14 @@ from decimal import Decimal
 
 import logging
 import allure
+import base58
 import eth_account.signers.local
 import requests
 import web3
 import web3.types
 from eth_abi import abi
 from eth_typing import BlockIdentifier
+from solders.instruction import Instruction
 from web3.contract import Contract
 from solders.pubkey import Pubkey
 from web3.exceptions import TransactionNotFound
@@ -620,7 +622,13 @@ class Web3Client:
         return resp["result"]
 
     @allure.step("Estimate list of scheduled transactions")
-    def estimate_scheduled(self, solana_payer: Pubkey, trx_list_estimate: tp.List[ScheduledTrxEstimateRequest]) -> dict:
+    def estimate_scheduled(
+        self,
+        solana_payer: Pubkey,
+        trx_list_estimate: tp.List[ScheduledTrxEstimateRequest],
+        preparatory_solana_trxs: tp.Tuple[Instruction, ...] = None,
+        check_result: bool = True,
+    ) -> dict:
         transactions = []
         for trx in trx_list_estimate:
             transaction = {
@@ -633,6 +641,22 @@ class Web3Client:
                 transaction["childTransaction"] = trx.child_transaction
             transactions.append(transaction)
         params = {"scheduledSolanaPayer": str(solana_payer), "transactions": transactions}
+        if preparatory_solana_trxs:
+            instructions = []
+            for trx in preparatory_solana_trxs:
+                instruction = {"programId": str(trx.program_id), "data": base58.b58encode(trx.data).decode("utf-8")}
+                accounts = []
+                for account in trx.accounts:
+                    accounts.append(
+                        {
+                            "address": str(account.pubkey),
+                            "isWritable": account.is_writable,
+                            "isSigner": account.is_signer,
+                        }
+                    )
+                instruction["accounts"] = accounts
+                instructions.append(instruction)
+            params["preparatorySolanaTransactions"] = [{"instructions": instructions}]
         json = {
             "jsonrpc": "2.0",
             "method": "neon_estimateScheduledGas",
@@ -643,8 +667,11 @@ class Web3Client:
             self._proxy_url,
             json=json,
         ).json()
-        assert "result" in resp, f"Failed to estimate transactions: {resp}"
-        return resp["result"]
+        if check_result:
+            assert "result" in resp, f"Failed to estimate transactions: {resp}"
+            return resp["result"]
+        else:
+            return resp
 
 
 class NeonChainWeb3Client(Web3Client):
