@@ -473,21 +473,31 @@ class TestNeonRPCEstimateScheduledGas:
         assert_fields_are_hex(resp, ["chainId", "maxFeePerGas", "maxPriorityFeePerGas", "nonce", "treasuryIndex"])
 
     def test_estimate_transfer_trx_without_approval_in_preparatory_sol_trx_list(
-        self, web3_client_sol, neon_user_no_sols, erc20_spl_mintable_new, evm_loader, common_contract
+        self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, treasury_pool
     ):
+        recipient = NeonUser(evm_loader.loader_id)
+        ata_amount = 1_000
+        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, ata_amount)
 
-        data1 = decode_function_signature("setTextAndReceiveValue(uint256)", [1998])
-        data2 = decode_function_signature("setNumber(uint256)", [2007])
+        my_ata = get_associated_token_address(
+            neon_user.solana_account.pubkey(), erc20_spl_mintable_new.token_mint_pubkey
+        )
+
+        data1 = decode_function_signature(
+            "transferSolanaFrom(address,bytes32,uint64)",
+            [erc20_spl_mintable_new.account.address, bytes(my_ata), ata_amount],
+        )
+        data2 = decode_function_signature("transfer(address,uint256)", [recipient.checksum_address, ata_amount])
 
         trx_estimate_obj1 = ScheduledTrxEstimateRequest(
-            neon_user_no_sols.checksum_address, common_contract.address, data1, value=1000
+            neon_user.checksum_address, erc20_spl_mintable_new.address, data1
         )
         trx_estimate_obj2 = ScheduledTrxEstimateRequest(
-            neon_user_no_sols.checksum_address, common_contract.address, data2
+            neon_user.checksum_address, erc20_spl_mintable_new.address, data2
         )
 
         resp = web3_client_sol.estimate_scheduled(
-            neon_user_no_sols.solana_account.pubkey(), [trx_estimate_obj1, trx_estimate_obj2], check_result=False
+            neon_user.solana_account.pubkey(), [trx_estimate_obj1, trx_estimate_obj2], check_result=False
         )
         assert "execution reverted" in resp["error"]["message"], "Error message is not correct"
 
