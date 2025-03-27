@@ -47,7 +47,6 @@ class TestChainlink:
         description = contract.functions.description().call()
         decimals = contract.functions.decimals().call()
         latest_round_data = contract.functions.latestRoundData().call()
-        print(latest_round_data)
 
         assert version == 2
         assert description == "SOL / USD"
