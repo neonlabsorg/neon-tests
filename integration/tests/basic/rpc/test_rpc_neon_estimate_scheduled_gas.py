@@ -7,8 +7,14 @@ from solders.pubkey import Pubkey
 from eth_utils import abi
 import solders.system_program as sp
 from solders.token.associated import get_associated_token_address
-from spl.token.constants import TOKEN_PROGRAM_ID
-from spl.token.instructions import ApproveParams, create_associated_token_account, approve
+from spl.token.constants import TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID
+from spl.token.instructions import (
+    ApproveParams,
+    create_associated_token_account,
+    approve,
+    sync_native,
+    SyncNativeParams,
+)
 
 from integration.tests.basic.helpers.errors import Error32602, Error32000, Error3, Error32603
 
@@ -409,7 +415,7 @@ class TestNeonRPCEstimateScheduledGas:
         assert Error3.EXECUTION_REVERTED in estimate_result["error"]["message"]
 
     def test_estimate_with_preparatory_solana_transactions(
-        self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader
+        self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, common_contract
     ):
         recipient = NeonUser(evm_loader.loader_id)
         ata_amount = 1_000
@@ -467,85 +473,37 @@ class TestNeonRPCEstimateScheduledGas:
         assert_fields_are_hex(resp, ["chainId", "maxFeePerGas", "maxPriorityFeePerGas", "nonce", "treasuryIndex"])
 
     def test_estimate_transfer_trx_without_approval_in_preparatory_sol_trx_list(
-        self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader
+        self, web3_client_sol, neon_user_no_sols, erc20_spl_mintable_new, evm_loader, common_contract
     ):
-        recipient = NeonUser(evm_loader.loader_id)
-        ata_amount = 1_000
-        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, ata_amount)
 
-        my_ata = get_associated_token_address(
-            neon_user.solana_account.pubkey(), erc20_spl_mintable_new.token_mint_pubkey
-        )
-
-        data1 = decode_function_signature(
-            "transferSolanaFrom(address,bytes32,uint64)",
-            [erc20_spl_mintable_new.account.address, bytes(my_ata), ata_amount],
-        )
-        data2 = decode_function_signature("transfer(address,uint256)", [recipient.checksum_address, ata_amount])
+        data1 = decode_function_signature("setTextAndReceiveValue(uint256)", [1998])
+        data2 = decode_function_signature("setNumber(uint256)", [2007])
 
         trx_estimate_obj1 = ScheduledTrxEstimateRequest(
-            neon_user.checksum_address, erc20_spl_mintable_new.address, data1
+            neon_user_no_sols.checksum_address, common_contract.address, data1, value=1000
         )
         trx_estimate_obj2 = ScheduledTrxEstimateRequest(
-            neon_user.checksum_address, erc20_spl_mintable_new.address, data2
+            neon_user_no_sols.checksum_address, common_contract.address, data2
         )
 
         resp = web3_client_sol.estimate_scheduled(
-            neon_user.solana_account.pubkey(), [trx_estimate_obj1, trx_estimate_obj2], check_result=False
+            neon_user_no_sols.solana_account.pubkey(), [trx_estimate_obj1, trx_estimate_obj2], check_result=False
         )
-        assert "execution reverted: External call fails" in resp["error"]["message"], "Error message is not correct"
+        assert "execution reverted" in resp["error"]["message"], "Error message is not correct"
 
     @pytest.mark.parametrize("case, value", [("wrong_data", "-"), ("wrong_accounts", []), ("wrong_instructions", [])])
     def test_wrong_params_value_estimate_with_preparatory_solana_transactions(
-        self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader, json_sol_rpc_client, case, value
+        self, neon_user, json_sol_rpc_client, case, value, common_contract
     ):
-        recipient = NeonUser(evm_loader.loader_id)
-        ata_amount = 1_000
-        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, ata_amount)
-
-        my_ata = get_associated_token_address(
-            neon_user.solana_account.pubkey(), erc20_spl_mintable_new.token_mint_pubkey
-        )
-        solana_contract_account = Pubkey.from_string(
-            evm_loader.ether2program(erc20_spl_mintable_new.contract.address)[0]
-        )
-
         trx = Transaction()
-        trx.add(
-            create_associated_token_account(
-                neon_user.solana_account.pubkey(),
-                neon_user.solana_account.pubkey(),
-                erc20_spl_mintable_new.token_mint_pubkey,
-            )
-        )
-        trx.add(
-            approve(
-                ApproveParams(
-                    program_id=TOKEN_PROGRAM_ID,
-                    source=my_ata,
-                    delegate=solana_contract_account,
-                    owner=neon_user.solana_account.pubkey(),
-                    amount=ata_amount,
-                )
-            )
-        )
+        trx.add(sync_native(SyncNativeParams(program_id=TOKEN_PROGRAM_ID, account=neon_user.solana_account.pubkey())))
 
-        data1 = decode_function_signature(
-            "transferSolanaFrom(address,bytes32,uint64)",
-            [erc20_spl_mintable_new.account.address, bytes(my_ata), ata_amount],
-        )
-        data2 = decode_function_signature("transfer(address,uint256)", [recipient.checksum_address, ata_amount])
+        data1 = decode_function_signature("setTextAndReceiveValue(uint256)", [1998])
 
-        trx_estimate_obj1 = ScheduledTrxEstimateRequest(
-            neon_user.checksum_address, erc20_spl_mintable_new.address, data1
-        )
-        trx_estimate_obj2 = ScheduledTrxEstimateRequest(
-            neon_user.checksum_address, erc20_spl_mintable_new.address, data2
-        )
+        trx_estimate_obj1 = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data1)
 
-        # ---prepare
         solana_payer = neon_user.solana_account.pubkey()
-        trx_list_estimate = [trx_estimate_obj1, trx_estimate_obj2]
+        trx_list_estimate = [trx_estimate_obj1]
         preparatory_solana_trxs = trx.instructions
         transactions = []
         for trx in trx_list_estimate:
@@ -575,11 +533,11 @@ class TestNeonRPCEstimateScheduledGas:
         params["preparatorySolanaTransactions"] = [{"instructions": instructions}]
 
         if case == "wrong_data":
-            params["preparatorySolanaTransactions"][0]["instructions"][1]["data"] = "-"
+            params["preparatorySolanaTransactions"][0]["instructions"][0]["data"] = value
         elif case == "wrong_accounts":
-            params["preparatorySolanaTransactions"][0]["instructions"][1]["accounts"] = []
+            params["preparatorySolanaTransactions"][0]["instructions"][0]["accounts"] = value
         elif case == "wrong_instructions":
-            params["preparatorySolanaTransactions"] = [{"instructions": []}]
+            params["preparatorySolanaTransactions"] = [{"instructions": value}]
 
         resp = json_sol_rpc_client.send_rpc(method="neon_estimateScheduledGas", params=params)
 
@@ -588,57 +546,27 @@ class TestNeonRPCEstimateScheduledGas:
         assert "Value error" in resp["error"]["data"]["errors"][0]
 
     def test_estimate_with_preparatory_failed_solana_transaction(
-        self, web3_client_sol, neon_user, erc20_spl_mintable_new, evm_loader
+        self, web3_client_sol, neon_user, evm_loader, common_contract
     ):
-        recipient = NeonUser(evm_loader.loader_id)
-        ata_amount = 0
-        erc20_spl_mintable_new.approve(erc20_spl_mintable_new.account, neon_user.checksum_address, ata_amount)
-
-        my_ata = get_associated_token_address(
-            neon_user.solana_account.pubkey(), erc20_spl_mintable_new.token_mint_pubkey
-        )
-        solana_contract_account = Pubkey.from_string(
-            evm_loader.ether2program(erc20_spl_mintable_new.contract.address)[0]
-        )
 
         trx = Transaction()
         trx.add(
-            create_associated_token_account(
-                neon_user.solana_account.pubkey(),
-                neon_user.solana_account.pubkey(),
-                erc20_spl_mintable_new.token_mint_pubkey,
-            )
-        )
-        trx.add(
-            approve(
-                ApproveParams(
-                    program_id=solana_contract_account,
-                    source=my_ata,
-                    delegate=solana_contract_account,
-                    owner=neon_user.solana_account.pubkey(),
-                    amount=ata_amount,
-                )
+            sync_native(
+                SyncNativeParams(program_id=ASSOCIATED_TOKEN_PROGRAM_ID, account=neon_user.solana_account.pubkey())
             )
         )
 
-        data1 = decode_function_signature(
-            "transferSolanaFrom(address,bytes32,uint64)",
-            [erc20_spl_mintable_new.account.address, bytes(my_ata), ata_amount],
-        )
-        data2 = decode_function_signature("transfer(address,uint256)", [recipient.checksum_address, ata_amount])
+        data1 = decode_function_signature("setTextAndReceiveValue(uint256)", [1998])
 
-        trx_estimate_obj1 = ScheduledTrxEstimateRequest(
-            neon_user.checksum_address, erc20_spl_mintable_new.address, data1
-        )
-        trx_estimate_obj2 = ScheduledTrxEstimateRequest(
-            neon_user.checksum_address, erc20_spl_mintable_new.address, data2
-        )
+        trx_estimate_obj1 = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data1)
 
         resp = web3_client_sol.estimate_scheduled(
             neon_user.solana_account.pubkey(),
-            [trx_estimate_obj1, trx_estimate_obj2],
+            [
+                trx_estimate_obj1,
+            ],
             preparatory_solana_trxs=trx.instructions,
             check_result=False,
         )
-        assert resp["error"]["code"] == Error32603.CODE
-        assert resp["error"]["message"] == Error32603.INTERNAL_ERROR
+        assert resp["error"]["code"] == Error32000.CODE
+        assert Error32000.SOLANA_SIMULATOR_ERROR in resp["error"]["message"], "wrong error message"
