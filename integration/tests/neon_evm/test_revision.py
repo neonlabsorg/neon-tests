@@ -685,7 +685,6 @@ class TestAccountRevision:
         assert evm_loader.get_neon_balance(contract.eth_address) == 900
         assert evm_loader.get_neon_balance(sender_with_tokens.eth_address) == sender_balance_before + 100
 
-    # todo test ci
     @pytest.mark.parametrize(
         "func_signature, amount_emulated_accounts",
         [("powNumberInnerAndRollback1(uint256)", 2), ("powNumberOuterAndRollback2(uint256)", 3)],
@@ -696,6 +695,7 @@ class TestAccountRevision:
         operator_keypair,
         evm_loader,
         sender_with_tokens,
+        second_session_user,
         neon_api_client,
         treasury_pool,
         new_holder_acc,
@@ -734,7 +734,7 @@ class TestAccountRevision:
         # make second transaction, change  number value and back original value in the same tx
         func2_args = [10]
         emulate_result2 = neon_api_client.emulate_contract_call(
-            sender_with_tokens.eth_address.hex(),
+            second_session_user.eth_address.hex(),
             revision_contract.eth_address.hex(),
             func_signature,
             func2_args,
@@ -743,7 +743,7 @@ class TestAccountRevision:
         assert len(emulated_accounts) == amount_emulated_accounts
 
         signed_tx2 = make_contract_call_trx(
-            evm_loader, sender_with_tokens, revision_contract, func_signature, func2_args
+            evm_loader, second_session_user, revision_contract, func_signature, func2_args
         )
         evm_loader.write_transaction_to_holder_account(signed_tx2, new_holder_acc_2, operator_keypair)
         resp = evm_loader.execute_transaction_steps_from_account(
