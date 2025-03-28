@@ -36,29 +36,19 @@ runs:
          fi;
           echo "value=${value}"
           echo "value=${value}" >> $GITHUB_OUTPUT
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-
     - name: Build and push neon tests docker image
       id: docker_pipeline
       shell: bash
       env:
         DOCKER_HUB_ORG_NAME: ${{ inputs.docker_hub_org_name }}
-        DOCKER_BUILDKIT: 1
       run: |
         image_name=${{ inputs.image_name }}
         delimeter=$(printf "%0.s-" {1..30})
         echo " ${delimeter} Build new docker image ${image_name} ${delimeter}"
-
-        docker buildx create --use --name builder || docker buildx use build
-        docker buildx build . \
-            --no-cache \
-            --tag ${image_name}:${{ inputs.image_tag }} \
+        docker build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
             --build-arg OZ_TAG='${{ inputs.oz_tag }}' \
             --build-arg CONTRACTS_BRANCH="${{ steps.feature_branch.outputs.value || 'develop'}}" \
-            --build-arg DOCKER_HUB_ORG_NAME="${{env.DOCKER_HUB_ORG_NAME}}" \
-            --load
+            --build-arg DOCKER_HUB_ORG_NAME="${{env.DOCKER_HUB_ORG_NAME}}"
         if [[ "${{ steps.feature_branch.outputs.value }}" != ''  ]]; then
           docker tag ${image_name}:${{ inputs.image_tag }} ${image_name}:${{ steps.feature_branch.outputs.value }}
         fi;

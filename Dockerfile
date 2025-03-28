@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.3
+
 ARG OZ_TAG=latest
 ARG DOCKER_HUB_ORG_NAME
 FROM ${DOCKER_HUB_ORG_NAME}/openzeppelin-contracts:${OZ_TAG} as oz-contracts
@@ -26,7 +26,6 @@ ENV TZ=Europe/Moscow \
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# ---- Install system dependencies using BuildKit caching ----
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt \
     apt-get update && \
@@ -89,4 +88,3 @@ RUN mkdir -p ${DOWNLOAD_PATH} && \
     curl -o ${DOWNLOAD_PATH}/${SOLC_BINARY} ${REPOSITORY_PATH}/${SOLC_BINARY} && \
     curl -o ${DOWNLOAD_PATH}/list.json ${REPOSITORY_PATH}/list.json && \
     chmod -R 755 ${DOWNLOAD_PATH}
-
