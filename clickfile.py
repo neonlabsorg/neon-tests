@@ -495,7 +495,7 @@ def update_contracts(branch):
     download_evm_contracts(branch)
     update_contracts_from_git(HOODIES_CHAINLINK_GITHUB_URL, "hoodies_chainlink", "main")
 
-    # uncomment for new version of erc20ForSpl
+    # erc20ForSpl
     update_contracts_from_git(
         "https://github.com/neonevm/neon-contracts.git",
         "neon-contracts",

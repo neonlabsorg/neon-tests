@@ -1,0 +1,9 @@
+.git
+.gitignore
+.gitattributes
+
+.venv
+.idea
+.vscode
+
+allure-results

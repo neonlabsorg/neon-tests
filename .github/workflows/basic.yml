@@ -55,7 +55,6 @@ env:
   DOCKER_HUB_ORG_NAME: ${{ github.repository_owner }}
   GENERATE_COST_REPORT: ${{ github.event.inputs.generate_cost_report || 'false' }}
 jobs:
-
   pre-commit-check:
     name: Pre-commit hook validation
     runs-on: ["self-hosted", "k8s-prod"]
