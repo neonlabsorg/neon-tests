@@ -448,7 +448,7 @@ def update_contracts_from_git(git_url: str, local_dir_name: str, branch="develop
     if download_path.exists():
         shutil.rmtree(download_path)
     commands = f"""
-        git clone --branch {branch} {git_url} {download_path}
+        git clone --depth 1 --branch {branch} {git_url} {download_path}
     """
 
     if update_npm:
