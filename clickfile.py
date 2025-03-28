@@ -560,7 +560,7 @@ def run(
                 " --ignore=integration/tests/basic/solana_signature/test_send_scheduled_transactions_new_erc.py "
             )
         if numprocesses:
-            command = f"{command} --numprocesses {numprocesses} --dist loadgroup"
+            command = f"{command} --numprocesses {numprocesses} --dist loadscope"
 
     elif name == "basic_extended":
         # run basic excluding tests for ERC20SPLNew contract
