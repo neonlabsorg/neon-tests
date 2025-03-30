@@ -10,27 +10,29 @@ contract RevisionChanger {
     function powNumberInnerAndRollback(uint256 n) public {
         require(n > 0, "Exponent should be > 0");
 
-        uint base = number_inner_contract_scope;
-        uint number_start = 1;
+        uint original = number_inner_contract_scope;
+        uint computedValue = 1;
 
         for (uint i = 0; i < n; i++) {
-            number_start *= base;
+            computedValue *= original;
+            number_inner_contract_scope=computedValue;
         }
 
-        number_inner_contract_scope = base;
+        number_inner_contract_scope = original;
     }
 
     function powNumberOuterAndRollback(uint256 n) public {
         require(n > 0, "Exponent should be > 0");
 
-        uint base = number_outer_contract_scope;
-        uint number_start = 1;
+        uint original = number_outer_contract_scope;
+        uint computedValue = 1;
 
         for (uint i = 0; i < n; i++) {
-            number_start *= base;
+            computedValue *= original;
+            number_outer_contract_scope=computedValue;
         }
 
-        number_outer_contract_scope = base;
+        number_outer_contract_scope = original;
     }
 }
 

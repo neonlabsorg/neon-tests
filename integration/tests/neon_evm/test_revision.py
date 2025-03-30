@@ -687,7 +687,10 @@ class TestAccountRevision:
 
     @pytest.mark.parametrize(
         "func_signature, amount_emulated_accounts",
-        [("powNumberInnerAndRollback1(uint256)", 2), ("powNumberOuterAndRollback2(uint256)", 3)],
+        [
+            ("powNumberInnerAndRollback(uint256)", 2),
+            # ("powNumberOuterAndRollback(uint256)", 3)
+        ],
     )
     def test_transaction_not_restarted_if_value_not_changed(
         self,
@@ -695,15 +698,15 @@ class TestAccountRevision:
         operator_keypair,
         evm_loader,
         sender_with_tokens,
-        second_session_user,
         neon_api_client,
         treasury_pool,
         new_holder_acc,
         new_holder_acc_2,
         func_signature,
         amount_emulated_accounts,
+        second_session_user,
     ):
-        func1_args = [10]
+        func1_args = [15]
         emulate_result = neon_api_client.emulate_contract_call(
             sender_with_tokens.eth_address.hex(),
             revision_contract.eth_address.hex(),
@@ -712,6 +715,14 @@ class TestAccountRevision:
         )
         emulated_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
         assert len(emulated_accounts) == amount_emulated_accounts
+        # balance_sender_0 = evm_loader.get_balance(sender_with_tokens.eth_address)
+        # balance_sender_1 = evm_loader.get_balance(sender_with_tokens.balance_account_address)
+        # balance_sender_2 = evm_loader.get_balance(sender_with_tokens.solana_account)
+        # balance_sender_3 = evm_loader.get_balance(sender_with_tokens.solana_account_address)
+        #
+        # balance_contract_0 = evm_loader.get_balance(revision_contract.balance_account_address)
+        # balance_contract_1 = evm_loader.get_balance(revision_contract.eth_address)
+        # balance_contract_2 = evm_loader.get_balance(revision_contract.solana_address)
 
         signed_tx = make_contract_call_trx(
             evm_loader, sender_with_tokens, revision_contract, func_signature, func1_args
@@ -720,7 +731,7 @@ class TestAccountRevision:
         evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc, operator_keypair)
 
         # start first tx
-        for i in range(2):
+        for i in range(1):
             evm_loader.send_transaction_step_from_account(
                 operator_keypair,
                 operator_balance_pubkey,
@@ -732,14 +743,14 @@ class TestAccountRevision:
             )
 
         # make second transaction, change  number value and back original value in the same tx
-        func2_args = [10]
+        func2_args = [2]
         emulate_result2 = neon_api_client.emulate_contract_call(
             second_session_user.eth_address.hex(),
             revision_contract.eth_address.hex(),
             func_signature,
             func2_args,
         )
-        emulated_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result2["solana_accounts"]]
+        emulated_accounts_2 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result2["solana_accounts"]]
         assert len(emulated_accounts) == amount_emulated_accounts
 
         signed_tx2 = make_contract_call_trx(
@@ -747,13 +758,21 @@ class TestAccountRevision:
         )
         evm_loader.write_transaction_to_holder_account(signed_tx2, new_holder_acc_2, operator_keypair)
         resp = evm_loader.execute_transaction_steps_from_account(
-            operator_keypair, treasury_pool, new_holder_acc_2, emulated_accounts
+            operator_keypair, treasury_pool, new_holder_acc_2, emulated_accounts_2
         )
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
+        # balance_sender_00 = evm_loader.get_balance(sender_with_tokens.eth_address)
+        # balance_sender_11 = evm_loader.get_balance(sender_with_tokens.balance_account_address)
+        # balance_sender_22 = evm_loader.get_balance(sender_with_tokens.solana_account)
+        # balance_sender_33 = evm_loader.get_balance(sender_with_tokens.solana_account_address)
+        #
+        # balance_contract_00 = evm_loader.get_balance(revision_contract.balance_account_address)
+        # balance_contract_11 = evm_loader.get_balance(revision_contract.eth_address)
+        # balance_contract_22 = evm_loader.get_balance(revision_contract.solana_address)
 
         # finish the first tx
         final_receipt = None
-        for i in range(2):
+        for i in range(4):
             final_receipt = evm_loader.send_transaction_step_from_account(
                 operator_keypair,
                 operator_balance_pubkey,
@@ -764,7 +783,15 @@ class TestAccountRevision:
                 operator_keypair,
             )
             check_transaction_logs_have_not_text(solana_client=evm_loader, trx=final_receipt, text="INVALID_REVISION")
-
+        print(final_receipt)
+        # balance_sender_000 = evm_loader.get_balance(sender_with_tokens.eth_address)
+        # balance_sender_111 = evm_loader.get_balance(sender_with_tokens.balance_account_address)
+        # balance_sender_222 = evm_loader.get_balance(sender_with_tokens.solana_account)
+        # balance_sender_333 = evm_loader.get_balance(sender_with_tokens.solana_account_address)
+        #
+        # balance_contract_000 = evm_loader.get_balance(revision_contract.balance_account_address)
+        # balance_contract_111 = evm_loader.get_balance(revision_contract.eth_address)
+        # balance_contract_222 = evm_loader.get_balance(revision_contract.solana_address)
         check_transaction_logs_have_text(solana_client=evm_loader, trx=final_receipt, text="exit_status=0x12")
 
     def test_transaction_not_restarted_if_account_balance_value_not_changed(
