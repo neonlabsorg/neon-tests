@@ -37,8 +37,37 @@ runs:
           echo "value=${value}"
           echo "value=${value}" >> $GITHUB_OUTPUT
 
+    - name: Set up cache directories
+      shell: bash
+      run: |
+        mkdir -p /tmp/.buildx-cache
+        mkdir -p /tmp/.apt-cache
+        mkdir -p /tmp/.uv-cache
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
+      with:
+        driver-opts: network=host
+
+    - name: Define a cache dependency glob
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+
+    - name: Cache Docker layers
+      uses: actions/cache@v3
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ hashFiles('Dockerfile', 'pyproject.toml', 'uv.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ inputs.docker_username }}
+        password: ${{ inputs.docker_password }}
 
     - name: Build and push neon tests docker image
       id: docker_pipeline
@@ -51,18 +80,32 @@ runs:
         delimeter=$(printf "%0.s-" {1..30})
         echo " ${delimeter} Build new docker image ${image_name} ${delimeter}"
 
-        docker buildx create --use --name builder || docker buildx use build
+        # Pull previous images for cache if available
+        docker pull ${image_name}:${{ inputs.image_tag }} || true
+        docker pull ${image_name}:develop || true
+
+        # Build with buildkit cache
         docker buildx build . \
-            --no-cache \
             --tag ${image_name}:${{ inputs.image_tag }} \
             --build-arg OZ_TAG='${{ inputs.oz_tag }}' \
             --build-arg CONTRACTS_BRANCH="${{ steps.feature_branch.outputs.value || 'develop'}}" \
             --build-arg DOCKER_HUB_ORG_NAME="${{env.DOCKER_HUB_ORG_NAME}}" \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            --cache-from=${image_name}:${{ inputs.image_tag }} \
+            --cache-from=${image_name}:develop \
+            --mount=type=cache,target=/var/cache/apt,id=apt-cache \
+            --mount=type=cache,target=/root/.cache/uv,id=uv-cache \
             --load
+
         if [[ "${{ steps.feature_branch.outputs.value }}" != ''  ]]; then
           docker tag ${image_name}:${{ inputs.image_tag }} ${image_name}:${{ steps.feature_branch.outputs.value }}
         fi;
-        echo "${delimeter} Login into Docker registry as ${{ inputs.docker_username }} ${delimeter}"
-        echo "${{ inputs.docker_password }}" | docker login -u ${{ inputs.docker_username }} --password-stdin
-        echo "${delimeter} Push image ${image_id} to Docker registry ${delimeter}"
+
+        echo "${delimeter} Push image to Docker registry ${delimeter}"
         docker push --all-tags ${image_name}
+
+        # Move cache for next run
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache || true
