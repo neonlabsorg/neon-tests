@@ -95,8 +95,6 @@ runs:
             --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --cache-from=${image_name}:${{ inputs.image_tag }} \
             --cache-from=${image_name}:develop \
-            --mount=type=cache,target=/var/cache/apt,id=apt-cache \
-            --mount=type=cache,target=/root/.cache/uv,id=uv-cache \
             --load
 
         if [[ "${{ steps.feature_branch.outputs.value }}" != ''  ]]; then
