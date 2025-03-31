@@ -82,14 +82,18 @@ class TestAccountRevision:
         emulate_result = neon_api_client.emulate_contract_call(
             session_user.eth_address.hex(),
             rw_lock_caller.eth_address.hex(),
-            "update_storage_map(uint256)",
-            [data_storage_acc_count],
+            "update_storage_map_with_salt(uint256,uint256)",
+            [data_storage_acc_count, 1],
         )
         acc_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
         for i in range(trx_count):
             signed_tx = make_contract_call_trx(
-                evm_loader, session_user, rw_lock_caller, "update_storage_map(uint256)", [data_storage_acc_count]
+                evm_loader,
+                session_user,
+                rw_lock_caller,
+                "update_storage_map_with_salt(uint256,uint256)",
+                [data_storage_acc_count, i + 1],
             )
             evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
             evm_loader.execute_transaction_steps_from_account(
@@ -385,12 +389,15 @@ class TestAccountRevision:
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
 
         emulate_result = neon_api_client.emulate_contract_call(
-            session_user.eth_address.hex(), rw_lock_contract.eth_address.hex(), "update_storage_map(uint256)", [3]
+            session_user.eth_address.hex(),
+            rw_lock_contract.eth_address.hex(),
+            "update_storage_map_with_salt(uint256,uint256)",
+            [3, 1],
         )
         acc_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
         data_accounts = set(acc_from_emulation) - set(additional_accounts)
         signed_tx1 = make_contract_call_trx(
-            evm_loader, session_user, rw_lock_contract, "update_storage_map(uint256)", [3]
+            evm_loader, session_user, rw_lock_contract, "update_storage_map_with_salt(uint256,uint256)", [3, 1]
         )
         evm_loader.write_transaction_to_holder_account(signed_tx1, holder_acc, operator_keypair)
 
@@ -413,10 +420,10 @@ class TestAccountRevision:
             operator_keypair,
         )
 
-        for _ in range(2):
+        for i in range(2):
             holder_acc_for_trx_from_instr = evm_loader.create_holder(operator_keypair)
             signed_tx2 = make_contract_call_trx(
-                evm_loader, session_user, rw_lock_contract, "update_storage_map(uint256)", [3]
+                evm_loader, session_user, rw_lock_contract, "update_storage_map_with_salt(uint256,uint256)", [3, i + 1]
             )
             resp = evm_loader.execute_trx_from_instruction(
                 operator_keypair,
