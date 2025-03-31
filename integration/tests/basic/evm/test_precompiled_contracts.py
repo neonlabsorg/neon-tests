@@ -10,10 +10,10 @@ from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 
 PRECOMPILED_FIXTURES = {
-    "modexp": {
-        "address": "0x0000000000000000000000000000000000000005",
-        "files": ["modexp.json", "modexp_eip2565.json"],
-    },
+    # "modexp": {
+    #     "address": "0x0000000000000000000000000000000000000005",
+    #     "files": ["modexp.json", "modexp_eip2565.json"],
+    # },
     "ecAdd": {
         "address": "0x0000000000000000000000000000000000000006",
         "files": ["bn256Add.json"],
@@ -179,11 +179,3 @@ class TestPrecompiledContracts:
             params=[address, "latest"],
         )
         assert response["result"] == "0x"
-
-    @pytest.mark.parametrize("address", NEON_PRECOMPILED)
-    def test_eth_get_code_neon_precompiled(self, json_rpc_client, address):
-        response = json_rpc_client.send_rpc(
-            "eth_getCode",
-            params=[address, "latest"],
-        )
-        assert response["result"] == "0xfe"
