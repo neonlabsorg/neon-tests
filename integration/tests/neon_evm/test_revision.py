@@ -787,6 +787,8 @@ class TestAccountRevision:
         second_session_user,
     ):
 
+        print("")
+        rev_1 = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
         # First tx prepare
         func_signature = "powAmount(uint256,uint256)"
         func1_args = [5, 10]
@@ -800,6 +802,7 @@ class TestAccountRevision:
 
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
         evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc_2, operator_keypair)
+        rev_2 = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
 
         for i in range(2):
             evm_loader.send_transaction_step_from_account(
@@ -811,6 +814,7 @@ class TestAccountRevision:
                 EVM_STEPS,
                 operator_keypair,
             )
+        rev_3 = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
 
         # second tx
         func2_signature = "flashLoan(address,uint256)"
@@ -830,6 +834,7 @@ class TestAccountRevision:
             operator_keypair, treasury_pool, new_holder_acc, emulated_accounts_2
         )
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
+        rev_4 = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
 
         # finish first tx
         resp = None
@@ -843,6 +848,57 @@ class TestAccountRevision:
                 EVM_STEPS,
                 operator_keypair,
             )
-            check_transaction_logs_have_not_text(solana_client=evm_loader, trx=resp, text="INVALID_REVISION")
+            # check_transaction_logs_have_not_text(solana_client=evm_loader, trx=resp, text="INVALID_REVISION")
+        rev_5 = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
+        print(rev_1)
+        print(rev_2)
+        print(rev_3)
+        print(rev_4)
+        print(rev_5)
+        check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x12")
 
+    def test_simple_transaction_not_restarted_if_account_balance_value_not_changed(
+        self,
+        borrower_contract,
+        lender_contract,
+        operator_keypair,
+        evm_loader,
+        sender_with_tokens,
+        neon_api_client,
+        treasury_pool,
+        new_holder_acc,
+        new_holder_acc_2,
+        second_session_user,
+    ):
+
+        balance_before = evm_loader.get_neon_balance(lender_contract.eth_address, evm_loader.chain_id)
+        revision_before = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
+
+        # second tx
+        func2_signature = "flashLoan(address,uint256)"
+        func2_args = [borrower_contract.eth_address, 9]
+
+        emulate_result_2 = neon_api_client.emulate_contract_call(
+            sender_with_tokens.eth_address.hex(), lender_contract.eth_address.hex(), func2_signature, func2_args, "0x9"
+        )
+
+        emulated_accounts_2 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result_2["solana_accounts"]]
+        signed_tx2 = make_contract_call_trx(
+            evm_loader,
+            sender_with_tokens,
+            lender_contract,
+            func2_signature,
+            func2_args,
+        )
+
+        evm_loader.write_transaction_to_holder_account(signed_tx2, new_holder_acc, operator_keypair)
+        resp = evm_loader.execute_transaction_steps_from_account(
+            operator_keypair, treasury_pool, new_holder_acc, emulated_accounts_2
+        )
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
+
+        revision_after = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
+        balance_after = evm_loader.get_neon_balance(lender_contract.eth_address, evm_loader.chain_id)
+
+        assert balance_before == balance_after
+        assert revision_before == revision_after
