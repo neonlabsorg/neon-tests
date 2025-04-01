@@ -40,15 +40,13 @@ WORKDIR /opt/neon-tests
 COPY pyproject.toml uv.lock ./
 
 # Install dependencies
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project
+RUN  uv sync --frozen --no-install-project
 
 # Now copy the rest of the application
 COPY .. .
 
 # Install project dependencies
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-editable
+RUN uv sync --frozen --no-editable
 
 # Update contracts and prepare solidity environment
 ARG CONTRACTS_BRANCH
