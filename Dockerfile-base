@@ -43,7 +43,7 @@ COPY pyproject.toml uv.lock ./
 RUN  uv sync --frozen --no-install-project
 
 # Now copy the rest of the application
-COPY .. .
+COPY . .
 
 # Install project dependencies
 RUN uv sync --frozen --no-editable
