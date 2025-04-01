@@ -857,7 +857,7 @@ class TestAccountRevision:
         print(rev_5)
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x12")
 
-    def test_simple_transaction_not_restarted_if_account_balance_value_not_changed(
+    def test_simple_transaction_for_balance_revision(
         self,
         borrower_contract,
         lender_contract,
