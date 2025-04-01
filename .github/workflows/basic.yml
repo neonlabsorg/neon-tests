@@ -18,6 +18,11 @@ on:
         options:
           - terraform
           - devnet
+      rebuild_base_image:
+        type: boolean
+        default: true
+        required: false
+        description: "Rebuild base image"
       numprocesses:
         type: choice
         default: 8
@@ -52,8 +57,10 @@ env:
   DEVNET_PROXY_URL: "${{ secrets.DEVNET_PROXY_URL }}"
   DEVNET_FAUCET_URL: "${{ secrets.FAUCET_URL }}"
   IMAGE:  ${{ github.repository_owner }}/neon_tests
+  BASE_IMAGE: ${{ github.repository_owner }}/neon_tests_base
   DOCKER_HUB_ORG_NAME: ${{ github.repository_owner }}
   GENERATE_COST_REPORT: ${{ github.event.inputs.generate_cost_report || 'false' }}
+  BUILD_BASE_IMAGE: ${{ github.event.inputs.rebuild_base_image || 'false }}
 jobs:
   pre-commit-check:
     name: Pre-commit hook validation
@@ -67,10 +74,29 @@ jobs:
           python-version: '3.10'
       - uses: pre-commit/action@v3.0.1
         timeout-minutes: 3
+
+  base_image_build:
+    name: Build base test image
+    runs-on: [ "self-hosted", "k8s-prod" ]
+    needs: pre-commit-check
+    if: ${{ env.BUILD_BASE_IMAGE == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build base test image
+        uses: ./.github/actions/build-base-image
+        with:
+          image_tag: ${{ github.sha }}
+          docker_username: ${{ secrets.DOCKER_USERNAME }}
+          docker_password: ${{ secrets.DOCKER_PASSWORD }}
+          image_name: ${{ env.BASE_IMAGE }}
+          docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
+
   dockerize:
     name: Dockerize neon tests
     runs-on: ["self-hosted", "k8s-prod"]
-    needs: pre-commit-check
+    needs:
+      - pre-commit-check
+      - base_image_build
     steps:
       - uses: actions/checkout@v4
       - name: Dockerize neon tests

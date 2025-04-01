@@ -1,12 +1,11 @@
-ARG OZ_TAG=latest
-ARG DOCKER_HUB_ORG_NAME=neonlabsorg
+ARG OZ_TAG
+ARG DOCKER_HUB_ORG_NAME
 FROM ${DOCKER_HUB_ORG_NAME}/openzeppelin-contracts:${OZ_TAG} AS oz-contracts
 
-FROM ghcr.io/astral-sh/uv:python3.10-bookworm-slim AS builder
+FROM ghcr.io/astral-sh/uv:python3.10-bookworm-slim
 
 ENV UV_LINK_MODE=copy \
     UV_SYSTEM_PYTHON=1 \
-    VIRTUAL_ENV="/.venv" \
     DOWNLOAD_PATH="/root/.cache/hardhat-nodejs/compilers-v2/linux-amd64" \
     REPOSITORY_PATH="https://binaries.soliditylang.org/linux-amd64" \
     SOLC_BINARY="solc-linux-amd64-v0.7.6+commit.7338295f" \
@@ -14,9 +13,7 @@ ENV UV_LINK_MODE=copy \
     DEBIAN_FRONTEND=noninteractive
 
 # Install dependencies in a single layer
-RUN --mount=type=cache,target=/var/cache/apt \
-    --mount=type=cache,target=/var/lib/apt \
-    apt-get update && \
+RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         software-properties-common \
@@ -47,15 +44,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project
 
 # Now copy the rest of the application
-COPY . .
+COPY .. .
 
 # Install project dependencies
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-editable
 
 # Update contracts and prepare solidity environment
-ARG CONTRACTS_BRANCH=develop
-ARG DOCKER_HUB_ORG_NAME=neonlabsorg
+ARG CONTRACTS_BRANCH
+ARG DOCKER_HUB_ORG_NAME
 ENV DOCKER_HUB_ORG_NAME=${DOCKER_HUB_ORG_NAME}
 
 RUN python3 ./clickfile.py update-contracts --branch ${CONTRACTS_BRANCH}
@@ -71,35 +68,3 @@ RUN cd compatibility/openzeppelin-contracts && docker/compile_contracts.sh && \
     curl -o ${DOWNLOAD_PATH}/${SOLC_BINARY} ${REPOSITORY_PATH}/${SOLC_BINARY} && \
     curl -o ${DOWNLOAD_PATH}/list.json ${REPOSITORY_PATH}/list.json && \
     chmod -R 755 ${DOWNLOAD_PATH}
-
-# Final stage - use Python slim image with minimal dependencies
-FROM python:3.10-slim-bookworm AS final
-
-ENV TZ=Europe/Moscow \
-    NETWORK_NAME="full_test_suite" \
-    PROXY_URL="" \
-    NETWORK_ID="" \
-    FAUCET_URL="" \
-    SOLANA_URL="" \
-    FTS_JOBS_NUMBER=8 \
-    FTS_USERS_NUMBER=15 \
-    DUMP_ENVS=True \
-    REQUEST_AMOUNT=20000 \
-    PATH="/.venv/bin:$PATH"
-
-# Set timezone and install only the necessary packages in a single layer
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends default-jre ca-certificates curl && \
-    curl -o allure-2.21.0.tgz -Ls https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/2.21.0/allure-commandline-2.21.0.tgz && \
-    tar -zxvf allure-2.21.0.tgz -C /opt/ && \
-    ln -s /opt/allure-2.21.0/bin/allure /usr/bin/allure && \
-    rm allure-2.21.0.tgz && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Copy application from builder stage
-WORKDIR /opt/neon-tests
-COPY --from=builder /opt/neon-tests /opt/neon-tests
-COPY --from=builder /.venv /.venv
-COPY --from=builder /root/.cache/hardhat-nodejs /root/.cache/hardhat-nodejs
