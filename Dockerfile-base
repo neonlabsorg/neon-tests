@@ -47,7 +47,7 @@ COPY . .
 
 # Install project dependencies
 RUN uv sync --frozen --no-editable
-
+ENV PATH="/.venv/bin:$PATH"
 # Update contracts and prepare solidity environment
 ARG CONTRACTS_BRANCH
 ARG DOCKER_HUB_ORG_NAME
