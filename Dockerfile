@@ -1,7 +1,6 @@
-
 ARG DOCKER_HUB_ORG_NAME
 ARG BASE_IMAGE_TAG
-FROM ${DOCKER_HUB_ORG_NAME}/neon_tests_base:${BASE_IMAGE_TAG} AS base_image
+FROM $DOCKER_HUB_ORG_NAME/neon_tests_base:$BASE_IMAGE_TAG AS base_image
 
 FROM ubuntu:20.04
 COPY --from=base_image  /opt/neon-tests /opt/neon-tests
