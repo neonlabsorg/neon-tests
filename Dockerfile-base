@@ -1,5 +1,5 @@
-ARG OZ_TAG=latest
-ARG DOCKER_HUB_ORG_NAME=neonlabsorg
+ARG OZ_TAG
+ARG DOCKER_HUB_ORG_NAME
 FROM $DOCKER_HUB_ORG_NAME/openzeppelin-contracts:$OZ_TAG AS oz-contracts
 FROM ubuntu:20.04
 
@@ -38,9 +38,9 @@ ADD ./ /opt/neon-tests
 # Install all requirements
 RUN python3 ./clickfile.py requirements -d all
 
-ARG DOCKER_HUB_ORG_NAME=neonlabsorg
+ARG DOCKER_HUB_ORG_NAME
 ENV DOCKER_HUB_ORG_NAME=${DOCKER_HUB_ORG_NAME}
-ARG CONTRACTS_BRANCH=develop
+ARG CONTRACTS_BRANCH
 RUN python3 ./clickfile.py update-contracts --branch ${CONTRACTS_BRANCH}
 
 RUN rm -rf /opt/neon-tests/compatibility/openzeppelin-contracts

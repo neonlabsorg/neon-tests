@@ -36,8 +36,52 @@ runs:
          fi;
           echo "value=${value}"
           echo "value=${value}" >> $GITHUB_OUTPUT
+
+    - name: Check if image exists in Docker Hub
+      id: check_image
+      shell: bash
+      run: |
+        echo "Checking if image ${{ inputs.image_name }}:${{ inputs.image_tag }} exists in Docker Hub"
+        echo "${{ inputs.docker_password }}" | docker login -u ${{ inputs.docker_username }} --password-stdin
+
+        # Use docker manifest inspect to check if image exists
+        # Returns 0 if exists, 1 if not exists
+        if docker manifest inspect ${{ inputs.image_name }}:${{ steps.feature_branch.outputs.value }} > /dev/null 2>&1; then
+          echo "Image exists in Docker Hub"
+          echo "image_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "Image does not exist in Docker Hub"
+          echo "image_exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Check if requirements folder changed
+      id: check_requirements
+      shell: bash
+      run: |
+        # Check if there are changes in the requirements folder
+        if git diff --name-only HEAD^ HEAD | grep -q "^requirements/"; then
+          echo "Requirements folder has changed"
+          echo "requirements_changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "Requirements folder has not changed"
+          echo "requirements_changed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Determine if build is needed
+      id: need_build
+      shell: bash
+      run: |
+        if [[ "${{ steps.check_image.outputs.image_exists }}" == "false" || "${{ steps.check_requirements.outputs.requirements_changed }}" == "true" ]]; then
+          echo "need_build=true" >> $GITHUB_OUTPUT
+          echo "Build is needed: Image doesn't exist or requirements changed"
+        else
+          echo "need_build=false" >> $GITHUB_OUTPUT
+          echo "Build can be skipped: Image exists and no changes to requirements"
+        fi
+
     - name: Build and push neon tests docker image
       id: docker_pipeline
+      if: steps.need_build.outputs.need_build == 'true'
       shell: bash
       env:
         DOCKER_HUB_ORG_NAME: ${{ inputs.docker_hub_org_name }}
@@ -45,7 +89,7 @@ runs:
         image_name=${{ inputs.image_name }}
         delimeter=$(printf "%0.s-" {1..30})
         echo " ${delimeter} Build new docker image ${image_name} ${delimeter}"
-        docker build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
+        docker buildx build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
             --file Dockerfile-base \
             --build-arg OZ_TAG='${{ inputs.oz_tag }}' \
             --build-arg CONTRACTS_BRANCH="${{ steps.feature_branch.outputs.value || 'develop'}}" \
@@ -57,3 +101,9 @@ runs:
         echo "${{ inputs.docker_password }}" | docker login -u ${{ inputs.docker_username }} --password-stdin
         echo "${delimeter} Push image ${image_id} to Docker registry ${delimeter}"
         docker push --all-tags ${image_name}
+
+    - name: Skip build notification
+      if: steps.need_build.outputs.need_build == 'false'
+      shell: bash
+      run: |
+        echo "Skipping build as the image already exists and requirements haven't changed."

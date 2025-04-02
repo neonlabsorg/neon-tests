@@ -36,6 +36,24 @@ runs:
          fi;
           echo "value=${value}"
           echo "value=${value}" >> $GITHUB_OUTPUT
+
+    - name: Determine base image is needed
+      id: need_build
+      shell: bash
+      run: |
+        echo "Checking if base image ${{ inputs.image_name }}:${{ steps.feature_branch.outputs.value }} exists in Docker Hub"
+        echo "${{ inputs.docker_password }}" | docker login -u ${{ inputs.docker_username }} --password-stdin
+
+        # Use docker manifest inspect to check if image exists
+        # Returns 0 if exists, 1 if not exists
+        if docker manifest inspect ${{ inputs.image_name }}:${{ steps.feature_branch.outputs.value }} > /dev/null 2>&1; then
+          echo "Branch Base Image exists in Docker Hub"
+          echo "image_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "Image does not exist in Docker Hub"
+          echo "image_exists=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Build and push neon tests docker image
       id: docker_pipeline
       shell: bash
@@ -46,8 +64,7 @@ runs:
         delimeter=$(printf "%0.s-" {1..30})
         echo " ${delimeter} Build new docker image ${image_name} ${delimeter}"
         docker build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
-            --build-arg OZ_TAG='${{ inputs.oz_tag }}' \
-            --build-arg CONTRACTS_BRANCH="${{ steps.feature_branch.outputs.value || 'develop'}}" \
+            --build-arg BASE_IMAGE_TAG=${{ steps.feature_branch.outputs.value }}
             --build-arg DOCKER_HUB_ORG_NAME="${{env.DOCKER_HUB_ORG_NAME}}"
         if [[ "${{ steps.feature_branch.outputs.value }}" != ''  ]]; then
           docker tag ${image_name}:${{ inputs.image_tag }} ${image_name}:${{ steps.feature_branch.outputs.value }}
