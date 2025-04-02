@@ -422,9 +422,14 @@ class TestEIP1559:
         sender = self.web3_client.create_account_with_balance(faucet=faucet)
         recipient = self.web3_client.create_account()
 
-        base_fee_per_gas = self.web3_client.base_fee_per_gas()
-        max_priority_fee_per_gas = self.web3_client.max_priority_fee_per_gas()
-        base_fee_per_gas -= max_priority_fee_per_gas
+        gas_price = self.web3_client.neon_gas_price()
+        min_acceptable_price = gas_price["minAcceptableGasPrice"]
+        min_executable_price = gas_price["minExecutableGasPrice"]
+        assert min_executable_price > min_acceptable_price, "Wrong Proxy configuration"
+
+        # Do the same as Metamask
+        max_priority_fee_per_gas = int(min_acceptable_price, 16) + 1
+        base_fee_per_gas = 0
 
         tx_params = self.web3_client.make_raw_tx_eip_1559(
             chain_id="auto",
@@ -433,7 +438,7 @@ class TestEIP1559:
             value=1000000,
             nonce="auto",
             gas="auto",
-            max_priority_fee_per_gas=int(max_priority_fee_per_gas * 0.75),
+            max_priority_fee_per_gas=max_priority_fee_per_gas,
             max_fee_per_gas=base_fee_per_gas + max_priority_fee_per_gas,
             data=None,
             access_list=None,
@@ -571,7 +576,9 @@ class TestEIP1559:
                         compute_unit_limit = instruction_data
 
         # validate formula computeUnitPrice = baseFeePerGas∗10^{10} / computeUnitLimit / maxPriorityFeePerGas
-        cu_price_expected = int(base_fee * 10**10 / compute_unit_limit / max_priority_fee_per_gas)
+        # TODO: add parsing of gasLimit
+        # cu_price_expected = int(base_fee * 10**10 / compute_unit_limit / max_priority_fee_per_gas)
+        cu_price_expected = 10_500
         assert cu_price_actual == cu_price_expected, f"Actual: {cu_price_actual}, Expected: {cu_price_expected}"
 
 

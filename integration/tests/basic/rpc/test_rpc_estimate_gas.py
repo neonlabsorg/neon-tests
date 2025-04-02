@@ -14,6 +14,9 @@ from utils.models.result import EthEstimateGas, EthResult
 from utils.web3client import NeonChainWeb3Client
 
 
+_MIN_GAS_LIMIT = 0x137ff
+
+
 @allure.feature("JSON-RPC validation")
 @allure.story("Verify eth_estimateGas RPC call")
 @pytest.mark.usefixtures("accounts", "web3_client")
@@ -50,7 +53,7 @@ class TestRpcEstimateGas:
             response["result"]
         ), f"the result for estimated gas should be in hex, but got'{response['result']}'"
         EthEstimateGas(**response)
-        assert int(response["result"], 16) == 25_000
+        assert int(response["result"], 16) == _MIN_GAS_LIMIT
 
     @pytest.mark.bug  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
     def test_eth_estimate_gas_negative(self, json_rpc_client):
@@ -112,7 +115,7 @@ class TestRpcEstimateGas:
 
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
-        assert estimated_gas == 25_000
+        assert estimated_gas == _MIN_GAS_LIMIT
 
     @pytest.mark.neon_only  # Geth returns a different estimate
     def test_rpc_estimate_gas_erc20(self, erc20_simple, env_name: EnvName):
@@ -122,14 +125,14 @@ class TestRpcEstimateGas:
 
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
-        assert estimated_gas == 1_192_320
+        assert estimated_gas == 1_243_135
 
     @pytest.mark.neon_only  # Geth returns a different estimate
     def test_rpc_estimate_gas_spl(self, erc20_spl):
         recipient_account = self.accounts.create_account()
         tx_receipt = erc20_spl.transfer(erc20_spl.account, recipient_account, 1)
         transaction = self.web3_client.get_transaction_by_hash(tx_receipt["transactionHash"])
-        assert transaction["gas"] == 2_079_280
+        assert transaction["gas"] == 2_129_919
 
     @pytest.mark.neon_only  # Geth returns a different estimate
     def test_rpc_estimate_gas_contract_get_value(self, common_contract):
@@ -141,7 +144,7 @@ class TestRpcEstimateGas:
 
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
-        assert estimated_gas == 25_000
+        assert estimated_gas == _MIN_GAS_LIMIT
 
     @pytest.mark.neon_only  # Geth returns a different estimate
     def test_rpc_estimate_gas_contract_set_value(self, common_contract):
@@ -152,7 +155,7 @@ class TestRpcEstimateGas:
         transaction = self.web3_client.get_transaction_by_hash(tx_receipt["transactionHash"])
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
-        assert estimated_gas == 25_000
+        assert estimated_gas == _MIN_GAS_LIMIT
 
     @pytest.mark.neon_only  # Geth returns a different estimate
     def test_rpc_estimate_gas_contract_calls_another_contract(self, common_contract):
@@ -173,4 +176,4 @@ class TestRpcEstimateGas:
 
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
-        assert estimated_gas == 25_000
+        assert estimated_gas == _MIN_GAS_LIMIT
