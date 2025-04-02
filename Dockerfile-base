@@ -1,68 +1,58 @@
-ARG OZ_TAG
-ARG DOCKER_HUB_ORG_NAME
-FROM ${DOCKER_HUB_ORG_NAME}/openzeppelin-contracts:${OZ_TAG} AS oz-contracts
+ARG OZ_TAG=latest
+ARG DOCKER_HUB_ORG_NAME=neonlabsorg
+FROM $DOCKER_HUB_ORG_NAME/openzeppelin-contracts:$OZ_TAG AS oz-contracts
+FROM ubuntu:20.04
 
-FROM ghcr.io/astral-sh/uv:python3.10-bookworm-slim
+ENV TZ=Europe/Moscow
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-ENV UV_LINK_MODE=copy \
-    UV_SYSTEM_PYTHON=1 \
-    DOWNLOAD_PATH="/root/.cache/hardhat-nodejs/compilers-v2/linux-amd64" \
-    REPOSITORY_PATH="https://binaries.soliditylang.org/linux-amd64" \
-    SOLC_BINARY="solc-linux-amd64-v0.7.6+commit.7338295f" \
-    PATH="/.venv/bin:$PATH" \
-    DEBIAN_FRONTEND=noninteractive
+# Install common dependencies
+RUN apt update && \
+    apt upgrade -y && \
+# Prepare repo for node 18
+    apt install -y software-properties-common python-dev ca-certificates curl gnupg git && \
+    mkdir /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+# Install py3.10 from deadsnakes repository and pip from standard ubuntu packages
+    add-apt-repository ppa:deadsnakes/ppa && apt update && \
+    apt install -y python3.10 python3.10-distutils nodejs build-essential
 
-# Install dependencies in a single layer
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends \
-        software-properties-common \
-        ca-certificates \
-        curl \
-        gnupg \
-        git \
-        build-essential && \
-    # Prepare repo for node 18
-    mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x nodistro main" \
-        | tee /etc/apt/sources.list.d/nodesource.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-        nodejs && \
-    apt-get autoremove -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+RUN update-alternatives --install /usr/bin/python3 python /usr/bin/python3.10 2
+RUN update-alternatives --install /usr/bin/python3 python /usr/bin/python3.8 1
 
-# Copy only the files needed for Python dependencies first to leverage cache
+COPY ./deploy/requirements/* /opt/
+
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 && \
+    pip3 install uv && \
+    uv venv
+
+ENV VIRTUAL_ENV=/.venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+RUN uv pip install -r /opt/click.txt
+
 WORKDIR /opt/neon-tests
-COPY pyproject.toml uv.lock ./
+ADD ./ /opt/neon-tests
 
-# Install dependencies
-RUN  uv sync --frozen --no-install-project
+# Install all requirements
+RUN python3 ./clickfile.py requirements -d all
 
-# Now copy the rest of the application
-COPY . .
-
-# Install project dependencies
-RUN uv sync --frozen --no-editable
-ENV PATH="/.venv/bin:$PATH"
-# Update contracts and prepare solidity environment
-ARG CONTRACTS_BRANCH
-ARG DOCKER_HUB_ORG_NAME
+ARG DOCKER_HUB_ORG_NAME=neonlabsorg
 ENV DOCKER_HUB_ORG_NAME=${DOCKER_HUB_ORG_NAME}
-
+ARG CONTRACTS_BRANCH=develop
 RUN python3 ./clickfile.py update-contracts --branch ${CONTRACTS_BRANCH}
 
-# Replace openzeppelin-contracts from Stage 1
 RUN rm -rf /opt/neon-tests/compatibility/openzeppelin-contracts
 COPY --from=oz-contracts /usr/src/app /opt/neon-tests/compatibility/openzeppelin-contracts
-COPY --from=oz-contracts /root/.cache/hardhat-nodejs /root/.cache/hardhat-nodejs
+COPY --from=oz-contracts /root/.cache/hardhat-nodejs  /root/.cache/hardhat-nodejs
+RUN cd ./compatibility/openzeppelin-contracts && docker/compile_contracts.sh
 
-# Compile contracts and download solc
-RUN cd compatibility/openzeppelin-contracts && docker/compile_contracts.sh && \
-    mkdir -p ${DOWNLOAD_PATH} && \
+# Download solc separatly as hardhat implementation is flucky
+ENV DOWNLOAD_PATH="/root/.cache/hardhat-nodejs/compilers-v2/linux-amd64" \
+    REPOSITORY_PATH="https://binaries.soliditylang.org/linux-amd64" \
+    SOLC_BINARY="solc-linux-amd64-v0.7.6+commit.7338295f"
+RUN mkdir -p ${DOWNLOAD_PATH} && \
     curl -o ${DOWNLOAD_PATH}/${SOLC_BINARY} ${REPOSITORY_PATH}/${SOLC_BINARY} && \
     curl -o ${DOWNLOAD_PATH}/list.json ${REPOSITORY_PATH}/list.json && \
     chmod -R 755 ${DOWNLOAD_PATH}

@@ -108,7 +108,9 @@ jobs:
   prepare-env-proxy:
     name: Prepare environment for proxy tests
     runs-on: ["self-hosted", "k8s-prod"]
-    needs: pre-commit-check
+    needs:
+      - pre-commit-check
+      - base_image_build
     if: always()
     steps:
       - uses: actions/checkout@v4
@@ -138,6 +140,7 @@ jobs:
     runs-on: ["self-hosted", "k8s-prod"]
     needs:
       - dockerize
+      -
     env:
       DOCKER_PROJECT_NAME: "evm-tests-${{ github.run_number }}-${{ github.run_attempt }}"
     outputs:
