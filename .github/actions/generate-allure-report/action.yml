@@ -38,7 +38,7 @@ runs:
         -e AWS_ACCESS_KEY_ID=${{ inputs.aws_access_key_id }} \
         -e AWS_SECRET_ACCESS_KEY=${{ inputs.aws_secret_access_key }} \
         ${{ inputs.container }} \
-         python3 ./clickfile.py allure get-history ${{ inputs.tests_name }} \
+         uv run ./clickfile.py allure get-history ${{ inputs.tests_name }} \
           --network ${{ inputs.network }}
     - name: "Generate allure report"
       if: always()
