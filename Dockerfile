@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.4
-
 ARG DOCKER_HUB_ORG_NAME
 ARG BASE_IMAGE_TAG
 FROM ${DOCKER_HUB_ORG_NAME}/neon_tests_base:${BASE_IMAGE_TAG} as base_image
@@ -20,9 +18,7 @@ ENV TZ=Europe/Moscow \
     REQUEST_AMOUNT=20000 \
     PATH=".venv/bin:$PATH"
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
     apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y \
