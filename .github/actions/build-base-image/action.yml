@@ -95,6 +95,7 @@ runs:
       shell: bash
       env:
         DOCKER_HUB_ORG_NAME: ${{ inputs.docker_hub_org_name }}
+        DOCKER_BUILDKIT: 1
       run: |
         image_name=${{ inputs.image_name }}
         delimeter=$(printf "%0.s-" {1..30})

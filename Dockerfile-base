@@ -29,7 +29,6 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN uv pip install -r /opt/neon-tests/click.txt
 
-
 COPY ./ /opt/neon-tests
 
 # Install all requirements
