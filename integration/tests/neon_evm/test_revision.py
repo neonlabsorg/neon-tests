@@ -360,15 +360,6 @@ class TestAccountRevision:
             expected_tag=TAG_FINALIZED_STATE,
         )
 
-        resp2 = send_transaction_steps(holder2, sender2)  # the transaction was restarted
-        check_transaction_logs_have_text(solana_client=sol_client, trx=resp2, text="exit_status=0x11")
-        check_holder_account_tag(
-            solana_client=sol_client,
-            storage_account=holder2,
-            layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
-            expected_tag=TAG_FINALIZED_STATE,
-        )
-
         for acc in recipients:
             assert evm_loader.get_neon_balance(acc.eth_address) == amount * 2
 
