@@ -2,7 +2,7 @@
 
 ARG OZ_TAG
 ARG DOCKER_HUB_ORG_NAME
-FROM $DOCKER_HUB_ORG_NAME/openzeppelin-contracts:$OZ_TAG AS oz-contracts
+FROM ${DOCKER_HUB_ORG_NAME}/openzeppelin-contracts:${OZ_TAG} AS oz-contracts
 FROM ghcr.io/astral-sh/uv:python3.10-bookworm-slim AS builder
 
 ENV TZ=Europe/Moscow

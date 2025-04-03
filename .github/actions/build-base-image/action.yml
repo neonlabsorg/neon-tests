@@ -87,7 +87,7 @@ runs:
 
     - name: Set up Docker Buildx
       if: steps.need_build.outputs.need_build == 'true'
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v3.10.0
 
     - name: Build and push neon tests docker image
       id: docker_pipeline
@@ -101,12 +101,11 @@ runs:
         delimeter=$(printf "%0.s-" {1..30})
         echo " ${delimeter} Build new docker image ${image_name} ${delimeter}"
 
-        # Using buildx for improved performance and better caching
         docker buildx build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
             --file Dockerfile-base \
-            --build-arg OZ_TAG='${{ inputs.oz_tag }}' \
-            --build-arg CONTRACTS_BRANCH="${{ steps.feature_branch.outputs.value || 'develop'}}" \
-            --build-arg DOCKER_HUB_ORG_NAME="${{env.DOCKER_HUB_ORG_NAME}}" \
+            --build-arg OZ_TAG=${{ inputs.oz_tag }} \
+            --build-arg CONTRACTS_BRANCH=${{ steps.feature_branch.outputs.value || 'develop'}} \
+            --build-arg DOCKER_HUB_ORG_NAME=${{env.DOCKER_HUB_ORG_NAME}} \
             --load
 
         if [[ "${{ steps.feature_branch.outputs.value }}" != ''  ]]; then
