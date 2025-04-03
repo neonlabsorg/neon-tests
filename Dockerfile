@@ -1,12 +1,16 @@
 ARG DOCKER_HUB_ORG_NAME
 ARG BASE_IMAGE_TAG
 FROM ${DOCKER_HUB_ORG_NAME}/neon_tests_base:${BASE_IMAGE_TAG} as base_image
-FROM ubuntu:20.04
 
-# Copy only specific folders from base image
-COPY --from=base_image /opt/neon-tests/ /opt/neon-tests/
+FROM ghcr.io/astral-sh/uv:python3.10-bookworm-slim
 
 WORKDIR /opt/neon-tests
+ADD ./ /opt/neon-tests
+
+COPY --from=base_image /opt/neon-tests/.venv /opt/neon-tests/.venv
+COPY --from=base_image /opt/neon-tests/contracts/external/ /opt/neon-tests/contracts/external/
+COPY --from=base_image /opt/neon-tests/compatibility/openzeppelin-contracts /opt/neon-tests/compatibility/openzeppelin-contracts
+COPY --from=base_image /root/.cache/hardhat-nodejs  /root/.cache/hardhat-nodejs
 
 ENV TZ=Europe/Moscow \
     NETWORK_NAME="full_test_suite" \
