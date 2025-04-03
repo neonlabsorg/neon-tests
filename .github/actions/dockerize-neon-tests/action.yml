@@ -63,9 +63,10 @@ runs:
         image_name=${{ inputs.image_name }}
         delimeter=$(printf "%0.s-" {1..30})
         echo " ${delimeter} Build new docker image ${image_name} ${delimeter}"
-        docker build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
+        docker buildx build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
             --build-arg BASE_IMAGE_TAG=${{ steps.feature_branch.outputs.value }} \
             --build-arg DOCKER_HUB_ORG_NAME=${{env.DOCKER_HUB_ORG_NAME}}
+            --load
         if [[ "${{ steps.feature_branch.outputs.value }}" != ''  ]]; then
           docker tag ${image_name}:${{ inputs.image_tag }} ${image_name}:${{ steps.feature_branch.outputs.value }}
         fi;

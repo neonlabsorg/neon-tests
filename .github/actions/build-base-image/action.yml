@@ -65,7 +65,7 @@ runs:
       shell: bash
       run: |
         # Check if there are changes in the requirements folder
-        if git diff --name-only origin/{{ github.head_ref }} HEAD~1 HEAD | grep -E "^requirements/|^Dockerfile-base$"; then
+        if git diff --name-only {{ github.head_ref }} HEAD~1 HEAD | grep -E "^requirements/|^Dockerfile-base$"; then
           echo "Requirements folder or Dockerfile has changed, rebuilding..."
           echo "requirements_changed=true" >> $GITHUB_OUTPUT
         else
@@ -106,7 +106,6 @@ runs:
             --build-arg OZ_TAG='${{ inputs.oz_tag }}' \
             --build-arg CONTRACTS_BRANCH="${{ steps.feature_branch.outputs.value || 'develop'}}" \
             --build-arg DOCKER_HUB_ORG_NAME="${{env.DOCKER_HUB_ORG_NAME}}" \
-            --progress=plain \
             --load
 
         if [[ "${{ steps.feature_branch.outputs.value }}" != ''  ]]; then
