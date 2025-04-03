@@ -52,6 +52,9 @@ runs:
         if docker manifest inspect ${{ inputs.image_name }}:${{ steps.feature_branch.outputs.value }} > /dev/null 2>&1; then
           echo "Image exists in Docker Hub"
           echo "image_exists=true" >> $GITHUB_OUTPUT
+        elif docker manifest inspect ${{ inputs.image_name }}:${{ inputs.image_tag }} > /dev/null 2>&1; then
+          echo "Image exists in Docker Hub"
+          echo "image_exists=true" >> $GITHUB_OUTPUT
         else
           echo "Image does not exist in Docker Hub"
           echo "image_exists=false" >> $GITHUB_OUTPUT
