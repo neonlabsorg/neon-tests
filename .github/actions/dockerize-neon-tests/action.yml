@@ -55,7 +55,6 @@ runs:
         fi
 
     - name: Set up Docker Buildx
-      if: steps.need_build.outputs.need_build == 'true'
       uses: docker/setup-buildx-action@v3
 
     - name: Build and push neon tests docker image
