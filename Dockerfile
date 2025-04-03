@@ -1,11 +1,10 @@
 ARG DOCKER_HUB_ORG_NAME
 ARG BASE_IMAGE_TAG
-FROM ${DOCKER_HUB_ORG_NAME}:${BASE_IMAGE_TAG} as base_image
+FROM ${DOCKER_HUB_ORG_NAME}/neon_tests_base:${BASE_IMAGE_TAG} as base_image
 FROM ubuntu:20.04
 
 # Copy only specific folders from base image
 COPY --from=base_image /opt/neon-tests/ /opt/neon-tests/
-
 
 WORKDIR /opt/neon-tests
 
