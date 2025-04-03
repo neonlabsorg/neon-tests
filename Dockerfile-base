@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.4
-
 ARG OZ_TAG
 ARG DOCKER_HUB_ORG_NAME
 FROM ${DOCKER_HUB_ORG_NAME}/openzeppelin-contracts:${OZ_TAG} AS oz-contracts

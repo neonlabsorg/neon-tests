@@ -85,17 +85,12 @@ runs:
           echo "Build can be skipped: Image exists and no changes to requirements"
         fi
 
-    - name: Set up Docker Buildx
-      if: steps.need_build.outputs.need_build == 'true'
-      uses: docker/setup-buildx-action@v3.10.0
-
     - name: Build and push neon tests docker image
       id: docker_pipeline
       if: steps.need_build.outputs.need_build == 'true'
       shell: bash
       env:
         DOCKER_HUB_ORG_NAME: ${{ inputs.docker_hub_org_name }}
-        DOCKER_BUILDKIT: 1
       run: |
         image_name=${{ inputs.image_name }}
         delimeter=$(printf "%0.s-" {1..30})

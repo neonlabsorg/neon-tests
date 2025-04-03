@@ -54,20 +54,16 @@ runs:
           echo "image_exists=false" >> $GITHUB_OUTPUT
         fi
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
     - name: Build and push neon tests docker image
       id: docker_pipeline
       shell: bash
       env:
         DOCKER_HUB_ORG_NAME: ${{ inputs.docker_hub_org_name }}
-        DOCKER_BUILDKIT: 1
       run: |
         image_name=${{ inputs.image_name }}
         delimeter=$(printf "%0.s-" {1..30})
         echo " ${delimeter} Build new docker image ${image_name} ${delimeter}"
-        docker buildx build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
+        docker build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
             --build-arg BASE_IMAGE_TAG=${{ steps.feature_branch.outputs.value }} \
             --build-arg DOCKER_HUB_ORG_NAME=${{env.DOCKER_HUB_ORG_NAME}}
             --load
