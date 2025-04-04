@@ -36,6 +36,26 @@ ENV DOCKER_HUB_ORG_NAME=${DOCKER_HUB_ORG_NAME}
 ARG CONTRACTS_BRANCH
 RUN python3 ./clickfile.py update-contracts --branch ${CONTRACTS_BRANCH}
 
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+    apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y \
+    default-jdk \
+    curl \
+    libxkbcommon0 \
+    libxdamage1 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    xvfb && \
+    curl -o allure-2.21.0.tgz -Ls https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/2.21.0/allure-commandline-2.21.0.tgz && \
+    tar -zxvf allure-2.21.0.tgz -C /opt/ && \
+    ln -s /opt/allure-2.21.0/bin/allure /usr/bin/allure && \
+    rm allure-2.21.0.tgz && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+
 RUN rm -rf /opt/neon-tests/compatibility/openzeppelin-contracts
 COPY --from=oz-contracts /usr/src/app /opt/neon-tests/compatibility/openzeppelin-contracts
 COPY --from=oz-contracts /root/.cache/hardhat-nodejs  /root/.cache/hardhat-nodejs
@@ -49,10 +69,3 @@ RUN mkdir -p ${DOWNLOAD_PATH} && \
     curl -o ${DOWNLOAD_PATH}/${SOLC_BINARY} ${REPOSITORY_PATH}/${SOLC_BINARY} && \
     curl -o ${DOWNLOAD_PATH}/list.json ${REPOSITORY_PATH}/list.json && \
     chmod -R 755 ${DOWNLOAD_PATH}
-
-# Create a minimal final image with just /opt/neon-tests
-FROM scratch AS final
-COPY --from=builder /opt/neon-tests/.venv /opt/neon-tests/.venv
-COPY --from=builder /opt/neon-tests/contracts/external/ /opt/neon-tests/contracts/external/
-COPY --from=builder /opt/neon-tests/compatibility/openzeppelin-contracts /opt/neon-tests/compatibility/openzeppelin-contracts
-COPY --from=builder /root/.cache/hardhat-nodejs  /root/.cache/hardhat-nodejs
