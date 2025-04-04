@@ -44,7 +44,6 @@ runs:
         echo "Checking if base image ${{ inputs.image_name }}:${{ steps.feature_branch.outputs.value }} exists in Docker Hub"
         echo "${{ inputs.docker_password }}" | docker login -u ${{ inputs.docker_username }} --password-stdin
 
-        # Use docker manifest inspect to check if image exists
         # Returns 0 if exists, 1 if not exists
         if docker manifest inspect ${{ inputs.image_name }}:${{ steps.feature_branch.outputs.value }} > /dev/null 2>&1; then
           echo "Branch Base Image exists in Docker Hub"
