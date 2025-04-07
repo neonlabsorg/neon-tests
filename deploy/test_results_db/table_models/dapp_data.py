@@ -14,8 +14,8 @@ class DappData(Base):
     acc_count: int = Column(Integer, nullable=False)
     trx_count: int = Column(Integer, nullable=False)
     gas_estimated: int = Column(BigInteger, nullable=False)
-    gas_used: int = Column(Integer, nullable=False)
-    compute_units: int = Column(Integer, nullable=False)
+    gas_used: int = Column(BigInteger, nullable=False)
+    compute_units: int = Column(BigInteger, nullable=False)
 
     report = relationship("CostReport", back_populates="dapp_data")
 
