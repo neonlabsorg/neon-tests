@@ -205,16 +205,16 @@ class TestWithdraw:
             version="0.8.10",
             account=account_with_all_tokens,
         )
+
         sol_client.create_associate_token_acc(solana_account, solana_account, WRAPPED_SOL_MINT)
         associated_token_address = get_associated_token_address(solana_account.pubkey(), WRAPPED_SOL_MINT)
         spl_neon_token = SplToken(self.sol_client, WRAPPED_SOL_MINT, TOKEN_PROGRAM_ID, solana_account)
-
         balance_before = spl_neon_token.get_balance(
             associated_token_address, commitment=Commitment("confirmed")
         ).value.amount
 
         amount = 2*10**9
-        tx = web3_client_sol.make_raw_tx(account_with_all_tokens, amount=amount)
+        tx = web3_client_sol.make_raw_tx(from_=account_with_all_tokens, amount=amount)
         instruction_tx = contract.functions.withdraw(bytes(solana_account.pubkey())).build_transaction(tx)
         receipt = web3_client_sol.send_transaction(account_with_all_tokens, instruction_tx)
         assert receipt["status"] == 1
