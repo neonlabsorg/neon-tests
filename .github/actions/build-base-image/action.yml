@@ -64,8 +64,15 @@ runs:
       id: check_requirements
       shell: bash
       run: |
-        # Check if there are changes in the requirements folder
-        if git diff --name-only ${{ github.head_ref }} HEAD~1 HEAD | grep -E "^requirements/|^Dockerfile-base$"; then
+        # Check if there are changes in the requirements folder comparing with parent branch
+        parent_branch=$(git show-branch -a 2>/dev/null |
+                grep '\*' |
+                grep -v "$(git rev-parse --abbrev-ref HEAD)" |
+                head -n1 |
+                sed 's/.*\[\(.*\)\].*/\1/' |
+                sed 's/[\^~].*//')
+
+        if git diff --name-only HEAD $parent_branch | grep -E "^requirements/|^Dockerfile-base$"; then
           echo "Requirements folder or Dockerfile has changed, rebuilding..."
           echo "requirements_changed=true" >> $GITHUB_OUTPUT
         else

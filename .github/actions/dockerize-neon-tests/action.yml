@@ -7,10 +7,6 @@ inputs:
   image_name:
     description: 'neon tests image name'
     required: true
-  oz_tag:
-    description: 'tag name for oz tests'
-    required: true
-    default: latest
   docker_username:
     description: 'docker hub username'
     required: true

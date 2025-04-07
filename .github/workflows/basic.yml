@@ -29,6 +29,11 @@ on:
           - 8
           - 12
           - auto
+      rebuild_base_image:
+        type: boolean
+        default: false
+        required: false
+        description: "Rebuild base test image"
       generate_cost_report:
         type: boolean
         default: false
