@@ -8,7 +8,6 @@ import base58
 from solana.rpc import commitment
 
 from deploy.cli.network_manager import NetworkManager
-from integration.tests.economy.const import TX_COST
 from utils.accounts import EthAccounts
 from utils.consts import LAMPORT_PER_SOL, wSOL
 from utils.erc20wrapper import ERC20NewWrapper
@@ -120,16 +119,14 @@ def teardown_one_contract_for_scheduled_trx(environment: env.Environment, **kwar
     network = environment.parsed_options.host
     network_manager = NetworkManager()
     network_object = network_manager.get_network_object(network)
-    if not network_object["use_bank"]:
-        balance = environment.evm_loader.get_solana_balance(environment.solana_account.pubkey())
-        amount_lamports = max(0, balance - TX_COST)
 
-        if amount_lamports > 0:
-            environment.evm_loader.self.send_sol(
-                from_=environment.solana_account,
-                to=environment.bank_account.pubkey(),
-                amount_lamports=amount_lamports,
-            )
+    if network_object["use_bank"]:
+        # Drain SOL for every neon_user
+        for neon_user in environment.contract_info["accounts"]:
+            environment.evm_loader.drain_sol(neon_user.solana_account, environment.bank_account.pubkey())
+
+        # Drain SOL for solana contract account
+        environment.evm_loader.drain_sol(environment.solana_account, environment.bank_account.pubkey())
 
 
 class BaseScheduledTxTaskSet(NeonProxyTasksSet):
@@ -147,6 +144,8 @@ class BaseScheduledTxTaskSet(NeonProxyTasksSet):
     def on_stop(self):
         if self.account is not None:
             with USER_LOCK:
+                # Drain Sol to bank account in case "Devnet" environment
+
                 self.user.environment.contract_info["accounts"].append(self.neon_account)
                 LOG.info(f"Returned user: {self.account.address}")
 
