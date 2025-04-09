@@ -836,7 +836,7 @@ class TestAccountRevision:
             # check_transaction_logs_have_not_text(solana_client=evm_loader, trx=resp, text="INVALID_REVISION")
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x12")
 
-    def test_simple_transaction_for_balance_revision(
+    def test_transaction_with_flash_loan_for_balance_revision(
         self,
         borrower_contract,
         lender_contract,
@@ -846,33 +846,30 @@ class TestAccountRevision:
         neon_api_client,
         treasury_pool,
         new_holder_acc,
-        new_holder_acc_2,
-        second_session_user,
     ):
 
         balance_before = evm_loader.get_neon_balance(lender_contract.eth_address, evm_loader.chain_id)
         revision_before = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
 
-        # second tx
-        func2_signature = "flashLoan(address,uint256)"
-        func2_args = [borrower_contract.eth_address, 9]
+        func_signature = "flashLoan(address,uint256)"
+        func_args = [borrower_contract.eth_address, 9]
 
-        emulate_result_2 = neon_api_client.emulate_contract_call(
-            sender_with_tokens.eth_address.hex(), lender_contract.eth_address.hex(), func2_signature, func2_args, "0x9"
+        emulate_result = neon_api_client.emulate_contract_call(
+            sender_with_tokens.eth_address.hex(), lender_contract.eth_address.hex(), func_signature, func_args, "0x9"
         )
 
-        emulated_accounts_2 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result_2["solana_accounts"]]
+        emulated_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
         signed_tx2 = make_contract_call_trx(
             evm_loader,
             sender_with_tokens,
             lender_contract,
-            func2_signature,
-            func2_args,
+            func_signature,
+            func_args,
         )
 
         evm_loader.write_transaction_to_holder_account(signed_tx2, new_holder_acc, operator_keypair)
         resp = evm_loader.execute_transaction_steps_from_account(
-            operator_keypair, treasury_pool, new_holder_acc, emulated_accounts_2
+            operator_keypair, treasury_pool, new_holder_acc, emulated_accounts
         )
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
 
