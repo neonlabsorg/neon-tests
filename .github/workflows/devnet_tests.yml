@@ -1,7 +1,7 @@
 name: "Devnet tests"
 on:
   schedule:
-    - cron: "0 2 * * 0,1,2,3,4"
+    - cron: "0 2 * * 0,1,2,3,4,5"
   workflow_dispatch:
     inputs:
       numprocesses:
@@ -10,6 +10,8 @@ on:
         required: true
         description: "Number of parallel jobs"
         options:
+          - 4
+          - 6
           - 8
           - 12
           - auto
@@ -57,12 +59,15 @@ jobs:
       - name: Run docker container
         run: |
           docker pull ${{ env.IMAGE }}:${{ steps.test_image_tag.outputs.value }}
+          echo "Create custom network with lower MTU to avoid problem with OpenSSL SSL_connect: Connection reset by peer"
+          docker network inspect custom-network >/dev/null 2>&1 || \
+          docker network create --driver bridge --opt com.docker.network.driver.mtu=1400 custom-network
           docker run -i -d -e CI -e GITHUB_RUN_ID -e GITHUB_WORKFLOW \
             -e BANK_PRIVATE_KEY=${{ secrets.BANK_PRIVATE_KEY }} \
             -e DEVNET_SOLANA_URL \
             -e DEVNET_PROXY_URL \
             -e DEVNET_FAUCET_URL \
-            --name=${{ env.CONTAINER }} ${{ env.IMAGE }}:${{ steps.test_image_tag.outputs.value }} /bin/bash
+            --name=${{ env.CONTAINER }} --network=custom-network ${{ env.IMAGE }}:${{ steps.test_image_tag.outputs.value }} /bin/bash
       - name: Run basic proxy tests
         timeout-minutes: 120
         run: |
