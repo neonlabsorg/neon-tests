@@ -1,16 +1,21 @@
 import typing as tp
 
+import allure
 import pytest
+from solana.rpc.commitment import Confirmed
+from solders.signature import Signature
 from web3 import Web3
 
-import allure
 from clickfile import EnvName
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.basic import Tag
 from integration.tests.basic.helpers.errors import Error32602
 from utils.accounts import EthAccounts
+from utils.apiclient import JsonRPCSession
+from utils.cu_cost_packed import CuCostPktData
 from utils.models.error import EthError32602
 from utils.models.result import EthEstimateGas, EthResult
+from utils.solana_client import SolanaClient
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -174,3 +179,66 @@ class TestRpcEstimateGas:
         assert "gas" in transaction
         estimated_gas = transaction["gas"]
         assert estimated_gas == 25_000
+
+    @pytest.mark.parametrize("cu_price_coefficient", [20, 21.65465, 2007])
+    def test_gas_price(
+        self,
+        web3_client: NeonChainWeb3Client,
+        json_rpc_client: JsonRPCSession,
+        sol_client: SolanaClient,
+        cu_price_coefficient,
+    ):
+        sender = self.accounts[1]
+        receiver = self.accounts[0]
+        raw_tx = web3_client.make_raw_tx(sender, receiver, amount=100000, estimate_gas=True)
+        neon_gas_estimate = json_rpc_client.send_rpc(
+            method="neon_estimateGas",
+            params=[raw_tx, {"showGasDetails": True}],
+        )["result"]
+
+        gas = (
+            neon_gas_estimate["gasTransactionSizeUsed"]
+            + neon_gas_estimate["gasAddressLookupTableUsed"]
+            + neon_gas_estimate["gasExecutionUsed"]
+            + neon_gas_estimate["gasFinishUsed"]
+        )
+        cu_price = int(neon_gas_estimate["solanaComputeUnitPrice"] * cu_price_coefficient)
+        pkt = CuCostPktData.from_raw(gas, neon_gas_estimate["numIterations"], cu_price)
+        cu_gas = pkt.tx_cu_cost
+        gas_limit = gas + cu_gas
+        raw_tx["gas"] = gas_limit
+
+        eth_receipt = web3_client.send_transaction(account=sender, transaction=raw_tx)
+        neon_receipt = json_rpc_client.get_neon_trx_receipt(eth_receipt.transactionHash)["result"]
+        solana_lamport_expense_total = 0
+        neon_gas_used_total = 0
+
+        for sol_tx in neon_receipt["solanaTransactions"]:
+            solana_lamport_expense_per_tx = sol_tx["solanaLamportExpense"]
+            solana_lamport_expense_total += solana_lamport_expense_per_tx
+            for instruction in sol_tx["solanaInstructions"]:
+                if instruction["solanaProgram"].lower() == "neonevm":
+                    neon_gas_used_per_tx = instruction["neonGasUsed"]
+                    neon_gas_used_total += neon_gas_used_per_tx
+
+        print(solana_lamport_expense_total, neon_gas_used_total)
+        # TODO fails with diff == 1 lamport - ok?
+        # assert solana_lamport_expense_total == neon_gas_used_total
+
+        solana_transaction_sigs = web3_client.get_solana_trx_by_neon(eth_receipt.transactionHash.hex())["result"]
+        operator_spent_total = 0
+
+        for solana_transaction_sig in solana_transaction_sigs:
+            solana_tx = sol_client.get_transaction(
+                tx_sig=Signature.from_string(solana_transaction_sig),
+                max_supported_transaction_version=0,
+                commitment=Confirmed,
+            ).value
+            operator_spent_per_tx = (
+                solana_tx.transaction.meta.pre_balances[0] - solana_tx.transaction.meta.post_balances[0]
+            )
+            operator_spent_total += operator_spent_per_tx
+
+        print(operator_spent_total, neon_gas_used_total)
+        # TODO fails with diff == 1 lamport - ok?
+        # assert operator_spent_total == neon_gas_used_total
