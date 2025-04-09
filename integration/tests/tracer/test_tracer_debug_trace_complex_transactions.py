@@ -171,6 +171,70 @@ class TestDebugTraceIterativeTransaction:
         assert response["result"]["type"] == "CALL"
         assert "error" not in response["result"]
 
+    def test_trace_iterative_tx_block_timestamp_struct_logger(self, block_timestamp_contract, json_rpc_client):
+        contract, _ = block_timestamp_contract
+        sender_account = self.accounts[0]
+
+        tx = self.web3_client.make_raw_tx(sender_account)
+        instruction_tx = contract.functions.callIterativeTrx().build_transaction(tx)
+        receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
+        assert receipt["status"] == 1
+        assert self.web3_client.is_trx_iterative(receipt["transactionHash"].hex())
+
+        json_rpc_client.send_rpc(method="eth_getBlockByHash", params=[receipt["blockHash"].hex(), False])
+        tx_info = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        params = [
+            {
+                "to": tx_info["to"],
+                "from": tx_info["from"],
+                "gas": hex(tx_info["gas"]),
+                "gasPrice": hex(tx_info["gasPrice"]),
+                "value": hex(tx_info["value"]),
+                "data": tx_info["input"].hex(),
+            },
+            hex(tx_info["blockNumber"]),
+        ]
+
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+        assert "error" not in response, "Error in response"
+        assert "result" in response
+        assert response["result"]["returnValue"] == ""
+        validate_response_result(response)
+
+    def test_trace_block_timestamp_in_scheduled_tx(
+        self, web3_client_sol, block_timestamp_contract, json_rpc_client, neon_user, evm_loader, treasury_pool
+    ):
+        contract, _ = block_timestamp_contract
+
+        data = decode_function_signature("callIterativeTrx()")
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, contract.address, data)
+        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+        tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
+        evm_loader.create_tree_account(
+            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
+        )
+        check_trx_is_success(web3_client_sol, evm_loader, tx.hash().hex())
+
+        receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash().hex())
+        tx_info = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        params = [
+            {
+                "to": tx_info["to"],
+                "from": tx_info["from"],
+                "gas": hex(tx_info["gas"]),
+                "gasPrice": hex(tx_info["gasPrice"]),
+                "value": hex(tx_info["value"]),
+                "data": tx_info["input"].hex(),
+            },
+            hex(tx_info["blockNumber"]),
+        ]
+
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+        assert "error" not in response, "Error in response"
+        assert "result" in response
+        assert response["result"]["returnValue"] == ""
+        validate_response_result(response)
+
     def test_trace_scheduled_tx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
         contract_data = 18
         data = decode_function_signature("setNumber(uint256)", [contract_data])
