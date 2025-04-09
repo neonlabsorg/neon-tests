@@ -836,7 +836,7 @@ class TestAccountRevision:
             # check_transaction_logs_have_not_text(solana_client=evm_loader, trx=resp, text="INVALID_REVISION")
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x12")
 
-    def test_transaction_with_flash_loan_for_balance_revision(
+    def test_balance_acc_revision_for_transaction_with_flash_loan(
         self,
         borrower_contract,
         lender_contract,
