@@ -10,7 +10,7 @@ from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 
 from conftest import EnvironmentConfig
-from utils.consts import OPERATOR_KEYPAIR_PATH
+from utils.consts import OPERATOR_KEYPAIR_PATH, REMAPPING_ZEPPELIN
 from utils.evm_loader import EvmLoader
 from utils.solana_client import SolanaClient
 from utils.types import Contract, Caller, TreasuryPool
@@ -279,7 +279,8 @@ def multiple_actions_erc20(
         neon_api_client=neon_api_client,
         treasury_pool=treasury_pool,
         contract_name="MultipleActionsERC20",
-        version="0.8.24",
+        version="0.8.28",
+        import_remapping=REMAPPING_ZEPPELIN,
         encoded_args=encoded_args,
     )
 

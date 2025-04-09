@@ -9,7 +9,7 @@ from utils.web3client import NeonChainWeb3Client
 from utils.consts import LAMPORT_PER_SOL
 from solders.keypair import Keypair
 from solana.rpc import commitment
-from utils.erc20wrapper import ERC20NewWrapper
+from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
 from utils.neon_user import NeonUser
 from utils.accounts import EthAccounts
@@ -59,7 +59,7 @@ def prepare_locust(network, neon_users):
         # deploy a new erc20 contract
         print("Start to deploy a contract...")
         symbol = "".join([random.choice(string.ascii_uppercase) for _ in range(3)])
-        erc20 = ERC20NewWrapper(
+        erc20 = ERC20Wrapper(
             web3_client,
             faucet,
             f"Test {symbol}",
