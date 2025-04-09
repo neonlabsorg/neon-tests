@@ -778,8 +778,6 @@ class TestAccountRevision:
         second_session_user,
     ):
 
-        print("")
-        rev_1 = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
         # First tx prepare
         func_signature = "powAmount(uint256,uint256)"
         func1_args = [5, 10]
@@ -793,7 +791,6 @@ class TestAccountRevision:
 
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
         evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc_2, operator_keypair)
-        rev_2 = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
 
         for i in range(2):
             evm_loader.send_transaction_step_from_account(
@@ -805,7 +802,6 @@ class TestAccountRevision:
                 EVM_STEPS,
                 operator_keypair,
             )
-        rev_3 = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
 
         # second tx
         func2_signature = "flashLoan(address,uint256)"
@@ -825,8 +821,6 @@ class TestAccountRevision:
             operator_keypair, treasury_pool, new_holder_acc, emulated_accounts_2
         )
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
-        rev_4 = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
-
         # finish first tx
         resp = None
         for i in range(3):
@@ -840,12 +834,6 @@ class TestAccountRevision:
                 operator_keypair,
             )
             # check_transaction_logs_have_not_text(solana_client=evm_loader, trx=resp, text="INVALID_REVISION")
-        rev_5 = evm_loader.get_balance_account_revision(lender_contract.balance_account_address)
-        print(rev_1)
-        print(rev_2)
-        print(rev_3)
-        print(rev_4)
-        print(rev_5)
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x12")
 
     def test_simple_transaction_for_balance_revision(
