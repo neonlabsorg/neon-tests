@@ -1006,7 +1006,7 @@ class TestStepFromInstructionWithChangedRLPTrx:
         new_trx = HexBytes(rlp.encode(decoded_tx))
 
         signed_tx_new = SignedTransaction(
-            rawTransaction=new_trx,
+            raw_transaction=new_trx,
             hash=signed_tx.hash,
             r=signed_tx.r,
             s=signed_tx.s,
@@ -1033,7 +1033,7 @@ class TestStepFromInstructionWithChangedRLPTrx:
             evm_loader, sender_with_tokens, string_setter_contract, "set(string)", [text]
         )
         signed_tx_new = SignedTransaction(
-            rawTransaction=signed_tx.raw_transaction + HexBytes(b"\x19p\x16l\xc0"),
+            raw_transaction=signed_tx.raw_transaction + HexBytes(b"\x19p\x16l\xc0"),
             hash=signed_tx.hash,
             r=signed_tx.r,
             s=signed_tx.s,
@@ -1067,10 +1067,10 @@ class TestStepFromInstructionWithChangedRLPTrx:
         signed_tx = make_contract_call_trx(
             evm_loader, sender_with_tokens, string_setter_contract, "set(string)", [text]
         )
-        new_raw_trx = HexBytes(bytes([0]) + signed_tx.raw_rransaction)
+        new_raw_trx = HexBytes(bytes([0]) + signed_tx.raw_transaction)
 
         signed_tx_new = SignedTransaction(
-            rawTransaction=new_raw_trx,
+            raw_transaction=new_raw_trx,
             hash=signed_tx.hash,
             r=signed_tx.r,
             s=signed_tx.s,

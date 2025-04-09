@@ -9,7 +9,7 @@ solana==0.34.3
 py-solc-x==1.1.1
 pythclient==0.0.2
 boto3==1.28.54
-rlp==3.0.0
+rlp==4.1.0
 python-terraform==0.10.1
 allure-pytest==2.13.5
 uv==0.1.13
