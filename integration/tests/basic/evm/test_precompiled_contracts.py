@@ -143,14 +143,7 @@ class TestPrecompiledContracts:
         instruction_tx = self.web3_client.make_raw_tx(
             sender_account, address, data=input_data, amount=amount, estimate_gas=True
         )
-        if request.node.callspec.id not in [
-            "modexp-nagydani-5-square0",
-            "modexp-nagydani-5-square1",
-            "modexp-nagydani-5-qube0",
-            "modexp-nagydani-5-qube1",
-            "modexp-nagydani-5-pow0x100010",
-            "modexp-nagydani-5-pow0x100011",
-        ]:
+        if "modexp-nagydani-5" not in request.node.callspec.id:
             receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
             check_trx_is_success(self.web3_client, evm_loader, receipt["transactionHash"].hex())
 
@@ -164,6 +157,7 @@ class TestPrecompiledContracts:
             except ValueError as exc:
                 assert "InvalidLength" in exc.args[0]["message"]
 
+    @pytest.mark.xdist_group("precompiled_contract_balance")
     def test_send_neon_without_data(self, pytestconfig, evm_loader):
         address = "0x0000000000000000000000000000000000000006"
         sender_account = self.accounts[0]
