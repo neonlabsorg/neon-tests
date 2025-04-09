@@ -29,12 +29,7 @@ BASE_MAX_PRIORITY_FEE = 2_500_000_000
 
 
 class Web3Client:
-    def __init__(
-        self,
-        proxy_url: str,
-        tracer_url: tp.Optional[tp.Any] = None,
-        session: tp.Optional[tp.Any] = None,
-    ):
+    def __init__(self, proxy_url: str, tracer_url: tp.Optional[tp.Any] = None):
         self._proxy_url = proxy_url
         self._tracer_url = tracer_url
         self._chain_id = None
@@ -678,9 +673,8 @@ class NeonChainWeb3Client(Web3Client):
         self,
         proxy_url: str,
         tracer_url: tp.Optional[tp.Any] = None,
-        session: tp.Optional[tp.Any] = None,
     ):
-        super().__init__(proxy_url, tracer_url, session)
+        super().__init__(proxy_url, tracer_url)
 
     @allure.step("Create account with balance")
     def create_account_with_balance(
