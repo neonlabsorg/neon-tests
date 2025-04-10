@@ -562,14 +562,14 @@ def multiple_actions_erc20(web3_client_session, accounts, erc20_spl_mintable):
 @pytest.fixture(scope="class")
 def multiple_actions_erc721(web3_client, accounts):
     contract, contract_deploy_tx = web3_client.deploy_and_get_contract(
-        "EIPs/ERC721/MultipleActions", "0.8.10", accounts[0], contract_name="MultipleActionsERC721"
+        "EIPs/ERC721/MultipleActions", "0.8.28", accounts[0], contract_name="MultipleActionsERC721"
     )
     return accounts[0], contract
 
 
 @pytest.fixture(scope="class")
 def call_solana_caller(accounts, web3_client):
-    contract, _ = web3_client.deploy_and_get_contract("precompiled/CallSolanaCaller.sol", "0.8.10", accounts[0])
+    contract, _ = web3_client.deploy_and_get_contract("precompiled/CallSolanaCaller.sol", "0.8.28", accounts[0])
     return contract
 
 

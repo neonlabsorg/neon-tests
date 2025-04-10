@@ -48,7 +48,7 @@ class TestSolanaInteroperability:
     def call_solana_caller_sol_network(self, class_account_sol_chain, web3_client_sol):
         contract, _ = web3_client_sol.deploy_and_get_contract(
             contract="precompiled/CallSolanaCaller.sol",
-            version="0.8.10",
+            version="0.8.28",
             contract_name="CallSolanaCaller",
             account=class_account_sol_chain,
         )

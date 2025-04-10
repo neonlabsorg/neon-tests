@@ -30,7 +30,7 @@ class ERC721ForMetaplex:
     @allure.step("Deploy contract")
     def deploy(self, contract, contract_name):
         contract, _ = self.web3_client.deploy_and_get_contract(
-            contract, "0.8.0", self.account, contract_name=contract_name
+            contract, "0.8.28", self.account, contract_name=contract_name
         )
         return contract
 

@@ -19,7 +19,7 @@ def precompiled_contract(web3_client, faucet, accounts):
 @pytest.fixture(scope="class")
 def metaplex_caller(web3_client, accounts):
     contract, _ = web3_client.deploy_and_get_contract(
-        "precompiled/MetaplexCaller", "0.8.10", account=accounts[0], contract_name="MetaplexCaller"
+        "precompiled/MetaplexCaller", "0.8.28", account=accounts[0], contract_name="IMetaplexProgramCaller"
     )
     return contract
 
@@ -45,7 +45,7 @@ def spl_token(web3_client):
 @pytest.fixture(scope="class")
 def spl_token_caller(web3_client, accounts):
     contract, _ = web3_client.deploy_and_get_contract(
-        "precompiled/SplTokenCaller", "0.8.10", account=accounts[0], contract_name="SplTokenCaller"
+        "precompiled/SplTokenCaller", "0.8.28", account=accounts[0], contract_name="SplTokenCaller"
     )
     return contract
 
