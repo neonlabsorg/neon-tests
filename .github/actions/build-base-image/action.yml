@@ -20,6 +20,10 @@ inputs:
   docker_hub_org_name:
     description: 'docker hub organization name'
     required: true
+  force_rebuild:
+    description: 'flag to force rebuild basic image on current branch'
+    required: true
+    default: false
 
 runs:
   using: composite
@@ -40,8 +44,8 @@ runs:
           echo "value=${value}"
           echo "value=${value}" >> $GITHUB_OUTPUT
 
-    - name: Check if image exists in Docker Hub
-      id: check_image
+    - name: Check if current branch image exists in Docker Hub
+      id: check_branch_image
       shell: bash
       run: |
         echo "Checking if image ${{ inputs.image_name }}:${{ inputs.image_tag }} exists in Docker Hub"
@@ -51,20 +55,42 @@ runs:
         # Returns 0 if exists, 1 if not exists
         if docker manifest inspect ${{ inputs.image_name }}:${{ steps.feature_branch.outputs.value }} > /dev/null 2>&1; then
           echo "Image exists in Docker Hub"
-          echo "image_exists=true" >> $GITHUB_OUTPUT
-        elif docker manifest inspect ${{ inputs.image_name }}:${{ inputs.image_tag }} > /dev/null 2>&1; then
-          echo "Image exists in Docker Hub"
-          echo "image_exists=true" >> $GITHUB_OUTPUT
+          echo "branch_image_exists=true" >> $GITHUB_OUTPUT
         else
           echo "Image does not exist in Docker Hub"
           echo "image_exists=false" >> $GITHUB_OUTPUT
         fi
 
+    - name: Check if parent (dev | feature) branch image exists in Docker Hub
+      id: check_branch_image
+      shell: bash
+      run: |
+        echo "Checking if image ${{ inputs.image_name }}:${{ inputs.image_tag }} exists in Docker Hub"
+        echo "${{ inputs.docker_password }}" | docker login -u ${{ inputs.docker_username }} --password-stdin
+
+        parent_branch=$(git show-branch -a 2>/dev/null |
+                  grep '\*' |
+                  grep -v "$(git rev-parse --abbrev-ref HEAD)" |
+                  head -n1 |
+                  sed 's/.*\[\(.*\)\].*/\1/' |
+                  sed 's/[\^~].*//')
+
+        # Use docker manifest inspect to check if image exists
+        # Returns 0 if exists, 1 if not exists
+        if docker manifest inspect ${{ inputs.image_name }}:${{ steps.feature_branch.outputs.value }} > /dev/null 2>&1; then
+          echo "Image exists in Docker Hub"
+          echo "branch_image_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "Image does not exist in Docker Hub"
+          echo "image_exists=false" >> $GITHUB_OUTPUT
+        fi
+
+
     - name: Check if requirements folder changed
       id: check_requirements
       shell: bash
       run: |
-        # Check if there are changes in the requirements folder comparing with parent branch
+        # Check if there are changes in the requirements folder comparing with parent branch (feature or develop)
         parent_branch=$(git show-branch -a 2>/dev/null |
                 grep '\*' |
                 grep -v "$(git rev-parse --abbrev-ref HEAD)" |
@@ -84,7 +110,9 @@ runs:
       id: need_build
       shell: bash
       run: |
-        if [[ "${{ steps.check_image.outputs.image_exists }}" == "false" || "${{ steps.check_requirements.outputs.requirements_changed }}" == "true" ]]; then
+        if [[ "${{ steps.check_image.outputs.image_exists }}" == "false" |
+        || "${{ steps.check_requirements.outputs.requirements_changed }}" == "true" |
+        || "${{ inputs.force_rebuild }}" == "true" ]]; then
           echo "need_build=true" >> $GITHUB_OUTPUT
           echo "Build is needed: Image doesn't exist or requirements changed"
         else

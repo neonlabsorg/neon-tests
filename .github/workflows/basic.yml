@@ -60,6 +60,7 @@ env:
   BASE_IMAGE: ${{ github.repository_owner }}/neon_tests_base
   DOCKER_HUB_ORG_NAME: ${{ github.repository_owner }}
   GENERATE_COST_REPORT: ${{ github.event.inputs.generate_cost_report || 'false' }}
+  REBUILD_BASE_IMAGE: ${{ github.event.inputs.rebuild_base_image || 'false' }}
 jobs:
   pre-commit-check:
     name: Pre-commit hook validation
@@ -81,6 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build base test image
+        id: build_base_image
         uses: ./.github/actions/build-base-image
         with:
           image_tag: ${{ github.sha }}
@@ -88,7 +90,9 @@ jobs:
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
           image_name: ${{ env.BASE_IMAGE }}
           docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
-
+          force_rebuild: ${{ env.REBUILD_BASE_IMAGE }}
+    output:
+      base_image_tag: ${{ steps.build_base_image.image_tag }}
   dockerize:
     name: Dockerize neon tests
     runs-on: ["self-hosted", "k8s-prod"]
@@ -105,6 +109,7 @@ jobs:
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
           image_name: ${{ env.IMAGE }}
           docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
+          base_image_tag: ${{ needs.base_image_build.outputs.base_image_tag }}
       - name: "Define image tag"
         id: image_tag
         uses: ./.github/actions/define-image-tag
