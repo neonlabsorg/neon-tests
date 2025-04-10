@@ -14,7 +14,7 @@ class ERC721ForMetaplex:
         web3_client: web3client.NeonChainWeb3Client,
         faucet,
         account=None,
-        contract="neon-evm/erc721_for_metaplex.sol",
+        contract="../common/erc721_for_metaplex.sol",
         contract_name="ERC721ForMetaplex",
         contract_address=None,
     ):
