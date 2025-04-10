@@ -10,6 +10,7 @@ from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from spl.token import instructions
 from spl.token.constants import TOKEN_PROGRAM_ID
+from web3.exceptions import Web3RPCError
 
 from integration.tests.basic.helpers.errors import ContractError
 from utils import metaplex
@@ -32,7 +33,7 @@ NO_ENOUGH_GAS_PARAMS = [
 
 
 @allure.feature("ERC Verifications")
-@allure.story("ERC20SPL: Tests for ERC20ForSPLNew contract")
+@allure.story("ERC20SPL: Tests for ERC20ForSPL contract")
 @pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
 @pytest.mark.neon_only
 class TestERC20SPL:
@@ -42,12 +43,15 @@ class TestERC20SPL:
 
     @pytest.fixture(scope="class")
     def erc20_contract(self, erc20_spl, eth_bank_account, pytestconfig: Config) -> ERC20Wrapper:
+        if pytestconfig.getoption("--network") == "mainnet":
+            self.web3_client.send_neon(eth_bank_account, erc20_spl.account.address, 10)
         return erc20_spl
 
     @pytest.fixture
     def restore_balance(self, erc20_contract):
         pass
 
+    @pytest.mark.mainnet
     def test_metaplex_data(self, erc20_contract):
         metaplex.wait_account_info(self.sol_client, erc20_contract.token_mint.pubkey)
         metadata = metaplex.get_metadata(self.sol_client, erc20_contract.token_mint.pubkey)
@@ -55,6 +59,7 @@ class TestERC20SPL:
         assert metadata["data"]["symbol"] == erc20_contract.symbol
         assert metadata["is_mutable"] is True
 
+    @pytest.mark.mainnet
     def test_balanceOf(self, erc20_contract):
         recipient_account = self.accounts[1]
         transfer_amount = random.randint(0, 1000)
@@ -77,6 +82,7 @@ class TestERC20SPL:
         symbol = erc20_contract.contract.functions.symbol().call()
         assert symbol == erc20_contract.symbol
 
+    @pytest.mark.mainnet
     def test_name(self, erc20_contract):
         name = erc20_contract.contract.functions.name().call()
         assert name == erc20_contract.name
@@ -136,9 +142,10 @@ class TestERC20SPL:
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
     def test_burn_no_enough_gas(self, erc20_contract, param, msg):
-        with pytest.raises(ValueError, match=msg):
+        with pytest.raises(Web3RPCError, match=msg):
             erc20_contract.burn(erc20_contract.account, 1, **param)
 
+    @pytest.mark.mainnet
     def test_burnFrom(self, erc20_contract, restore_balance):
         new_account = self.accounts[1]
         balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
@@ -201,7 +208,7 @@ class TestERC20SPL:
     def test_burnFrom_no_enough_gas(self, erc20_contract, param, msg):
         new_account = self.accounts[0]
         erc20_contract.approve(erc20_contract.account, new_account.address, 1)
-        with pytest.raises(ValueError, match=msg):
+        with pytest.raises(Web3RPCError, match=msg):
             erc20_contract.burn_from(new_account, erc20_contract.account.address, 1, **param)
 
     @pytest.mark.cost_report
@@ -233,7 +240,7 @@ class TestERC20SPL:
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
     def test_approve_no_enough_gas(self, erc20_contract, param, msg):
-        with pytest.raises(ValueError, match=msg):
+        with pytest.raises(Web3RPCError, match=msg):
             erc20_contract.approve(erc20_contract.account, erc20_contract.account.address, 1, **param)
 
     def test_allowance_incorrect_address(self, erc20_contract):
@@ -304,7 +311,7 @@ class TestERC20SPL:
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
     def test_transfer_no_enough_gas(self, erc20_contract, param, msg):
-        with pytest.raises(ValueError, match=msg):
+        with pytest.raises(Web3RPCError, match=msg):
             erc20_contract.transfer(erc20_contract.account, erc20_contract.account.address, 1, **param)
 
     @pytest.mark.cost_report
@@ -418,7 +425,7 @@ class TestERC20SPL:
     def test_transferFrom_no_enough_gas(self, erc20_contract, param, msg):
         new_account = self.accounts.create_account()
         erc20_contract.approve(erc20_contract.account, new_account.address, 1)
-        with pytest.raises(ValueError, match=msg):
+        with pytest.raises(Web3RPCError, match=msg):
             erc20_contract.transfer_from(new_account, erc20_contract.account.address, new_account.address, 1, **param)
 
     def test_transferSolana(
@@ -639,7 +646,7 @@ class TestERC20SPLMintable:
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
     def test_mint_no_enough_gas(self, erc20_contract, param, msg):
-        with pytest.raises(ValueError, match=msg):
+        with pytest.raises(Web3RPCError, match=msg):
             erc20_contract.mint_tokens(
                 erc20_contract.account,
                 erc20_contract.account.address,
