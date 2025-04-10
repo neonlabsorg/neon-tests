@@ -7,6 +7,7 @@ from rlp.sedes import List, big_endian_int, binary
 import allure
 import pytest
 
+from integration.tests.basic.helpers.basic import AccountData
 from utils.helpers import wait_condition
 from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
@@ -458,3 +459,37 @@ class TestTracerDebugMethods:
             response["error"]["message"]
             == "Empty Neon transaction receipt for 0xd9765b77e470204ae5edb1a796ab92ecb0e20fea50aeb09275aea740af7bbc69"
         )
+
+    def test_debug_trace_call_to_precompiled_contract(self, pytestconfig, eip1052_checker):
+        sender_account = self.accounts[0]
+        tx = self.web3_client.make_raw_tx(sender_account)
+        precompiled_acc = AccountData(address="0xFf00000000000000000000000000000000000004")
+
+        instruction_tx = eip1052_checker.functions.getContractHashWithLog(precompiled_acc.address).build_transaction(tx)
+        receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
+        assert receipt["status"] == 1
+
+        tx_info = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        params = [
+            {
+                "to": tx_info["to"],
+                "from": tx_info["from"],
+                "gas": hex(tx_info["gas"]),
+                "gasPrice": hex(tx_info["gasPrice"]),
+                "value": hex(tx_info["value"]),
+                "data": tx_info[
+                    "input"
+                ].hex(),  # {'code': -32602, 'data': 'invalid type: map, expected a (both 0x-prefixed or not) hex string or byte array containing 32 bytes at line 1 column 0', 'message': 'Invalid params'}
+            },
+            hex(tx_info["blockNumber"]),
+        ]
+
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+
+        assert "error" not in response, "Error in response"
+        assert "result" in response
+        assert response["result"]["returnValue"] == ""
+        validate_response_result(response)
+
+        # expected_response = self.fill_expected_response(instruction_tx, receipt, calls=False)
+        # self.assert_response_contains_expected(pytestconfig, expected_response, response)
