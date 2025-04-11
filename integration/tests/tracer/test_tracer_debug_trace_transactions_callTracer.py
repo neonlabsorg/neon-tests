@@ -148,8 +148,7 @@ class TestDebugTraceTransactionCallTracer:
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         if wait_error:
-            assert "error" in response["result"], "NO Error in response"
-            assert response["result"]["error"] == error_message
+            assert response["result"]["failed"] is True
         else:
             assert "error" not in response["result"], "Error in response"
         if wait_return_value:

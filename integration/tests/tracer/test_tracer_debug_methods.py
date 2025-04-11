@@ -28,7 +28,12 @@ class TestTracerDebugMethods:
     accounts: EthAccounts
     tracer_api: TracerClient
 
-    def check_call_tracer_type(self, tx_data, wait_error=False) -> dict:
+    def check_call_tracer_type(
+        self,
+        tx_data,
+        wait_error=False,
+        error_message="",
+    ):
 
         params = [tx_data["hash"].hex(), {"tracer": "callTracer", "tracerConfig": {"withLog": True}}]
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
@@ -40,12 +45,15 @@ class TestTracerDebugMethods:
 
         if wait_error:
             assert "error" in response["result"]
+            assert response["result"]["error"] == error_message
         else:
             assert "error" not in response["result"]
 
         return response
 
-    def check_tracer_struct_log(self, tx_data, wait_error=False, wait_return_value=False, return_value=""):
+    def check_tracer_struct_log(
+        self, tx_data, wait_error=False, error_message="", wait_return_value=False, return_value=""
+    ):
         params = [
             {
                 "to": tx_data["to"],
@@ -61,7 +69,7 @@ class TestTracerDebugMethods:
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
         if wait_error:
-            assert "error" in response["result"], "NO Error in response"
+            assert response["result"]["failed"] is True
         else:
             assert "error" not in response["result"], "Error in response"
         if wait_return_value:
@@ -517,6 +525,5 @@ class TestTracerDebugMethods:
 
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
 
-        # Checks tracers
-        self.check_tracer_struct_log(tx_data, wait_return_value=False)
+        self.check_tracer_struct_log(tx_data)
         self.check_call_tracer_type(tx_data)
