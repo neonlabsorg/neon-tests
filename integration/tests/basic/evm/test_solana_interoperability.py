@@ -458,7 +458,7 @@ class TestSolanaInteroperability:
     ):
         sender = self.accounts[0]
         lamports = 0
-        matrix_length = 50
+        matrix_length = 70
         matrix = [[random.randint(1, 100) for _ in range(matrix_length)] for _ in range(matrix_length)]
 
         instruction = Instruction(
@@ -647,7 +647,7 @@ class TestSolanaInteroperability:
     def test_solana_call_before_iterative_actions_negative(self, counter_resource_address: bytes, call_solana_caller):
         sender = self.accounts[0]
         lamports = 0
-        matrix_lenght = 12
+        matrix_lenght = 15
         matrix = [[random.randint(1, 100) for _ in range(matrix_lenght)] for _ in range(matrix_lenght)]
 
         instruction = Instruction(
@@ -666,7 +666,7 @@ class TestSolanaInteroperability:
         ).build_transaction(tx)
 
         resp = self.web3_client.send_transaction(sender, instruction_tx)
-        assert resp["status"] == 0
+        assert resp["status"] == 0, resp
 
     def test_iterative_actions_and_multiple_solana_calls(
         self, counter_resource_address: bytes, call_solana_caller, get_counter_value
