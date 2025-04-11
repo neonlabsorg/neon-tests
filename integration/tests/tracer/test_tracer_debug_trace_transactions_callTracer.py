@@ -1,6 +1,8 @@
 import random
 import allure
 import pytest
+from _pytest.config import Config
+from solders.keypair import Keypair as SolanaAccount
 
 from solana.transaction import AccountMeta, Instruction
 
@@ -8,7 +10,11 @@ from deepdiff import DeepDiff
 from solders.pubkey import Pubkey
 
 from integration.tests.basic.helpers.basic import AccountData
-from utils.consts import COUNTER_ID
+from integration.tests.tracer.tracer_helper import validate_response_result
+from utils.consts import COUNTER_ID, LAMPORT_PER_SOL
+from utils.operator import Operator
+from utils.solana_client import SolanaClient
+from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
 from utils.tracer_client import TracerClient
@@ -518,29 +524,63 @@ class TestDebugTraceTransactionCallTracer:
         assert response["result"]["calls"][0]["calls"][0]["type"] == "CREATE"
         assert response["result"]["calls"][0]["logs"][0]["topics"][0] == "0x" + receipt["logs"][0]["topics"][0].hex()
 
-    # todo доделать
-    def test_callTracer_precompiled_neon_contract(self, json_rpc_client, events_checker_contract):
-        neon_precompiled_address = "0xFF00000000000000000000000000000000000002"
-        receipt = json_rpc_client.send_rpc(
-            "eth_getCode",
-            params=[neon_precompiled_address, "latest"],
+    def test_callTracer_precompiled_neon_contract(
+        self,
+        pytestconfig: Config,
+        neon_price: float,
+        sol_price: float,
+        sol_client: SolanaClient,
+        operator: Operator,
+        web3_client: NeonChainWeb3Client,
+        accounts: EthAccounts,
+    ):
+        tx_type = TransactionType(2)
+        sender_account = accounts[0]
+        sol_user = SolanaAccount()
+        sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
+
+        move_amount = web3_client._web3.to_wei(5, "ether")
+        contract, _ = web3_client.deploy_and_get_contract(
+            contract="precompiled/NeonToken",
+            version="0.8.10",
+            account=sender_account,
+            tx_type=tx_type,
         )
-        assert receipt["result"] == "0xfe"
 
-        # sender_account = self.accounts[0]
-        # tx = self.web3_client.make_raw_tx(sender_account)
-        # precompiled_acc = AccountData(address="0xFf00000000000000000000000000000000000004")
-        #
-        # instruction_tx = eip1052_checker.functions.getContractHashWithLog(precompiled_acc.address).build_transaction(tx)
-        # receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
-        # assert receipt["status"] == 1
+        tx = self.web3_client.make_raw_tx(from_=sender_account, amount=move_amount, tx_type=tx_type)
 
-        tracer_params = {"tracer": "callTracer", "tracerConfig": {"withLog": False}}
-        params = [receipt["result"], tracer_params]
+        instruction_tx = contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
+
+        receipt = web3_client.send_transaction(sender_account, instruction_tx)
+        assert receipt["status"] == 1
+
+        tracer_params = {"tracer": "callTracer", "tracerConfig": {"withLog": True}}
+        params = [receipt["transactionHash"].hex(), tracer_params]
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
-        print(response)
-        # expected_response = self.fill_expected_response(instruction_tx, receipt, calls=False)
-        # self.assert_response_contains_expected(pytestconfig, expected_response, response)
+
+        assert len(response["result"]["calls"]) == 1
+        assert response["result"]["type"] == "CALL"
+        assert response["result"]["calls"][0]["type"] == "CALL"
+
+        # struct log
+        tx_info = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        params = [
+            {
+                "to": tx_info["to"],
+                "from": tx_info["from"],
+                "gas": hex(tx_info["gas"]),
+                "gasPrice": hex(tx_info["gasPrice"]),
+                "value": hex(tx_info["value"]),
+                "data": "0x" + tx_info["input"].hex(),
+            },
+            hex(tx_info["blockNumber"]),
+        ]
+
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+        assert "error" not in response, "Error in response"
+        assert "result" in response
+        assert response["result"]["returnValue"] == ""
+        validate_response_result(response)
 
     def test_callTracer_precompiled_solana_contract(
         self, call_solana_caller, counter_resource_address: bytes, pytestconfig
@@ -569,6 +609,3 @@ class TestDebugTraceTransactionCallTracer:
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
         expected_response = self.fill_expected_response(instruction_tx, receipt, calls=True, calls_value="0x0")
         self.assert_response_contains_expected(pytestconfig, expected_response, response)
-
-    def test_callTracer_canceled_after_two_steps(self):
-        pass

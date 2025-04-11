@@ -83,6 +83,24 @@ class TestDebugTraceIterativeTransaction:
         assert response["result"]["input"].lower() == instruction_tx["data"].lower()
         assert response["result"]["type"] == "CALL"
         assert response["result"]["error"] == "execution reverted"
+        #     status log
+        tx_info = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        params = [
+            {
+                "to": tx_info["to"],
+                "from": tx_info["from"],
+                "gas": hex(tx_info["gas"]),
+                "gasPrice": hex(tx_info["gasPrice"]),
+                "value": hex(tx_info["value"]),
+                "data": "0x" + tx_info["input"].hex(),
+            },
+            hex(tx_info["blockNumber"]),
+        ]
+
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+
+        assert response["result"]["failed"] is True
+        validate_response_result(response)
 
     def test_trace_iterative_tx_with_erc20_for_spl(self, multiple_actions_erc20):
         sender_account = self.accounts[0]
@@ -190,7 +208,7 @@ class TestDebugTraceIterativeTransaction:
                 "gas": hex(tx_info["gas"]),
                 "gasPrice": hex(tx_info["gasPrice"]),
                 "value": hex(tx_info["value"]),
-                "data": tx_info["input"].hex(),
+                "data": "0x" + tx_info["input"].hex(),
             },
             hex(tx_info["blockNumber"]),
         ]
@@ -224,7 +242,7 @@ class TestDebugTraceIterativeTransaction:
                 "gas": hex(tx_info["gas"]),
                 "gasPrice": hex(tx_info["gasPrice"]),
                 "value": hex(tx_info["value"]),
-                "data": tx_info["input"].hex(),
+                "data": "0x" + tx_info["input"].hex(),
             },
             hex(tx_info["blockNumber"]),
         ]
@@ -234,6 +252,16 @@ class TestDebugTraceIterativeTransaction:
         assert "result" in response
         assert response["result"]["returnValue"] == ""
         validate_response_result(response)
+
+        # Check callTrace
+
+        params = [receipt["transactionHash"].hex(), tracer_params]
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
+        assert response["result"]["from"].lower() == receipt["from"].lower()
+        assert response["result"]["to"].lower() == receipt["to"].lower()
+        assert response["result"]["input"].lower() == "0x" + tx_info["input"].hex().lower()
+        assert response["result"]["type"] == "CALL"
+        assert "error" not in response["result"]
 
     def test_trace_scheduled_tx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
         contract_data = 18

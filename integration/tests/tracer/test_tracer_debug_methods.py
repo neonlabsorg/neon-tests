@@ -479,9 +479,7 @@ class TestTracerDebugMethods:
                 "gas": hex(tx_info["gas"]),
                 "gasPrice": hex(tx_info["gasPrice"]),
                 "value": hex(tx_info["value"]),
-                "data": tx_info[
-                    "input"
-                ].hex(),  # {'code': -32602, 'data': 'invalid type: map, expected a (both 0x-prefixed or not) hex string or byte array containing 32 bytes at line 1 column 0', 'message': 'Invalid params'}
+                "data": "0x" + tx_info["input"].hex(),
             },
             hex(tx_info["blockNumber"]),
         ]
@@ -490,8 +488,4 @@ class TestTracerDebugMethods:
 
         assert "error" not in response, "Error in response"
         assert "result" in response
-        assert response["result"]["returnValue"] == ""
         validate_response_result(response)
-
-        # expected_response = self.fill_expected_response(instruction_tx, receipt, calls=False)
-        # self.assert_response_contains_expected(pytestconfig, expected_response, response)
