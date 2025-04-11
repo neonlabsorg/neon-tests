@@ -14,7 +14,7 @@ from utils.models.result import EthEstimateGas, EthResult
 from utils.web3client import NeonChainWeb3Client
 
 
-_MIN_GAS_LIMIT = 0x137ff
+_MIN_GAS_LIMIT = 0x137FF
 
 
 @allure.feature("JSON-RPC validation")

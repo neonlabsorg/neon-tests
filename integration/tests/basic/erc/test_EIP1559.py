@@ -562,7 +562,8 @@ class TestEIP1559:
         assert compute_budget_index >= 0, "ComputeBudget not found"
 
         # get setComputeUnitLimit and setComputeUnitPrice values
-        cu_price_actual = compute_unit_limit = 0
+        # compute_unit_limit = 0
+        cu_price_actual = 0
         for instruction in solana_transaction.value.transaction.transaction.message.instructions:
             if instruction.program_id_index == compute_budget_index:
                 decoded_data = base58.b58decode(instruction.data)
@@ -572,8 +573,8 @@ class TestEIP1559:
                 match instruction_code:
                     case InstructionTags.SET_COMPUTE_UNIT_PRICE:
                         cu_price_actual = instruction_data
-                    case InstructionTags.SET_COMPUTE_UNIT_LIMIT:
-                        compute_unit_limit = instruction_data
+                    # case InstructionTags.SET_COMPUTE_UNIT_LIMIT:
+                    #     compute_unit_limit = instruction_data
 
         # validate formula computeUnitPrice = baseFeePerGas∗10^{10} / computeUnitLimit / maxPriorityFeePerGas
         # TODO: add parsing of gasLimit
