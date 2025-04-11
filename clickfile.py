@@ -520,7 +520,6 @@ def run(
     if name == "economy":
         command = "py.test integration/tests/economy/test_economics.py"
     elif name == "basic":
-        # run basic excluding tests for ERC20SPL contract
         if network == "mainnet":
             command = "py.test integration/tests/basic -m mainnet"
 
