@@ -193,7 +193,7 @@ class EvmLoader(SolanaClient):
         offset = 0
         receipts = []
         if isinstance(tx, SignedTransaction):
-            rest = tx.rawTransaction
+            rest = tx.raw_transaction
             tx_hash = tx.hash
         else:
             tx_hash = keccak(tx)
@@ -259,7 +259,7 @@ class EvmLoader(SolanaClient):
                 self.loader_id,
                 treasury_address,
                 treasury_buffer,
-                instruction.rawTransaction,
+                instruction.raw_transaction,
                 additional_accounts,
                 system_program,
             )
@@ -324,7 +324,7 @@ class EvmLoader(SolanaClient):
                 self.loader_id,
                 treasury_address,
                 treasury_buffer,
-                instruction.rawTransaction,
+                instruction.raw_transaction,
                 additional_accounts,
                 system_program,
                 tag=0x3E,
@@ -381,7 +381,7 @@ class EvmLoader(SolanaClient):
     ) -> GetTransactionResp:
         trx = TransactionWithComputeBudget(operator, compute_unit_price=compute_unit_price)
         if isinstance(instruction, SignedTransaction):
-            raw_trx = instruction.rawTransaction
+            raw_trx = instruction.raw_transaction
         else:
             raw_trx = instruction
         trx.add(
