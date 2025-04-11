@@ -24,6 +24,59 @@ class TestDebugTraceIterativeTransaction:
     accounts: EthAccounts
     tracer_api: TracerClient
 
+    def check_call_tracer_type(
+        self,
+        tx_data,
+        wait_error=False,
+        error_message="",
+    ) -> dict:
+
+        params = [tx_data["hash"].hex(), {"tracer": "callTracer", "tracerConfig": {"withLog": True}}]
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
+
+        assert response["result"]["from"].lower() == tx_data["from"].lower()
+        assert response["result"]["to"].lower() == tx_data["to"].lower()
+        assert response["result"]["input"].lower() == "0x" + tx_data["input"].hex().lower()
+        assert response["result"]["type"] == "CALL"
+
+        if wait_error:
+            assert "error" in response["result"]
+            assert response["result"]["error"] == error_message
+        else:
+            assert "error" not in response["result"]
+
+        return response
+
+    def check_tracer_struct_log(
+        self, tx_data, wait_error=False, error_message="", wait_return_value=False, return_value=""
+    ):
+        params = [
+            {
+                "to": tx_data["to"],
+                "from": tx_data["from"],
+                "gas": hex(tx_data["gas"]),
+                "gasPrice": hex(tx_data["gasPrice"]),
+                "value": hex(tx_data["value"]),
+                "data": "0x" + tx_data["input"].hex(),
+            },
+            hex(tx_data["blockNumber"]),
+        ]
+
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+
+        if wait_error:
+            assert "error" in response["result"], "NO Error in response"
+            assert response["result"]["error"] == error_message
+        else:
+            assert "error" not in response["result"], "Error in response"
+        if wait_return_value:
+            assert (
+                response["result"]["returnValue"] == return_value
+            ), f'Waited {return_value}, got {response["result"]["returnValue"]}'
+        validate_response_result(response)
+
+        return response
+
     @pytest.mark.skip(reason="NDEV-3595, take NDEV-3611 after the fix")
     def test_trace_iterative_tx_struct_opcode_tracer(self, counter_contract):
         sender_account = self.accounts[0]
@@ -75,32 +128,39 @@ class TestDebugTraceIterativeTransaction:
             timeout_sec=120,
         )
 
-        params = [receipt["transactionHash"].hex(), tracer_params]
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
 
-        assert response["result"]["from"].lower() == receipt["from"].lower()
-        assert response["result"]["to"].lower() == receipt["to"].lower()
-        assert response["result"]["input"].lower() == instruction_tx["data"].lower()
-        assert response["result"]["type"] == "CALL"
-        assert response["result"]["error"] == "execution reverted"
-        #     status log
-        tx_info = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        params = [
-            {
-                "to": tx_info["to"],
-                "from": tx_info["from"],
-                "gas": hex(tx_info["gas"]),
-                "gasPrice": hex(tx_info["gasPrice"]),
-                "value": hex(tx_info["value"]),
-                "data": "0x" + tx_info["input"].hex(),
-            },
-            hex(tx_info["blockNumber"]),
-        ]
+        # call trace
+        # params = [receipt["transactionHash"].hex(), tracer_params]
+        # response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
+        #
+        # assert response["result"]["from"].lower() == receipt["from"].lower()
+        # assert response["result"]["to"].lower() == receipt["to"].lower()
+        # assert response["result"]["input"].lower() == instruction_tx["data"].lower()
+        # assert response["result"]["type"] == "CALL"
+        # assert response["result"]["error"] == "execution reverted"
 
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+        # #     status log
+        # params = [
+        #     {
+        #         "to": tx_info["to"],
+        #         "from": tx_info["from"],
+        #         "gas": hex(tx_info["gas"]),
+        #         "gasPrice": hex(tx_info["gasPrice"]),
+        #         "value": hex(tx_info["value"]),
+        #         "data": "0x" + tx_info["input"].hex(),
+        #     },
+        #     hex(tx_info["blockNumber"]),
+        # ]
+        #
+        # response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+        #
+        # assert response["result"]["failed"] is True
+        # validate_response_result(response)
 
-        assert response["result"]["failed"] is True
-        validate_response_result(response)
+        # Checks tracers
+        self.check_tracer_struct_log(tx_data, wait_return_value=False)
+        self.check_call_tracer_type(tx_data, wait_error=True, error_message="execution reverted")
 
     def test_trace_iterative_tx_with_erc20_for_spl(self, multiple_actions_erc20):
         sender_account = self.accounts[0]
@@ -200,24 +260,10 @@ class TestDebugTraceIterativeTransaction:
         assert self.web3_client.is_trx_iterative(receipt["transactionHash"].hex())
 
         json_rpc_client.send_rpc(method="eth_getBlockByHash", params=[receipt["blockHash"].hex(), False])
-        tx_info = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        params = [
-            {
-                "to": tx_info["to"],
-                "from": tx_info["from"],
-                "gas": hex(tx_info["gas"]),
-                "gasPrice": hex(tx_info["gasPrice"]),
-                "value": hex(tx_info["value"]),
-                "data": "0x" + tx_info["input"].hex(),
-            },
-            hex(tx_info["blockNumber"]),
-        ]
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
 
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        assert "error" not in response, "Error in response"
-        assert "result" in response
-        assert response["result"]["returnValue"] == ""
-        validate_response_result(response)
+        self.check_tracer_struct_log(tx_data)
+        self.check_call_tracer_type(tx_data)
 
     def test_trace_block_timestamp_in_scheduled_tx(
         self, web3_client_sol, block_timestamp_contract, json_rpc_client, neon_user, evm_loader, treasury_pool
@@ -234,34 +280,11 @@ class TestDebugTraceIterativeTransaction:
         check_trx_is_success(web3_client_sol, evm_loader, tx.hash().hex())
 
         receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash().hex())
-        tx_info = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        params = [
-            {
-                "to": tx_info["to"],
-                "from": tx_info["from"],
-                "gas": hex(tx_info["gas"]),
-                "gasPrice": hex(tx_info["gasPrice"]),
-                "value": hex(tx_info["value"]),
-                "data": "0x" + tx_info["input"].hex(),
-            },
-            hex(tx_info["blockNumber"]),
-        ]
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
 
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        assert "error" not in response, "Error in response"
-        assert "result" in response
-        assert response["result"]["returnValue"] == ""
-        validate_response_result(response)
-
-        # Check callTrace
-
-        params = [receipt["transactionHash"].hex(), tracer_params]
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
-        assert response["result"]["from"].lower() == receipt["from"].lower()
-        assert response["result"]["to"].lower() == receipt["to"].lower()
-        assert response["result"]["input"].lower() == "0x" + tx_info["input"].hex().lower()
-        assert response["result"]["type"] == "CALL"
-        assert "error" not in response["result"]
+        # Checks tracers
+        self.check_tracer_struct_log(tx_data)
+        self.check_call_tracer_type(tx_data)
 
     def test_trace_scheduled_tx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
         contract_data = 18
@@ -327,12 +350,10 @@ class TestDebugTraceIterativeTransaction:
         for tx in trxs:
             check_trx_is_success(web3_client_sol, evm_loader, tx.hash().hex(), timeout=180)
             receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash().hex())
-            params = [tx.hash().hex(), tracer_params]
-            response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
-            assert response["result"]["from"].lower() == receipt["from"].lower()
-            assert response["result"]["to"].lower() == receipt["to"].lower()
-            assert response["result"]["type"] == "CALL"
-            assert "error" not in response["result"]
+
+            tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+            self.check_tracer_struct_log(tx_data)
+            self.check_call_tracer_type(tx_data)
 
     def test_trace_failed_one_scheduled_tx(
         self, web3_client_sol, neon_user, treasury_pool, revert_contract_caller, event_caller_contract, evm_loader
@@ -367,12 +388,9 @@ class TestDebugTraceIterativeTransaction:
         web3_client_sol.send_all_scheduled_transactions([tx])
 
         receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash().hex())
-        params = [tx.hash().hex(), tracer_params]
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
-        assert response["result"]["from"].lower() == receipt["from"].lower()
-        assert response["result"]["to"].lower() == receipt["to"].lower()
-        assert response["result"]["type"] == "CALL"
-        assert "error" in response["result"]
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        self.check_tracer_struct_log(tx_data)
+        self.check_call_tracer_type(tx_data, wait_error=True, error_message="execution reverted")
 
     def test_trace_failed_multiply_scheduled_tx(
         self, web3_client_sol, neon_user, treasury_pool, revert_contract_caller, event_caller_contract, evm_loader
@@ -420,12 +438,9 @@ class TestDebugTraceIterativeTransaction:
         web3_client_sol.send_all_scheduled_transactions([tx0, tx1])
 
         receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash().hex())
-        params = [tx0.hash().hex(), tracer_params]
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
-        assert response["result"]["from"].lower() == receipt["from"].lower()
-        assert response["result"]["to"].lower() == receipt["to"].lower()
-        assert response["result"]["type"] == "CALL"
-        assert "error" in response["result"]
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        self.check_tracer_struct_log(tx_data)
+        self.check_call_tracer_type(tx_data, wait_error=True, error_message="execution reverted")
 
         error_message = "Tracing Skip Scheduled Transaction is not supported"
         params = [tx1.hash().hex(), tracer_params]

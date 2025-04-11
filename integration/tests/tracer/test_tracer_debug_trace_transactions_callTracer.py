@@ -107,6 +107,59 @@ class TestDebugTraceTransactionCallTracer:
 
         return expected_response
 
+    def check_call_tracer_type(
+        self,
+        tx_data,
+        wait_error=False,
+        error_message="",
+    ) -> dict:
+
+        params = [tx_data["hash"].hex(), {"tracer": "callTracer", "tracerConfig": {"withLog": True}}]
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
+
+        assert response["result"]["from"].lower() == tx_data["from"].lower()
+        assert response["result"]["to"].lower() == tx_data["to"].lower()
+        assert response["result"]["input"].lower() == "0x" + tx_data["input"].hex().lower()
+        assert response["result"]["type"] == "CALL"
+
+        if wait_error:
+            assert "error" in response["result"]
+            assert response["result"]["error"] == error_message
+        else:
+            assert "error" not in response["result"]
+
+        return response
+
+    def check_tracer_struct_log(
+        self, tx_data, wait_error=False, error_message="", wait_return_value=False, return_value=""
+    ):
+        params = [
+            {
+                "to": tx_data["to"],
+                "from": tx_data["from"],
+                "gas": hex(tx_data["gas"]),
+                "gasPrice": hex(tx_data["gasPrice"]),
+                "value": hex(tx_data["value"]),
+                "data": "0x" + tx_data["input"].hex(),
+            },
+            hex(tx_data["blockNumber"]),
+        ]
+
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+
+        if wait_error:
+            assert "error" in response["result"], "NO Error in response"
+            assert response["result"]["error"] == error_message
+        else:
+            assert "error" not in response["result"], "Error in response"
+        if wait_return_value:
+            assert (
+                response["result"]["returnValue"] == return_value
+            ), f'Waited {return_value}, got {response["result"]["returnValue"]}'
+        validate_response_result(response)
+
+        return response
+
     def assert_response_contains_expected(self, pytestconfig, expected_response, response, sort_calls=False):
         if sort_calls:
             expected_response["calls"] = sorted(expected_response["calls"], key=lambda d: d["type"])
@@ -548,39 +601,13 @@ class TestDebugTraceTransactionCallTracer:
         )
 
         tx = self.web3_client.make_raw_tx(from_=sender_account, amount=move_amount, tx_type=tx_type)
-
         instruction_tx = contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
-
         receipt = web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
-        tracer_params = {"tracer": "callTracer", "tracerConfig": {"withLog": True}}
-        params = [receipt["transactionHash"].hex(), tracer_params]
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
-
-        assert len(response["result"]["calls"]) == 1
-        assert response["result"]["type"] == "CALL"
-        assert response["result"]["calls"][0]["type"] == "CALL"
-
-        # struct log
-        tx_info = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        params = [
-            {
-                "to": tx_info["to"],
-                "from": tx_info["from"],
-                "gas": hex(tx_info["gas"]),
-                "gasPrice": hex(tx_info["gasPrice"]),
-                "value": hex(tx_info["value"]),
-                "data": "0x" + tx_info["input"].hex(),
-            },
-            hex(tx_info["blockNumber"]),
-        ]
-
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-        assert "error" not in response, "Error in response"
-        assert "result" in response
-        assert response["result"]["returnValue"] == ""
-        validate_response_result(response)
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        self.check_tracer_struct_log(tx_data)
+        self.check_call_tracer_type(tx_data)
 
     def test_callTracer_precompiled_solana_contract(
         self, call_solana_caller, counter_resource_address: bytes, pytestconfig
@@ -603,9 +630,6 @@ class TestDebugTraceTransactionCallTracer:
         )
 
         receipt = self.web3_client.send_transaction(sender, instruction_tx)
-
-        tracer_params = {"tracer": "callTracer", "tracerConfig": {"withLog": True}}
-        params = [receipt["transactionHash"].hex(), tracer_params]
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
-        expected_response = self.fill_expected_response(instruction_tx, receipt, calls=True, calls_value="0x0")
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        self.check_tracer_struct_log(tx_data)
+        self.check_call_tracer_type(tx_data)

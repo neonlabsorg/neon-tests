@@ -28,6 +28,50 @@ class TestTracerDebugMethods:
     accounts: EthAccounts
     tracer_api: TracerClient
 
+    def check_call_tracer_type(self, tx_data, wait_error=False) -> dict:
+
+        params = [tx_data["hash"].hex(), {"tracer": "callTracer", "tracerConfig": {"withLog": True}}]
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
+
+        assert response["result"]["from"].lower() == tx_data["from"].lower()
+        assert response["result"]["to"].lower() == tx_data["to"].lower()
+        assert response["result"]["input"].lower() == "0x" + tx_data["input"].hex().lower()
+        assert response["result"]["type"] == "CALL"
+
+        if wait_error:
+            assert "error" in response["result"]
+        else:
+            assert "error" not in response["result"]
+
+        return response
+
+    def check_tracer_struct_log(self, tx_data, wait_error=False, wait_return_value=False, return_value=""):
+        params = [
+            {
+                "to": tx_data["to"],
+                "from": tx_data["from"],
+                "gas": hex(tx_data["gas"]),
+                "gasPrice": hex(tx_data["gasPrice"]),
+                "value": hex(tx_data["value"]),
+                "data": "0x" + tx_data["input"].hex(),
+            },
+            hex(tx_data["blockNumber"]),
+        ]
+
+        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+
+        if wait_error:
+            assert "error" in response["result"], "NO Error in response"
+        else:
+            assert "error" not in response["result"], "Error in response"
+        if wait_return_value:
+            assert (
+                response["result"]["returnValue"] == return_value
+            ), f'Waited {return_value}, got {response["result"]["returnValue"]}'
+        validate_response_result(response)
+
+        return response
+
     # NDEV-3009
     def test_debug_trace_call_invalid_params(self):
         response = self.tracer_api.send_rpc(method="debug_traceCall", params=[{}, "0x0"])
@@ -471,21 +515,8 @@ class TestTracerDebugMethods:
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
-        tx_info = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        params = [
-            {
-                "to": tx_info["to"],
-                "from": tx_info["from"],
-                "gas": hex(tx_info["gas"]),
-                "gasPrice": hex(tx_info["gasPrice"]),
-                "value": hex(tx_info["value"]),
-                "data": "0x" + tx_info["input"].hex(),
-            },
-            hex(tx_info["blockNumber"]),
-        ]
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
 
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-
-        assert "error" not in response, "Error in response"
-        assert "result" in response
-        validate_response_result(response)
+        # Checks tracers
+        self.check_tracer_struct_log(tx_data, wait_return_value=False)
+        self.check_call_tracer_type(tx_data)
