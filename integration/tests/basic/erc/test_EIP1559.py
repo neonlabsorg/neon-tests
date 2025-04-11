@@ -17,6 +17,7 @@ from utils import helpers
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
 from utils.consts import InstructionTags, COMPUTE_BUDGET_ID
+from utils.cu_cost_packed import CuCostPktData
 from utils.faucet import Faucet
 from utils.models.fee_history_model import EthFeeHistoryResult
 from utils.solana_client import SolanaClient
@@ -542,6 +543,22 @@ class TestEIP1559:
             access_list=None,
         )
 
+        eth_gas_estimate = tx_params["gas"]
+        neon_gas_estimate = json_rpc_client.send_rpc(
+            method="neon_estimateGas",
+            params=[tx_params, {"showGasDetails": True}],
+        )["result"]
+
+        gas = (
+            neon_gas_estimate["gasTransactionSizeUsed"]
+            + neon_gas_estimate["gasAddressLookupTableUsed"]
+            + neon_gas_estimate["gasExecutionUsed"]
+            + neon_gas_estimate["gasFinishUsed"]
+        )
+        cu_price_expected = 10_500
+        cu_price_from_estimate = neon_gas_estimate["solanaComputeUnitPrice"]
+        assert cu_price_from_estimate == cu_price_expected
+
         receipt = web3_client.send_transaction(account=account, transaction=tx_params)
         solana_transaction_hashes = web3_client.get_solana_trx_by_neon(receipt["transactionHash"].hex())["result"]
         assert len(solana_transaction_hashes) > 1
@@ -562,7 +579,6 @@ class TestEIP1559:
         assert compute_budget_index >= 0, "ComputeBudget not found"
 
         # get setComputeUnitLimit and setComputeUnitPrice values
-        # compute_unit_limit = 0
         cu_price_actual = 0
         for instruction in solana_transaction.value.transaction.transaction.message.instructions:
             if instruction.program_id_index == compute_budget_index:
@@ -573,14 +589,12 @@ class TestEIP1559:
                 match instruction_code:
                     case InstructionTags.SET_COMPUTE_UNIT_PRICE:
                         cu_price_actual = instruction_data
-                    # case InstructionTags.SET_COMPUTE_UNIT_LIMIT:
-                    #     compute_unit_limit = instruction_data
 
-        # validate formula computeUnitPrice = baseFeePerGas∗10^{10} / computeUnitLimit / maxPriorityFeePerGas
-        # TODO: add parsing of gasLimit
-        # cu_price_expected = int(base_fee * 10**10 / compute_unit_limit / max_priority_fee_per_gas)
-        cu_price_expected = 10_500
         assert cu_price_actual == cu_price_expected, f"Actual: {cu_price_actual}, Expected: {cu_price_expected}"
+
+        pkt = CuCostPktData.from_raw(gas, neon_gas_estimate["numIterations"], cu_price_expected)
+        tx_cost = pkt.tx_cost
+        assert eth_gas_estimate == tx_cost
 
 
 @allure.feature("EIP Verifications")
