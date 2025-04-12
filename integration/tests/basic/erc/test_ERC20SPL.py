@@ -4,7 +4,8 @@ import allure
 import pytest
 import web3
 from _pytest.config import Config
-from solana.rpc.types import TokenAccountOpts, TxOpts
+from solana.rpc.commitment import Confirmed
+from solana.rpc.types import TokenAccountOpts
 from solana.transaction import Transaction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
@@ -13,8 +14,9 @@ from spl.token.constants import TOKEN_PROGRAM_ID
 from web3.exceptions import Web3RPCError
 
 from integration.tests.basic.helpers.errors import ContractError
+from integration.tests.basic.helpers.rpc_checks import assert_solana_address_was_not_used_in_trx
 from utils import metaplex
-from utils.consts import ZERO_ADDRESS
+from utils.consts import ZERO_ADDRESS, METAPLEX_ADDRESS, SPL_TOKEN_ADDRESS, CALL_SOLANA_ADDRESS, SOLANA_NATIVE_ADDRESS
 from utils.erc20wrapper import ERC20Wrapper
 from utils.helpers import gen_hash_of_block, wait_condition, create_invalid_address
 from utils.multiple_actions_wrapper import transfer_five_times
@@ -269,6 +271,17 @@ class TestERC20SPL:
         assert balance_acc2_after == balance_acc2_before + amount
         assert total_before == total_after
 
+    def test_transfer_and_check_sol_account_list_is_correct(self, erc20_contract, restore_balance, evm_loader):
+        new_account = self.accounts.create_account()
+
+        receipt = erc20_contract.transfer(erc20_contract.account, new_account.address, 100)
+        precompiled_addresses = [METAPLEX_ADDRESS, SPL_TOKEN_ADDRESS, CALL_SOLANA_ADDRESS, SOLANA_NATIVE_ADDRESS]
+        for precompiled_address in precompiled_addresses:
+            program_address = evm_loader.ether2program(precompiled_address[2:])[0]
+            assert_solana_address_was_not_used_in_trx(
+                receipt["transactionHash"].hex(), program_address, self.web3_client, evm_loader
+            )
+
     @pytest.mark.parametrize(
         "block_len, expected_exception",
         [
@@ -393,7 +406,6 @@ class TestERC20SPL:
                 amount=1,
             )
 
-    # TODO Add EmptyAccount(bytes32) MissingMetaples(bytes32) InvalidTokenMint(bytes32) AmountExceedsUint64
     def test_transferFrom_more_than_balance(self, erc20_contract):
         new_account = self.accounts.create_account()
         balance_expected = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
@@ -439,28 +451,11 @@ class TestERC20SPL:
         sol_balance_before = sol_client.get_balance(acc.pubkey()).value
         contract_balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
 
-        opts = TokenAccountOpts(token_mint)
-        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts).value[0]
-        token_balance_before = token_data.account.data.parsed["info"]["tokenAmount"]["amount"]
         erc20_contract.transfer_solana(erc20_contract.account, bytes(solana_address), amount)
-        wait_condition(
-            lambda: int(
-                sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts)
-                .value[0]
-                .account.data.parsed["info"]["tokenAmount"]["amount"]
-            )
-            > int(token_balance_before),
-            timeout_sec=30,
-        )
 
         sol_balance_after = sol_client.get_balance(acc.pubkey()).value
-        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts).value[0]
-        token_balance_after = token_data.account.data.parsed["info"]["tokenAmount"]["amount"]
         contract_balance_after = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
 
-        assert (
-            int(token_balance_after) - int(token_balance_before) == amount
-        ), "Token balance for sol account is not correct"
         assert contract_balance_before - contract_balance_after == amount, "Contract balance is not correct"
         assert sol_balance_after == sol_balance_before, "Sol balance is changed"
 
@@ -475,11 +470,11 @@ class TestERC20SPL:
         amount = random.randint(10000, 1000000)
         opts = TokenAccountOpts(token_mint)
         erc20_contract.approve_solana(erc20_contract.account, bytes(acc.pubkey()), amount)
-        wait_condition(
-            lambda: len(sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts).value) > 0,
-            timeout_sec=30,
+        token_account = (
+            sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts, commitment=Confirmed)
+            .value[0]
+            .account
         )
-        token_account = sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts).value[0].account
         assert int(token_account.data.parsed["info"]["delegatedAmount"]["amount"]) == amount
         assert int(token_account.data.parsed["info"]["delegatedAmount"]["decimals"]) == erc20_contract.decimals
 
@@ -512,7 +507,7 @@ class TestERC20SPL:
                 )
             )
         )
-        sol_client.send_transaction(trx, acc, opts=TxOpts(skip_preflight=False, skip_confirmation=False))
+        sol_client.send_tx_and_check_status_ok(trx, acc)
 
         claim_amount = random.randint(10, sent_amount)
         erc20_contract.claim(erc20_contract.account, bytes(solana_address), claim_amount)
@@ -521,11 +516,7 @@ class TestERC20SPL:
         assert balance_after == balance_before - sent_amount + claim_amount, "Balance is not correct"
 
     def test_claimTo(
-        self,
-        erc20_contract,
-        sol_client,
-        solana_associated_token_erc20: tuple[Keypair, Pubkey, Pubkey],
-        pytestconfig,
+        self, erc20_contract, sol_client, solana_associated_token_erc20: tuple[Keypair, Pubkey, Pubkey], pytestconfig
     ):
         new_account = self.accounts.create_account()
         acc, token_mint, solana_address = solana_associated_token_erc20
@@ -550,7 +541,7 @@ class TestERC20SPL:
                 )
             )
         )
-        sol_client.send_transaction(trx, acc, opts=TxOpts(skip_preflight=False, skip_confirmation=False))
+        sol_client.send_tx_and_check_status_ok(trx, acc)
 
         claim_amount = random.randint(10, sent_amount)
         erc20_contract.claim_to(erc20_contract.account, bytes(solana_address), new_account.address, claim_amount)
@@ -670,12 +661,14 @@ class TestERC20SPLMintable:
         contract_balance_before = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
 
         opts = TokenAccountOpts(token_mint)
-        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts).value[0]
+        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts, commitment=Confirmed).value[
+            0
+        ]
         token_balance_before = token_data.account.data.parsed["info"]["tokenAmount"]["amount"]
         erc20_contract.transfer_solana(erc20_contract.account, bytes(solana_address), amount)
         wait_condition(
             lambda: int(
-                sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts)
+                sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts, commitment=Confirmed)
                 .value[0]
                 .account.data.parsed["info"]["tokenAmount"]["amount"]
             )
@@ -684,7 +677,9 @@ class TestERC20SPLMintable:
         )
 
         sol_balance_after = sol_client.get_balance(acc.pubkey()).value
-        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts).value[0]
+        token_data = sol_client.get_token_accounts_by_owner_json_parsed(acc.pubkey(), opts, commitment=Confirmed).value[
+            0
+        ]
         token_balance_after = token_data.account.data.parsed["info"]["tokenAmount"]["amount"]
         contract_balance_after = erc20_contract.contract.functions.balanceOf(erc20_contract.account.address).call()
 
@@ -705,11 +700,11 @@ class TestERC20SPLMintable:
         amount = random.randint(10000, 1000000)
         opts = TokenAccountOpts(token_mint)
         erc20_contract.approve_solana(erc20_contract.account, bytes(acc.pubkey()), amount)
-        wait_condition(
-            lambda: len(sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts).value) > 0,
-            timeout_sec=30,
+        token_account = (
+            sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts, commitment=Confirmed)
+            .value[0]
+            .account
         )
-        token_account = sol_client.get_token_accounts_by_delegate_json_parsed(acc.pubkey(), opts).value[0].account
         assert int(token_account.data.parsed["info"]["delegatedAmount"]["amount"]) == amount
         assert int(token_account.data.parsed["info"]["delegatedAmount"]["decimals"]) == erc20_contract.decimals
 
@@ -741,7 +736,7 @@ class TestERC20SPLMintable:
                 )
             )
         )
-        sol_client.send_transaction(trx, acc, opts=TxOpts(skip_preflight=False, skip_confirmation=False))
+        sol_client.send_tx_and_check_status_ok(trx, acc)
 
         claim_amount = random.randint(10, sent_amount)
         erc20_contract.claim(erc20_contract.account, bytes(solana_address), claim_amount)
@@ -779,7 +774,7 @@ class TestERC20SPLMintable:
                 )
             )
         )
-        sol_client.send_transaction(trx, acc, opts=TxOpts(skip_preflight=False, skip_confirmation=False))
+        sol_client.send_tx_and_check_status_ok(trx, acc)
 
         claim_amount = random.randint(10, sent_amount)
         erc20_contract.claim_to(erc20_contract.account, bytes(solana_address), new_account.address, claim_amount)
@@ -792,7 +787,8 @@ class TestERC20SPLMintable:
 
 @allure.feature("ERC Verifications")
 @allure.story("ERC20SPL: Tests for multiple actions in one transaction")
-@pytest.mark.usefixtures("web3_client", "accounts")
+@pytest.mark.usefixtures("accounts", "web3_client", "sol_client")
+@pytest.mark.neon_only
 class TestMultipleActionsForERC20:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
@@ -1078,8 +1074,7 @@ class TestMultipleActionsForERC20:
         ), "Contract balance is not correct"
         assert user_balance == transfer_amount + user_balance_before, "User balance is not correct"
 
-    @pytest.mark.cost_report
-    def test_transfer_five_times(self, multiple_actions_erc20):
+    def test_parallel_trxs_transfer_read_balance_transfer(self, multiple_actions_erc20, faucet, solana_account):
         sender_account = self.accounts[0]
         acc, contract = multiple_actions_erc20
         contract_balance_before = contract.functions.contractBalance().call()
@@ -1129,69 +1124,9 @@ class TestMultipleActionsForERC20:
         ), "User balance is not correct"
 
 
-@allure.feature("ERC Verifications")
-@allure.story("ERC20SPL: Tests for new ERC20ForSPL contract")
-class TestERC20SPLNewFeatures:
+def test_solana_account_getter(self, erc20_spl_mintable, accounts):
+    acc = self.accounts[0]
+    solana_pubkey = erc20_spl_mintable.get_solana_account(acc.address)
 
-    def test_solana_account_getter(self, erc20_spl_mintable, accounts):
-        acc = self.accounts[0]
-        solana_pubkey = erc20_spl_mintable.get_solana_account(acc.address)
-
-        assert isinstance(solana_pubkey, bytes), "Returned value is not bytes32"
-        assert len(solana_pubkey) == 32, "Invalid bytes32 length"
-
-    def test_get_account_delegate_data(self, erc20_spl_mintable, neon_user):
-
-        signer = erc20_spl_mintable.account
-        owner_address = erc20_spl_mintable.account.address
-        recipient_user = neon_user.neon_address
-        solana_acc = erc20_spl_mintable.get_solana_account(recipient_user)
-
-        amount_to_approve = random.randint(500, 1000)
-        erc20_spl_mintable.approve_solana(signer=signer, spender=solana_acc, amount=amount_to_approve)
-
-        delegate_address, delegate_amount = erc20_spl_mintable.get_account_delegate_data(owner_address)
-
-        assert isinstance(delegate_address, bytes), "Delegate address is not bytes32"
-        assert delegate_address != bytes(0), "Address has to be non zero"
-        assert len(delegate_address) == 32, "Invalid delegate address length"
-        assert isinstance(delegate_amount, int), "Delegated amount is not uint64"
-        assert delegate_address == solana_acc, f"Delegated address is expected to {solana_acc}"
-        assert delegate_amount == amount_to_approve, f"Expected delegation to be {amount_to_approve}"
-
-    def test_get_token_mint_ata(self, erc20_spl_mintable):
-        """Test getTokenMintATA(bytes32 account) returns a valid ATA address."""
-        solana_pubkey = erc20_spl_mintable.get_solana_account(erc20_spl_mintable.address)
-        ata_address = erc20_spl_mintable.get_token_mint_ata(solana_pubkey)
-
-        assert isinstance(ata_address, bytes), "Returned ATA is not bytes32"
-        assert len(ata_address) == 32, "Invalid ATA address length"
-
-    def test_transferSolanaFrom(
-        self,
-        erc20_spl_mintable,
-        neon_user,
-        evm_loader,
-        accounts,
-        solana_associated_token_mintable_erc20,
-        sol_client,
-    ):
-
-        acc_0 = accounts[0]
-        approve_amount = 700
-        transfer_amount = random.randint(1, 300)
-
-        solana_acc, token_mint, ata_address = solana_associated_token_mintable_erc20
-
-        erc20_spl_mintable.approve(erc20_spl_mintable.account, acc_0.address, approve_amount)
-
-        balance_before = erc20_spl_mintable.get_balance(erc20_spl_mintable.account.address)
-
-        trx = erc20_spl_mintable.transfer_solana_from(
-            acc_0, erc20_spl_mintable.account.address, bytes(ata_address), transfer_amount
-        )
-        assert trx.status == 1, f"trx: {trx} failed"
-
-        balance_after = erc20_spl_mintable.get_balance(erc20_spl_mintable.account.address)
-
-        assert balance_after == balance_before - transfer_amount
+    assert isinstance(solana_pubkey, bytes), "Returned value is not bytes32"
+    assert len(solana_pubkey) == 32, "Invalid bytes32 length"

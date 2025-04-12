@@ -3,7 +3,7 @@ pragma solidity >=0.7.0 <0.9.0;
 import "../external/neon-contracts/contracts/precompiles/IMetaplexProgram.sol";
 import "../external/neon-contracts/contracts/precompiles/ISPLTokenProgram.sol";
 
-contract IMetaplexProgramCaller {
+contract MetaplexProgramCaller {
 
     IMetaplexProgram constant _metaplex = IMetaplexProgram(0xff00000000000000000000000000000000000005);
     ISPLTokenProgram constant _splToken = ISPLTokenProgram(0xFf00000000000000000000000000000000000004);

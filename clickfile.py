@@ -460,17 +460,15 @@ def update_contracts_from_git(git_url: str, local_dir_name: str, branch="develop
 @cli.command(help="Download test contracts from neon-evm repo")
 @click.option(
     "--branch",
-    default="develop",
+    default="main",
     help="neon_evm branch name. " "If branch doesn't exist, develop branch will be used",
 )
 def update_contracts(branch):
     update_contracts_from_git(HOODIES_CHAINLINK_GITHUB_URL, "hoodies_chainlink", "main")
-
-    # uncomment for new version of erc20ForSpl
     update_contracts_from_git(
         "https://github.com/neonevm/neon-contracts.git",
         "neon-contracts",
-        "main",
+        branch=branch,
         update_npm=True,
     )
 

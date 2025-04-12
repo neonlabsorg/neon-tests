@@ -183,7 +183,7 @@ class TestInteroperability:
         assert layout.count == instruction_count
 
     def test_limit_of_simple_instr_in_one_trx(self, sender_with_tokens, solana_caller):
-        instruction_count = 24
+        instruction_count = 29
         resource_addr = solana_caller.create_resource(sender_with_tokens, b"dss", 8, 1000000000, COUNTER_ID)
 
         instruction = Instruction(

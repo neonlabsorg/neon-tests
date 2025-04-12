@@ -372,7 +372,7 @@ class TestSolanaInteroperability:
         sender = self.accounts[0]
         call_params = []
 
-        for _ in range(26):
+        for _ in range(30):
             instruction = Instruction(
                 program_id=COUNTER_ID,
                 accounts=[
@@ -386,7 +386,7 @@ class TestSolanaInteroperability:
         tx = self.web3_client.make_raw_tx(sender.address)
         instruction_tx = call_solana_caller.functions.batchExecute(call_params).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
-        assert resp["status"] == 0
+        assert resp["status"] == 0, resp
 
     def test_solana_call_after_iterative_actions_sol_network(
         self,
@@ -424,7 +424,7 @@ class TestSolanaInteroperability:
     ):
         sender = self.accounts[0]
         lamports = 0
-        matrix_length = 6
+        matrix_length = 9
         matrix = [[random.randint(1, 100) for _ in range(matrix_length)] for _ in range(matrix_length)]
 
         instruction = Instruction(

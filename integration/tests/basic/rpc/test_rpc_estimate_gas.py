@@ -129,7 +129,7 @@ class TestRpcEstimateGas:
         recipient_account = self.accounts.create_account()
         tx_receipt = erc20_spl.transfer(erc20_spl.account, recipient_account, 1)
         transaction = self.web3_client.get_transaction_by_hash(tx_receipt["transactionHash"])
-        assert transaction["gas"] == 2_079_280
+        assert transaction["gas"] == 2_089_280
 
     @pytest.mark.neon_only  # Geth returns a different estimate
     def test_rpc_estimate_gas_contract_get_value(self, common_contract):
