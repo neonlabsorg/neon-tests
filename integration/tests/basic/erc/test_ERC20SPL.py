@@ -1108,3 +1108,25 @@ def test_solana_account_getter(self, erc20_spl_mintable, accounts):
 
     assert isinstance(solana_pubkey, bytes), "Returned value is not bytes32"
     assert len(solana_pubkey) == 32, "Invalid bytes32 length"
+
+
+@pytest.fixture(scope="class")
+def new_factory_contract(web3_client, erc20_spl_mintable):
+    contract, tx = web3_client.deploy_and_get_contract(
+        "external/neon-contracts/ERC20ForSPL/contracts/test/ERC20ForSPLMintableFactoryV2",
+        "0.8.24",
+        erc20_spl_mintable.account,
+        contract_name="ERC20ForSPLMintableFactoryV2",
+    )
+    return contract
+
+
+@pytest.fixture(scope="class")
+def new_token_contract(web3_client, erc20_spl_mintable):
+    contract, tx = web3_client.deploy_and_get_contract(
+        "external/neon-contracts/ERC20ForSPL/contracts/test/ERC20ForSPLMintableV2",
+        "0.8.24",
+        erc20_spl_mintable.account,
+        contract_name="ERC20ForSPLMintableV2",
+    )
+    return contract

@@ -15,28 +15,6 @@ from utils.erc721ForMetaplex import ERC721ForMetaplex
 from utils.web3client import NeonChainWeb3Client
 
 
-@pytest.fixture(scope="class")
-def new_factory_contract(web3_client, erc20_spl_mintable):
-    contract, tx = web3_client.deploy_and_get_contract(
-        "external/neon-contracts/ERC20ForSPL/contracts/test/ERC20ForSPLMintableFactoryV2",
-        "0.8.24",
-        erc20_spl_mintable.account,
-        contract_name="ERC20ForSPLMintableFactoryV2",
-    )
-    return contract
-
-
-@pytest.fixture(scope="class")
-def new_token_contract(web3_client, erc20_spl_mintable):
-    contract, tx = web3_client.deploy_and_get_contract(
-        "external/neon-contracts/ERC20ForSPL/contracts/test/ERC20ForSPLMintableV2",
-        "0.8.24",
-        erc20_spl_mintable.account,
-        contract_name="ERC20ForSPLMintableV2",
-    )
-    return contract
-
-
 @pytest.fixture(scope="function")
 def solana_associated_token_mintable_erc20(
     erc20_spl_mintable, sol_client, solana_account: Keypair
