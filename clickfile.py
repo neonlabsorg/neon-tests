@@ -457,7 +457,7 @@ def update_contracts_from_git(git_url: str, local_dir_name: str, branch="develop
     click.echo(f"Contracts downloaded from {git_url} {branch} to {EXTERNAL_CONTRACT_PATH / local_dir_name}")
 
 
-@cli.command(help="Download test contracts from neon-evm repo")
+@cli.command(help="Download test contracts from neon-contracts repo")
 @click.option(
     "--branch",
     default="main",

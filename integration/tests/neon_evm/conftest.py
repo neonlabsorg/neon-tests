@@ -254,11 +254,11 @@ def erc20_for_spl_factory_contract(
     return evm_loader.deploy_contract(
         operator_keypair,
         sender_with_tokens,
-        "external/neon-evm/erc20_for_spl_factory",
+        "external/neon-contracts/contracts/token/ERC20ForSpl/erc20_for_spl_factory",
         neon_api_client,
         treasury_pool,
         contract_name="ERC20ForSplFactory",
-        version="0.8.24",
+        version="0.8.28",
     )
 
 

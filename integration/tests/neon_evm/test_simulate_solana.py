@@ -282,9 +282,9 @@ class TestSimulateSolana:
     ):
         # Create Neon transaction and write it to a holder account
         chain_id = evm_loader.chain_id
-        contract_file_name = "external/neon-evm/erc20_for_spl_factory"
+        contract_file_name = "external/neon-contracts/contracts/token/ERC20ForSpl/erc20_for_spl_factory.sol"
         contract_name = "ERC20ForSplFactory"
-        version = "0.8.24"
+        version = "0.8.28"
         encoded_args = b""
 
         contract_code = get_contract_bin(contract=contract_file_name, contract_name=contract_name, version=version)

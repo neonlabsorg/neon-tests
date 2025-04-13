@@ -1101,13 +1101,12 @@ class TestMultipleActionsForERC20:
             + user_balance_before
         ), "User balance is not correct"
 
+    def test_solana_account_getter(self, erc20_spl_mintable, accounts):
+        acc = self.accounts[0]
+        solana_pubkey = erc20_spl_mintable.get_solana_account(acc.address)
 
-def test_solana_account_getter(self, erc20_spl_mintable, accounts):
-    acc = self.accounts[0]
-    solana_pubkey = erc20_spl_mintable.get_solana_account(acc.address)
-
-    assert isinstance(solana_pubkey, bytes), "Returned value is not bytes32"
-    assert len(solana_pubkey) == 32, "Invalid bytes32 length"
+        assert isinstance(solana_pubkey, bytes), "Returned value is not bytes32"
+        assert len(solana_pubkey) == 32, "Invalid bytes32 length"
 
 
 @pytest.fixture(scope="class")
