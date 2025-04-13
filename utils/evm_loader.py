@@ -908,6 +908,7 @@ class EvmLoader(SolanaClient):
             chain_id = self.chain_id
 
         contract_code = get_contract_bin(contract_file_name, contract_name=contract_name, version=version)
+
         if encoded_args is None:
             encoded_args = b""
 

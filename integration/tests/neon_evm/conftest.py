@@ -10,7 +10,7 @@ from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 
 from conftest import EnvironmentConfig
-from utils.consts import OPERATOR_KEYPAIR_PATH, REMAPPING_ZEPPELIN
+from utils.consts import OPERATOR_KEYPAIR_PATH
 from utils.evm_loader import EvmLoader
 from utils.solana_client import SolanaClient
 from utils.types import Contract, Caller, TreasuryPool
@@ -210,7 +210,7 @@ def spl_token_caller(operator_keypair, evm_loader, session_user, treasury_pool, 
         "precompiled/SplTokenCaller",
         neon_api_client,
         treasury_pool,
-        version="0.8.12",
+        version="0.8.28",
     )
 
 
@@ -271,7 +271,7 @@ def multiple_actions_erc20(
     neon_api_client: NeonApiClient,
     holder_acc: Pubkey,
 ) -> Contract:
-    encoded_args = eth_abi.encode(["string", "string", "uint256"], ["Test TTT", "TTT", 18])
+    encoded_args = eth_abi.encode(["string", "string", "uint256"], ["Test TTT", "TTT", 9])
     return evm_loader.deploy_contract(
         operator=operator_keypair,
         user=sender_with_tokens,
@@ -280,7 +280,6 @@ def multiple_actions_erc20(
         treasury_pool=treasury_pool,
         contract_name="MultipleActionsERC20",
         version="0.8.28",
-        import_remapping=REMAPPING_ZEPPELIN,
         encoded_args=encoded_args,
     )
 

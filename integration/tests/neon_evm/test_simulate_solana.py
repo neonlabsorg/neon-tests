@@ -287,7 +287,11 @@ class TestSimulateSolana:
         version = "0.8.28"
         encoded_args = b""
 
-        contract_code = get_contract_bin(contract=contract_file_name, contract_name=contract_name, version=version)
+        contract_code = get_contract_bin(
+            contract=contract_file_name,
+            contract_name=contract_name,
+            version=version,
+        )
 
         emulate_result = neon_api_client.emulate(
             sender_with_tokens.eth_address.hex(),

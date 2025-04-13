@@ -4,6 +4,8 @@ import pathlib
 import solcx
 from semantic_version import Version
 
+from utils.consts import REMAPPING_ZEPPELIN
+
 
 def get_contract_bin(
     contract: str,
@@ -30,6 +32,7 @@ def get_contract_bin(
         [contract_path],
         output_values=["abi", "bin"],
         solc_version=Version(version),
+        import_remappings=REMAPPING_ZEPPELIN,
         allow_paths=["."],
         optimize=True,
     )
