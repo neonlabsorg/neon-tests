@@ -82,6 +82,7 @@ def test_write_tx_to_holder_in_parts(operator_keypair, session_user, evm_loader)
         session_user,
         "external/neon-contracts/contracts/token/ERC20ForSpl/erc20_for_spl_factory",
         "ERC20ForSplFactory",
+        version="0.8.28",
     )
     evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
     assert signed_tx.raw_transaction == transaction_from_holder(evm_loader, holder_acc), "Account data is not correct"
