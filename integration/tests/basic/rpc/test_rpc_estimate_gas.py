@@ -182,7 +182,7 @@ class TestRpcEstimateGas:
         estimated_gas = transaction["gas"]
         assert estimated_gas == _MIN_GAS_LIMIT
 
-    @pytest.mark.parametrize("cu_price_coefficient", [20, 21.65465, 2007])
+    @pytest.mark.parametrize("cu_price_coefficient", [0.9, 1, 1.1])
     def test_gas_price(
         self,
         web3_client: NeonChainWeb3Client,
@@ -204,8 +204,9 @@ class TestRpcEstimateGas:
             + neon_gas_estimate["gasExecutionUsed"]
             + neon_gas_estimate["gasFinishUsed"]
         )
-        cu_price = int(neon_gas_estimate["solanaComputeUnitPrice"] * cu_price_coefficient)
-        pkt = CuCostPktData.from_raw(gas, neon_gas_estimate["numIterations"], cu_price)
+        cu_price_initial = neon_gas_estimate["solanaComputeUnitPrice"]
+        cu_price_new = int(cu_price_initial * cu_price_coefficient)
+        pkt = CuCostPktData.from_raw(gas, neon_gas_estimate["numIterations"], cu_price_new)
         cu_gas = pkt.tx_cu_cost
         gas_limit = gas + cu_gas
         raw_tx["gas"] = gas_limit
@@ -224,12 +225,11 @@ class TestRpcEstimateGas:
                     neon_gas_used_per_tx = instruction["neonGasUsed"]
                     neon_gas_used_total += neon_gas_used_per_tx
 
-        print(solana_lamport_expense_total, neon_gas_used_total)
-        # TODO fails with diff == 1 lamport - ok?
-        # assert solana_lamport_expense_total == neon_gas_used_total
+        assert abs(solana_lamport_expense_total - neon_gas_used_total) <= 1
 
         solana_transaction_sigs = web3_client.get_solana_trx_by_neon(eth_tx_hash.hex())["result"]
         operator_spent_total = 0
+        cu_prices_actual: list[int] = []
 
         for solana_transaction_sig in solana_transaction_sigs:
             solana_tx = sol_client.get_transaction(
@@ -237,11 +237,17 @@ class TestRpcEstimateGas:
                 max_supported_transaction_version=0,
                 commitment=Confirmed,
             ).value
+            cu_price_actual = sol_client.get_compute_budget_set_cu_price_from_tx(solana_tx)
+            cu_prices_actual.append(cu_price_actual)
+
             operator_spent_per_tx = (
                 solana_tx.transaction.meta.pre_balances[0] - solana_tx.transaction.meta.post_balances[0]
             )
             operator_spent_total += operator_spent_per_tx
 
-        print(operator_spent_total, neon_gas_used_total)
-        # TODO fails with diff == 1 lamport - ok?
-        # assert operator_spent_total == neon_gas_used_total
+        assert abs(operator_spent_total - neon_gas_used_total) <= 1
+
+        if cu_price_coefficient >= 1:
+            assert all(cu_price == cu_price_initial for cu_price in cu_prices_actual)
+        else:
+            assert all(cu_price < cu_price_initial for cu_price in cu_prices_actual)

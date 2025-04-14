@@ -482,33 +482,14 @@ class TestEIP1559:
         )
 
         receipt = web3_client.send_transaction(account=sender, transaction=tx_params)
-        assert receipt.type == 2
+        assert receipt["type"] == 2
         solana_transactions = web3_client.get_solana_trx_by_neon(receipt["transactionHash"].hex())["result"]
         assert len(solana_transactions) == 1
         solana_transaction = sol_client.get_transaction(
             tx_sig=Signature.from_string(solana_transactions[0]),
             commitment=Confirmed,
         )
-
-        # get ComputeBudget key index
-        compute_budget_index = -1
-        for index, account_key in enumerate(solana_transaction.value.transaction.transaction.message.account_keys):
-            if account_key == COMPUTE_BUDGET_ID:
-                compute_budget_index = index
-                break
-        assert compute_budget_index >= 0, "ComputeBudget not found"
-
-        # get setComputeUnitPrice value
-        cu_price_actual = 0
-        for instruction in solana_transaction.value.transaction.transaction.message.instructions:
-            if instruction.program_id_index == compute_budget_index:
-                decoded_data = base58.b58decode(instruction.data)
-                instruction_code = decoded_data[:1]
-                instruction_data = int.from_bytes(decoded_data[1:], "little")
-                if instruction_code == InstructionTags.SET_COMPUTE_UNIT_PRICE:
-                    cu_price_actual = instruction_data
-
-        # make sure the compute unit price equals default value set by var DEFAULT_CU_PRICE in proxy
+        cu_price_actual = sol_client.get_compute_budget_set_cu_price_from_tx(solana_transaction)
         assert cu_price_actual == 10500
 
     @pytest.mark.neon_only
