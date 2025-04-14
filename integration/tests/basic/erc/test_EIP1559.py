@@ -488,7 +488,7 @@ class TestEIP1559:
         solana_transaction = sol_client.get_transaction(
             tx_sig=Signature.from_string(solana_transactions[0]),
             commitment=Confirmed,
-        )
+        ).value
         cu_price_actual = sol_client.get_compute_budget_set_cu_price_from_tx(solana_transaction)
         assert cu_price_actual == 10500
 
