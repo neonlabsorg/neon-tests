@@ -11,17 +11,14 @@ from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 
 from conftest import EnvironmentConfig
-from utils.consts import OPERATOR_KEYPAIR_PATH
+from utils.consts import OPERATOR_KEYPAIR_PATH, REMAPPING_ZEPPELIN
 from utils.evm_loader import EvmLoader
-from utils.logger import create_logger
 from utils.solana_client import SolanaClient
 from utils.types import Contract, Caller, TreasuryPool
 from .utils.ethereum import make_contract_call_trx
 from .utils.neon_api_client import NeonApiClient
 from .utils.neon_api_rpc_client import NeonApiRpcClient
 from .utils.transaction_checks import check_transaction_logs_have_text
-
-log = create_logger(__name__)
 
 
 def prepare_operator(key_file: pathlib.Path | str, evm_loader: EvmLoader) -> Keypair:
@@ -264,6 +261,7 @@ def erc20_for_spl_factory_contract(
         treasury_pool,
         contract_name="ERC20ForSplFactory",
         version="0.8.28",
+        import_remappings=REMAPPING_ZEPPELIN,
     )
 
 
@@ -286,6 +284,7 @@ def multiple_actions_erc20(
         contract_name="MultipleActionsERC20",
         version="0.8.28",
         encoded_args=encoded_args,
+        import_remappings=REMAPPING_ZEPPELIN,
     )
 
 

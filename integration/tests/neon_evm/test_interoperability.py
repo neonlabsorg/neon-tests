@@ -37,7 +37,7 @@ from utils.consts import (
 
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
 from utils.evm_loader import EvmLoader
-from utils.helpers import serialize_instruction
+from utils.helpers import serialize_instruction, wait_condition
 
 from utils.instructions import DEFAULT_UNITS, make_CreateAssociatedTokenIdempotent
 from utils.layouts import COUNTER_ACCOUNT_LAYOUT
@@ -47,6 +47,7 @@ from utils.types import Caller, TreasuryPool
 
 
 def _create_mint_and_accounts(evm_loader, from_wallet, to_wallet, amount) -> tuple[Token, Pubkey, Pubkey]:
+    print(evm_loader.commitment)
     mint = spl.token.client.Token.create_mint(
         conn=evm_loader,
         payer=from_wallet,
@@ -249,7 +250,8 @@ class TestInteroperability:
         to_wallet = Keypair()
         amount = 100000
         evm_loader.request_airdrop(from_wallet.pubkey(), 1000 * 10**9, commitment=Confirmed)
-
+        wait_condition(lambda: evm_loader.account_exists(account_address=from_wallet.pubkey()) is True, timeout_sec=10)
+        wait_condition(lambda: evm_loader.get_solana_balance(account=from_wallet.pubkey()) != 0, timeout_sec=10)
         mint, from_token_account, to_token_account = _create_mint_and_accounts(
             evm_loader, from_wallet, to_wallet, amount
         )
