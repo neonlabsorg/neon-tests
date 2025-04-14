@@ -251,4 +251,3 @@ uniswap_contracts.json
 node_modules
 loadtesting/k6/data
 loadtesting/k6/contracts
-/contracts/external/

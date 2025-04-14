@@ -140,7 +140,7 @@ class TestERC20SPL:
         address, balance, needed = error_expected.decode_args(exc_info.value.args[0])
         address_expected = erc20_contract.account.address.lower()
         assert address_expected == address, f"Expected address to be {address_expected}, but got {address}"
-        assert needed == total + 1, f"Expected amount to be {total}, but got {balance}"
+        assert needed == total + 1, f"Expected needed amount to be {total}  + 1, but got {needed}"
 
     @pytest.mark.parametrize("param, msg", NO_ENOUGH_GAS_PARAMS)
     def test_burn_no_enough_gas(self, erc20_contract, param, msg):

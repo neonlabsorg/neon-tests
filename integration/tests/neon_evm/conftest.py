@@ -2,6 +2,7 @@ import json
 import pathlib
 from typing import Tuple, Any
 
+import allure
 import eth_abi
 import pytest
 from eth_keys import keys as eth_keys
@@ -66,7 +67,7 @@ def operator_keypair(worker_id: str, evm_loader: EvmLoader) -> Keypair:
     else:
         file_id = int(worker_id[-1]) + 2
         key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
-    log.info(f"current key_file {key_file}")
+    allure.attach(f"current key_file {key_file} and {worker_id}")
     return prepare_operator(key_file, evm_loader)
 
 
@@ -80,7 +81,7 @@ def second_operator_keypair(worker_id: str, evm_loader: EvmLoader) -> Keypair:
     else:
         file_id = 20 + int(worker_id[-1]) + 2
         key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
-    log.info(f"current key_file {key_file}")
+    allure.attach(f"current key_file {key_file} and {worker_id}")
     return prepare_operator(key_file, evm_loader)
 
 

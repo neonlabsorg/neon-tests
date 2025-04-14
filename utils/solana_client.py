@@ -52,7 +52,9 @@ class SolanaClient(solana.rpc.api.Client):
                 break
         else:
             raise AssertionError(f"Can't get airdrop from solana: {airdrop_resp}")
-        assert self.get_balance(pubkey, commitment=Confirmed).value >= lamports + balance_before
+        wait_condition(
+            lambda: self.get_balance(pubkey, commitment=Confirmed).value >= lamports + balance_before, timeout_sec=30
+        )
         return airdrop_resp
 
     def send_sol(self, from_: Keypair, to: Pubkey, amount_lamports: int):
