@@ -64,7 +64,11 @@ def operator_keypair(worker_id: str, evm_loader: EvmLoader) -> Keypair:
     else:
         file_id = int(worker_id[-1]) + 2
         key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
-    allure.attach(f"current key_file {key_file} and {worker_id}")
+    allure.attach(
+        f"current key_file {key_file} and {worker_id}",
+        "Operator keys + Worker_id",
+        attachment_type=allure.attachment_type.TEXT,
+    )
     return prepare_operator(key_file, evm_loader)
 
 
@@ -78,7 +82,11 @@ def second_operator_keypair(worker_id: str, evm_loader: EvmLoader) -> Keypair:
     else:
         file_id = 20 + int(worker_id[-1]) + 2
         key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
-    allure.attach(f"current key_file {key_file} and {worker_id}")
+    allure.attach(
+        f"current key_file {key_file} and {worker_id}",
+        "Operator keys + Worker_id",
+        attachment_type=allure.attachment_type.TEXT,
+    )
     return prepare_operator(key_file, evm_loader)
 
 
