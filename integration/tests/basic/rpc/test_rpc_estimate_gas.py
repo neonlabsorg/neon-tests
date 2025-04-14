@@ -12,6 +12,7 @@ from integration.tests.basic.helpers.basic import Tag
 from integration.tests.basic.helpers.errors import Error32602
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
+from utils.consts import MIN_CU_PRICE
 from utils.cu_cost_packed import CuCostPktData
 from utils.models.error import EthError32602
 from utils.models.result import EthEstimateGas, EthResult
@@ -182,7 +183,8 @@ class TestRpcEstimateGas:
         estimated_gas = transaction["gas"]
         assert estimated_gas == _MIN_GAS_LIMIT
 
-    @pytest.mark.parametrize("cu_price_coefficient", [0.9, 1, 1.1])
+    @pytest.mark.skip(reason="For this test DEFAULT_CU_PRICE must be increased by 20 times")
+    @pytest.mark.parametrize("cu_price_coefficient", [0, 0.9, 1, 1.1])
     def test_gas_price(
         self,
         web3_client: NeonChainWeb3Client,
@@ -247,7 +249,9 @@ class TestRpcEstimateGas:
 
         assert abs(operator_spent_total - neon_gas_used_total) <= 1
 
-        if cu_price_coefficient < 1:
+        if cu_price_coefficient == 0:
+            assert all(cu_price == MIN_CU_PRICE for cu_price in cu_prices_actual)
+        elif cu_price_coefficient < 1:
             assert all(cu_price < cu_price_initial for cu_price in cu_prices_actual)
         else:
             assert all(cu_price == cu_price_initial for cu_price in cu_prices_actual)
