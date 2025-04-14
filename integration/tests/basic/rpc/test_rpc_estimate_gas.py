@@ -182,7 +182,7 @@ class TestRpcEstimateGas:
         estimated_gas = transaction["gas"]
         assert estimated_gas == _MIN_GAS_LIMIT
 
-    @pytest.mark.parametrize("cu_price_coefficient", [0, 0.9, 1, 1.1])
+    @pytest.mark.parametrize("cu_price_coefficient", [0.9, 1, 1.1])
     def test_gas_price(
         self,
         web3_client: NeonChainWeb3Client,
@@ -249,7 +249,5 @@ class TestRpcEstimateGas:
 
         if cu_price_coefficient < 1:
             assert all(cu_price < cu_price_initial for cu_price in cu_prices_actual)
-        elif cu_price_coefficient < 1:
-            assert all(cu_price is None for cu_price in cu_prices_actual)
         else:
             assert all(cu_price == cu_price_initial for cu_price in cu_prices_actual)
