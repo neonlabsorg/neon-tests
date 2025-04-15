@@ -265,7 +265,7 @@ class Web3Client:
         timeout: int = 120,
     ) -> web3.types.TxReceipt:
         signed_tx = self._web3.eth.account.sign_transaction(transaction, account.key)
-        transaction_hash = self._web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        transaction_hash = self._web3.eth.send_raw_transaction(signed_tx.raw_transaction)
         allure.attach(f"Transaction hash: {transaction_hash.hex()}", "Transaction hash", allure.attachment_type.TEXT)
         return self._web3.eth.wait_for_transaction_receipt(transaction_hash, timeout=timeout)
 
@@ -544,7 +544,7 @@ class Web3Client:
         if transaction["value"] > 0:
             transaction["value"] = web3.Web3.to_wei(transaction["value"], Unit.WEI)
             signed_tx = self.eth.account.sign_transaction(transaction, from_.key)
-            tx = self.eth.send_raw_transaction(signed_tx.rawTransaction)
+            tx = self.eth.send_raw_transaction(signed_tx.raw_transaction)
             self.eth.wait_for_transaction_receipt(tx)
         else:
             LOG.info(f"Not enough funds to send all neons from {from_.address} account")
@@ -564,7 +564,7 @@ class Web3Client:
         gas_used_in_tx = tx_receipt.gasUsed * tx["gasPrice"]
         return gas_used_in_tx
 
-    def get_token_usd_gas_price(self):
+    def neon_gas_price(self):
         resp = requests.post(
             self._proxy_url,
             json={
@@ -574,7 +574,11 @@ class Web3Client:
                 "id": 0,
             },
         ).json()
-        return int(resp["result"]["tokenPriceUsd"], 16) / 100000
+        return resp["result"]
+
+    def get_token_usd_gas_price(self):
+        resp = self.neon_gas_price()
+        return int(resp["tokenPriceUsd"], 16) / 100000
 
     def gas_price_to_eip1559_params(
         self,

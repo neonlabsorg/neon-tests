@@ -5,6 +5,7 @@ from hashlib import sha256
 from random import randrange
 from typing import Union
 
+import allure
 import spl
 import typing as tp
 
@@ -192,7 +193,7 @@ class EvmLoader(SolanaClient):
         offset = 0
         receipts = []
         if isinstance(tx, SignedTransaction):
-            rest = tx.rawTransaction
+            rest = tx.raw_transaction
             tx_hash = tx.hash
         else:
             tx_hash = keccak(tx)
@@ -258,7 +259,7 @@ class EvmLoader(SolanaClient):
                 self.loader_id,
                 treasury_address,
                 treasury_buffer,
-                instruction.rawTransaction,
+                instruction.raw_transaction,
                 additional_accounts,
                 system_program,
             )
@@ -323,7 +324,7 @@ class EvmLoader(SolanaClient):
                 self.loader_id,
                 treasury_address,
                 treasury_buffer,
-                instruction.rawTransaction,
+                instruction.raw_transaction,
                 additional_accounts,
                 system_program,
                 tag=0x3E,
@@ -380,7 +381,7 @@ class EvmLoader(SolanaClient):
     ) -> GetTransactionResp:
         trx = TransactionWithComputeBudget(operator, compute_unit_price=compute_unit_price)
         if isinstance(instruction, SignedTransaction):
-            raw_trx = instruction.rawTransaction
+            raw_trx = instruction.raw_transaction
         else:
             raw_trx = instruction
         trx.add(
@@ -627,7 +628,8 @@ class EvmLoader(SolanaClient):
         print(f"Account solana address: {caller_balance}")
         return Caller(key, Pubkey.from_string(caller_solana), caller_balance, caller_ether, caller_token)
 
-    def sent_token_from_solana_to_neon(self, solana_account, mint, neon_account, amount, chain_id):
+    @allure.step("Send tokens from Solana to Neon")
+    def send_token_from_solana_to_neon(self, solana_account, mint, neon_account, amount, chain_id):
         """Transfer any token from solana to neon transaction"""
         if isinstance(neon_account, LocalAccount):
             neon_account = neon_account.address
@@ -677,7 +679,7 @@ class EvmLoader(SolanaClient):
         wrap_sol_tx = make_wSOL(full_amount, solana_account.pubkey(), ata_address)
         self.send_tx_and_check_status_ok(wrap_sol_tx, solana_account)
 
-        self.sent_token_from_solana_to_neon(
+        self.send_token_from_solana_to_neon(
             solana_account, wSOL["address_spl"], neon_account, full_amount, self.sol_chain_id
         )
 
@@ -692,7 +694,7 @@ class EvmLoader(SolanaClient):
     ):
         self.mint_spl_to(neon_mint, solana_account, amount, operator_keypair)
 
-        self.sent_token_from_solana_to_neon(
+        self.send_token_from_solana_to_neon(
             solana_account,
             neon_mint,
             neon_account,
