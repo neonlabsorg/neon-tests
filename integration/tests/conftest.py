@@ -30,6 +30,7 @@ from utils.helpers import decode_function_signature, get_selectors
 from utils.operator import Operator
 from utils.prices import get_sol_price_with_retry
 from utils.solana_client import SolanaClient
+from utils.tracer_validator import TracerValidator
 from utils.web3client import NeonChainWeb3Client, Web3Client
 from .basic.helpers.chains import make_nonce_the_biggest_for_chain
 
@@ -796,3 +797,8 @@ def diamond(web3_client_session, diamond_init, facet_cuts, accounts):
         constructor_args=[facet_cuts, diamond_args],
     )
     return contract
+
+
+@pytest.fixture(autouse=True)
+def tracer_validator(web3_client, tracer_api):
+    return TracerValidator(web3_client, tracer_api)
