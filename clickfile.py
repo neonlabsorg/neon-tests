@@ -522,10 +522,10 @@ def run(
             command = "py.test integration/tests/basic -m mainnet"
         else:
             command = "py.test integration/tests/basic"
-        if network == network.DEVNET:
-            command = "py.test integration/tests/basic -m only_devnet"
         if numprocesses:
             command = f"{command} --numprocesses {numprocesses} --dist loadgroup"
+        if network == network.DEVNET:
+            command += " --retries 3 --retry-delay 2"
     elif name == "tracer":
         command = "py.test -n 5 integration/tests/tracer"
     elif name == "services":
