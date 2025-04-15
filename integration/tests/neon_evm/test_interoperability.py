@@ -47,7 +47,6 @@ from utils.types import Caller, TreasuryPool
 
 
 def _create_mint_and_accounts(evm_loader, from_wallet, to_wallet, amount) -> tuple[Token, Pubkey, Pubkey]:
-    print(evm_loader.commitment)
     mint = spl.token.client.Token.create_mint(
         conn=evm_loader,
         payer=from_wallet,
