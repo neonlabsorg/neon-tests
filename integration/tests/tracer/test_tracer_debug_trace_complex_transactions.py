@@ -364,7 +364,7 @@ class TestDebugTraceIterativeTransaction:
         check_tracer_struct_log(self.tracer_api, tx_data, wait_error=True)
         check_call_tracer_type(self.tracer_api, tx_data, wait_error=True, error_message="execution reverted")
 
-        error_message = "Tracing Skip Scheduled Transaction is not supported"
+        error_message = "Tracing Skip Scheduled Transaction is not supported "
         params = [tx1.hash().hex(), tracer_params]
         with pytest.raises(TimeoutException, match=error_message):
             self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
