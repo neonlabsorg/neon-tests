@@ -113,7 +113,7 @@ runs:
       shell: bash
       run: |
         # Check if there are changes in the requirements folder or Dockerfile-base
-        if git diff --name-only HEAD origin/${{ steps.parent_branch.outputs.parent_name }} | grep -E "^requirements/|^Dockerfile-base$"; then
+        if git diff --name-only HEAD ${{ steps.parent_branch.outputs.parent_name }} | grep -E "^requirements/|^Dockerfile-base$"; then
           echo "Requirements folder or Dockerfile has changed"
           echo "changed=true" >> $GITHUB_OUTPUT
         else
