@@ -164,7 +164,7 @@ runs:
         delimiter=$(printf "%0.s-" {1..30})
         echo " ${delimiter} Build new docker image ${image_name} ${delimiter}"
 
-        docker build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
+        docker build . --tag ${image_name}:${{ inputs.image_tag }} \
             --file Dockerfile-base \
             --build-arg OZ_TAG=${{ inputs.oz_tag }} \
             --build-arg CONTRACTS_BRANCH=${{ steps.current_branch.outputs.branch_name || 'develop' }} \
@@ -189,9 +189,9 @@ runs:
       shell: bash
       run: |
         if [[ "${{ steps.need_build.outputs.need_build }}" == "true" ]]; then
-          echo "image_tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+          echo "image_tag=${image_name}:${{ steps.current_branch.outputs.branch_name }}" >> $GITHUB_OUTPUT
         else
-          # Extract tag from the use_image
+          # Extract tag from the use_image most likely parent branch
           use_image="${{ steps.need_build.outputs.use_image }}"
           image_tag=${use_image#*:}
           echo "image_tag=${image_tag}" >> $GITHUB_OUTPUT

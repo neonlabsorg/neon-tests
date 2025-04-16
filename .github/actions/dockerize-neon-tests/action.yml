@@ -47,6 +47,7 @@ runs:
         DOCKER_HUB_ORG_NAME: ${{ inputs.docker_hub_org_name }}
         BASE_IMAGE_TAG: ${{ inputs.base_image_tag }}
       run: |
+        echo "${{ env.BASE_IMAGE_TAG }}"
         image_name=${{ inputs.image_name }}
         delimeter=$(printf "%0.s-" {1..30})
         echo " ${delimeter} Build new docker image ${image_name} ${delimeter}"
