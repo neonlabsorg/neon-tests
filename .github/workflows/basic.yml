@@ -91,7 +91,7 @@ jobs:
           image_name: ${{ env.BASE_IMAGE }}
           docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
           force_rebuild: ${{ env.REBUILD_BASE_IMAGE }}
-    output:
+    outputs:
       base_image_tag: ${{ steps.build_base_image.image_tag }}
   dockerize:
     name: Dockerize neon tests
