@@ -41,33 +41,23 @@ runs:
       run: |
         if [[ "${{ github.ref }}" =~ "refs/heads/"[vt][0-9]+\.[0-9]+\.x ]]; then
           branch_name="${{ github.ref_name }}"
-        elif [[ "${{ github.head_ref }}" != "" ]]; then # pr to feature/develop branch
-          branch_name=${{ github.head_ref }}
-         fi;
-          echo "branch_name=${branch_name}"
-          echo "branch_name=${branch_name}" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.head_ref }}" != "" ]]; then
+          branch_name="${{ github.head_ref }}"
+        else
+          branch_name="${{ github.ref_name }}"
+        fi
+        echo "branch_name=${branch_name}" >> $GITHUB_OUTPUT
         echo "Current branch: ${branch_name}"
 
     - name: Identify parent branch
       id: parent_branch
       shell: bash
       run: |
-        if [[ "${{ github.base_ref }}" != "" ]]; then
+        if [[ "${{ github.event.pull_request.base.ref }}" != "" ]]; then
           # For pull requests, base_ref is the target branch
-          parent_name="${{ github.base_ref }}"
+          parent_name="${{ github.event.pull_request.base.ref }}"
         else
-          # For direct pushes, try to determine the parent branch
-          parent_name=$(git show-branch -a 2>/dev/null | \
-            grep '\*' | \
-            grep -v "$(git rev-parse --abbrev-ref HEAD)" | \
-            head -n1 | \
-            sed 's/.*\[\(.*\)\].*/\1/' | \
-            sed 's/[\^~].*//')
-
-          # Default to develop if we couldn't determine parent
-          if [[ -z "$parent_name" ]]; then
             parent_name="develop"
-          fi
         fi
         echo "parent_name=${parent_name}" >> $GITHUB_OUTPUT
         echo "Parent branch: ${parent_name}"
