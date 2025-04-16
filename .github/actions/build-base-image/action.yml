@@ -99,8 +99,11 @@ runs:
       id: check_requirements
       shell: bash
       run: |
+        # Fetch parent folder
+        git fetch --depth 1 origin ${steps.parent_branch.outputs.parent_name}
+
         # Check if there are changes in the requirements folder or Dockerfile-base
-        if git diff --name-only ${{ steps.current_branch.outputs.branch_name }} ${{ steps.parent_branch.outputs.parent_name }} | \
+        if git diff --name-only HEAD origin/${{ steps.parent_branch.outputs.parent_name }} | \
           grep -E "^requirements/|^Dockerfile-base$"; then
           echo "Requirements folder or Dockerfile has changed"
           echo "changed=true" >> $GITHUB_OUTPUT
