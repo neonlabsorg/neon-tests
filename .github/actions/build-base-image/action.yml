@@ -193,6 +193,5 @@ runs:
         else
           # Extract tag from the use_image most likely parent branch
           use_image="${{ steps.need_build.outputs.use_image }}"
-          image_tag=${use_image#*:}
-          echo "image_tag=${image_tag}" >> $GITHUB_OUTPUT
+          echo "image_tag=${use_image}" >> $GITHUB_OUTPUT
         fi
