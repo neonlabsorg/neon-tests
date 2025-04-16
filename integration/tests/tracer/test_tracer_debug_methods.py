@@ -7,14 +7,12 @@ from rlp.sedes import List, big_endian_int, binary
 import allure
 import pytest
 
-from integration.tests.basic.helpers.basic import AccountData
 from utils.helpers import wait_condition
 from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
 from utils.tracer_client import TracerClient
 from utils.helpers import padhex
-from tracer_helper import validate_response_result
-
+from tracer_helper import validate_response_result, check_tracer_struct_log, check_call_tracer_type
 
 SCHEMAS = "./integration/tests/tracer/schemas/"
 GOOD_CALLDATA = ["0x60fe60005360016000f3"]
@@ -27,58 +25,6 @@ class TestTracerDebugMethods:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
     tracer_api: TracerClient
-
-    def check_call_tracer_type(
-        self,
-        tx_data,
-        wait_error=False,
-        error_message="",
-    ):
-
-        params = [tx_data["hash"].hex(), {"tracer": "callTracer", "tracerConfig": {"withLog": True}}]
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
-
-        assert response["result"]["from"].lower() == tx_data["from"].lower()
-        assert response["result"]["to"].lower() == tx_data["to"].lower()
-        assert response["result"]["input"].lower() == "0x" + tx_data["input"].hex().lower()
-        assert response["result"]["type"] == "CALL"
-
-        if wait_error:
-            assert "error" in response["result"]
-            assert response["result"]["error"] == error_message
-        else:
-            assert "error" not in response["result"]
-
-        return response
-
-    def check_tracer_struct_log(
-        self, tx_data, wait_error=False, error_message="", wait_return_value=False, return_value=""
-    ):
-        params = [
-            {
-                "to": tx_data["to"],
-                "from": tx_data["from"],
-                "gas": hex(tx_data["gas"]),
-                "gasPrice": hex(tx_data["gasPrice"]),
-                "value": hex(tx_data["value"]),
-                "data": "0x" + tx_data["input"].hex(),
-            },
-            hex(tx_data["blockNumber"]),
-        ]
-
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-
-        if wait_error:
-            assert response["result"]["failed"] is True
-        else:
-            assert "error" not in response["result"], "Error in response"
-        if wait_return_value:
-            assert (
-                response["result"]["returnValue"] == return_value
-            ), f'Waited {return_value}, got {response["result"]["returnValue"]}'
-        validate_response_result(response)
-
-        return response
 
     # NDEV-3009
     def test_debug_trace_call_invalid_params(self):
@@ -514,16 +460,14 @@ class TestTracerDebugMethods:
             == "Empty Neon transaction receipt for 0xd9765b77e470204ae5edb1a796ab92ecb0e20fea50aeb09275aea740af7bbc69"
         )
 
-    def test_debug_trace_call_to_precompiled_contract(self, pytestconfig, eip1052_checker):
+    def test_struct_log_and_call_tracer_to_precompiled_contract(self, pytestconfig, evm_loader):
+        address = "0x0000000000000000000000000000000000000006"
         sender_account = self.accounts[0]
-        tx = self.web3_client.make_raw_tx(sender_account)
-        precompiled_acc = AccountData(address="0xFf00000000000000000000000000000000000004")
-
-        instruction_tx = eip1052_checker.functions.getContractHashWithLog(precompiled_acc.address).build_transaction(tx)
+        amount = random.randint(1, 10)
+        instruction_tx = self.web3_client.make_raw_tx(sender_account.address, address, amount=amount, estimate_gas=True)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
-        assert receipt["status"] == 1
 
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
 
-        self.check_tracer_struct_log(tx_data)
-        self.check_call_tracer_type(tx_data)
+        check_tracer_struct_log(self.tracer_api, tx_data)
+        check_call_tracer_type(self.tracer_api, tx_data)

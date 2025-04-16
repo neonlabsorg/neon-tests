@@ -4,21 +4,18 @@ import pytest
 from _pytest.config import Config
 from solders.keypair import Keypair as SolanaAccount
 
-from solana.transaction import AccountMeta, Instruction
 
 from deepdiff import DeepDiff
-from solders.pubkey import Pubkey
 
 from integration.tests.basic.helpers.basic import AccountData
-from integration.tests.tracer.tracer_helper import validate_response_result
-from utils.consts import COUNTER_ID, LAMPORT_PER_SOL
+from integration.tests.tracer.tracer_helper import check_tracer_struct_log, check_call_tracer_type
+from utils.consts import LAMPORT_PER_SOL
 from utils.operator import Operator
 from utils.solana_client import SolanaClient
 from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
 from utils.tracer_client import TracerClient
-from utils.helpers import serialize_instruction
 
 
 @allure.feature("Tracer API")
@@ -106,58 +103,6 @@ class TestDebugTraceTransactionCallTracer:
                 expected_response["calls"][0]["revertReason"] = revert_reason
 
         return expected_response
-
-    def check_call_tracer_type(
-        self,
-        tx_data,
-        wait_error=False,
-        error_message="",
-    ) -> dict:
-
-        params = [tx_data["hash"].hex(), {"tracer": "callTracer", "tracerConfig": {"withLog": True}}]
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
-
-        assert response["result"]["from"].lower() == tx_data["from"].lower()
-        assert response["result"]["to"].lower() == tx_data["to"].lower()
-        assert response["result"]["input"].lower() == "0x" + tx_data["input"].hex().lower()
-        assert response["result"]["type"] == "CALL"
-
-        if wait_error:
-            assert "error" in response["result"]
-            assert response["result"]["error"] == error_message
-        else:
-            assert "error" not in response["result"]
-
-        return response
-
-    def check_tracer_struct_log(
-        self, tx_data, wait_error=False, error_message="", wait_return_value=False, return_value=""
-    ):
-        params = [
-            {
-                "to": tx_data["to"],
-                "from": tx_data["from"],
-                "gas": hex(tx_data["gas"]),
-                "gasPrice": hex(tx_data["gasPrice"]),
-                "value": hex(tx_data["value"]),
-                "data": "0x" + tx_data["input"].hex(),
-            },
-            hex(tx_data["blockNumber"]),
-        ]
-
-        response = self.tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-
-        if wait_error:
-            assert response["result"]["failed"] is True
-        else:
-            assert "error" not in response["result"], "Error in response"
-        if wait_return_value:
-            assert (
-                response["result"]["returnValue"] == return_value
-            ), f'Waited {return_value}, got {response["result"]["returnValue"]}'
-        validate_response_result(response)
-
-        return response
 
     def assert_response_contains_expected(self, pytestconfig, expected_response, response, sort_calls=False):
         if sort_calls:
@@ -576,7 +521,7 @@ class TestDebugTraceTransactionCallTracer:
         assert response["result"]["calls"][0]["calls"][0]["type"] == "CREATE"
         assert response["result"]["calls"][0]["logs"][0]["topics"][0] == "0x" + receipt["logs"][0]["topics"][0].hex()
 
-    def test_callTracer_precompiled_neon_contract(
+    def test_trace_precompiled_neon_contract(
         self,
         pytestconfig: Config,
         neon_price: float,
@@ -585,50 +530,26 @@ class TestDebugTraceTransactionCallTracer:
         operator: Operator,
         web3_client: NeonChainWeb3Client,
         accounts: EthAccounts,
+        neon_token_contract,
+        bank_account,
     ):
         tx_type = TransactionType(2)
         sender_account = accounts[0]
         sol_user = SolanaAccount()
+
+        if bank_account:
+            self.sol_client.send_sol(bank_account, sol_user.pubkey(), 1 * LAMPORT_PER_SOL)
+        else:
+            sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
         sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
 
         move_amount = web3_client._web3.to_wei(5, "ether")
-        contract, _ = web3_client.deploy_and_get_contract(
-            contract="precompiled/NeonToken",
-            version="0.8.10",
-            account=sender_account,
-            tx_type=tx_type,
-        )
 
         tx = self.web3_client.make_raw_tx(from_=sender_account, amount=move_amount, tx_type=tx_type)
-        instruction_tx = contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
+        instruction_tx = neon_token_contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
         receipt = web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        self.check_tracer_struct_log(tx_data)
-        self.check_call_tracer_type(tx_data)
-
-    def test_callTracer_precompiled_solana_contract(
-        self, call_solana_caller, counter_resource_address: bytes, pytestconfig
-    ):
-        sender = self.accounts[0]
-        lamports = 0
-
-        instruction = Instruction(
-            program_id=COUNTER_ID,
-            accounts=[
-                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
-            ],
-            data=bytes([0x1]),
-        )
-        serialized = serialize_instruction(COUNTER_ID, instruction)
-
-        tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.executeWithGetReturnData(lamports, serialized).build_transaction(
-            tx
-        )
-
-        receipt = self.web3_client.send_transaction(sender, instruction_tx)
-        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        self.check_tracer_struct_log(tx_data)
-        self.check_call_tracer_type(tx_data)
+        check_tracer_struct_log(self.tracer_api, tx_data)
+        check_call_tracer_type(self.tracer_api, tx_data)
