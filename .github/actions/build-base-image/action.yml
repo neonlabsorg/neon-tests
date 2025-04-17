@@ -104,11 +104,11 @@ runs:
 
         # Check if there are changes in the requirements folder or Dockerfile-base
         if git diff --name-only HEAD origin/${{ steps.parent_branch.outputs.parent_name }} | \
-          grep -E "^requirements/|^Dockerfile-base$"; then
-          echo "Requirements folder or Dockerfile has changed"
+          grep -E "^requirements/|^Dockerfile-base$|^.github/actions/build-base-image/"; then
+          echo "Requirements folder | Dockerfile-base | Build-base-image action have changed"
           echo "changed=true" >> $GITHUB_OUTPUT
         else
-          echo "Requirements folder and Dockerfile have not changed"
+          echo "Requirements folder | Dockerfile-base | Build-base-image action have not changed"
           echo "changed=false" >> $GITHUB_OUTPUT
         fi
 
@@ -191,7 +191,7 @@ runs:
         if [[ "${{ steps.need_build.outputs.need_build }}" == "true" ]]; then
           echo "image_tag=${image_name}:${{ steps.current_branch.outputs.branch_name }}" >> $GITHUB_OUTPUT
         else
-          # Extract tag from the use_image most likely parent branch
+          # Extract tag from the use_image
           use_image="${{ steps.need_build.outputs.use_image }}"
           image_tag=${use_image#*:}
           echo "image_tag=${image_tag}" >> $GITHUB_OUTPUT
