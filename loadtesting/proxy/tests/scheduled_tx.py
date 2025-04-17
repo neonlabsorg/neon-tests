@@ -10,7 +10,7 @@ from solana.rpc import commitment
 from deploy.cli.network_manager import NetworkManager
 from utils.accounts import EthAccounts
 from utils.consts import LAMPORT_PER_SOL, wSOL
-from utils.erc20wrapper import ERC20NewWrapper
+from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
 from utils.faucet import Faucet
 from utils.helpers import decode_function_signature
@@ -72,7 +72,7 @@ def prepare_one_contract_for_scheduled_trx(environment: env.Environment, **kwarg
     # deploy a new erc20 contract
     LOG.info("Start to deploy a contract...")
     symbol = "".join([random.choice(string.ascii_uppercase) for _ in range(3)])
-    erc20 = ERC20NewWrapper(
+    erc20 = ERC20Wrapper(
         web3_client,
         faucet,
         f"Test {symbol}",
