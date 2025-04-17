@@ -41,7 +41,7 @@ def check_call_tracer_type(
     return response
 
 
-def check_tracer_struct_log(
+def check_struct_log_type(
     tracer_api, tx_data, wait_error=False, error_message="", wait_return_value=False, return_value=""
 ):
     params = [
@@ -57,7 +57,7 @@ def check_tracer_struct_log(
     ]
 
     response = tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
-
+    # assert len(response['result']['structLogs']) > 0, f'No structLogs in response' #todo обсудить для precompile
     if wait_error:
         assert response["result"]["failed"] is True
     else:

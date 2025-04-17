@@ -9,8 +9,7 @@ from solders.keypair import Keypair as SolanaAccount
 from deepdiff import DeepDiff
 
 from integration.tests.basic.helpers.basic import AccountData
-from integration.tests.tracer.tracer_helper import check_tracer_struct_log, check_call_tracer_type
-from utils.consts import LAMPORT_PER_SOL
+from integration.tests.tracer.tracer_helper import check_struct_log_type, check_call_tracer_type
 from utils.operator import Operator
 from utils.solana_client import SolanaClient
 from utils.types import TransactionType
@@ -542,12 +541,6 @@ class TestDebugTraceTransactionCallTracer:
         sender_account = accounts[0]
         sol_user = SolanaAccount()
 
-        if bank_account:
-            self.sol_client.send_sol(bank_account, sol_user.pubkey(), 1 * LAMPORT_PER_SOL)
-        else:
-            sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
-        sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
-
         move_amount = web3_client._web3.to_wei(5, "ether")
 
         tx = self.web3_client.make_raw_tx(from_=sender_account, amount=move_amount, tx_type=tx_type)
@@ -556,5 +549,5 @@ class TestDebugTraceTransactionCallTracer:
         assert receipt["status"] == 1
 
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        check_tracer_struct_log(self.tracer_api, tx_data)
+        check_struct_log_type(self.tracer_api, tx_data)
         check_call_tracer_type(self.tracer_api, tx_data)

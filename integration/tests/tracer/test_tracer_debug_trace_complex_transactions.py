@@ -14,7 +14,7 @@ from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client, BASE_MAX_PRIORITY_FEE
 from utils.accounts import EthAccounts
 from utils.tracer_client import TracerClient
-from tracer_helper import validate_response_result, check_tracer_struct_log, check_call_tracer_type
+from tracer_helper import validate_response_result, check_struct_log_type, check_call_tracer_type
 from integration.tests.basic.helpers.rpc_checks import check_trx_is_success
 from utils.helpers import wait_condition, decode_function_signature
 
@@ -82,7 +82,7 @@ class TestDebugTraceIterativeTransaction:
 
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
 
-        check_tracer_struct_log(self.tracer_api, tx_data, wait_error=True)
+        check_struct_log_type(self.tracer_api, tx_data, wait_error=True)
         check_call_tracer_type(self.tracer_api, tx_data, wait_error=True, error_message="execution reverted")
 
     def test_trace_iterative_tx_with_erc20_for_spl(self, multiple_actions_erc20):
@@ -187,7 +187,7 @@ class TestDebugTraceIterativeTransaction:
         json_rpc_client.send_rpc(method="eth_getBlockByHash", params=[receipt["blockHash"].hex(), False])
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
 
-        check_tracer_struct_log(self.tracer_api, tx_data)
+        check_struct_log_type(self.tracer_api, tx_data)
         check_call_tracer_type(self.tracer_api, tx_data)
 
     def test_trace_block_timestamp_in_scheduled_tx(self, block_timestamp_contract, json_rpc_client, web3_client_sol):
@@ -204,8 +204,11 @@ class TestDebugTraceIterativeTransaction:
         assert event_logs[0]["args"]["block_timestamp"] <= int(tx_block_timestamp, 16)
 
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        check_tracer_struct_log(self.tracer_api, tx_data)
-        check_call_tracer_type(self.tracer_api, tx_data)
+        check_struct_log_type(self.tracer_api, tx_data)
+        ct_resp = check_call_tracer_type(self.tracer_api, tx_data)
+
+        encoded_ts = ct_resp["result"]["logs"][0]["data"]
+        assert tx_block_timestamp == hex(int(encoded_ts, 16))
 
     def test_trace_scheduled_tx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
         contract_data = 18
@@ -273,7 +276,7 @@ class TestDebugTraceIterativeTransaction:
             receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash().hex())
 
             tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-            check_tracer_struct_log(self.tracer_api, tx_data)
+            check_struct_log_type(self.tracer_api, tx_data)
             check_call_tracer_type(self.tracer_api, tx_data)
 
     def test_trace_failed_one_scheduled_tx(
@@ -310,7 +313,7 @@ class TestDebugTraceIterativeTransaction:
 
         receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash().hex())
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        check_tracer_struct_log(self.tracer_api, tx_data, wait_error=True)
+        check_struct_log_type(self.tracer_api, tx_data, wait_error=True)
         check_call_tracer_type(self.tracer_api, tx_data, wait_error=True, error_message="execution reverted")
 
     def test_trace_failed_multiply_scheduled_tx(
@@ -361,7 +364,7 @@ class TestDebugTraceIterativeTransaction:
         receipt = web3_client_sol.wait_for_transaction_receipt(tx0.hash().hex())
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
 
-        check_tracer_struct_log(self.tracer_api, tx_data, wait_error=True)
+        check_struct_log_type(self.tracer_api, tx_data, wait_error=True)
         check_call_tracer_type(self.tracer_api, tx_data, wait_error=True, error_message="execution reverted")
 
         error_message = "Tracing Skip Scheduled Transaction is not supported "
@@ -392,7 +395,7 @@ class TestDebugTraceIterativeTransaction:
         receipt = self.web3_client.send_transaction(sender, instruction_tx)
 
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        check_tracer_struct_log(self.tracer_api, tx_data)
+        check_struct_log_type(self.tracer_api, tx_data)
         check_call_tracer_type(self.tracer_api, tx_data)
 
     def test_trace_solana_interoperability_iterative_actions_and_multiple_solana_calls(
@@ -402,9 +405,7 @@ class TestDebugTraceIterativeTransaction:
         solana_calls = 5
         lamports = 0
 
-        current_counter = 0
         call_params = []
-
         sender = self.accounts[0]
         for _ in range(solana_calls):
             instruction = Instruction(
@@ -416,7 +417,6 @@ class TestDebugTraceIterativeTransaction:
             )
             serialized = serialize_instruction(COUNTER_ID, instruction)
             call_params.append((lamports, serialized))
-            current_counter += 1
 
         tx = self.web3_client.make_raw_tx(sender.address)
         instruction_tx = call_solana_caller.functions.batchExecuteInIterativeMode(
@@ -431,5 +431,16 @@ class TestDebugTraceIterativeTransaction:
         )
 
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        check_tracer_struct_log(self.tracer_api, tx_data)
+        check_struct_log_type(self.tracer_api, tx_data)
+        check_call_tracer_type(self.tracer_api, tx_data)
+
+    def test_trace_failed_iterative_tx(self, fail_contract):
+        contract = fail_contract
+        sender_account = self.accounts[0]
+        tx = self.web3_client.make_raw_tx(sender_account, gas=10000000)
+        instruction_tx = contract.functions.runLoopWithZeroDivision().build_transaction(tx)
+        receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
+
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        check_struct_log_type(self.tracer_api, tx_data)
         check_call_tracer_type(self.tracer_api, tx_data)

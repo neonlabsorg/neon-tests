@@ -744,4 +744,35 @@ def neon_token_contract(web3_client_session, accounts):
         account=accounts[0],
         tx_type=TransactionType(2),  # EIP_1559
     )
+    yield contract
+
+
+@pytest.fixture(scope="class")
+def fail_contract(web3_client_session, accounts, divider_contract) -> tp.Generator[Contract, None, None]:
+    contract, _ = web3_client_session.deploy_and_get_contract(
+        contract="common/Fail",
+        version="0.8.10",
+        contract_name="Fail",
+        account=accounts[0],
+        constructor_args=[divider_contract.address],
+    )
+    yield contract
+
+
+@pytest.fixture(scope="class")
+def divider_contract(web3_client_session, accounts) -> tp.Generator[Contract, None, None]:
+    contract, _ = web3_client_session.deploy_and_get_contract(
+        contract="common/Fail",
+        version="0.8.10",
+        account=accounts[0],
+        contract_name="Divider",
+    )
+    yield contract
+
+
+@pytest.fixture(scope="class")
+def precompiled_contract(web3_client, faucet, accounts):
+    contract, contract_deploy_tx = web3_client.deploy_and_get_contract(
+        "precompiled/CommonCaller", "0.8.10", accounts[0]
+    )
     return contract
