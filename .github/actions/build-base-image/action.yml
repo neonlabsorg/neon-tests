@@ -167,7 +167,7 @@ runs:
         docker build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
             --file Dockerfile-base \
             --build-arg OZ_TAG=${{ inputs.oz_tag }} \
-            --build-arg CONTRACTS_BRANCH=${{ steps.current_branch.outputs.branch_name || 'develop' }} \
+            --build-arg CONTRACTS_BRANCH="main" \
             --build-arg DOCKER_HUB_ORG_NAME=${{env.DOCKER_HUB_ORG_NAME}}
 
         # Tag with branch name if available
