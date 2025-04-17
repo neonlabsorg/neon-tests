@@ -1,10 +1,10 @@
 import pathlib
 import typing as tp
-import eth_abi
-from eth_utils import abi
 
+import eth_abi
 from Crypto.Hash import keccak
 from eth_account.datastructures import SignedTransaction
+from eth_utils import abi
 from solders.pubkey import Pubkey
 from web3.auto import w3
 
@@ -72,7 +72,7 @@ def make_deployment_transaction(
     if max_fee_per_gas:
         tx["maxFeePerGas"] = max_fee_per_gas
         tx.pop("gasPrice")
-
+    tx["maxPriorityFeePerGas"] = 0
     return w3.eth.account.sign_transaction(tx, user.solana_account.secret()[:32])
 
 
@@ -114,6 +114,7 @@ def make_eth_transaction(
 
     if type_ is not None:
         tx["type"] = type_
+    tx["maxPriorityFeePerGas"] = 0
     return w3.eth.account.sign_transaction(tx, caller.solana_account.secret()[:32])
 
 

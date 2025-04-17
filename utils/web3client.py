@@ -1,9 +1,8 @@
 import json
+import logging
 import pathlib
 import typing as tp
 from decimal import Decimal
-
-import logging
 
 import allure
 import base58
@@ -13,15 +12,15 @@ import web3.types
 from eth_abi import abi
 from eth_typing import BlockIdentifier
 from solders.instruction import Instruction
-from web3.contract import Contract
 from solders.pubkey import Pubkey
+from web3.contract import Contract
 from web3.exceptions import TransactionNotFound
 
-from utils.scheduled_trx import ScheduledTransaction, ScheduledTrxEstimateRequest
-from utils.types import TransactionType
 from utils import helpers
 from utils.consts import InputTestConstants, Unit
 from utils.helpers import decode_function_signature, case_snake_to_camel
+from utils.scheduled_trx import ScheduledTransaction, ScheduledTrxEstimateRequest
+from utils.types import TransactionType
 
 LOG = logging.getLogger(__name__)
 
@@ -310,6 +309,9 @@ class Web3Client:
         base_fee_per_gas: tp.Union[int, tp.Literal["auto"]] = "auto",
         base_fee_multiplier: float = 1.1,
     ) -> web3.types.TxParams:
+        # try with new gas model
+        max_priority_fee_per_gas = 0
+
         # Handle addresses
         if isinstance(from_, eth_account.signers.local.LocalAccount):
             from_ = from_.address
