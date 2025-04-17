@@ -189,7 +189,7 @@ runs:
       shell: bash
       run: |
         if [[ "${{ steps.need_build.outputs.need_build }}" == "true" ]]; then
-          echo "image_tag=${image_name}:${{ steps.current_branch.outputs.branch_name }}" >> $GITHUB_OUTPUT
+          echo "image_tag=${{ steps.current_branch.outputs.branch_name }}" >> $GITHUB_OUTPUT
         else
           # Extract tag from the use_image
           use_image="${{ steps.need_build.outputs.use_image }}"
