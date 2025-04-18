@@ -750,7 +750,7 @@ def neon_token_contract(web3_client_session, accounts):
 @pytest.fixture(scope="class")
 def fail_contract(web3_client_session, accounts, divider_contract) -> tp.Generator[Contract, None, None]:
     contract, _ = web3_client_session.deploy_and_get_contract(
-        contract="common/Fail",
+        contract="common/ExpectedErrorsChecker",
         version="0.8.10",
         contract_name="Fail",
         account=accounts[0],
@@ -762,7 +762,7 @@ def fail_contract(web3_client_session, accounts, divider_contract) -> tp.Generat
 @pytest.fixture(scope="class")
 def divider_contract(web3_client_session, accounts) -> tp.Generator[Contract, None, None]:
     contract, _ = web3_client_session.deploy_and_get_contract(
-        contract="common/Fail",
+        contract="common/ExpectedErrorsChecker",
         version="0.8.10",
         account=accounts[0],
         contract_name="Divider",
