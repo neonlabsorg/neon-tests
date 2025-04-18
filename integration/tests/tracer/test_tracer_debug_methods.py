@@ -26,7 +26,6 @@ class TestTracerDebugMethods:
     accounts: EthAccounts
     tracer_api: TracerClient
 
-    # NDEV-3009
     def test_debug_trace_call_invalid_params(self):
         response = self.tracer_api.send_rpc(method="debug_traceCall", params=[{}, "0x0"])
         assert "error" in response, "No errors in response"
@@ -468,4 +467,4 @@ class TestTracerDebugMethods:
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         check_call_tracer_type(self.tracer_api, tx_data)
-        check_struct_log_type(self.tracer_api, tx_data)
+        check_struct_log_type(self.tracer_api, tx_data, check_structLogs=False)

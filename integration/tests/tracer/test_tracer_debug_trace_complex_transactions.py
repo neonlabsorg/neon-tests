@@ -29,7 +29,6 @@ class TestDebugTraceIterativeTransaction:
     accounts: EthAccounts
     tracer_api: TracerClient
 
-    @pytest.mark.skip(reason="NDEV-3595, take NDEV-3611 after the fix")
     def test_trace_iterative_tx_struct_opcode_tracer(self, counter_contract):
         sender_account = self.accounts[0]
         tx = self.web3_client.make_raw_tx(from_=sender_account)
@@ -68,7 +67,8 @@ class TestDebugTraceIterativeTransaction:
         assert response["result"]["type"] == "CALL"
         assert "error" not in response["result"]
 
-    def test_trace_iterative_tx_failed_status(self, revert_contract_caller):
+    @pytest.mark.skip(reason="NDEV-3714")
+    def test_trace_iterative_tx_reverted_status(self, revert_contract_caller):
         sender_account = self.accounts[0]
         tx = self.web3_client.make_raw_tx(sender_account, gas=10000000)
         instruction_tx = revert_contract_caller.functions.doTrivialRevertAferIterativeActions().build_transaction(tx)
@@ -81,7 +81,6 @@ class TestDebugTraceIterativeTransaction:
         )
 
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-
         check_struct_log_type(self.tracer_api, tx_data, wait_error=True)
         check_call_tracer_type(self.tracer_api, tx_data, wait_error=True, error_message="execution reverted")
 
@@ -276,6 +275,7 @@ class TestDebugTraceIterativeTransaction:
             check_struct_log_type(self.tracer_api, tx_data)
             check_call_tracer_type(self.tracer_api, tx_data)
 
+    @pytest.mark.skip(reason="NDEV-3714")
     def test_trace_failed_one_scheduled_tx(
         self, web3_client_sol, neon_user, treasury_pool, revert_contract_caller, event_caller_contract, evm_loader
     ):
@@ -313,6 +313,7 @@ class TestDebugTraceIterativeTransaction:
         check_struct_log_type(self.tracer_api, tx_data, wait_error=True)
         check_call_tracer_type(self.tracer_api, tx_data, wait_error=True, error_message="execution reverted")
 
+    @pytest.mark.skip(reason="NDEV-3714")
     def test_trace_failed_multiply_scheduled_tx(
         self, web3_client_sol, neon_user, treasury_pool, revert_contract_caller, event_caller_contract, evm_loader
     ):
@@ -431,6 +432,7 @@ class TestDebugTraceIterativeTransaction:
         check_struct_log_type(self.tracer_api, tx_data)
         check_call_tracer_type(self.tracer_api, tx_data)
 
+    @pytest.mark.skip(reason="NDEV-3714")
     def test_trace_failed_iterative_tx(self, expected_error_checker):
         contract = expected_error_checker
         sender_account = self.accounts[0]

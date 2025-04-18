@@ -42,7 +42,13 @@ def check_call_tracer_type(
 
 
 def check_struct_log_type(
-    tracer_api, tx_data, wait_error=False, error_message="", wait_return_value=False, return_value=""
+    tracer_api,
+    tx_data,
+    wait_error=False,
+    error_message="",
+    wait_return_value=False,
+    return_value="",
+    check_structLogs=True,
 ):
     params = [
         {
@@ -57,6 +63,10 @@ def check_struct_log_type(
     ]
 
     response = tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
+
+    if check_structLogs:  # no structLogs in transactions from precompiled contracts
+        assert len(response["result"]["structLogs"]) > 0, "No structLogs in response"
+
     if wait_error:
         assert response["result"]["failed"] is True
     else:
