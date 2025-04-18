@@ -431,8 +431,8 @@ class TestDebugTraceIterativeTransaction:
         check_struct_log_type(self.tracer_api, tx_data)
         check_call_tracer_type(self.tracer_api, tx_data)
 
-    def test_trace_failed_iterative_tx(self, fail_contract):
-        contract = fail_contract
+    def test_trace_failed_iterative_tx(self, expected_error_checker):
+        contract = expected_error_checker
         sender_account = self.accounts[0]
         tx = self.web3_client.make_raw_tx(sender_account, gas=10000000)
         instruction_tx = contract.functions.runLoopWithZeroDivision().build_transaction(tx)

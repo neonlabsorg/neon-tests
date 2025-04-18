@@ -1,6 +1,9 @@
+// SPDX-License-Identifier: MIT
 
+pragma solidity ^0.8.0;
 contract A {
     int a = 0;
+    uint public M;
     string[10] text_array;
 
     function method1() public {
@@ -15,26 +18,15 @@ contract A {
             text_array[i] = text;
         }
     }
-}
 
-contract Divider {
-    function riskyDivision(uint a, uint b) external pure returns (uint) {
-        return a / b;
-    }
-}
-
-contract Fail {
-    Divider public myDivider;
-    uint public M;
-
-    constructor(address _address) {
-        myDivider = Divider(_address);
+    function riskyDivision(uint x, uint y) public pure returns (uint) {
+        return x / y;
     }
 
     function runLoopWithZeroDivision() public {
         for (uint i = 0; i < 300; i++) {
             if (i == 250) {
-                uint result = myDivider.riskyDivision(i, 0);
+                uint result = riskyDivision(i, 0);
                 M += result;
             } else {
                 M += 1;
