@@ -230,7 +230,6 @@ jobs:
       - name: Run basic proxy tests
         timeout-minutes: 120
         run: |
-
           CMD="python3 ./clickfile.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }} --case \"${{ github.event.inputs.pytest_k}}\" --marker \"${{ github.event.inputs.pytest_m}}\""
 
           if [[ "${{ env.GENERATE_COST_REPORT }}" == "true" ]]; then
