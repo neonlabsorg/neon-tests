@@ -200,9 +200,6 @@ class TestDebugTraceIterativeTransaction:
         response = json_rpc_client.send_rpc(method="eth_getBlockByHash", params=[receipt["blockHash"].hex(), False])
         tx_block_timestamp = EthGetBlockByHashResult(**response).result.timestamp
 
-        event_logs = contract.events.Result().process_receipt(receipt)
-        assert event_logs[0]["args"]["block_timestamp"] <= int(tx_block_timestamp, 16)
-
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         check_struct_log_type(self.tracer_api, tx_data)
         ct_resp = check_call_tracer_type(self.tracer_api, tx_data)

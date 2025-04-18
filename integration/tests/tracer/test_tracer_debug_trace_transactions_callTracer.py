@@ -535,7 +535,6 @@ class TestDebugTraceTransactionCallTracer:
         web3_client: NeonChainWeb3Client,
         accounts: EthAccounts,
         neon_token_contract,
-        bank_account,
     ):
         tx_type = TransactionType(2)
         sender_account = accounts[0]
