@@ -34,7 +34,9 @@ def check_call_tracer_type(
 
     if wait_error:
         assert "error" in response["result"]
-        assert response["result"]["error"] == error_message
+        assert (
+            response["result"]["error"] == error_message
+        ), f'Waited {error_message}, got {response["result"]["error"]}'
     else:
         assert "error" not in response["result"]
 
@@ -45,7 +47,6 @@ def check_struct_log_type(
     tracer_api,
     tx_data,
     wait_error=False,
-    error_message="",
     wait_return_value=False,
     return_value="",
     check_structLogs=True,
@@ -70,7 +71,7 @@ def check_struct_log_type(
     if wait_error:
         assert response["result"]["failed"] is True
     else:
-        assert "error" not in response["result"], "Error in response"
+        assert response["result"]["failed"] is False, "Error in response"
     if wait_return_value:
         assert (
             response["result"]["returnValue"] == return_value

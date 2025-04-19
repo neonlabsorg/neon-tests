@@ -439,7 +439,8 @@ class TestDebugTraceIterativeTransaction:
         tx = self.web3_client.make_raw_tx(sender_account, gas=10000000)
         instruction_tx = contract.functions.runLoopWithZeroDivision().build_transaction(tx)
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
+        assert receipt["status"] == 0
 
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        check_struct_log_type(self.tracer_api, tx_data)
-        check_call_tracer_type(self.tracer_api, tx_data)
+        check_struct_log_type(self.tracer_api, tx_data, wait_error=True)
+        check_call_tracer_type(self.tracer_api, tx_data, wait_error=True, error_message="execution failed")
