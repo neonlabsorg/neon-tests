@@ -25,7 +25,9 @@ RUN update-alternatives --install /usr/bin/python3 python /usr/bin/python3.8 1
 COPY ./deploy/requirements/* /opt/neon-tests/
 
 WORKDIR /opt/neon-tests
-RUN uv venv
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 && \
+    pip3 install uv && \
+    uv venv
 
 ENV VIRTUAL_ENV=.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
