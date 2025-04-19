@@ -76,6 +76,3 @@ RUN mkdir -p ${DOWNLOAD_PATH} && \
     curl -o ${DOWNLOAD_PATH}/${SOLC_BINARY} ${REPOSITORY_PATH}/${SOLC_BINARY} && \
     curl -o ${DOWNLOAD_PATH}/list.json ${REPOSITORY_PATH}/list.json && \
     chmod -R 755 ${DOWNLOAD_PATH}
-
-# Remove all files except .venv and contracts directories
-find . -maxdepth 1 -not \( -name "." -o -name ".venv" -o -name "contracts" \) -exec rm -rf {} \;
