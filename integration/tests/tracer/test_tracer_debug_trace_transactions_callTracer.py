@@ -1,23 +1,23 @@
+import logging
 import random
 import allure
 import pytest
 from _pytest.config import Config
 from solders.keypair import Keypair as SolanaAccount
 
-from solana.transaction import AccountMeta, Instruction
 
 from deepdiff import DeepDiff
-from solders.pubkey import Pubkey
 
 from integration.tests.basic.helpers.basic import AccountData
-from utils.consts import COUNTER_ID, LAMPORT_PER_SOL
+from integration.tests.tracer.tracer_helper import check_struct_log_type, check_call_tracer_type
 from utils.operator import Operator
 from utils.solana_client import SolanaClient
 from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
 from utils.tracer_client import TracerClient
-from utils.helpers import serialize_instruction
+
+LOGGER = logging.getLogger(__name__)
 
 
 @allure.feature("Tracer API")
@@ -106,6 +106,7 @@ class TestDebugTraceTransactionCallTracer:
 
         return expected_response
 
+    @allure.step("Check tracer response matches expected response")
     def assert_response_contains_expected(self, pytestconfig, expected_response, response, sort_calls=False):
         if sort_calls:
             expected_response["calls"] = sorted(expected_response["calls"], key=lambda d: d["type"])
@@ -127,7 +128,8 @@ class TestDebugTraceTransactionCallTracer:
                     exclude_list.append(f"root['calls'][{i}]['logs'][0]['position']")
         else:
             exclude_list = []
-
+        logging.debug(f"Expected response: {expected_response}")
+        logging.debug(f"Response: {response['result']}")
         diff = DeepDiff(expected_response, response["result"], exclude_paths=exclude_list)
         # check if expected_response is subset of response
         assert "dictionary_item_removed" not in diff
@@ -523,7 +525,7 @@ class TestDebugTraceTransactionCallTracer:
         assert response["result"]["calls"][0]["calls"][0]["type"] == "CREATE"
         assert response["result"]["calls"][0]["logs"][0]["topics"][0] == "0x" + receipt["logs"][0]["topics"][0].hex()
 
-    def test_callTracer_precompiled_neon_contract(
+    def test_trace_precompiled_neon_contract(
         self,
         pytestconfig: Config,
         neon_price: float,
@@ -532,47 +534,29 @@ class TestDebugTraceTransactionCallTracer:
         operator: Operator,
         web3_client: NeonChainWeb3Client,
         accounts: EthAccounts,
-        tracer_validator,
+        neon_token_contract,
     ):
         tx_type = TransactionType(2)
         sender_account = accounts[0]
         sol_user = SolanaAccount()
-        sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
 
         move_amount = web3_client._web3.to_wei(5, "ether")
-        contract, _ = web3_client.deploy_and_get_contract(
-            contract="precompiled/NeonToken",
-            version="0.8.10",
-            account=sender_account,
-            tx_type=tx_type,
-        )
 
         tx = self.web3_client.make_raw_tx(from_=sender_account, amount=move_amount, tx_type=tx_type)
-        instruction_tx = contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
+        instruction_tx = neon_token_contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
         receipt = web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
-        tracer_validator.check_all_tracer_types(receipt)
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        check_struct_log_type(self.tracer_api, tx_data)
+        check_call_tracer_type(self.tracer_api, tx_data)
 
-    def test_callTracer_precompiled_solana_contract(
-        self, call_solana_caller, counter_resource_address: bytes, pytestconfig, tracer_validator
-    ):
-        sender = self.accounts[0]
-        lamports = 0
+    def test_trace_trivial_error_tx_with_gas_caller(self, revert_contract_caller):
+        sender_account = self.accounts[0]
+        tx = self.web3_client.make_raw_tx(sender_account, gas=10000000)
+        instruction_tx = revert_contract_caller.functions.doTrivialRevert().build_transaction(tx)
+        receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
 
-        instruction = Instruction(
-            program_id=COUNTER_ID,
-            accounts=[
-                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
-            ],
-            data=bytes([0x1]),
-        )
-        serialized = serialize_instruction(COUNTER_ID, instruction)
-
-        tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.executeWithGetReturnData(lamports, serialized).build_transaction(
-            tx
-        )
-
-        receipt = self.web3_client.send_transaction(sender, instruction_tx)
-        tracer_validator.check_all_tracer_types(receipt)
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        check_call_tracer_type(self.tracer_api, tx_data, wait_error=True, error_message="execution reverted")
+        check_struct_log_type(self.tracer_api, tx_data, wait_error=True)
