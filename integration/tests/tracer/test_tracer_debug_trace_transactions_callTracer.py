@@ -2,7 +2,6 @@ import logging
 import random
 import allure
 import pytest
-from _pytest.config import Config
 from solders.keypair import Keypair as SolanaAccount
 
 
@@ -10,8 +9,6 @@ from deepdiff import DeepDiff
 
 from integration.tests.basic.helpers.basic import AccountData
 from integration.tests.tracer.tracer_helper import check_struct_log_type, check_call_tracer_type
-from utils.operator import Operator
-from utils.solana_client import SolanaClient
 from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
@@ -527,11 +524,6 @@ class TestDebugTraceTransactionCallTracer:
 
     def test_trace_precompiled_neon_contract(
         self,
-        pytestconfig: Config,
-        neon_price: float,
-        sol_price: float,
-        sol_client: SolanaClient,
-        operator: Operator,
         web3_client: NeonChainWeb3Client,
         accounts: EthAccounts,
         neon_token_contract,
@@ -551,7 +543,7 @@ class TestDebugTraceTransactionCallTracer:
         check_struct_log_type(self.tracer_api, tx_data)
         check_call_tracer_type(self.tracer_api, tx_data)
 
-    def test_trace_trivial_error_tx_with_gas_caller(self, revert_contract_caller):
+    def test_trace_trivial_error_tx(self, revert_contract_caller):
         sender_account = self.accounts[0]
         tx = self.web3_client.make_raw_tx(sender_account, gas=10000000)
         instruction_tx = revert_contract_caller.functions.doTrivialRevert().build_transaction(tx)

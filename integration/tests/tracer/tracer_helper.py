@@ -49,7 +49,7 @@ def check_struct_log_type(
     wait_error=False,
     wait_return_value=False,
     return_value="",
-    check_structLogs=True,
+    check_struct_logs=True,
 ):
     params = [
         {
@@ -65,7 +65,7 @@ def check_struct_log_type(
 
     response = tracer_api.send_rpc_and_wait_response("debug_traceCall", params)
 
-    if check_structLogs:  # no structLogs in transactions from precompiled contracts
+    if check_struct_logs:  # no structLogs in transactions from precompiled contracts
         assert len(response["result"]["structLogs"]) > 0, "No structLogs in response"
 
     if wait_error:
