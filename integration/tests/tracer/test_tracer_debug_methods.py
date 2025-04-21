@@ -467,4 +467,4 @@ class TestTracerDebugMethods:
         receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         check_call_tracer_type(self.tracer_api, tx_data)
-        check_struct_log_type(self.tracer_api, tx_data, check_structLogs=False)
+        check_struct_log_type(self.tracer_api, tx_data, check_struct_logs=False)
