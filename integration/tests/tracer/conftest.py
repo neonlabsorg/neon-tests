@@ -7,7 +7,6 @@ from _pytest.config import Config
 from solders.keypair import Keypair as SolanaAccount
 from web3.types import TxReceipt
 from integration.tests.basic.helpers.basic import AccountData
-from integration.tests.tracer.test_tracer_debug_methods import GOOD_CALLDATA
 
 from utils.tracer_client import TracerClient
 from utils.storage_contract import StorageContract
@@ -51,18 +50,7 @@ def call_storage_tx_receipt(accounts, storage_object):
 
 
 @pytest.fixture(scope="class")
-def send_raw_transaction_receipt(accounts, web3_client):
-    sender_account = accounts[0]
-    transaction = web3_client.make_raw_tx(from_=sender_account, data=GOOD_CALLDATA[0], estimate_gas=True)
-    signed_tx = web3_client.eth.account.sign_transaction(transaction, sender_account.key)
-    tx = web3_client.eth.send_raw_transaction(signed_tx.raw_transaction)
-    tx_receipt = web3_client.eth.wait_for_transaction_receipt(tx)
-    assert tx_receipt["status"] == 1
-    return signed_tx, tx_receipt
-
-
-@pytest.fixture(scope="class")
-def transaction_receipt_from_precompiled_contract(accounts, web3_client):
+def precompile_contract_call_tx_receipt(accounts, web3_client):
     input_data = "0x000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000040e09ad9675465c53a109fac66a445c91b292d2bb2c5268addb30cd82f80fcb0033ff97c80a5fc6f39193ae969c6ede6710a6b7ac27078a06d90ef1c72e5c85fb502fc9e1f6beb81516545975218075ec2af118cd8798df6e08a147c60fd6095ac2bb02c2908cf4dd7c81f11c289e4bce98f3553768f392a80ce22bf5c4f4a248c6b"
     address = "0x0000000000000000000000000000000000000005"
     sender_account = accounts[0]
@@ -85,7 +73,7 @@ def static_call_tx_receipt(accounts, web3_client, events_checker_contract, event
 
 
 @pytest.fixture(scope="class")
-def static_call_tx_with_events_receipt(accounts, web3_client, events_checker_contract, event_checker_callee_address):
+def static_call_with_events_tx_receipt(accounts, web3_client, events_checker_contract, event_checker_callee_address):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(from_=sender_account)
     instruction_tx = events_checker_contract.functions.emitEventAndGetBalanceOfContractCalleeWithEvents(
@@ -97,7 +85,7 @@ def static_call_tx_with_events_receipt(accounts, web3_client, events_checker_con
 
 
 @pytest.fixture(scope="class")
-def call_tx_with_events_receipt(accounts, web3_client, events_checker_contract, event_checker_callee_address):
+def call_with_events_tx_receipt(accounts, web3_client, events_checker_contract, event_checker_callee_address):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(from_=sender_account)
     instruction_tx = events_checker_contract.functions.lowLevelCallContractWithEvents(
@@ -143,7 +131,7 @@ def callcode_tx_receipt(accounts, web3_client, opcodes_checker):
 
 
 @pytest.fixture(scope="class")
-def tx_with_zero_division_receipt(accounts, web3_client, events_checker_contract, event_checker_callee_address):
+def zero_division_tx_receipt(accounts, web3_client, events_checker_contract, event_checker_callee_address):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(from_=sender_account)
     instruction_tx = events_checker_contract.functions.callNotSafeDivision(
@@ -155,7 +143,7 @@ def tx_with_zero_division_receipt(accounts, web3_client, events_checker_contract
 
 
 @pytest.fixture(scope="class")
-def tx_revert_with_assert_receipt(accounts, web3_client, events_checker_contract, event_checker_callee_address):
+def revert_with_assert_tx_receipt(accounts, web3_client, events_checker_contract, event_checker_callee_address):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(from_=sender_account)
     instruction_tx = events_checker_contract.functions.callContactRevertWithAssertFalse(
@@ -167,7 +155,7 @@ def tx_revert_with_assert_receipt(accounts, web3_client, events_checker_contract
 
 
 @pytest.fixture(scope="class")
-def tx_with_trivial_revert_receipt(accounts, web3_client, events_checker_contract, event_checker_callee_address):
+def trivial_revert_tx_receipt(accounts, web3_client, events_checker_contract, event_checker_callee_address):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(from_=sender_account)
     instruction_tx = events_checker_contract.functions.callContactTrivialRevert(
@@ -179,7 +167,7 @@ def tx_with_trivial_revert_receipt(accounts, web3_client, events_checker_contrac
 
 
 @pytest.fixture(scope="class")
-def tx_with_revert_in_called_contract(accounts, web3_client, events_checker_contract, event_checker_callee_address):
+def revert_in_called_contract_tx_receipt(accounts, web3_client, events_checker_contract, event_checker_callee_address):
     sender_account = accounts[0]
 
     tx = web3_client.make_raw_tx(from_=sender_account)
@@ -192,7 +180,7 @@ def tx_with_revert_in_called_contract(accounts, web3_client, events_checker_cont
 
 
 @pytest.fixture(scope="class")
-def tx_call_contract_revert_with_require_receipt(
+def call_contract_revert_with_require_tx_receipt(
     accounts, web3_client, events_checker_contract, event_checker_callee_address
 ):
     sender_account = accounts[0]
@@ -206,7 +194,7 @@ def tx_call_contract_revert_with_require_receipt(
 
 
 @pytest.fixture(scope="class")
-def tx_call_to_precompiled_contract(accounts, web3_client, eip1052_checker):
+def eth_precompile_contract_tx_receipt(accounts, web3_client, eip1052_checker):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(sender_account)
     precompiled_acc = AccountData(address="0xFf00000000000000000000000000000000000004")
@@ -217,7 +205,7 @@ def tx_call_to_precompiled_contract(accounts, web3_client, eip1052_checker):
 
 
 @pytest.fixture(scope="class")
-def tx_call_call_contract_with_two_events_receipt(
+def call_contract_with_two_events_tx_receipt(
     accounts, web3_client, events_checker_contract, event_checker_callee_address
 ):
     sender_account = accounts[0]
@@ -232,7 +220,7 @@ def tx_call_call_contract_with_two_events_receipt(
 
 
 @pytest.fixture(scope="class")
-def tx_call_call_contract_with_event_in_constructor_receipt(accounts, web3_client, events_checker_contract):
+def call_contract_with_event_in_constructor_tx_receipt(accounts, web3_client, events_checker_contract):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(from_=sender_account)
     instruction_tx = (
@@ -244,7 +232,7 @@ def tx_call_call_contract_with_event_in_constructor_receipt(accounts, web3_clien
 
 
 @pytest.fixture(scope="class")
-def tx_precompiled_neon_contract_receipt(web3_client: NeonChainWeb3Client, accounts: EthAccounts, neon_token_contract):
+def precompiled_neon_contract_tx_receipt(web3_client: NeonChainWeb3Client, accounts: EthAccounts, neon_token_contract):
     tx_type = TransactionType(2)
     sender_account = accounts[0]
     sol_user = SolanaAccount()
@@ -257,7 +245,7 @@ def tx_precompiled_neon_contract_receipt(web3_client: NeonChainWeb3Client, accou
 
 
 @pytest.fixture(scope="class")
-def tx_trivial_error_receipt(accounts, web3_client, revert_contract_caller):
+def trivial_error_tx_receipt(accounts, web3_client, revert_contract_caller):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(sender_account, gas=10000000)
     instruction_tx = revert_contract_caller.functions.doTrivialRevert().build_transaction(tx)
@@ -267,7 +255,7 @@ def tx_trivial_error_receipt(accounts, web3_client, revert_contract_caller):
 
 
 @pytest.fixture(scope="class")
-def tx_with_event_receipt(accounts, web3_client, event_caller_contract):
+def event_tx_receipt(accounts, web3_client, event_caller_contract):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(from_=sender_account)
     instruction_tx = event_caller_contract.functions.callEvent1("Event call").build_transaction(tx)

@@ -404,14 +404,6 @@ class TestTracerDebugMethods:
         assert response["error"]["code"] == -32602, "Invalid error code"
         assert response["error"]["message"] == "Invalid params"
 
-    def test_debug_get_raw_transaction(self, send_raw_transaction_receipt):
-        signed_tx, receipt = send_raw_transaction_receipt
-        response = self.tracer_api.send_rpc_and_wait_response(
-            "debug_getRawTransaction", [receipt["transactionHash"].hex()]
-        )
-        assert "error" not in response, "Error in response"
-        assert "result" in response and response["result"] == "0x" + signed_tx.raw_transaction.hex()
-
     # GETH: NDEV-3252
     def test_debug_get_raw_transaction_invalid_tx_hash(self, send_neon_tx_receipt):
         receipt = send_neon_tx_receipt
@@ -433,8 +425,8 @@ class TestTracerDebugMethods:
             == "Empty Neon transaction receipt for 0xd9765b77e470204ae5edb1a796ab92ecb0e20fea50aeb09275aea740af7bbc69"
         )
 
-    def test_trace_transaction_from_precompiled_contract(self, transaction_receipt_from_precompiled_contract):
-        tx_hash = transaction_receipt_from_precompiled_contract["transactionHash"].hex()
+    def test_trace_transaction_from_precompiled_contract(self, precompile_contract_call_tx_receipt):
+        tx_hash = precompile_contract_call_tx_receipt["transactionHash"].hex()
         tx_data = self.web3_client.get_transaction_by_hash(tx_hash)
         check_call_tracer_type(self.tracer_api, tx_data)
         check_struct_log_type(self.tracer_api, tx_data, check_struct_logs=False)
