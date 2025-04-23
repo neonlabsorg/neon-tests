@@ -38,10 +38,10 @@ class TracerClient:
     def debug_trace_transaction(
         self,
         tx_hash: str,
+        tracer_type: str = "",
         with_log=False,
         only_top_call=False,
         wait_response: int = 120,
-        tracer_type: str = "",
     ):
         params = [tx_hash]
         if tracer_type or with_log or only_top_call:
@@ -50,24 +50,41 @@ class TracerClient:
 
         return self.send_rpc_and_wait_response("debug_traceTransaction", params, timeout_sec=wait_response)
 
-    def debug_trace_block_by_number(self, block_number: str, with_log=False, only_top_call=False):
-        params = [
-            block_number,
-            {"tracer": "callTracer", "tracerConfig": {"withLog": with_log, "OnlyTopCall": only_top_call}},
-        ]
+    def debug_trace_block_by_number(
+        self,
+        block_number: str,
+        tracer_type: str = "",
+        with_log=False,
+        only_top_call=False,
+    ):
+
+        params = [block_number]
+        if tracer_type or with_log or only_top_call:
+            cfg = {"withLog": with_log, "OnlyTopCall": only_top_call}
+            params.append({"tracer": tracer_type, "tracerConfig": cfg})
+
         response = self.tracer_api.send_rpc("debug_traceBlockByNumber", params)
         return response
 
-    def debug_trace_block_by_hash(self, block_hash: str, with_log=False, only_top_call=False):
-        params = [
-            block_hash,
-            {"tracer": "callTracer", "tracerConfig": {"withLog": with_log, "OnlyTopCall": only_top_call}},
-        ]
+    def debug_trace_block_by_hash(
+        self,
+        block_hash: str,
+        tracer_type: str = "",
+        with_log=False,
+        only_top_call=False,
+    ):
+        params = [block_hash]
+
+        if tracer_type or with_log or only_top_call:
+            cfg = {"withLog": with_log, "OnlyTopCall": only_top_call}
+            params.append({"tracer": tracer_type, "tracerConfig": cfg})
+
         response = self.tracer_api.send_rpc("debug_traceBlockByHash", params)
         return response
 
-    def debug_get_raw_header_by_block_number(self, block_number: str):
-        params = [block_number]
+    def debug_get_raw_header_by_block(self, block: str):
+        """block - block number or block hash in hex format"""
+        params = [block]
         response = self.send_rpc_and_wait_response("debug_getRawHeader", params)
         return response
 
@@ -83,7 +100,7 @@ class TracerClient:
 
     def debug_get_modified_accounts_by_hash(self, block_hashes: list[str]):
         params = block_hashes
-        response = self.send_rpc_and_wait_response("debug_getModifiedAccountsByNumber", params)
+        response = self.send_rpc_and_wait_response("debug_getModifiedAccountsByHash", params)
         return response
 
     def debug_get_raw_transaction(
