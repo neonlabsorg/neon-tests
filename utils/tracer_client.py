@@ -37,20 +37,18 @@ class TracerClient:
 
     def debug_trace_transaction(
         self,
-        tx_hash: str = "",
+        tx_hash: str,
         with_log=False,
         only_top_call=False,
-        wait_response: int = 0,
+        wait_response: int = 120,
+        tracer_type: str = "",
     ):
-        params = [
-            tx_hash,
-            {"tracer": "callTracer", "tracerConfig": {"withLog": with_log, "OnlyTopCall": only_top_call}},
-        ]
-        if wait_response:
-            response = self.send_rpc_and_wait_response("debug_traceTransaction", params, timeout_sec=wait_response)
-        else:
-            response = self.send_rpc("debug_traceTransaction", params)
-        return response
+        params = [tx_hash]
+        if tracer_type or with_log or only_top_call:
+            cfg = {"withLog": with_log, "OnlyTopCall": only_top_call}
+            params.append({"tracer": tracer_type, "tracerConfig": cfg})
+
+        return self.send_rpc_and_wait_response("debug_traceTransaction", params, timeout_sec=wait_response)
 
     def debug_trace_block_by_number(self, block_number: str, with_log=False, only_top_call=False):
         params = [
