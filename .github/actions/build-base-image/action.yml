@@ -57,7 +57,7 @@ runs:
           # For pull requests, base_ref is the target branch
           parent_name="${{ github.event.pull_request.base.ref }}"
         else
-            parent_name="develop"
+          parent_name="develop"
         fi
         echo "parent_name=${parent_name}" >> $GITHUB_OUTPUT
         echo "Parent branch: ${parent_name}"
@@ -86,8 +86,13 @@ runs:
       shell: bash
       run: |
         echo "Checking if image ${{ inputs.image_name }}:${{ steps.parent_branch.outputs.parent_name }} exists in Docker Hub"
+        if [ ${{ steps.parent_branch.outputs.parent_name }} == 'develop' ]; then
+          parent_branch = 'develop'
+        else
+          parent_branch = ${{ steps.parent_branch.outputs.parent_name }}
+        fi
 
-        if docker manifest inspect ${{ inputs.image_name }}:${{ steps.parent_branch.outputs.parent_name }} > /dev/null 2>&1; then
+        if docker manifest inspect ${{ inputs.image_name }}:$parent_branch > /dev/null 2>&1; then
           echo "Parent branch image exists in Docker Hub"
           echo "exists=true" >> $GITHUB_OUTPUT
         else
