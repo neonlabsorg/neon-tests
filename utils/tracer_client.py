@@ -50,65 +50,51 @@ class TracerClient:
 
         return self.send_rpc_and_wait_response("debug_traceTransaction", params, timeout_sec=wait_response)
 
-    def debug_trace_block_by_number(
+    def debug_trace_block_by_hash_or_number(
         self,
-        block_number: str,
+        req_type: str,
+        block_hash_or_number: str,
         tracer_type: str = "",
         with_log=False,
         only_top_call=False,
     ):
 
-        params = [block_number]
+        params = [block_hash_or_number]
         if tracer_type or with_log or only_top_call:
             cfg = {"withLog": with_log, "OnlyTopCall": only_top_call}
             params.append({"tracer": tracer_type, "tracerConfig": cfg})
 
-        response = self.tracer_api.send_rpc("debug_traceBlockByNumber", params)
+        if req_type == "hash":
+            method = "debug_traceBlockByHash"
+        else:
+            method = "debug_traceBlockByNumber"
+        response = self.tracer_api.send_rpc(method, params)
         return response
 
-    def debug_trace_block_by_hash(
-        self,
-        block_hash: str,
-        tracer_type: str = "",
-        with_log=False,
-        only_top_call=False,
+    def debug_get_raw_header_by_block_hash_or_number(self, block_hash_or_number: str):
+        """block_hash_or_number - block number or block hash in hex format"""
+        params = [block_hash_or_number]
+        response = self.send_rpc_and_wait_response("debug_getRawHeader", params)
+        return response
+
+    def debug_get_modified_accounts_by_block_hashes_or_numbers(
+        self, block_hashes_or_numbers: list[str], param_type="hash"
     ):
-        params = [block_hash]
-
-        if tracer_type or with_log or only_top_call:
-            cfg = {"withLog": with_log, "OnlyTopCall": only_top_call}
-            params.append({"tracer": tracer_type, "tracerConfig": cfg})
-
-        response = self.tracer_api.send_rpc("debug_traceBlockByHash", params)
-        return response
-
-    def debug_get_raw_header_by_block(self, block: str):
-        """block - block number or block hash in hex format"""
-        params = [block]
-        response = self.send_rpc_and_wait_response("debug_getRawHeader", params)
-        return response
-
-    def debug_get_raw_header_by_block_hash(self, block_hash: str):
-        params = [block_hash]
-        response = self.send_rpc_and_wait_response("debug_getRawHeader", params)
-        return response
-
-    def debug_get_modified_accounts_by_number(self, block_numbers: list[str]):
-        params = block_numbers
-        response = self.send_rpc_and_wait_response("debug_getModifiedAccountsByNumber", params)
-        return response
-
-    def debug_get_modified_accounts_by_hash(self, block_hashes: list[str]):
-        params = block_hashes
-        response = self.send_rpc_and_wait_response("debug_getModifiedAccountsByHash", params)
+        """block_hashes_or_numbers - blocks number or block hash in hex format"""
+        params = block_hashes_or_numbers
+        if param_type == "number":
+            method = "debug_getModifiedAccountsByNumber"
+        else:
+            method = "debug_getModifiedAccountsByHash"
+        response = self.send_rpc_and_wait_response(method, params)
         return response
 
     def debug_get_raw_transaction(
         self,
-        block_hash: str,
+        tx_hash: str,
         timeout_sec: int = 0,
     ):
-        params = [block_hash]
+        params = [tx_hash]
         if timeout_sec:
             response = self.send_rpc_and_wait_response("debug_getRawTransaction", params, timeout_sec=timeout_sec)
         else:
