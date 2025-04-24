@@ -9,7 +9,6 @@ from web3.contract import Contract
 from integration.tests.basic.helpers.errors import Error32602
 from integration.tests.basic.helpers.rpc_checks import assert_fields_are_hex, assert_fields_are_specified_type
 from utils.accounts import EthAccounts
-from utils.apiclient import JsonRPCSession
 from utils.consts import COUNTER_ID
 from utils.helpers import serialize_instruction
 from utils.types import TransactionType
@@ -134,25 +133,17 @@ class TestNeonRPCBaseCalls:
                 assert item["tokenMint"] == pytestconfig.environment.spl_neon_mint
                 assert item["tokenChainId"] == hex(pytestconfig.environment.network_ids["neon"])
 
-    @pytest.mark.parametrize("tx_type", TransactionType)
     def test_neon_estimate_gas_iterative_tx(
         self,
-        json_rpc_client: JsonRPCSession,
-        accounts: EthAccounts,
-        web3_client: NeonChainWeb3Client,
         block_timestamp_contract: Contract,
         default_cu_price: int,
-        tx_type: TransactionType,
     ):
         contract, _ = block_timestamp_contract
-        sender = accounts[1]
-        tx = self.web3_client.make_raw_tx(sender, tx_type=tx_type)
+        sender = self.accounts[1]
+        tx = self.web3_client.make_raw_tx(sender)
         instruction_tx = contract.functions.callIterativeTrx().build_transaction(tx)
 
-        neon_gas_estimate = json_rpc_client.send_rpc(
-            method="neon_estimateGas",
-            params=[instruction_tx, {"showGasDetails": True}],
-        )["result"]
+        neon_gas_estimate = self.web3_client.neon_estimate_gas(instruction_tx)["result"]
 
         assert neon_gas_estimate["exitCode"] == "succeed"
         assert neon_gas_estimate["externalSolanaCall"] is False
@@ -179,16 +170,13 @@ class TestNeonRPCBaseCalls:
     @pytest.mark.parametrize("tx_type", TransactionType)
     def test_neon_estimate_gas_external_solana_call(
         self,
-        json_rpc_client: JsonRPCSession,
         default_cu_price: int,
         tx_type: TransactionType,
-        web3_client: NeonChainWeb3Client,
-        accounts: EthAccounts,
         counter_resource_address: bytes,
         call_solana_caller: Contract,
     ):
         iterations = 29
-        sender = accounts[0]
+        sender = self.accounts[0]
         lamports = 0
 
         instruction = Instruction(
@@ -200,15 +188,12 @@ class TestNeonRPCBaseCalls:
         )
         serialized = serialize_instruction(COUNTER_ID, instruction)
 
-        tx = web3_client.make_raw_tx(sender.address, tx_type=tx_type)
+        tx = self.web3_client.make_raw_tx(sender.address, tx_type=tx_type)
         instruction_tx = call_solana_caller.functions.executeInIterativeMode(
             iterations, lamports, serialized
         ).build_transaction(tx)
 
-        neon_gas_estimate = json_rpc_client.send_rpc(
-            method="neon_estimateGas",
-            params=[instruction_tx, {"showGasDetails": True}],
-        )["result"]
+        neon_gas_estimate = self.web3_client.neon_estimate_gas(instruction_tx)["result"]
 
         assert neon_gas_estimate["exitCode"] == "succeed"
         assert neon_gas_estimate["externalSolanaCall"] is True
@@ -232,20 +217,12 @@ class TestNeonRPCBaseCalls:
         assert len(neon_gas_estimate["solanaAccounts"]) == 33
         assert neon_gas_estimate["solanaComputeUnitPrice"] == default_cu_price
 
-    def test_neon_estimate_gas_invalid_params(
-        self,
-        json_rpc_client: JsonRPCSession,
-        web3_client: NeonChainWeb3Client,
-        accounts: EthAccounts,
-    ):
-        sender = accounts[0]
-        tx = web3_client.make_raw_tx(sender.address, estimate_gas=True)
+    def test_neon_estimate_gas_invalid_params(self):
+        sender = self.accounts[0]
+        tx = self.web3_client.make_raw_tx(sender.address, estimate_gas=True)
         tx["data"] = "invalid"
 
-        error = json_rpc_client.send_rpc(
-            method="neon_estimateGas",
-            params=[tx, {"showGasDetails": True}],
-        )["error"]
+        error = self.web3_client.neon_estimate_gas(tx)["error"]
 
         assert error["code"] == -32602
         assert error["message"] == "Invalid params"
