@@ -86,10 +86,10 @@ runs:
       shell: bash
       run: |
         echo "Checking if image ${{ inputs.image_name }}:${{ steps.parent_branch.outputs.parent_name }} exists in Docker Hub"
-        if [ ${{ steps.parent_branch.outputs.parent_name }} == 'develop' ]; then
-          parent_tag = "latest"
+        if [[ "${{ steps.parent_branch.outputs.parent_name }}" == "develop" ]]; then
+          parent_tag="latest"
         else
-          parent_tag = "${{ steps.parent_branch.outputs.parent_name }}"
+          parent_tag="${{ steps.parent_branch.outputs.parent_name }}"
         fi
 
         if docker manifest inspect ${{ inputs.image_name }}:${parent_tag} > /dev/null 2>&1; then
