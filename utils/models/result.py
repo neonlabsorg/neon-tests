@@ -435,3 +435,36 @@ class NeonGetTransactionResult(EthResult):
 
 class SolanaByNeonTransaction(EthResult):
     result: List[str]
+
+
+class Action(BaseModel):
+    from_: HexString  # 'from'-reserved word changed to from_
+    callType: str
+    gas: GasPriceString
+    input: HexString
+    to: HexString
+    value: HexString
+
+    class Config:
+        fields = {"from_": "from"}
+
+
+class Result(BaseModel):
+    gasUsed: GasPriceString
+    output: HexString
+
+
+class TraceTransaction(BaseModel):
+    action: Action
+    blockHash: HexString
+    blockNumber: HexString
+    result: Result
+    subtraces: int
+    traceAddress: List[int]
+    transactionHash: HexString
+    transactionPosition: int
+    type: str
+
+
+class TraceTransactionResponse(EthResult):
+    result: List[TraceTransaction]

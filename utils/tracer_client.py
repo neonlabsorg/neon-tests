@@ -177,3 +177,7 @@ class TracerClient:
     def get_neon_revision(self, block: int):
         response = self.tracer_api.send_rpc(method="get_neon_revision", params=block)
         return response
+
+    def trace_transaction(self, tx_hash: str):
+        response = self.tracer_api.send_rpc(method="trace_transaction", params=[tx_hash])
+        return response
