@@ -816,7 +816,7 @@ def get_allure_history(name: str, network: str, destination: str = "./allure-res
 
 @allure_cli.command("upload-report", help="Upload allure history")
 @click.argument("name", type=click.Choice(TEST_GROUPS))
-@click.option("-n", "--network", default=EnvName.NIGHT_STAND, type=EnvName, help="In which stand run tests")
+@click.option("-n", "--network", default=EnvName.DEVNET, type=EnvName, help="In which stand run tests")
 @click.option(
     "-s",
     "--source",
@@ -858,7 +858,7 @@ def generate_allure_report():
 @click.option("-u", "--url", help="slack app endpoint url.")
 @click.option("-b", "--build_url", help="github action test build url.")
 @click.option(
-    "-n", "--network", type=click.Choice(EnvName), default=EnvName.NIGHT_STAND.value, help="In which stand run tests"
+    "-n", "--network", type=click.Choice(EnvName), default=EnvName.DEVNET.value, help="In which stand run tests"
 )
 @click.option("--test-group", help="Name of the failed test group")
 def send_notification(url, build_url, network, test_group: str):
