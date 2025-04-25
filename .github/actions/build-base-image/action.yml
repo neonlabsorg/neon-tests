@@ -129,15 +129,7 @@ runs:
           exit 0
         fi
 
-        # Case 1: Current branch image exists - use it and don't build
-        if [[ "${{ steps.check_branch_image.outputs.exists }}" == "true" ]]; then
-          echo "Current branch image exists, no need to build"
-          echo "need_build=false" >> $GITHUB_OUTPUT
-          echo "use_image=${{ inputs.image_name }}:${{ steps.current_branch.outputs.branch_name }}" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-
-        # Case 2: Parent branch image exists, requirements changed - need to build
+        # Case 1: Parent branch image exists, requirements changed - need to build
         if [[ "${{ steps.check_parent_image.outputs.exists }}" == "true" && "${{ steps.check_requirements.outputs.changed }}" == "true" ]]; then
           echo "Parent branch image exists but requirements changed, need to build new image"
           echo "need_build=true" >> $GITHUB_OUTPUT
@@ -145,7 +137,7 @@ runs:
           exit 0
         fi
 
-        # Case 3: Current branch image doesn't exist, parent branch image exists, no requirements changes - use parent image
+        # Case 2: Current branch image doesn't exist, parent branch image exists, no requirements changes - use parent image
         if [[ "${{ steps.check_parent_image.outputs.exists }}" == "true" && "${{ steps.check_requirements.outputs.changed }}" == "false" ]]; then
           echo "Parent branch image exists and requirements didn't change, using parent image"
           echo "need_build=false" >> $GITHUB_OUTPUT
@@ -153,7 +145,7 @@ runs:
           exit 0
         fi
 
-        # Case 4: Neither current branch nor parent branch images exist - need to build
+        # Case 3: Neither current branch nor parent branch images exist - need to build
         echo "Neither current branch nor parent branch images exist, need to build new image"
         echo "need_build=true" >> $GITHUB_OUTPUT
         echo "use_image=${{ inputs.image_name }}:${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
