@@ -8,7 +8,7 @@ from utils.solana_client import SolanaClient
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(SCRIPT_DIR))
 
-sol_client = SolanaClient("https://https://solana-api.instantnodes.io/token-OjVeh8exYGMeFh7QKIRLsF93T4xratD6")
+sol_client = SolanaClient("https://solana-api.instantnodes.io/")
 
 expected_time = "31-03-2025 12:14:00"
 
