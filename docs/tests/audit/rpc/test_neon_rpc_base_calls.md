@@ -15,3 +15,4 @@ Tests for neon rpc base endpoints (check availability and basic functionality)
 | TestNeonRPCBaseCalls::test_neon_estimate_gas_iterative_tx                                  | neon_estimateGas with iterative tx         |         |
 | TestNeonRPCBaseCalls::test_neon_estimate_gas_external_solana_call                          | neon_estimateGas with external Solana call |         |
 | TestNeonRPCBaseCalls::test_neon_estimate_gas_invalid_params                                | neon_estimateGas with invalid params       |         |
+| TestNeonRPCBaseCalls::test_neon_estimate_gas_failing_transaction                           | neon_estimateGas with failing tx           |         |
