@@ -67,20 +67,6 @@ runs:
       run: |
         echo "${{ inputs.docker_password }}" | docker login -u ${{ inputs.docker_username }} --password-stdin
 
-    - name: Check if current branch image exists in Docker Hub
-      id: check_branch_image
-      shell: bash
-      run: |
-        echo "Checking if image ${{ inputs.image_name }}:${{ steps.current_branch.outputs.branch_name }} exists in Docker Hub"
-
-        if docker manifest inspect ${{ inputs.image_name }}:${{ steps.current_branch.outputs.branch_name }} > /dev/null 2>&1; then
-          echo "Current branch image exists in Docker Hub"
-          echo "exists=true" >> $GITHUB_OUTPUT
-        else
-          echo "Current branch image does not exist in Docker Hub"
-          echo "exists=false" >> $GITHUB_OUTPUT
-        fi
-
     - name: Check if parent branch image exists in Docker Hub
       id: check_parent_image
       shell: bash
@@ -94,6 +80,7 @@ runs:
 
         if docker manifest inspect ${{ inputs.image_name }}:${parent_tag} > /dev/null 2>&1; then
           echo "Parent branch image exists in Docker Hub"
+          echo "parent_tag=${parent_tag}" >> $GITHUB_OUTPUT
           echo "exists=true" >> $GITHUB_OUTPUT
         else
           echo "Parent branch image does not exist in Docker Hub"
@@ -141,7 +128,7 @@ runs:
         if [[ "${{ steps.check_parent_image.outputs.exists }}" == "true" && "${{ steps.check_requirements.outputs.changed }}" == "false" ]]; then
           echo "Parent branch image exists and requirements didn't change, using parent image"
           echo "need_build=false" >> $GITHUB_OUTPUT
-          echo "use_image=${{ inputs.image_name }}:${{ steps.parent_branch.outputs.parent_name }}" >> $GITHUB_OUTPUT
+          echo "use_image=${{ inputs.image_name }}:${{ steps.check_parent_image.outputs.parent_tag }}" >> $GITHUB_OUTPUT
           exit 0
         fi
 
