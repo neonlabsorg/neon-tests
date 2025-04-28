@@ -30,10 +30,6 @@ outputs:
     description: 'The tag of the image to use for subsequent steps'
     value: ${{ steps.set_output.outputs.image_tag }}
 
-env:
-  CURRENT_BRANCH: "${{ github.head_ref || github.ref_name }}"
-  PARENT_BRANCH: "${{ github.event.pull_request.base.ref || 'develop' }}"
-
 runs:
   using: composite
   steps:
