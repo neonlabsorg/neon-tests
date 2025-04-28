@@ -28,17 +28,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Build base image first
-      id: base_image_build
-      uses: ./.github/actions/build-base-image
-      with:
-        image_tag: ${{ inputs.image_tag }}
-        image_name: ${{ inputs.docker_hub_org_name }}/neon_tests_base
-        oz_tag: ${{ inputs.oz_tag }}
-        docker_username: ${{ inputs.docker_username }}
-        docker_password: ${{ inputs.docker_password }}
-        docker_hub_org_name: ${{ inputs.docker_hub_org_name }}
-        force_rebuild: ${{ inputs.force_rebuild_base_image }}
 
     - name: Define feature or version branch
       id: feature_branch
@@ -52,6 +41,18 @@ runs:
          fi;
           echo "value=${value}"
           echo "value=${value}" >> $GITHUB_OUTPUT
+
+    - name: Build and push base neon test image
+      id: base_image_build
+      uses: ./.github/actions/build-base-image
+      with:
+        image_tag: ${{ inputs.image_tag }}
+        image_name: ${{ inputs.docker_hub_org_name }}/neon_tests_base
+        oz_tag: ${{ inputs.oz_tag }}
+        docker_username: ${{ inputs.docker_username }}
+        docker_password: ${{ inputs.docker_password }}
+        docker_hub_org_name: ${{ inputs.docker_hub_org_name }}
+        force_rebuild: ${{ inputs.force_rebuild_base_image }}
 
     - name: Build and push neon tests docker image
       id: docker_pipeline
