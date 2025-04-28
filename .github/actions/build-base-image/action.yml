@@ -38,6 +38,25 @@ runs:
   using: composite
   steps:
     - uses: actions/checkout@v4
+
+    - name: Set branch variables
+      id: set_branches
+      shell: bash
+      run: |
+        # Set current branch
+        if [[ -n "${{ github.head_ref }}" ]]; then
+          echo "CURRENT_BRANCH=${{ github.head_ref }}" >> $GITHUB_ENV
+        else
+          echo "CURRENT_BRANCH=${{ github.ref_name }}" >> $GITHUB_ENV
+        fi
+
+        # Set parent branch
+        if [[ -n "${{ github.event.pull_request.base.ref }}" ]]; then
+          echo "PARENT_BRANCH=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
+        else
+          echo "PARENT_BRANCH=develop" >> $GITHUB_ENV
+        fi
+
     - name: Docker login
       shell: bash
       run: |
