@@ -80,7 +80,6 @@ jobs:
     runs-on: ["self-hosted", "k8s-prod"]
     needs:
       - pre-commit-check
-      - base_image_build
     steps:
       - uses: actions/checkout@v4
       - name: Dockerize neon tests
@@ -102,7 +101,6 @@ jobs:
     runs-on: ["self-hosted", "k8s-prod"]
     needs:
       - pre-commit-check
-      - base_image_build
     if: always()
     steps:
       - uses: actions/checkout@v4
