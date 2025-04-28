@@ -527,15 +527,15 @@ def run(
         "oz": "",  # the command is defined in run_openzeppelin_tests()
     }
 
-    if name in commands:
-        command = commands[name]
-        if name == "basic":
-            if network == EnvName.MAINNET:
-                command += " -m mainnet"
-            if network == network.DEVNET:
-                command += " --retries 3 --retry-delay 2"
-    else:
-        raise click.ClickException(f"Test group {name} is not exist. ")
+    if name not in commands:
+        raise click.ClickException(f"Test group '{name}' does not exist.")
+    command = commands[name]
+
+    if name == "basic":
+        if network == EnvName.MAINNET:
+            command += " -m mainnet"
+        if network == EnvName.DEVNET:
+            command += " --retries 3 --retry-delay 2"
 
     if name in {"services", "compiler_compatibility", "evm", "basic"} and numprocesses:
         command += f" --numprocesses {numprocesses}"
