@@ -75,24 +75,6 @@ jobs:
       - uses: pre-commit/action@v3.0.1
         timeout-minutes: 3
 
-  base_image_build:
-    name: Build base test image
-    runs-on: [ "self-hosted", "k8s-prod" ]
-    needs: pre-commit-check
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build base test image
-        id: build_base_image
-        uses: ./.github/actions/build-base-image
-        with:
-          image_tag: ${{ github.sha }}
-          docker_username: ${{ secrets.DOCKER_USERNAME }}
-          docker_password: ${{ secrets.DOCKER_PASSWORD }}
-          image_name: ${{ env.BASE_IMAGE }}
-          docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
-          force_rebuild: ${{ env.REBUILD_BASE_IMAGE }}
-    outputs:
-      base_image_tag: ${{ steps.build_base_image.outputs.image_tag }}
   dockerize:
     name: Dockerize neon tests
     runs-on: ["self-hosted", "k8s-prod"]
@@ -109,7 +91,7 @@ jobs:
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
           image_name: ${{ env.IMAGE }}
           docker_hub_org_name: ${{ env.DOCKER_HUB_ORG_NAME }}
-          base_image_tag: ${{ needs.base_image_build.outputs.base_image_tag }}
+          force_rebuild_base_image: ${{ env.REBUILD_BASE_IMAGE }}
       - name: "Define image tag"
         id: image_tag
         uses: ./.github/actions/define-image-tag
