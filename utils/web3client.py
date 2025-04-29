@@ -252,7 +252,7 @@ class Web3Client:
         try:
             return self._web3.eth.wait_for_transaction_receipt(tx_hash, timeout=timeout)
         except web3.exceptions.TimeExhausted as e:
-            pytest.fail(f"Transaction {tx_hash} was not confirmed within {timeout} seconds. Error: {str(e)}")
+            pytest.fail(f"Transaction {tx_hash} was not executed within {timeout} seconds. Error: {str(e)}")
 
     @allure.step("Send transaction")
     def send_transaction(
