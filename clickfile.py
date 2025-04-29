@@ -547,7 +547,6 @@ def run(
         if not keep_error_log:
             error_log.clear()
         run_openzeppelin_tests(network, jobs=int(jobs), amount=int(amount), users=int(users))
-        return None
 
     if name == "tracer":
         if network != EnvName.GETH:
