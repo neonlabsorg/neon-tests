@@ -1,6 +1,7 @@
 import pytest
 
 import allure
+from spl.token.constants import WRAPPED_SOL_MINT
 from web3.types import TxReceipt
 
 from clickfile import EnvName
@@ -9,7 +10,6 @@ from integration.tests.basic.helpers.basic import Tag
 from integration.tests.basic.helpers.errors import Error32602
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
-from utils.consts import wSOL
 from utils.helpers import gen_hash_of_block, decode_function_signature, wait_condition
 from utils.models.error import EthError32602
 from utils.models.result import (
@@ -191,9 +191,7 @@ class TestRpcGetBlock:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        tree_account = evm_loader.create_tree_account(
-            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
-        )
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
 
         response = web3_client_sol.send_scheduled_transaction(tx, check_result=True)
         EthResult(**response)

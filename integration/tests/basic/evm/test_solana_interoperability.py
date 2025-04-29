@@ -10,7 +10,7 @@ from solana.rpc.types import TxOpts
 from solana.transaction import AccountMeta, Instruction
 from solders.pubkey import Pubkey
 from spl.token.client import Token as SplToken
-from spl.token.constants import TOKEN_PROGRAM_ID
+from spl.token.constants import TOKEN_PROGRAM_ID, WRAPPED_SOL_MINT
 from spl.token.instructions import (
     TransferParams,
     get_associated_token_address,
@@ -20,7 +20,7 @@ from spl.token.instructions import (
 import allure
 from utils.types import TransactionType
 from utils.accounts import EthAccounts
-from utils.consts import COUNTER_ID, TRANSFER_TOKENS_ID, wSOL
+from utils.consts import COUNTER_ID, TRANSFER_TOKENS_ID
 from utils.helpers import bytes32_to_solana_pubkey, serialize_instruction, wait_condition
 from utils.instructions import make_wSOL
 from utils.web3client import NeonChainWeb3Client
@@ -328,7 +328,7 @@ class TestSolanaInteroperability:
 
     def test_gas_estimate_for_wsol_transfer(self, new_solana_account, call_solana_caller, sol_client):
         sender = self.accounts[0]
-        mint = wSOL["address_spl"]
+        mint = WRAPPED_SOL_MINT
         recipient = Keypair()
 
         spl_token = SplToken(sol_client, mint, TOKEN_PROGRAM_ID, new_solana_account)

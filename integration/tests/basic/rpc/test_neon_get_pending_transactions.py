@@ -1,6 +1,6 @@
 from eth_utils import abi
+from spl.token.constants import WRAPPED_SOL_MINT
 
-from utils.consts import wSOL
 from utils.helpers import decode_function_signature, wait_condition
 from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData, ScheduledTrxEstimateRequest
 
@@ -18,9 +18,7 @@ class TestRPCNeonGetPendingTransactions:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(
-            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
-        )
+        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
 
         expected_status = "Done"
         wait_condition(
@@ -46,7 +44,7 @@ class TestRPCNeonGetPendingTransactions:
         )
         tree_acc_data.add_trx(tx, 0xFFFF, 0)
         evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"], chain_id=web3_client_sol.chain_id
+            neon_user, treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT, chain_id=web3_client_sol.chain_id
         )
         expected_status = "NoTransactionBody"
         wait_condition(
@@ -137,7 +135,7 @@ class TestRPCNeonGetPendingTransactions:
         tree_acc_data.add_trx(tx3, 0xFFFF, 1)
 
         evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"], chain_id=web3_client_sol.chain_id
+            neon_user, treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT, chain_id=web3_client_sol.chain_id
         )
 
         web3_client_sol.send_all_scheduled_transactions([tx0, tx1])  # dont send tx2
