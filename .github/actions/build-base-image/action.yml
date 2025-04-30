@@ -30,14 +30,29 @@ outputs:
     description: 'The tag of the image to use for subsequent steps'
     value: ${{ steps.set_output.outputs.image_tag }}
 
-env:
-  CURRENT_BRANCH: ${{ github.head_ref || github.ref_name }}
-  PARENT_BRANCH: ${{ github.event.pull_request.base.ref || develop }}
 
 runs:
   using: composite
   steps:
     - uses: actions/checkout@v4
+
+    - name: Set branch variables
+      id: set_branches
+      shell: bash
+      run: |
+        # Set current branch
+        if [[ -n "${{ github.head_ref }}" ]]; then
+          echo "CURRENT_BRANCH=${{ github.head_ref }}" >> $GITHUB_ENV
+        else
+          echo "CURRENT_BRANCH=${{ github.ref_name }}" >> $GITHUB_ENV
+        fi
+
+        # Set parent branch
+        if [[ -n "${{ github.event.pull_request.base.ref }}" ]]; then
+          echo "PARENT_BRANCH=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
+        else
+          echo "PARENT_BRANCH=develop" >> $GITHUB_ENV
+        fi
 
     - name: Docker login
       shell: bash
@@ -80,7 +95,7 @@ runs:
           exit 0
         fi
 
-        # Case 2: Current branch image doesn't exist, parent branch image exists, no requirements changes - use parent image
+        # Case 2: Parent branch image exists, no requirements changes - use parent image
         if [[ "${{ steps.check_requirements.outputs.changed }}" == "false" ]]; then
           echo "Parent branch image exists and requirements didn't change, using parent image"
           echo "need_build=false" >> $GITHUB_OUTPUT
