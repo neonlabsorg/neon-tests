@@ -18,7 +18,7 @@ class TestRPCNeonGetPendingTransactions:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
+        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
         expected_status = "Done"
         wait_condition(

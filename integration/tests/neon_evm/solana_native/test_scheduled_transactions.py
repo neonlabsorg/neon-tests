@@ -3,7 +3,6 @@ import pytest
 import solana
 from eth_utils import abi, to_int
 from solders.pubkey import Pubkey
-from spl.token.constants import WRAPPED_SOL_MINT
 
 from integration.tests.neon_evm.utils.assert_messages import InstructionAsserts
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
@@ -33,7 +32,7 @@ class TestScheduledTrx:
             call_data=data,
             chain_id=evm_loader.sol_chain_id,
         )
-        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
         transaction_tree_data = neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce)
         assert transaction_tree_data.get_transaction_count() == 1
 
@@ -72,7 +71,7 @@ class TestScheduledTrx:
             chain_id=evm_loader.sol_chain_id,
         )
 
-        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
         assert neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce).get_transaction_count() == 1
 
         additional_accounts = [
@@ -111,7 +110,7 @@ class TestScheduledTrx:
         )
 
         with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.TRANSACTION_TREE_INVALID_DATA):
-            evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
+            evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
     def test_send_sol_with_zero_fee(
         self,
@@ -148,7 +147,7 @@ class TestScheduledTrx:
             chain_id=evm_loader.sol_chain_id,
         )
         with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.TRANSACTION_TREE_NO_FEE):
-            evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
+            evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
     def test_out_of_gas(
         self,
@@ -183,7 +182,7 @@ class TestScheduledTrx:
         )
 
         with pytest.raises(solana.rpc.core.RPCException, match="transaction requires at least 25'000 gas limit"):
-            evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), mint=WRAPPED_SOL_MINT)
+            evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
     def test_send_sol_with_priority_fee(
         self,
@@ -226,7 +225,7 @@ class TestScheduledTrx:
         user_balance_before = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
         treasury_balance_before = evm_loader.get_solana_balance(treasury_pool_new.account)
 
-        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool_new, tx.encode(), WRAPPED_SOL_MINT)
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool_new, tx.encode())
 
         user_balance_after = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
         treasury_balance_after = evm_loader.get_solana_balance(treasury_pool_new.account)

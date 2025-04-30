@@ -30,7 +30,7 @@ class TestScheduledTrxERC20:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
+        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
         check_trx_is_success(web3_client_sol, evm_loader, tx.hash().hex(), timeout=180)
 
         balance_ata = erc20_spl_mintable.contract.functions.balanceOfATA(neon_user.checksum_address).call()
@@ -59,7 +59,7 @@ class TestScheduledTrxERC20:
 
         tx0 = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(neon_user, treasury_pool, tx0.encode(), WRAPPED_SOL_MINT)
+        evm_loader.create_tree_account(neon_user, treasury_pool, tx0.encode())
         check_trx_is_success(web3_client_sol, evm_loader, tx0.hash().hex(), timeout=180)
 
         assert erc20_spl_mintable.get_balance(recipient.checksum_address) == 2000
@@ -85,7 +85,7 @@ class TestScheduledTrxERC20:
 
         tx0 = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(neon_user, treasury_pool, tx0.encode(), WRAPPED_SOL_MINT)
+        evm_loader.create_tree_account(neon_user, treasury_pool, tx0.encode())
         check_trx_is_success(web3_client_sol, evm_loader, tx0.hash().hex(), timeout=180)
 
         balance_pda = erc20_spl_mintable.contract.functions.balanceOfPDA(neon_user.checksum_address).call()
@@ -122,7 +122,7 @@ class TestScheduledTrxERC20:
             chain_id=evm_loader.sol_chain_id,
         )
 
-        evm_loader.create_tree_account(neon_user, treasury_pool, tx0.encode(), WRAPPED_SOL_MINT)
+        evm_loader.create_tree_account(neon_user, treasury_pool, tx0.encode())
         resp = web3_client_sol.wait_for_transaction_receipt(tx0.hash(), timeout=180)
 
         assert resp["status"] == 0, resp

@@ -213,7 +213,7 @@ class TestDebugTraceIterativeTransaction:
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
+        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
         check_trx_is_success(web3_client_sol, evm_loader, tx.hash().hex())
 
         receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash().hex())

@@ -1,7 +1,6 @@
 import pytest
 
 import allure
-from spl.token.constants import WRAPPED_SOL_MINT
 from web3.types import TxReceipt
 
 from clickfile import EnvName
@@ -191,7 +190,7 @@ class TestRpcGetBlock:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
         response = web3_client_sol.send_scheduled_transaction(tx, check_result=True)
         EthResult(**response)

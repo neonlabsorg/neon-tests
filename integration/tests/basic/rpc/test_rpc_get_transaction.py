@@ -349,7 +349,7 @@ class TestRpcGetTransaction:
         trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
-        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
         web3_client_sol.send_scheduled_transaction(tx, check_result=True)
         tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
@@ -392,7 +392,7 @@ class TestRpcGetTransaction:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
+        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
         web3_client_sol.send_scheduled_transaction(tx, check_result=True)
         tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
@@ -500,7 +500,7 @@ class TestRpcGetTransaction:
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
-        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT)
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
         web3_client_sol.send_scheduled_transaction(tx, check_result=True)
         tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)

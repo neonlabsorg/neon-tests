@@ -710,7 +710,9 @@ class EvmLoader(SolanaClient):
         )
         self.send_tx(trx, operator_keypair)
 
-    def create_tree_account(self, neon_user: NeonUser, treasury, transaction, mint, chain_id: int | str | None = ""):
+    def create_tree_account(
+        self, neon_user: NeonUser, treasury, transaction, mint=WRAPPED_SOL_MINT, chain_id: int | str | None = ""
+    ):
         if chain_id == "":
             chain_id = self.sol_chain_id
 
