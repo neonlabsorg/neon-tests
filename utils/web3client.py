@@ -1,27 +1,27 @@
 import json
+import logging
 import pathlib
 import typing as tp
 from decimal import Decimal
 
-import logging
-
 import allure
 import base58
 import eth_account.signers.local
+import pytest
 import requests
 import web3.types
 from eth_abi import abi
 from eth_typing import BlockIdentifier
 from solders.instruction import Instruction
-from web3.contract import Contract
 from solders.pubkey import Pubkey
+from web3.contract import Contract
 from web3.exceptions import TransactionNotFound
 
-from utils.scheduled_trx import ScheduledTransaction, ScheduledTrxEstimateRequest
-from utils.types import TransactionType
 from utils import helpers
 from utils.consts import InputTestConstants, Unit
 from utils.helpers import decode_function_signature, case_snake_to_camel
+from utils.scheduled_trx import ScheduledTransaction, ScheduledTrxEstimateRequest
+from utils.types import TransactionType
 
 LOG = logging.getLogger(__name__)
 
@@ -141,10 +141,6 @@ class Web3Client:
     def get_block_number(self):
         return self._web3.eth.get_block_number()
 
-    @allure.step("Get block number by id")
-    def get_block_number_by_id(self, block_identifier):
-        return self._web3.eth.get_block(block_identifier)
-
     @allure.step("Get nonce")
     def get_nonce(
         self,
@@ -153,10 +149,6 @@ class Web3Client:
     ):
         address = address if isinstance(address, str) else address.address
         return self._web3.eth.get_transaction_count(address, block)
-
-    @allure.step("Wait for transaction receipt for {tx_hash}")
-    def wait_for_transaction_receipt(self, tx_hash, timeout=120):
-        return self._web3.eth.wait_for_transaction_receipt(tx_hash, timeout=timeout)
 
     @allure.step("Deploy contract")
     def deploy_contract(
@@ -254,6 +246,13 @@ class Web3Client:
             )
         return transaction
 
+    @allure.step("Wait for transaction receipt for {tx_hash}")
+    def wait_for_transaction_receipt(self, tx_hash, timeout=120) -> web3.types.TxReceipt:
+        try:
+            return self._web3.eth.wait_for_transaction_receipt(tx_hash, timeout=timeout)
+        except web3.exceptions.TimeExhausted as e:
+            pytest.fail(f"Transaction {tx_hash} was not executed within {timeout} seconds. Error: {str(e)}")
+
     @allure.step("Send transaction")
     def send_transaction(
         self,
@@ -264,7 +263,7 @@ class Web3Client:
         signed_tx = self._web3.eth.account.sign_transaction(transaction, account.key)
         transaction_hash = self._web3.eth.send_raw_transaction(signed_tx.raw_transaction)
         allure.attach(f"Transaction hash: {transaction_hash.hex()}", "Transaction hash", allure.attachment_type.TEXT)
-        return self._web3.eth.wait_for_transaction_receipt(transaction_hash, timeout=timeout)
+        return self.wait_for_transaction_receipt(transaction_hash.hex(), timeout=timeout)
 
     @allure.step("Send the scheduled transaction")
     def send_scheduled_transaction(
@@ -542,7 +541,7 @@ class Web3Client:
             transaction["value"] = web3.Web3.to_wei(transaction["value"], Unit.WEI)
             signed_tx = self.eth.account.sign_transaction(transaction, from_.key)
             tx = self.eth.send_raw_transaction(signed_tx.raw_transaction)
-            self.eth.wait_for_transaction_receipt(tx)
+            self.wait_for_transaction_receipt(tx)
         else:
             LOG.info(f"Not enough funds to send all neons from {from_.address} account")
 
@@ -667,6 +666,20 @@ class Web3Client:
             return resp["result"]
         else:
             return resp
+
+    @allure.step("neon_estimateGas")
+    def neon_estimate_gas(self, raw_tx: dict, show_gas_details: bool = True) -> dict:
+        resp = requests.post(
+            self._proxy_url,
+            json={
+                "jsonrpc": "2.0",
+                "method": "neon_estimateGas",
+                "params": [raw_tx, {"showGasDetails": show_gas_details}],
+                "id": 0,
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()
 
 
 class NeonChainWeb3Client(Web3Client):
