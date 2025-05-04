@@ -84,7 +84,7 @@ runs:
       id: need_build
       shell: bash
       run: |
-        if [[ "${{ steps.check_requirements.outputs.changed }}" != "true" || "${{ inputs.force_rebuild }}" != "true" ]]; then
+        if [[ "${{ steps.check_requirements.outputs.changed }}" == "false" && "${{ inputs.force_rebuild }}" == "false" ]]; then
           echo "Requirements didn't change, using parent image"
           echo "need_build=false" >> $GITHUB_OUTPUT
           echo "use_image=${{ inputs.image_name }}:${{ env.PARENT_BRANCH }}" >> $GITHUB_OUTPUT
