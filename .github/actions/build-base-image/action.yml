@@ -42,15 +42,15 @@ runs:
     - name: Define feature or version branch
       id: feature_branch
       shell: bash
-      if: github.ref_name !='develop'
+      if: github.ref_name != 'develop'
       run: |
         if [[ "${{ github.ref }}" =~ "refs/heads/"[vt][0-9]+\.[0-9]+\.x ]]; then
          feature_branch_tag=${{ github.ref_name }}
         elif [[ -n "${{ github.head_ref }}" ]]; then # pr to feature/develop branch
          feature_branch_tag=${{ github.head_ref }}
         fi;
-         echo "feature_branch_tag=${value}"
-         echo "feature_branch_tag=${value}" >> $GITHUB_OUTPUT
+         echo "feature_branch_tag=${feature_branch_tag}"
+         echo "feature_branch_tag=${feature_branch_tag}" >> $GITHUB_OUTPUT
 
         # Set parent branch
         if [[ -n "${{ github.event.pull_request.base.ref }}" ]]; then
@@ -84,7 +84,7 @@ runs:
       id: need_build
       shell: bash
       run: |
-        if [[ "${{ steps.check_requirements.outputs.changed }}" != "true" | "${{ inputs.force_rebuild }}" != "true" ]]; then
+        if [[ "${{ steps.check_requirements.outputs.changed }}" != "true" || "${{ inputs.force_rebuild }}" != "true" ]]; then
           echo "Requirements didn't change, using parent image"
           echo "need_build=false" >> $GITHUB_OUTPUT
           echo "use_image=${{ inputs.image_name }}:${{ env.PARENT_BRANCH }}" >> $GITHUB_OUTPUT
@@ -112,7 +112,7 @@ runs:
             --build-arg DOCKER_HUB_ORG_NAME=${{env.DOCKER_HUB_ORG_NAME}}
 
         # Tag with branch name if available
-        if [[ -n "${{ steps.current_branch.outputs.branch_name }}" ]]; then
+        if [[ -n "${{ steps.feature_branch.outputs.feature_branch_tag }}" ]]; then
           docker tag ${image_name}:${{ inputs.image_tag }} ${image_name}:${{ steps.feature_branch.output.feature_branch_tag }}
         fi
 
