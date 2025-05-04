@@ -113,7 +113,7 @@ runs:
 
         # Tag with branch name if available
         if [[ -n "${{ steps.feature_branch.outputs.feature_branch_tag }}" ]]; then
-          docker tag ${image_name}:${{ inputs.image_tag }} ${image_name}:${{ steps.feature_branch.output.feature_branch_tag }}
+          docker tag ${image_name}:${{ inputs.image_tag }} ${image_name}:${{ steps.feature_branch.outputs.feature_branch_tag }}
         fi
 
         echo "${delimiter} Pushing image to Docker registry ${delimiter}"
