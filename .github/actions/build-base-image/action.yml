@@ -119,7 +119,7 @@ runs:
         echo "${delimiter} Pushing image to Docker registry ${delimiter}"
         docker push --all-tags ${image_name}
 
-    - name: Skip sadasdbuild notification
+    - name: Skip build notification
       if: steps.need_build.outputs.need_build == 'false'
       shell: bash
       run: |
