@@ -92,7 +92,7 @@ class TestPrecompiledContracts:
         if pytestconfig.getoption("--network") == "devnet" and address == "0x0000000000000000000000000000000000000005":
             pytest.skip("Doesn't work in devnet/mainnet")
         result = self.web3_client._web3.eth.call({"to": address, "value": 0, "data": input_data})
-        assert result.hex()[2:] == expected
+        assert result.hex() == expected
 
     @pytest.mark.parametrize(**parametrized_data)
     def test_call_via_contract(self, precompiled_contract, address, input_data, expected, pytestconfig):
@@ -147,7 +147,7 @@ class TestPrecompiledContracts:
             receipt = self.web3_client.send_transaction(sender_account, instruction_tx)
             check_trx_is_success(self.web3_client, evm_loader, receipt["transactionHash"].hex())
 
-            if pytestconfig.getoption("--network") not in ["devnet", "night-stand"]:
+            if pytestconfig.getoption("--network") not in ["devnet"]:
                 assert self.web3_client.get_balance(address) - balance_before == amount
         else:
             # solana limits
@@ -168,7 +168,7 @@ class TestPrecompiledContracts:
 
         check_trx_is_success(self.web3_client, evm_loader, receipt["transactionHash"].hex())
         pytestconfig.getoption("--network")
-        if pytestconfig.getoption("--network") not in ["devnet", "night-stand"]:
+        if pytestconfig.getoption("--network") not in ["devnet"]:
             assert self.web3_client.get_balance(address) - balance_before == amount
 
     @pytest.mark.parametrize("contract", PRECOMPILED_FIXTURES)

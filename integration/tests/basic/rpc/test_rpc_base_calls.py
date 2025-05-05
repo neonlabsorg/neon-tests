@@ -127,7 +127,7 @@ class TestRpcBaseCalls:
     @pytest.mark.mainnet
     @pytest.mark.parametrize("param", [Tag.LATEST, Tag.PENDING, Tag.EARLIEST, None])
     @pytest.mark.neon_only
-    # since there's no tracer neither on night-stand nor on devnet, "earliest" == "latest" over there
+    # since there's no tracer on devnet, "earliest" == "latest" over there
     # while on geth, earliest returns 0 because "earliest" == "earliest" over there
     def test_eth_get_code(self, event_caller_contract, param: tp.Union[Tag, None], json_rpc_client):
         """Verify implemented rpc calls work eth_getCode"""
@@ -201,14 +201,15 @@ class TestRpcBaseCalls:
         )
 
         signed_tx = self.web3_client.eth.account.sign_transaction(transaction, sender_account.key)
-        response = json_rpc_client.send_rpc("eth_sendRawTransaction", params=signed_tx.rawTransaction.hex())
+        response = json_rpc_client.send_rpc("eth_sendRawTransaction", params=signed_tx.raw_transaction.hex())
         assert "error" not in response
         assert rpc_checks.is_hex(response["result"]), f"Invalid response result {response['result']}"
         EthResult(**response)
 
     def test_eth_sendRawTransaction_max_size(self, json_rpc_client):
         """Validate max size for transaction, 127 KB"""
-        size = 127 * 1024
+
+        size = 126 * 1024
         sender_account = self.accounts.create_account()
         recipient_account = self.accounts[1]
         transaction = self.web3_client.make_raw_tx(
@@ -216,7 +217,7 @@ class TestRpcBaseCalls:
         )
 
         signed_tx = self.web3_client.eth.account.sign_transaction(transaction, sender_account.key)
-        response = json_rpc_client.send_rpc("eth_sendRawTransaction", params=signed_tx.rawTransaction.hex())
+        response = json_rpc_client.send_rpc("eth_sendRawTransaction", params=signed_tx.raw_transaction.hex())
         assert "error" not in response
         assert rpc_checks.is_hex(response["result"]), f"Invalid response result {response['result']}"
         EthResult(**response)

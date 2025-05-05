@@ -17,7 +17,6 @@ from solana.rpc.commitment import Confirmed
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from spl.token.constants import WRAPPED_SOL_MINT
-from web3.middleware import geth_poa_middleware
 
 import allure
 from utils import create_allure_environment_opts, setup_logging
@@ -48,6 +47,7 @@ class EnvironmentConfig:
     neon_erc20wrapper_address: str
     use_bank: bool
     eth_bank_account: str
+    default_cu_price: int | None = None
     neonpass_url: str = ""
     ws_subscriber_url: str = ""
     account_seed_version: str = "\3"
@@ -165,13 +165,6 @@ def env_name(pytestconfig: Config) -> EnvName:
 @pytest.fixture(scope="session")
 def operator_keypair() -> Keypair:
     with open("operator-keypair.json", "r") as key:
-        secret_key = json.load(key)
-        return Keypair.from_bytes(secret_key)
-
-
-@pytest.fixture(scope="session")
-def evm_loader_keypair() -> Keypair:
-    with open("evm_loader-keypair.json", "r") as key:
         secret_key = json.load(key)
         return Keypair.from_bytes(secret_key)
 
@@ -313,8 +306,8 @@ def treasury_pool_new(evm_loader, pytestconfig) -> TreasuryPool:
 
 
 @pytest.fixture(scope="session")
-def index_of_process(worker_id):
+def index_of_process(worker_id) -> int:
     if worker_id in ("master", "gw1"):
         return 1
     match = re.search(r"gw(\d+)", worker_id)
-    return int(match.group(1)) if match else None
+    return int(match.group(1))

@@ -31,7 +31,11 @@ class TestResultsHandler:
         metrics = ["acc_count", "trx_count", "gas_estimated", "gas_used", "gas_used_%", "compute_units"]
 
         unique_timestamps = historical_data["timestamp"].unique().tolist()
-        x_tick_labels = historical_data.groupby("timestamp")["tag"].first().tolist()
+        timestamp_to_x = {ts: x for x, ts in enumerate(unique_timestamps)}
+        historical_data["x"] = historical_data["timestamp"].map(timestamp_to_x)
+
+        tags_grouped_by_timestamp = historical_data.groupby("timestamp", sort=False).first()["tag"]
+        x_tick_labels = [f"{tag} - {ts.strftime('%b, %d, %H:%M')}" for ts, tag in tags_grouped_by_timestamp.items()]
 
         with PdfPages(output_pdf) as pdf:
             for dapp_name in dapp_names:
@@ -71,50 +75,16 @@ class TestResultsHandler:
 
                     for metric_idx, metric in enumerate(metrics):
                         ax = axes[action_idx, metric_idx] if num_rows > 1 else axes[metric_idx]
-                        data_subset = dapp_data[dapp_data["action"] == action].copy()
-
-                        # normalize data
-                        need_to_add_rows = len(unique_timestamps) - len(data_subset)
-                        if need_to_add_rows:
-                            for i, unique_timestamp in enumerate(unique_timestamps):
-                                if unique_timestamp not in data_subset["timestamp"].values:
-                                    new_row = pd.DataFrame(
-                                        data=[
-                                            {
-                                                "timestamp": unique_timestamp,
-                                                "tag": x_tick_labels[i],
-                                                "dapp_name": data_subset.iloc[0]["dapp_name"],
-                                                "action": data_subset.iloc[0]["action"],
-                                            }
-                                        ],
-                                        columns=data_subset.columns,
-                                    )
-                                    data_subset = pd.concat([data_subset, new_row], ignore_index=True)
-
-                        data_subset = data_subset.reset_index(drop=True)
+                        data_subset = dapp_data[dapp_data["action"] == action].copy().reset_index(drop=True)
 
                         if not data_subset.empty:
                             prev_value = None
                             prev_is_valid = True
 
-                            # Fill data for smooth lines
-                            data_subset_filled = data_subset.copy()
-
-                            for column in data_subset.columns:
-                                for i in range(1, len(data_subset) - 1):
-                                    if pd.isna(data_subset_filled.loc[i, column]):
-                                        above_value = data_subset_filled.loc[i - 1, column]
-                                        below_value = data_subset_filled.loc[i + 1, column]
-                                        if pd.notna(above_value) and pd.notna(below_value):
-                                            try:  # for numerical data
-                                                data_subset_filled.loc[i, column] = (above_value + below_value) / 2
-                                            except TypeError:  # for non-numerical data
-                                                data_subset_filled.loc[i, column] = above_value or below_value
-
                             # Plot grey lines before scatter
                             ax.plot(
-                                data_subset_filled.index,
-                                data_subset_filled[metric],
+                                data_subset["x"],
+                                data_subset[metric],
                                 color="darkgrey",
                                 linestyle="-",
                                 linewidth=2,
@@ -122,7 +92,7 @@ class TestResultsHandler:
                             )
 
                             # Plot blue or red dots
-                            for i, (x, y) in enumerate(zip(data_subset.index, data_subset[metric])):
+                            for i, (x, y) in enumerate(zip(data_subset["x"], data_subset[metric])):
                                 if not pd.isna(y):
                                     # last 2 dots should be larger
                                     dot_size = 50 if i < len(data_subset[metric]) - 2 else 150
@@ -133,10 +103,10 @@ class TestResultsHandler:
                                             f"{y}",
                                             (x, y),
                                             textcoords="offset points",
-                                            xytext=(15, 5),
+                                            xytext=(7, 10),
                                             ha="center",
                                             color="red",
-                                            rotation=60,
+                                            rotation=75,
                                         )
 
                                         if prev_is_valid:
@@ -145,10 +115,10 @@ class TestResultsHandler:
                                                 f"{prev_value}",
                                                 (prev_x, prev_y),  # noqa: F821
                                                 textcoords="offset points",
-                                                xytext=(15, 5),
+                                                xytext=(7, 10),
                                                 ha="center",
                                                 color="blue",
-                                                rotation=60,
+                                                rotation=75,
                                             )
                                         prev_is_valid = False
                                     else:
@@ -160,7 +130,7 @@ class TestResultsHandler:
 
                             # Set x-axis ticks and labels
                             ax.set_xticks(range(len(x_tick_labels)))
-                            ax.set_xticklabels(x_tick_labels, rotation=45)
+                            ax.set_xticklabels(x_tick_labels, rotation=75)
 
                             # Set y-axis limits and labels
                             ax.tick_params(axis="y", labelsize=8)
@@ -181,7 +151,8 @@ class TestResultsHandler:
 
                             # add vertical grey dotted line before the last two dots
                             if len(data_subset[metric]) > 2:
-                                ax.axvline(x=len(data_subset[metric]) - 2.5, color="#a6a4a4", linestyle=":")
+                                x = data_subset["x"].iloc[-2] - 0.5
+                                ax.axvline(x=x, color="#a6a4a4", linestyle=":")
 
                 plt.tight_layout()
                 top = 0.9 if num_rows > 5 else 0.8
