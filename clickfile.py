@@ -463,7 +463,8 @@ def update_contracts_from_git(git_url: str, local_dir_name: str, branch="develop
     default="main",
     help="neon_evm branch name. " "If branch doesn't exist, develop branch will be used",
 )
-def update_contracts(branch):
+@click.option("--with-uniswap", is_flag=True, default=False, required=False, help="Download uniswap-v3 contracts")
+def update_contracts(branch, with_uniswap):
     update_contracts_from_git(HOODIES_CHAINLINK_GITHUB_URL, "hoodies_chainlink", "main")
     update_contracts_from_git(
         "https://github.com/neonevm/neon-contracts.git",
@@ -471,6 +472,38 @@ def update_contracts(branch):
         branch=branch,
         update_npm=True,
     )
+
+    if with_uniswap:
+        update_contracts_from_git(
+            "https://github.com/neonlabsorg/Uniswap-V3-NEON.git",
+            "uniswap-v3",
+            branch="main",
+            update_npm=True,
+        )
+
+        pool_addr_path = (
+            Path.cwd()
+            / "contracts"
+            / "external"
+            / "uniswap-v3"
+            / "contracts"
+            / "v3-periphery"
+            / "libraries"
+            / "PoolAddress.sol"
+        )
+        replacements = [
+            (
+                b"0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54",
+                b"0xfeca55d18a66e13a3b004f5ea1833d181be8e62d7ac64669f176c76b5a79fc9d",
+            ),
+        ]
+        with open(pool_addr_path, "rb") as file:
+            s = file.read()
+            print(file.name)
+        for f, r in replacements:
+            s = s.replace(f, r)
+        with open(pool_addr_path, "wb") as file:
+            file.write(s)
 
 
 @cli.command(help="Run any type of tests")
