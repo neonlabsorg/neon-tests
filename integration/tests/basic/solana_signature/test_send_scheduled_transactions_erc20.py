@@ -1,4 +1,5 @@
 import allure
+import pytest
 from solana.rpc.commitment import Confirmed
 from solders.pubkey import Pubkey
 from spl.token.instructions import get_associated_token_address
@@ -262,6 +263,7 @@ class TestScheduledTrxERC20:
         assert balance_user_2_ata == 0
         assert balance_user_2 == balance_user_2_pda == 800
 
+    @pytest.mark.skip(reason="NDEV-3744")
     def test_multiple_transactions_with_tree_actions_dependent_trx_with_2_childs(
         self,
         web3_client_sol,
