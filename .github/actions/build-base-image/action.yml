@@ -117,7 +117,7 @@ runs:
             --build-arg DOCKER_HUB_ORG_NAME=${{env.DOCKER_HUB_ORG_NAME}}
 
         # Tag with branch name if available
-        if [[ -n "${{ steps.feature_branch.outputs.feature_branch_tag }}" ]]; then
+        if [[ "${{ steps.feature_branch.outputs.feature_branch_tag }}" != "" ]]; then
           docker tag ${image_name}:${{ inputs.image_tag }} ${image_name}:${{ steps.feature_branch.outputs.feature_branch_tag }}
         fi
 
