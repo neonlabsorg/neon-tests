@@ -7,6 +7,10 @@ from _pytest.config import Config
 from solders.keypair import Keypair as SolanaAccount
 from web3.types import TxReceipt
 from integration.tests.basic.helpers.basic import AccountData
+from integration.tests.basic.helpers.rpc_checks import check_trx_is_success
+from utils.consts import wSOL
+from utils.helpers import decode_function_signature, wait_condition
+from utils.scheduled_trx import ScheduledTrxEstimateRequest, ScheduledTransaction, CreateTreeAccMultipleData
 
 from utils.tracer_client import TracerClient
 from utils.storage_contract import StorageContract
@@ -261,4 +265,116 @@ def event_tx_receipt(accounts, web3_client, event_caller_contract):
     instruction_tx = event_caller_contract.functions.callEvent1("Event call").build_transaction(tx)
     receipt = web3_client.send_transaction(sender_account, instruction_tx)
     assert receipt["status"] == 1, f"Transaction failed: {receipt}"
+    return receipt
+
+
+@pytest.fixture(scope="function")
+def scheduled_tx_receipt(web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
+    contract_data = 18
+    data = decode_function_signature("setNumber(uint256)", [contract_data])
+    trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+    estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+    tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
+
+    evm_loader.create_tree_account(
+        neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
+    )
+    check_trx_is_success(web3_client_sol, evm_loader, tx.hash().hex())
+    receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash().hex())
+    return receipt
+
+
+@pytest.fixture(scope="function")
+def multiply_scheduled_tx_receipts(
+    web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
+) -> list[TxReceipt]:
+    data = decode_function_signature("setNumber(uint256)", [10])
+
+    trx_estimate_obj_list = []
+    for i in range(3):
+        trx_estimate_obj_list.append(
+            ScheduledTrxEstimateRequest(
+                neon_user.checksum_address, common_contract.address, data, child_transaction=hex(3)
+            )
+        )
+    trx_estimate_obj_list.append(
+        ScheduledTrxEstimateRequest(
+            neon_user.checksum_address, common_contract.address, data, child_transaction="0xFFFF"
+        )
+    )
+    estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), trx_estimate_obj_list)
+    trxs = []
+    for i in range(4):
+        trxs.append(ScheduledTransaction.from_estimate_result(i, trx_estimate_obj_list[i], estimate_result))
+
+    tree_acc_data = CreateTreeAccMultipleData(
+        nonce=estimate_result["nonce"],
+        max_fee_per_gas=estimate_result["maxFeePerGas"],
+        max_priority_fee_per_gas=estimate_result["maxPriorityFeePerGas"],
+    )
+
+    tree_acc_data.add_trx(trxs[0], 3, 0)
+    tree_acc_data.add_trx(trxs[1], 3, 0)
+    tree_acc_data.add_trx(trxs[2], 3, 0)
+    tree_acc_data.add_trx(trxs[3], 0xFFFF, 3)
+
+    evm_loader.create_tree_account_multiple(
+        neon_user,
+        treasury_pool,
+        tree_acc_data.data,
+        wSOL["address_spl"],
+    )
+    web3_client_sol.send_all_scheduled_transactions(trxs)
+    receipts = []
+    for tx in trxs:
+        check_trx_is_success(web3_client_sol, evm_loader, tx.hash().hex(), timeout=180)
+        receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash().hex())
+        receipts.append(receipt)
+    return receipts
+
+
+@pytest.fixture(scope="function")
+def recursion_tx_receipt(accounts, web3_client, recursion_factory):
+    sender_account = accounts[0]
+    tx = web3_client.make_raw_tx(sender_account)
+    instruction_tx = recursion_factory.functions.deployFirstContract().build_transaction(tx)
+    receipt = web3_client.send_transaction(sender_account, instruction_tx)
+    assert receipt["status"] == 1
+    assert recursion_factory.functions.getFirstDeployedContractCount().call() == 3
+    return receipt
+
+
+@pytest.fixture(scope="function")
+def multiply_recursion_tx_receipt(accounts, web3_client, multiply_recursion):
+    sender_account = accounts[0]
+    tx = web3_client.make_raw_tx(sender_account)
+    instruction_tx = multiply_recursion.functions.func1().build_transaction(tx)
+    receipt = web3_client.send_transaction(sender_account, instruction_tx)
+    assert receipt["status"] == 1
+    return receipt
+
+
+@pytest.fixture(scope="function")
+def iteration_tx_receipt(accounts, web3_client, counter_contract):
+    sender_account = accounts[0]
+    tx = web3_client.make_raw_tx(from_=sender_account)
+    instruction_tx = counter_contract.functions.moreInstruction(0, 3000).build_transaction(tx)
+    receipt = web3_client.send_transaction(sender_account, instruction_tx)
+
+    wait_condition(
+        lambda: web3_client.is_trx_iterative(receipt["transactionHash"].hex()) is True,
+        timeout_sec=120,
+    )
+    assert receipt["status"] == 1
+    return receipt
+
+
+@pytest.fixture(scope="function")
+def chain_transactions_receipt(accounts, web3_client, chain_execution_contracts):
+    sender_account = accounts[0]
+    tx = web3_client.make_raw_tx(from_=sender_account)
+    instruction_tx = chain_execution_contracts.functions.start_execution().build_transaction(tx)
+    receipt = web3_client.send_transaction(sender_account, instruction_tx)
+
+    assert receipt["status"] == 1
     return receipt

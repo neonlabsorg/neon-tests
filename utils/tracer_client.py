@@ -179,5 +179,5 @@ class TracerClient:
         return response
 
     def trace_transaction(self, tx_hash: str):
-        response = self.tracer_api.send_rpc(method="trace_transaction", params=[tx_hash])
+        response = self.send_rpc_and_wait_response(method_name="trace_transaction", params=[tx_hash])
         return response

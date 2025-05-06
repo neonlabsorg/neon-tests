@@ -753,3 +753,62 @@ def precompiled_contract(web3_client, faucet, accounts):
         "precompiled/CommonCaller", "0.8.10", accounts[0]
     )
     return contract
+
+
+@pytest.fixture(scope="function")
+def multiply_recursion(accounts, web3_client) -> tp.Generator[Contract, None, None]:
+    sender_account = accounts[0]
+    contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="ChainExecution",
+        constructor_args=[3],
+    )
+    yield contract
+
+
+@pytest.fixture(scope="function")
+def chain_execution_contracts(accounts, web3_client) -> tp.Generator[Contract, None, None]:
+    sender_account = accounts[0]
+
+    # Deploy contracts without dependencies first
+    func2, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Func2"
+    )
+
+    func4, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Func4"
+    )
+
+    func6, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Func6"
+    )
+
+    func7, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Func7"
+    )
+
+    # Deploy contracts with dependencies
+    func5, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Func5", constructor_args=[func7.address]
+    )
+
+    func3, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="Func3",
+        constructor_args=[func4.address, func5.address, func6.address],
+    )
+
+    # Deploy the root contract
+    chain_execution_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="ChainExecution",
+        constructor_args=[func2.address, func3.address],
+    )
+
+    yield chain_execution_contract
