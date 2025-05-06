@@ -447,7 +447,7 @@ def update_contracts_from_git(git_url: str, local_dir_name: str, branch="develop
     if download_path.exists():
         shutil.rmtree(download_path)
     commands = f"""
-        git clone --depth 1 --branch {branch} {git_url} {download_path}
+        git clone --branch {branch} {git_url} {download_path}
     """
 
     if update_npm:
@@ -546,7 +546,8 @@ def run(
     if name == "oz":
         if not keep_error_log:
             error_log.clear()
-        return run_openzeppelin_tests(network, jobs=int(jobs), amount=int(amount), users=int(users))
+        run_openzeppelin_tests(network, jobs=int(jobs), amount=int(amount), users=int(users))
+        return
 
     if name == "tracer":
         if network != EnvName.GETH:
