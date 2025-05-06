@@ -46,7 +46,7 @@ runs:
       run: |
         if [[ "${{ github.ref }}" =~ "refs/heads/"[vt][0-9]+\.[0-9]+\.x ]]; then
          feature_branch_tag=${{ github.ref_name }}
-        elif [[ -n "${{ github.head_ref }}" ]]; then # pr to feature/develop branch
+        elif [[ "${{ github.head_ref }}" != "" ]]; then # pr to feature/develop branch
          feature_branch_tag=${{ github.head_ref }}
         fi;
          echo "feature_branch_tag=${feature_branch_tag}"
