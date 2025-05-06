@@ -6,7 +6,6 @@ import random
 
 import base58
 from solana.rpc import commitment
-from spl.token.constants import WRAPPED_SOL_MINT
 
 from deploy.cli.network_manager import NetworkManager
 from utils.accounts import EthAccounts
@@ -211,9 +210,7 @@ class ScheduledTxsIndependentTasksSet(BaseScheduledTxTaskSet):
         tree_acc_data.add_trx(trxs[2], 0xFFFF, 0)
         tree_acc_data.add_trx(trxs[3], 0xFFFF, 0)
 
-        self.evm_loader.create_tree_account_multiple(
-            self.neon_account, self.treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT
-        )
+        self.evm_loader.create_tree_account_multiple(self.neon_account, self.treasury_pool, tree_acc_data.data)
         self.web3_client_sol.send_all_scheduled_transactions(trxs)
         for trx in trxs:
             check_trx_is_success(self.web3_client_sol, self.evm_loader, trx.hash().hex(), timeout=240)
@@ -296,9 +293,7 @@ class ScheduledTxsDependentTasksSet(BaseScheduledTxTaskSet):
         tree_acc_data.add_trx(trxs[2], 0xFFFF, 1)
         tree_acc_data.add_trx(trxs[3], 0xFFFF, 1)
 
-        self.evm_loader.create_tree_account_multiple(
-            self.neon_account, self.treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT
-        )
+        self.evm_loader.create_tree_account_multiple(self.neon_account, self.treasury_pool, tree_acc_data.data)
         self.web3_client_sol.send_all_scheduled_transactions(trxs)
 
         for trx in trxs:
@@ -350,9 +345,7 @@ class ScheduledTxsTransferToDifferentUsersTasksSet(BaseScheduledTxTaskSet):
         tree_acc_data.add_trx(trxs[0], 0xFFFF, 0)
         tree_acc_data.add_trx(trxs[1], 0xFFFF, 0)
 
-        self.evm_loader.create_tree_account_multiple(
-            self.neon_account, self.treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT
-        )
+        self.evm_loader.create_tree_account_multiple(self.neon_account, self.treasury_pool, tree_acc_data.data)
         self.web3_client_sol.send_all_scheduled_transactions(trxs)
         for trx in trxs:
             check_trx_is_success(self.web3_client_sol, self.evm_loader, trx.hash().hex(), timeout=240)

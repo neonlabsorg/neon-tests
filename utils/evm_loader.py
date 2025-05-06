@@ -736,7 +736,13 @@ class EvmLoader(SolanaClient):
         return tree_account
 
     def create_tree_account_multiple(
-        self, neon_user, treasury, tree_account_create_data, mint: Pubkey, payer_nonce=None, chain_id: int | None = ""
+        self,
+        neon_user,
+        treasury,
+        tree_account_create_data,
+        mint: Pubkey = WRAPPED_SOL_MINT,
+        payer_nonce=None,
+        chain_id: int | None = "",
     ):
         if chain_id == "":
             chain_id = self.sol_chain_id

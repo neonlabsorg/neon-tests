@@ -3,7 +3,6 @@ import pytest
 import solana
 from eth_utils import abi
 from solders.pubkey import Pubkey
-from spl.token.constants import WRAPPED_SOL_MINT
 
 from integration.tests.basic.evm.conftest import SPL_TOKEN_ADDRESS
 from integration.tests.neon_evm.utils.assert_messages import InstructionAsserts
@@ -50,9 +49,7 @@ class TestMultipleScheduledTrx:
         tree_acc_data.add_trx(tx0, 1, 0)
         tree_acc_data.add_trx(tx1, 0xFFFF, 1)
 
-        tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT
-        )
+        tree_account = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
         additional_accounts = [
             basic_contract.solana_address,
             neon_user.get_balance_account(evm_loader.sol_chain_id),
@@ -107,9 +104,7 @@ class TestMultipleScheduledTrx:
         tree_acc_data.add_trx(tx0, 1, 0)
         tree_acc_data.add_trx(tx1, 0xFFFF, 1)
 
-        tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT
-        )
+        tree_account = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
         emulate_result = neon_api_client.emulate(
             neon_user.neon_address.hex(),
             basic_contract.eth_address.hex(),
@@ -176,9 +171,7 @@ class TestMultipleScheduledTrx:
         tree_acc_data.add_trx(trxs[1], 3, 0)
         tree_acc_data.add_trx(trxs[2], 3, 0)
         tree_acc_data.add_trx(trxs[3], 0xFFFF, 3)
-        tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT
-        )
+        tree_account = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
         additional_accounts = [
             basic_contract.solana_address,
@@ -234,9 +227,7 @@ class TestMultipleScheduledTrx:
         tree_acc_data.add_trx(tx0, 1, 0)
         tree_acc_data.add_trx(tx1, 0xFFFF, 1)
 
-        tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT
-        )
+        tree_account = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
         additional_accounts_call = [
             caller_contract.solana_address,
             basic_contract.solana_address,
@@ -299,9 +290,7 @@ class TestMultipleScheduledTrx:
         tree_acc_data = CreateTreeAccMultipleData(nonce=nonce)
         tree_acc_data.add_trx(tx0, 0xFFFF, 0)
 
-        tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT
-        )
+        tree_account = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
         evm_loader.execute_scheduled_trx_from_instruction(
             tx0, operator_keypair, holder_acc, tree_account, treasury_pool, additional_accounts
         )

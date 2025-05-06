@@ -4,7 +4,6 @@ import pytest
 import web3
 
 import allure
-from spl.token.constants import WRAPPED_SOL_MINT
 
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.assert_message import AssertMessage
@@ -458,9 +457,7 @@ class TestRpcGetTransaction:
             nonce=nonce, max_fee_per_gas=max_fee_per_gas, max_priority_fee_per_gas=max_priority_fee_per_gas
         )
         tree_acc_data.add_trx(tx, 0xFFFF, 0)
-        tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT
-        )
+        tree_account = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
         web3_client_sol.send_scheduled_transaction(tx, check_result=True)
         tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
@@ -588,9 +585,7 @@ class TestRpcGetTransaction:
         tree_acc_data.add_trx(tx1, 2, 1)
         tree_acc_data.add_trx(tx2, 0xFFFF, 1)
 
-        tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT, chain_id=web3_client_sol.chain_id
-        )
+        tree_account = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
         web3_client_sol.send_all_scheduled_transactions([tx0, tx1, tx2])
 

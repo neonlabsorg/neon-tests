@@ -1,7 +1,6 @@
 import allure
 from solana.rpc.commitment import Confirmed
 from solders.pubkey import Pubkey
-from spl.token.constants import WRAPPED_SOL_MINT
 from spl.token.instructions import get_associated_token_address
 
 from integration.tests.basic.helpers.rpc_checks import check_trx_is_success
@@ -166,7 +165,7 @@ class TestScheduledTrxERC20:
 
         tree_acc_data.add_trx(tx, 0xFFFF, 0)
 
-        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT)
+        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
         web3_client_sol.send_scheduled_transaction(tx)
 
         check_trx_is_success(web3_client_sol, evm_loader, tx.hash().hex(), timeout=180)
@@ -236,7 +235,7 @@ class TestScheduledTrxERC20:
         tree_acc_data.add_trx(trxs[2], 0xFFFF, 1)
         tree_acc_data.add_trx(trxs[3], 0xFFFF, 1)
 
-        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT)
+        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
         web3_client_sol.send_all_scheduled_transactions(trxs)
 
         for trx in trxs:
@@ -299,7 +298,7 @@ class TestScheduledTrxERC20:
         tree_acc_data.add_trx(trxs[2], 0xFFFF, 0)
         tree_acc_data.add_trx(trxs[3], 0xFFFF, 0)
 
-        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, WRAPPED_SOL_MINT)
+        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
         web3_client_sol.send_all_scheduled_transactions(trxs)
         for trx in trxs:
             check_trx_is_success(web3_client_sol, evm_loader, trx.hash().hex())
