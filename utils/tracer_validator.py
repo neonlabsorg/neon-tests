@@ -25,7 +25,7 @@ class TracerValidator:
         return True
 
     @staticmethod
-    @allure.step("check callTracer response")
+    @allure.step("check callTracer response ")
     def check_call_tracer_type(
         tracer_response: dict,
         tx_data,
