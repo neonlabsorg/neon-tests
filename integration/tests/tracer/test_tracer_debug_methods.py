@@ -13,7 +13,7 @@ from utils.web3client import NeonChainWeb3Client
 from utils.accounts import EthAccounts
 from utils.tracer_client import TracerClient
 from utils.helpers import padhex
-from tracer_helper import validate_response_result
+from utils.tracer_validator import validate_response_result
 
 SCHEMAS = "./integration/tests/tracer/schemas/"
 GOOD_CALLDATA = ["0x60fe60005360016000f3"]
