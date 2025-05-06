@@ -87,7 +87,12 @@ runs:
         if [[ "${{ steps.check_requirements.outputs.changed }}" == "false" && "${{ inputs.force_rebuild }}" == "false" ]]; then
           echo "Requirements didn't change, using parent image"
           echo "need_build=false" >> $GITHUB_OUTPUT
-          echo "use_image=${{ inputs.image_name }}:${{ env.PARENT_BRANCH }}" >> $GITHUB_OUTPUT
+          if [[ "${{ env.PARENT_BRANCH }} == 'develop' ]]; then
+            echo "use_image=${{ inputs.image_name }}:latest" >> $GITHUB_OUTPUT
+            echo "Parent branch is develop, using tagged 'latest' image"
+          else
+            echo "use_image=${{ inputs.image_name }}:${{ env.PARENT_BRANCH }}" >> $GITHUB_OUTPUT
+          fi
         else
           echo "Requirements changed, need to build new image or Force Rebuild"
           echo "need_build=true" >> $GITHUB_OUTPUT
