@@ -812,3 +812,14 @@ def chain_execution_contracts(accounts, web3_client) -> tp.Generator[Contract, N
     )
 
     yield chain_execution_contract
+
+
+@pytest.fixture(scope="class")
+def alt_contract(accounts, web3_client):
+    contract, _ = web3_client.deploy_and_get_contract("common/ALT", "0.8.10", account=accounts[0], constructor_args=[8])
+    return contract
+
+
+@pytest.fixture(scope="session")
+def default_cu_price(pytestconfig: Config) -> int | None:
+    return pytestconfig.environment.default_cu_price  # must be equal to compose.proxy.environment.DEFAULT_CU_PRICE
