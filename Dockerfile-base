@@ -18,16 +18,22 @@ RUN apt update && \
     add-apt-repository ppa:deadsnakes/ppa && apt update && \
     apt install -y python3.10 python3.10-distutils nodejs build-essential
 
-
 RUN update-alternatives --install /usr/bin/python3 python /usr/bin/python3.10 2
 RUN update-alternatives --install /usr/bin/python3 python /usr/bin/python3.8 1
 
-COPY ./deploy/requirements/* /opt/neon-tests/
+# Install allure
+RUN apt install default-jdk -y && \
+    curl -o allure-2.21.0.tgz -Ls https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/2.21.0/allure-commandline-2.21.0.tgz && \
+    tar -zxvf allure-2.21.0.tgz -C /opt/  && \
+    ln -s /opt/allure-2.21.0/bin/allure /usr/bin/allure
 
-WORKDIR /opt/neon-tests
-RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 && \
-    pip3 install uv && \
-    uv venv
+# Install UI libs
+RUN apt install -y libxkbcommon0 \
+    libxdamage1 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    xvfb
 
 COPY ./deploy/requirements/* /opt/
 
