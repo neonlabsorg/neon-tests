@@ -104,7 +104,7 @@ jobs:
             /bin/bash
       - name: Run economy tests
         run: |
-          docker exec -i ${{ env.CONTAINER }} bash -c "python3 ./clickfile.py run economy --network ${{ env.NETWORK }} --case '${{ github.event.inputs.pytest_k}}' --marker '${{ github.event.inputs.pytest_m}}'"
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py run economy --network ${{ env.NETWORK }} --case "${{ github.event.inputs.pytest_k}}" --marker "${{ github.event.inputs.pytest_m}}"
       - name: "Generate allure report"
         uses: ./.github/actions/generate-allure-report
         if: always()
@@ -117,10 +117,10 @@ jobs:
       - name: Notify on failure
         if: failure() && github.ref_name == 'develop'
         run: |
-          docker exec -i ${{ env.CONTAINER }} bash -c "python3 ./clickfile.py send-notification \
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py send-notification \
             -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
             -b ${{ env.BUILD_URL }} \
-            --test-group economy"
+            --test-group economy
       - name: Remove docker container
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}

@@ -128,13 +128,13 @@ jobs:
             env="-e PROXY_IP=${{ needs.prepare-env.outputs.proxy_ip }} -e SOLANA_IP=${{ needs.prepare-env.outputs.solana_ip }}"
           fi
           echo "env=${env}"
-          docker exec -i -e OZ_BALANCES_REPORT_FLAG=1 -e DEVNET_FAUCET_URL=${{ env.DEVNET_FAUCET_URL }} ${env} ${{ env.CONTAINER }} bash -c "python3 ./clickfile.py run oz \
+          docker exec -i -e OZ_BALANCES_REPORT_FLAG=1 -e DEVNET_FAUCET_URL=${{ env.DEVNET_FAUCET_URL }} ${env} ${{ env.CONTAINER }} python3 ./clickfile.py run oz \
             --network ${{ env.NETWORK }} \
             --jobs ${{ env.JOBS_NUMBER }} \
-            --users 10"
+            --users 10
       - name: Print OpenZeppelin report
         run: |
-          docker exec -i ${{ env.CONTAINER }} bash -c "python3 ./clickfile.py oz report"
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py oz report
       - name: "Generate allure report"
         uses: ./.github/actions/generate-allure-report
         with:
@@ -145,13 +145,13 @@ jobs:
           tests_name: oz
       - name: Analyze tests results
         run: |
-          docker exec -i ${{ env.CONTAINER }} bash -c "python3 ./clickfile.py oz analyze"
+          docker exec -i ${{ env.CONTAINER }} python3 ./clickfile.py oz analyze
       - name: "Notify on failure."
         if: failure() && github.ref_name == 'develop'
         run: |
           docker exec -i ${{ env.CONTAINER }} \
-            bash -c "python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
-          -b ${{ env.BUILD_URL }} -n ${{ env.NETWORK }} --test-group oz"
+            python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
+          -b ${{ env.BUILD_URL }} -n ${{ env.NETWORK }} --test-group oz
       - name: Remove docker container
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}
