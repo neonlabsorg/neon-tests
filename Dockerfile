@@ -13,8 +13,7 @@ ENV TZ=Europe/Moscow \
     FTS_USERS_NUMBER=15 \
     DUMP_ENVS=True \
     REQUEST_AMOUNT=20000 \
-    VIRTUAL_ENV=/.venv
-    PATH="$VIRTUAL_ENV/bin:$PATH"
+    PATH=".venv/bin:$PATH"
 
 # Add source code last as it's most likely to change
 ADD ./ /opt/neon-tests

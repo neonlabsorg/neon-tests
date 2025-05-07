@@ -29,19 +29,12 @@ RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 && \
     pip3 install uv && \
     uv venv
 
-COPY ./deploy/requirements/* /opt/
-
-RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 && \
-    pip3 install uv && \
-    uv venv
-
-ENV VIRTUAL_ENV=/.venv
+ENV VIRTUAL_ENV=.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN uv pip install -r /opt/click.txt
+RUN uv pip install -r /opt/neon-tests/click.txt
 
-WORKDIR /opt/neon-tests
-ADD ./ /opt/neon-tests
+COPY ./ /opt/neon-tests
 
 RUN python3 ./clickfile.py requirements -d all
 
