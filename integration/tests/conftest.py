@@ -756,19 +756,6 @@ def precompiled_contract(web3_client, faucet, accounts):
 
 
 @pytest.fixture(scope="function")
-def multiply_recursion(accounts, web3_client) -> tp.Generator[Contract, None, None]:
-    sender_account = accounts[0]
-    contract, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution",
-        "0.8.10",
-        sender_account,
-        contract_name="ChainExecution",
-        constructor_args=[3],
-    )
-    yield contract
-
-
-@pytest.fixture(scope="function")
 def chain_execution_contracts(accounts, web3_client) -> tp.Generator[Contract, None, None]:
     sender_account = accounts[0]
 

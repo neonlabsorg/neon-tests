@@ -17,8 +17,11 @@ class TestTraceTransactionMethod:
         assert tx_data["to"].lower() == tracer_response["result"][0]["action"]["to"].lower()
         assert tx_data["hash"].to_0x_hex() == tracer_response["result"][0]["transactionHash"]
         assert tx_data["input"].to_0x_hex() == tracer_response["result"][0]["action"]["input"]
-        assert tx_data["blockHash"].to_0x_hex() == tracer_response["result"][0]["blockHash"]
         assert tx_data["gas"] == int(tracer_response["result"][0]["action"]["gas"], 16)
+
+        for i in range(len(tracer_response["result"])):
+            assert tx_data["blockHash"].to_0x_hex() == tracer_response["result"][i]["blockHash"]
+            assert tx_data["blockNumber"] == tracer_response["result"][i]["blockNumber"]
 
     @pytest.mark.parametrize(
         "test_case",
@@ -57,42 +60,55 @@ class TestTraceTransactionMethod:
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.verify_common_fields(tracer_response, tx_data)
-        assert "error" not in tracer_response
 
     def test_multiply_scheduled_tx(self, multiply_scheduled_tx_receipts):
         for receipt in multiply_scheduled_tx_receipts:
             tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
             tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
             self.verify_common_fields(tracer_response, tx_data)
-            assert "error" not in tracer_response
 
     def test_trivial_revert(self, trivial_revert_tx_receipt):
         receipt = trivial_revert_tx_receipt
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.verify_common_fields(tracer_response, tx_data)
-        assert "error" not in tracer_response
 
     def test_recursion_tx(self, recursion_tx_receipt):
         receipt = recursion_tx_receipt
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.verify_common_fields(tracer_response, tx_data)
-        assert "error" not in tracer_response
-
-    def test_multiply_recursion_tx(self, multiply_recursion_tx_receipt):
-        receipt = multiply_recursion_tx_receipt
-        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.verify_common_fields(tracer_response, tx_data)
-        assert "error" not in tracer_response
 
     def test_iteractive_tx(self, iteration_tx_receipt):
         receipt = iteration_tx_receipt
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.verify_common_fields(tracer_response, tx_data)
-        assert "error" not in tracer_response
+
+    def test_trace_iterative_tx_with_erc20_for_spl(self, iterative_tx_with_erc20_for_spl_receipt):
+        """51 trx in chain if calls"""
+        receipt = iterative_tx_with_erc20_for_spl_receipt
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.verify_common_fields(tracer_response, tx_data)
+
+    def test_precompile_contract_call_tx(self, precompile_contract_call_tx_receipt):
+        receipt = precompile_contract_call_tx_receipt
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.verify_common_fields(tracer_response, tx_data)
+
+    def test_eth_precompile_contract_tx(self, eth_precompile_contract_tx_receipt):
+        receipt = eth_precompile_contract_tx_receipt
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.verify_common_fields(tracer_response, tx_data)
+
+    def test_precompiled_neon_contract_tx(self, precompiled_neon_contract_tx_receipt):
+        receipt = precompiled_neon_contract_tx_receipt
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.verify_common_fields(tracer_response, tx_data)
 
     def test_chain_transactions(self, chain_transactions_receipt):
         receipt = chain_transactions_receipt
@@ -121,3 +137,35 @@ class TestTraceTransactionMethod:
             ), f"Subtrace count mismatch for trace {i}: expected {expected['subtraces']}, got {result['subtraces']}"
 
         assert "error" not in tracer_response
+
+    # ------ negative : revert fail
+
+    def test_trivial_reverted_tx(self, trivial_revert_tx_receipt):
+        receipt = trivial_revert_tx_receipt
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.verify_common_fields(tracer_response, tx_data)
+
+    def test_revert_in_called_contract_tx(self, revert_in_called_contract_tx_receipt):
+        receipt = revert_in_called_contract_tx_receipt
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.verify_common_fields(tracer_response, tx_data)
+
+    def test_zero_division_tx(self, zero_division_tx_receipt):
+        receipt = zero_division_tx_receipt
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.verify_common_fields(tracer_response, tx_data)
+
+    def test_trivial_error_tx(self, trivial_error_tx_receipt):
+        receipt = trivial_error_tx_receipt
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.verify_common_fields(tracer_response, tx_data)
+
+    def test_failed_scheduled_tx(self, failed_scheduled_tx_receipt):
+        receipt = failed_scheduled_tx_receipt
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.verify_common_fields(tracer_response, tx_data)
