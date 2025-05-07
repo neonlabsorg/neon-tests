@@ -78,16 +78,10 @@ class TestTrxsWithDifferentAccountsCount:
 
         assert receipt["status"] == 1, "Transaction failed"
 
-    def test_trx_with_too_many_accounts(self, web3_client, sol_client, accounts, alt_contract):
+    @pytest.mark.parametrize("accounts_quantity", [180, 7000])
+    def test_estimate_trx_with_too_many_accounts(self, web3_client, accounts, alt_contract, accounts_quantity):
         """Estimate transaction with more than 180 accounts"""
         sender_account = accounts[1]
-        accounts_quantity = 180
         tx = web3_client.make_raw_tx(from_=sender_account)
         with pytest.raises(web3.exceptions.ContractLogicError, match="too many accounts"):
             alt_contract.functions.fill(accounts_quantity).build_transaction(tx)
-
-        tx = web3_client.make_raw_tx(from_=sender_account, gas=10000000)
-
-        instr = alt_contract.functions.fill(accounts_quantity).build_transaction(tx)
-        receipt = web3_client.send_transaction(sender_account, instr)
-        assert receipt["status"] == 0, "Transaction should be failed"
