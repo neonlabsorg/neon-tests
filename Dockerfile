@@ -16,5 +16,6 @@ ENV TZ=Europe/Moscow \
     VIRTUAL_ENV=/.venv \
     PATH="$VIRTUAL_ENV/bin:$PATH"
 
+RUN apt-get update && apt-get upgrade -y
 # Add source code last as it's most likely to change
 ADD ./ /opt/neon-tests
