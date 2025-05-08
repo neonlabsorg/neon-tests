@@ -43,24 +43,12 @@ jobs:
             echo "tag=${tag}" >> $GITHUB_OUTPUT
             echo "oz_tag=${oz_tag}" >> $GITHUB_OUTPUT
 
-
-      - name: "Dockerize base neon tests image"
-        uses: ./.github/actions/dockerize-base-image
-        with:
-          oz_tag: ${{ steps.define-env.outputs.oz_tag }}
-          image_tag: ${{ steps.define-env.outputs.tag }}
-          docker_username: ${{ secrets.DOCKER_USERNAME }}
-          docker_password: ${{ secrets.DOCKER_PASSWORD }}
-          image_name: ${{ github.repository_owner }}/neon_tests_base
-          docker_hub_org_name: ${{ github.repository_owner }}
-          force_build: 'true'
-
       - name: "Dockerize neon tests"
         uses: ./.github/actions/dockerize-neon-tests
         with:
           image_tag: ${{ steps.define-env.outputs.tag }}
+          image_name: ${{ github.repository_owner }}/neon_tests
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
-          image_name: ${{ github.repository_owner }}/neon_tests
           docker_hub_org_name: ${{ github.repository_owner }}
-          base_image_tag: ${{ github.repository_owner }}/neon_tests_base:${{ steps.define-env.outputs.tag }}
+          force_rebuild_base_image: 'true'

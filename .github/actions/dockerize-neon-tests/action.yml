@@ -1,4 +1,4 @@
-name: "Build base test image"
+name: "Build base and final test image"
 description: "Build and push neon test base docker image"
 inputs:
   image_tag:
@@ -38,7 +38,7 @@ runs:
         docker_username: ${{ inputs.docker_username }}
         docker_password: ${{ inputs.docker_password }}
         docker_hub_org_name: ${{ inputs.docker_hub_org_name }}
-        force_rebuild: ${{ inputs.force_rebuild_base_image }}
+        force_rebuild_base_image: ${{ inputs.force_rebuild_base_image }}
 
     - name: Build and push neon tests docker image
       id: docker_pipeline

@@ -20,7 +20,7 @@ inputs:
   docker_hub_org_name:
     description: 'docker hub organization name'
     required: true
-  force_rebuild:
+  force_rebuild_base_image:
     description: 'flag to force rebuild basic image on current branch'
     required: true
     default: false
@@ -84,7 +84,7 @@ runs:
       id: need_build
       shell: bash
       run: |
-        if [[ "${{ steps.check_requirements.outputs.changed }}" == "false" && "${{ inputs.force_rebuild }}" == "false" ]]; then
+        if [[ "${{ steps.check_requirements.outputs.changed }}" == "false" && "${{ inputs.force_rebuild_base_image }}" == "false" ]]; then
           echo "Requirements didn't change, using parent image"
           echo "need_build=false" >> $GITHUB_OUTPUT
           if [[ "${{ env.PARENT_BRANCH }}" == "develop" ]]; then
