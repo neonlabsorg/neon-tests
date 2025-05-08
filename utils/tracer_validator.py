@@ -62,3 +62,26 @@ class TracerValidator:
             assert "error" not in tracer_response["result"]
 
         return True
+
+    @staticmethod
+    @allure.step("check Trace_transaction response")
+    def check_trace_transaction_response(
+        tracer_response: dict,
+        tx_data,
+        wait_error=False,
+    ) -> bool:
+        """check trace_transaction method response"""
+        if wait_error:
+            assert "error" in tracer_response, f"No Error in tracer_response: {tracer_response}"
+        else:
+            assert "error" not in tracer_response, f"Error in tracer_response: {tracer_response}"
+
+        assert tx_data["from"].lower() == tracer_response["result"][0]["action"]["from"].lower()
+        assert tx_data["to"].lower() == tracer_response["result"][0]["action"]["to"].lower()
+        assert tx_data["hash"].to_0x_hex() == tracer_response["result"][0]["transactionHash"]
+        assert tx_data["input"].to_0x_hex() == tracer_response["result"][0]["action"]["input"]
+        assert tx_data["gas"] == int(tracer_response["result"][0]["action"]["gas"], 16)
+
+        for i in range(len(tracer_response["result"])):
+            assert tx_data["blockHash"].to_0x_hex() == tracer_response["result"][i]["blockHash"]
+            assert tx_data["blockNumber"] == tracer_response["result"][i]["blockNumber"]

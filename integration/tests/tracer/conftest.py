@@ -258,6 +258,16 @@ def precompiled_neon_contract_tx_receipt(web3_client: NeonChainWeb3Client, accou
 
 
 @pytest.fixture(scope="class")
+def trivial_error_tx_receipt(accounts, web3_client, revert_contract_caller):
+    sender_account = accounts[0]
+    tx = web3_client.make_raw_tx(sender_account, gas=10000000)
+    instruction_tx = revert_contract_caller.functions.doTrivialRevert().build_transaction(tx)
+    receipt = web3_client.send_transaction(sender_account, instruction_tx)
+    assert receipt["status"] == 0, f"Transaction failed: {receipt}"
+    return receipt
+
+
+@pytest.fixture(scope="class")
 def event_tx_receipt(accounts, web3_client, event_caller_contract):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(from_=sender_account)
