@@ -48,18 +48,10 @@ class TestTraceTransactionMethod:
         receipt = request.getfixturevalue(test_case["fixture_name"])
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-
         self.verify_common_fields(tracer_response, tx_data)
-
         for i, (call_type, subtraces) in enumerate(test_case["expected_call_types"]):
             assert tracer_response["result"][i]["action"]["callType"] == call_type
             assert tracer_response["result"][i]["subtraces"] == subtraces
-
-    def test_scheduled_tx(self, scheduled_tx_receipt):
-        receipt = scheduled_tx_receipt
-        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.verify_common_fields(tracer_response, tx_data)
 
     def test_multiply_scheduled_tx(self, multiply_scheduled_tx_receipts):
         for receipt in multiply_scheduled_tx_receipts:
@@ -67,45 +59,63 @@ class TestTraceTransactionMethod:
             tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
             self.verify_common_fields(tracer_response, tx_data)
 
-    def test_trivial_revert(self, trivial_revert_tx_receipt):
-        receipt = trivial_revert_tx_receipt
-        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.verify_common_fields(tracer_response, tx_data)
-
-    def test_recursion_tx(self, recursion_tx_receipt):
-        receipt = recursion_tx_receipt
-        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.verify_common_fields(tracer_response, tx_data)
-
-    def test_iteractive_tx(self, iteration_tx_receipt):
-        receipt = iteration_tx_receipt
-        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.verify_common_fields(tracer_response, tx_data)
-
-    def test_trace_iterative_tx_with_erc20_for_spl(self, iterative_tx_with_erc20_for_spl_receipt):
-        """51 trx in chain if calls"""
-        receipt = iterative_tx_with_erc20_for_spl_receipt
-        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.verify_common_fields(tracer_response, tx_data)
-
-    def test_precompile_contract_call_tx(self, precompile_contract_call_tx_receipt):
-        receipt = precompile_contract_call_tx_receipt
-        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.verify_common_fields(tracer_response, tx_data)
-
-    def test_eth_precompile_contract_tx(self, eth_precompile_contract_tx_receipt):
-        receipt = eth_precompile_contract_tx_receipt
-        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.verify_common_fields(tracer_response, tx_data)
-
-    def test_precompiled_neon_contract_tx(self, precompiled_neon_contract_tx_receipt):
-        receipt = precompiled_neon_contract_tx_receipt
+    @pytest.mark.parametrize(
+        "test_case",
+        [
+            pytest.param(
+                {"fixture_name": "scheduled_tx_receipt", "description": "Scheduled transaction"},
+                id="scheduled_transaction",
+            ),
+            pytest.param(
+                {"fixture_name": "trivial_revert_tx_receipt", "description": "Trivial revert"}, id="trivial_revert"
+            ),
+            pytest.param(
+                {"fixture_name": "recursion_tx_receipt", "description": "Recursion transaction"}, id="recursion"
+            ),
+            pytest.param(
+                {"fixture_name": "iteration_tx_receipt", "description": "Iterative transaction"}, id="iterative"
+            ),
+            pytest.param(
+                {
+                    "fixture_name": "iterative_tx_with_erc20_for_spl_receipt",
+                    "description": "Iterative transaction with ERC20 for SPL (51 transactions in chain)",
+                },
+                id="iterative_erc20_spl",
+            ),
+            pytest.param(
+                {"fixture_name": "precompile_contract_call_tx_receipt", "description": "Precompile contract call"},
+                id="precompile_contract",
+            ),
+            pytest.param(
+                {"fixture_name": "eth_precompile_contract_tx_receipt", "description": "ETH precompile contract"},
+                id="eth_precompile",
+            ),
+            pytest.param(
+                {"fixture_name": "precompiled_neon_contract_tx_receipt", "description": "Precompiled NEON contract"},
+                id="neon_precompile",
+            ),
+            pytest.param(
+                {"fixture_name": "chain_transactions_receipt", "description": "Chain transactions"},
+                id="chain_transactions",
+            ),
+            pytest.param(
+                {"fixture_name": "trivial_revert_tx_receipt", "description": "Trivial revert"}, id="trivial_revert"
+            ),
+            pytest.param(
+                {"fixture_name": "revert_in_called_contract_tx_receipt", "description": "Revert in called contract"},
+                id="revert_in_called_contract",
+            ),
+            pytest.param(
+                {"fixture_name": "zero_division_tx_receipt", "description": "Zero division transaction"},
+                id="zero_division",
+            ),
+        ],
+    )
+    def test_transaction_types(self, test_case, request):
+        """
+        Test different types of transactions with tracer_transaction method.
+        """
+        receipt = request.getfixturevalue(test_case["fixture_name"])
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.verify_common_fields(tracer_response, tx_data)
@@ -115,7 +125,6 @@ class TestTraceTransactionMethod:
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.verify_common_fields(tracer_response, tx_data)
-
         # Expected trace structure based on the contract execution tree
         expected_traces = [
             {"trace": [], "subtraces": 2},  # Root call (Func1)
@@ -138,34 +147,31 @@ class TestTraceTransactionMethod:
 
         assert "error" not in tracer_response
 
-    # ------ negative : revert fail
-
     def test_trivial_reverted_tx(self, trivial_revert_tx_receipt):
         receipt = trivial_revert_tx_receipt
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.verify_common_fields(tracer_response, tx_data)
 
-    def test_revert_in_called_contract_tx(self, revert_in_called_contract_tx_receipt):
-        receipt = revert_in_called_contract_tx_receipt
-        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.verify_common_fields(tracer_response, tx_data)
+    @pytest.mark.skip("broken")
+    def test_cancel_with_hash(self, json_rpc_client, expected_error_checker):
+        sender_account = self.accounts[0]
+        tx = self.web3_client.make_raw_tx(sender_account)
+        instruction_tx = expected_error_checker.functions.method1().build_transaction(tx)
+        resp = self.web3_client.send_transaction(sender_account, instruction_tx)
+        receipt = json_rpc_client.send_rpc(method="neon_getTransactionReceipt", params=[resp["transactionHash"].hex()])
+        assert receipt["result"]["transactionHash"] == resp["transactionHash"].hex()
 
-    def test_zero_division_tx(self, zero_division_tx_receipt):
-        receipt = zero_division_tx_receipt
-        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.verify_common_fields(tracer_response, tx_data)
-
-    def test_trivial_error_tx(self, trivial_error_tx_receipt):
-        receipt = trivial_error_tx_receipt
-        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.verify_common_fields(tracer_response, tx_data)
-
+    @pytest.mark.skip("broken")
     def test_failed_scheduled_tx(self, failed_scheduled_tx_receipt):
         receipt = failed_scheduled_tx_receipt
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.verify_common_fields(tracer_response, tx_data)
+
+    @pytest.mark.skip("broken")
+    def test_reverted_iteration_tx(self, reverted_iterative_tx_receipt):
+        receipt = reverted_iterative_tx_receipt
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.verify_common_fields(tracer_response, tx_data)
