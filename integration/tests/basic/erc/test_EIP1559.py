@@ -433,7 +433,7 @@ class TestEIP1559:
         max_priority_fee_per_gas = int(min_acceptable_price, 16) + 1
         base_fee_per_gas = 0
 
-        tx_params = self.web3_client.make_raw_tx_eip_1559(
+        transaction = self.web3_client.make_raw_tx_eip_1559(
             chain_id="auto",
             from_=sender.address,
             to=recipient.address,
@@ -448,7 +448,9 @@ class TestEIP1559:
 
         error_msg_regex = r".+ not in the chain after \d+ seconds"
         with pytest.raises(expected_exception=TimeExhausted, match=error_msg_regex):
-            self.web3_client.send_transaction(account=sender, transaction=tx_params, timeout=TX_TIMEOUT)
+            signed_tx = self.web3_client._web3.eth.account.sign_transaction(transaction, sender.key)
+            tx_hash = self.web3_client.eth.send_raw_transaction(signed_tx.raw_transaction)
+            self.web3_client._web3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
 
     @pytest.mark.neon_only
     @pytest.mark.only_stands
@@ -458,6 +460,7 @@ class TestEIP1559:
         web3_client: NeonChainWeb3Client,
         json_rpc_client: JsonRPCSession,
         sol_client: SolanaClient,
+        default_cu_price: int,
     ):
         sender = accounts[0]
         recipient = accounts[1]
@@ -492,7 +495,7 @@ class TestEIP1559:
             commitment=Confirmed,
         ).value
         cu_price_actual = sol_client.get_compute_budget_set_cu_price_from_tx(solana_transaction)
-        assert cu_price_actual == 10500
+        assert cu_price_actual == default_cu_price
 
     @pytest.mark.neon_only
     @pytest.mark.only_stands
@@ -502,6 +505,7 @@ class TestEIP1559:
         web3_client: NeonChainWeb3Client,
         json_rpc_client: JsonRPCSession,
         sol_client: SolanaClient,
+        default_cu_price: int,
     ):
         account = accounts[0]
         contract_iface = helpers.get_contract_interface(
@@ -539,9 +543,8 @@ class TestEIP1559:
             + neon_gas_estimate["gasExecutionUsed"]
             + neon_gas_estimate["gasFinishUsed"]
         )
-        cu_price_expected = 10_500
         cu_price_from_estimate = neon_gas_estimate["solanaComputeUnitPrice"]
-        assert cu_price_from_estimate == cu_price_expected
+        assert cu_price_from_estimate == default_cu_price
 
         receipt = web3_client.send_transaction(account=account, transaction=tx_params)
         solana_transaction_hashes = web3_client.get_solana_trx_by_neon(receipt["transactionHash"].hex())["result"]
@@ -574,9 +577,9 @@ class TestEIP1559:
                     case InstructionTags.SET_COMPUTE_UNIT_PRICE:
                         cu_price_actual = instruction_data
 
-        assert cu_price_actual == cu_price_expected, f"Actual: {cu_price_actual}, Expected: {cu_price_expected}"
+        assert cu_price_actual == default_cu_price, f"Actual: {cu_price_actual}, Expected: {default_cu_price}"
 
-        pkt = CuCostPktData.from_raw(gas, neon_gas_estimate["numIterations"], cu_price_expected)
+        pkt = CuCostPktData.from_raw(gas, neon_gas_estimate["numIterations"], default_cu_price)
         tx_cost = pkt.tx_cost
         assert eth_gas_estimate == tx_cost
 

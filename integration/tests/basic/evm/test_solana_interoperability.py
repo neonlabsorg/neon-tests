@@ -1,28 +1,28 @@
-import typing as tp
-import web3.exceptions
 import random
+import typing as tp
 
+import allure
 import pytest
 import spl
-from solders.keypair import Keypair
+import web3.exceptions
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
 from solana.transaction import AccountMeta, Instruction
+from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from spl.token.client import Token as SplToken
-from spl.token.constants import TOKEN_PROGRAM_ID
+from spl.token.constants import TOKEN_PROGRAM_ID, WRAPPED_SOL_MINT
 from spl.token.instructions import (
     TransferParams,
     get_associated_token_address,
     transfer,
 )
 
-import allure
-from utils.types import TransactionType
 from utils.accounts import EthAccounts
-from utils.consts import COUNTER_ID, TRANSFER_TOKENS_ID, wSOL
+from utils.consts import COUNTER_ID, TRANSFER_TOKENS_ID
 from utils.helpers import bytes32_to_solana_pubkey, serialize_instruction, wait_condition
 from utils.instructions import make_wSOL
+from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -328,7 +328,7 @@ class TestSolanaInteroperability:
 
     def test_gas_estimate_for_wsol_transfer(self, new_solana_account, call_solana_caller, sol_client):
         sender = self.accounts[0]
-        mint = wSOL["address_spl"]
+        mint = WRAPPED_SOL_MINT
         recipient = Keypair()
 
         spl_token = SplToken(sol_client, mint, TOKEN_PROGRAM_ID, new_solana_account)
@@ -359,7 +359,7 @@ class TestSolanaInteroperability:
             signed_tx = self.web3_client.eth.account.sign_transaction(instruction_tx, sender.key)
             result = self.web3_client.get_neon_emulate(str(signed_tx.raw_transaction.hex()))
             resp = self.web3_client.eth.send_raw_transaction(signed_tx.raw_transaction)
-            resp = self.web3_client.eth.wait_for_transaction_receipt(resp, timeout=60)
+            resp = self.web3_client.wait_for_transaction_receipt(resp, timeout=60)
             assert resp["status"] == 1
 
             return result["result"]["gasUsed"]
@@ -645,6 +645,10 @@ class TestSolanaInteroperability:
         )
 
     def test_solana_call_before_iterative_actions_negative(self, counter_resource_address: bytes, call_solana_caller):
+        """
+        makes sure that anything done after Solana call fits into a single transaction
+        while matrix triggers more than 1 transaction
+        """
         sender = self.accounts[0]
         lamports = 0
         matrix_lenght = 15

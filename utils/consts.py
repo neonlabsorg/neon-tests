@@ -8,6 +8,11 @@ from utils.types import TestGroup
 
 EXTERNAL_CONTRACT_PATH = Path.cwd() / "contracts" / "external"
 REMAPPING_ZEPPELIN = {"@openzeppelin": str(EXTERNAL_CONTRACT_PATH / "neon-contracts/node_modules/@openzeppelin")}
+REMAPPING_ZEPPELIN_UNISWAP = {
+    "@openzeppelin": str(EXTERNAL_CONTRACT_PATH / "uniswap-v3/node_modules/@openzeppelin"),
+    "base64-sol": str(EXTERNAL_CONTRACT_PATH / "uniswap-v3/node_modules/base64-sol"),
+    "@uniswap": str(EXTERNAL_CONTRACT_PATH / "uniswap-v3/node_modules/@uniswap"),
+}
 TEST_GROUPS: tp.Tuple[TestGroup, ...] = tp.get_args(TestGroup)
 
 OPERATOR_KEYPAIR_PATH = "deploy/operator-keypairs"
@@ -56,8 +61,6 @@ class Unit(Enum):
 
 
 class EnvName(str, Enum):
-    NIGHT_STAND = "night-stand"
-    RELEASE_STAND = "release-stand"
     MAINNET = "mainnet"
     DEVNET = "devnet"
     TESTNET = "testnet"
@@ -76,18 +79,7 @@ class InputTestConstants(Enum):
     ROUND_DIGITS = 3
 
 
-wSOL = {
-    "chain_id": 111,
-    "address_spl": Pubkey.from_string("So11111111111111111111111111111111111111112"),
-    "address": "0x16869acc45BA20abEFB2DdE2096F66373fDe364F",
-    "decimals": 9,
-    "name": "Wrapped SOL",
-    "symbol": "wSOL",
-    "logo_uri": "",
-}
-
 MULTITOKEN_MINTS_USDT = "2duuuuhNJHUYqcnZ7LKfeufeeTBgSJdftf2zM3cZV6ym"
-MIN_CU_PRICE = 10500
 
 
 class InstructionTags(bytes, Enum):
