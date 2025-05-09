@@ -50,6 +50,18 @@ contract rw_lock {
         }
     }
 
+    function execute_iterative_actions_and_change_data( uint x, uint y, uint resize) public {
+        uint n = 0;
+        while (n < resize){
+            data[msg.sender][n] = uint256(n);
+            n = n + 1;
+        }
+        uint z = x;
+        while (x < y) {
+            z++;
+            x = z;
+        }
+    }
 }
 
 
@@ -78,5 +90,9 @@ contract rw_lock_caller {
 
     function update_storage_map_with_salt(uint resize, uint salt) public {
        return rw.update_storage_map_with_salt(resize, salt);
-     }
+    }
+
+    function call_nested_contracts_and_change_data(uint x, uint y, uint resize) public {
+        rw.execute_iterative_actions_and_change_data(x, y, resize);
+    }
 }
