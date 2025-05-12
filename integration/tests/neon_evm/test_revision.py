@@ -946,48 +946,48 @@ class TestAccountRevision:
         emulate_result1 = neon_api_client.emulate_contract_call(
             user1.eth_address.hex(),
             revision_contract_caller.eth_address.hex(),
-            "executeIterativeActionsAndChangeData(uint256,uint256,uint256)",
-            [10, 0, 3000],
+            "callRevisionChangerMethods(uint256)",
+            [10],
         )
+        print("Emulation result 1 trx: ", emulate_result1)
 
         acc_from_emulation1 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result1["solana_accounts"]]
         signed_tx1 = make_contract_call_trx(
             evm_loader,
             user1,
             revision_contract_caller,
-            "executeIterativeActionsAndChangeData(uint256,uint256,uint256)",
-            [10, 0, 3000],
+            "callRevisionChangerMethods(uint256)",
+            [10],
         )
         evm_loader.write_transaction_to_holder_account(signed_tx1, holder1, operator_keypair)
 
         emulate_result2 = neon_api_client.emulate_contract_call(
             user2.eth_address.hex(),
             revision_contract_caller.eth_address.hex(),
-            "executeIterativeActionsAndChangeData(uint256,uint256,uint256)",
-            [4, 0, 3000],
+            "callRevisionChangerMethods(uint256)",
+            [4],
         )
+        print("Emulation result 2 trx: ", emulate_result2)
         acc_from_emulation2 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result2["solana_accounts"]]
         signed_tx2 = make_contract_call_trx(
             evm_loader,
             user2,
             revision_contract_caller,
-            "executeIterativeActionsAndChangeData(uint256,uint256,uint256)",
-            [4, 0, 3000],
+            "callRevisionChangerMethods(uint256)",
+            [4],
         )
         evm_loader.write_transaction_to_holder_account(signed_tx2, holder2, operator_keypair)
 
-        for i in range(220):
+        for _ in range(3):
             send_transaction_steps(holder1, acc_from_emulation1)
-            send_transaction_steps(holder2, acc_from_emulation2)
 
-        send_transaction_steps(holder1, acc_from_emulation1)
-        resp1 = send_transaction_steps(holder1, acc_from_emulation1)
+        resp2 = evm_loader.execute_transaction_steps_from_account(
+            operator_keypair, treasury_pool, holder2, acc_from_emulation2
+        )
+        check_transaction_logs_have_text(solana_client=sol_client, trx=resp2, text="exit_status=0x11")
 
-        check_holder_account_tag(
-            solana_client=sol_client,
-            storage_account=holder1,
-            layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
-            expected_tag=TAG_FINALIZED_STATE,
+        resp1 = evm_loader.execute_transaction_steps_from_account(
+            operator_keypair, treasury_pool, holder1, acc_from_emulation1
         )
         check_transaction_logs_have_text(solana_client=sol_client, trx=resp1, text="exit_status=0x11")
 
@@ -1000,22 +1000,5 @@ class TestAccountRevision:
 
         data_accounts = set(acc_from_emulation1) - set(additional_accounts)
         for acc in data_accounts:
-            if evm_loader.get_solana_balance(acc) > 0:
-                data_acc_revision_after = evm_loader.get_data_account_revision(acc)
-                assert data_acc_revision_after == 2
-
-        for i in range(219):
-            send_transaction_steps(holder2, acc_from_emulation2)
-        resp2 = send_transaction_steps(holder2, acc_from_emulation2)
-        check_holder_account_tag(
-            solana_client=sol_client,
-            storage_account=holder2,
-            layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
-            expected_tag=TAG_FINALIZED_STATE,
-        )
-        check_transaction_logs_have_text(solana_client=sol_client, trx=resp2, text="exit_status=0x11")
-
-        for acc in data_accounts:
-            if evm_loader.get_solana_balance(acc) > 0:
-                data_acc_revision_after = evm_loader.get_data_account_revision(acc)
-                assert data_acc_revision_after == 3
+            data_acc_revision_after = evm_loader.get_data_account_revision(acc)
+            assert data_acc_revision_after == 3

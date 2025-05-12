@@ -43,19 +43,9 @@ contract RevisionChangerCaller {
         rch = RevisionChanger(revisionChangerAddress);
     }
 
-    function executeIterativeActionsAndChangeData(
-        uint256 n,
-        uint256 x,
-        uint256 y
-    ) public {
+    function callRevisionChangerMethods(uint256 n) public {
         rch.powNumberInnerAndRollback(n);
         rch.changeGlobalVarB(0);
         rch.powNumberOuterAndRollback(n);
-        rch.changeGlobalVarB(5);
-        uint z = x;
-        while (x < y) {
-            z++;
-            x = z;
-        }
     }
 }
