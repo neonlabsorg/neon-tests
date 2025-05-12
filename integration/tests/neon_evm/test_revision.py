@@ -276,6 +276,7 @@ class TestAccountRevision:
             data_acc_revision_after_user2_finished = evm_loader.get_data_account_revision(data_account)
             assert data_acc_revision_after_user2_finished == 2
 
+    @pytest.mark.skip(reason="not implemented in v1.19.x")
     def test_2_users_sent_neons_to_the_same_recipients(
         self,
         operator_keypair,
@@ -687,6 +688,7 @@ class TestAccountRevision:
         "func_signature, amount_emulated_accounts",
         [("powNumberInnerAndRollback(uint256)", 2), ("powNumberOuterAndRollback(uint256)", 3)],
     )
+    @pytest.mark.skip(reason="not implemented in v1.19.x")
     def test_transaction_not_restarted_if_value_not_changed(
         self,
         revision_contract,
@@ -836,6 +838,7 @@ class TestAccountRevision:
             # check_transaction_logs_have_not_text(solana_client=evm_loader, trx=resp, text="INVALID_REVISION")
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x12")
 
+    @pytest.mark.skip(reason="not implemented in v1.19.x")
     def test_balance_acc_revision_for_transaction_with_flash_loan(
         self,
         borrower_contract,
