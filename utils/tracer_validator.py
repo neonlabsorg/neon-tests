@@ -4,6 +4,7 @@ import pathlib
 import allure
 from jsonschema import Draft4Validator
 
+from utils.models.result import TraceTransactionResponse
 
 SCHEMAS = "./integration/tests/tracer/schemas/"
 
@@ -70,6 +71,8 @@ class TracerValidator:
         tx_data,
         wait_error=False,
     ) -> bool:
+
+        TraceTransactionResponse(**tracer_response)
         """check trace_transaction method response"""
         if wait_error:
             assert "error" in tracer_response, f"No Error in tracer_response: {tracer_response}"
@@ -82,6 +85,7 @@ class TracerValidator:
         assert tx_data["input"].to_0x_hex() == tracer_response["result"][0]["action"]["input"]
         assert tx_data["gas"] == int(tracer_response["result"][0]["action"]["gas"], 16)
 
+        assert len(tracer_response["result"]) > 0, f"tracer_response: {tracer_response}"
         for i in range(len(tracer_response["result"])):
             assert tx_data["blockHash"].to_0x_hex() == tracer_response["result"][i]["blockHash"]
             assert tx_data["blockNumber"] == tracer_response["result"][i]["blockNumber"]

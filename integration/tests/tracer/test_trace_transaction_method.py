@@ -42,9 +42,10 @@ class TestTraceTransactionMethod:
             assert tracer_response["result"][i]["subtraces"] == subtraces
 
     def test_multiply_scheduled_tx(self, multiply_scheduled_tx_receipts):
-        tx_data = self.web3_client.get_transaction_by_hash(multiply_scheduled_tx_receipts["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(multiply_scheduled_tx_receipts["transactionHash"].hex())
-        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
+        for receipt in multiply_scheduled_tx_receipts:
+            tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+            tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+            self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
     @pytest.mark.parametrize(
         "test_case",
@@ -65,7 +66,7 @@ class TestTraceTransactionMethod:
             pytest.param(
                 {
                     "fixture_name": "iterative_tx_with_erc20_for_spl_receipt",
-                    "description": "Iterative transaction with ERC20 for SPL (51 transactions in chain)",
+                    "description": "Iterative transaction with 51 contract calls",
                 },
                 id="iterative_erc20_spl",
             ),
@@ -96,6 +97,10 @@ class TestTraceTransactionMethod:
                 {"fixture_name": "zero_division_tx_receipt", "description": "Zero division transaction"},
                 id="zero_division",
             ),
+            pytest.param(
+                {"fixture_name": "canceled_tx_with_hash_receipt", "description": "Canceled transaction with hash"},
+                id="canceled_tx_with_hash",
+            ),
         ],
     )
     def test_transaction_types(self, test_case, request):
@@ -105,6 +110,18 @@ class TestTraceTransactionMethod:
         receipt = request.getfixturevalue(test_case["fixture_name"])
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
+
+    @pytest.mark.skip("NDEV-3714")
+    def test_failed_scheduled_tx(self, failed_scheduled_tx_receipt):
+        tx_data = self.web3_client.get_transaction_by_hash(failed_scheduled_tx_receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(failed_scheduled_tx_receipt["transactionHash"].hex())
+        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
+
+    @pytest.mark.skip("NDEV-3714")
+    def test_reverted_iteration_tx(self, reverted_iterative_tx_receipt):
+        tx_data = self.web3_client.get_transaction_by_hash(reverted_iterative_tx_receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(reverted_iterative_tx_receipt["transactionHash"].hex())
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
     def test_chain_transactions(self, chain_transactions_receipt):
@@ -132,29 +149,3 @@ class TestTraceTransactionMethod:
             ), f"Subtrace count mismatch for trace {i}: expected {expected['subtraces']}, got {result['subtraces']}"
 
         assert "error" not in tracer_response
-
-    def test_trivial_reverted_tx(self, trivial_revert_tx_receipt):
-        tx_data = self.web3_client.get_transaction_by_hash(trivial_revert_tx_receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(trivial_revert_tx_receipt["transactionHash"].hex())
-        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
-
-    @pytest.mark.skip("broken")
-    def test_cancel_with_hash(self, json_rpc_client, expected_error_checker):
-        sender_account = self.accounts[0]
-        tx = self.web3_client.make_raw_tx(sender_account)
-        instruction_tx = expected_error_checker.functions.method1().build_transaction(tx)
-        resp = self.web3_client.send_transaction(sender_account, instruction_tx)
-        receipt = json_rpc_client.send_rpc(method="neon_getTransactionReceipt", params=[resp["transactionHash"].hex()])
-        assert receipt["result"]["transactionHash"] == resp["transactionHash"].hex()
-
-    @pytest.mark.skip("broken")
-    def test_failed_scheduled_tx(self, failed_scheduled_tx_receipt):
-        tx_data = self.web3_client.get_transaction_by_hash(failed_scheduled_tx_receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(failed_scheduled_tx_receipt["transactionHash"].hex())
-        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
-
-    @pytest.mark.skip("broken")
-    def test_reverted_iteration_tx(self, reverted_iterative_tx_receipt):
-        tx_data = self.web3_client.get_transaction_by_hash(reverted_iterative_tx_receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(reverted_iterative_tx_receipt["transactionHash"].hex())
-        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)

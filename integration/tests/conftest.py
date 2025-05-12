@@ -525,7 +525,7 @@ def nested_call_contracts(accounts, web3_client) -> tp.Generator[tuple[Contract,
     yield contract_a, contract_b, contract_c
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def recursion_factory(accounts, web3_client) -> tp.Generator[Contract, None, None]:
     sender_account = accounts[0]
     contract, _ = web3_client.deploy_and_get_contract(
@@ -755,7 +755,7 @@ def precompiled_contract(web3_client, faucet, accounts):
     return contract
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def chain_execution_contracts(accounts, web3_client) -> tp.Generator[Contract, None, None]:
     sender_account = accounts[0]
 

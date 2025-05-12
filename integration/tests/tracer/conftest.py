@@ -277,7 +277,7 @@ def event_tx_receipt(accounts, web3_client, event_caller_contract):
     return receipt
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def scheduled_tx_receipt(web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
     contract_data = 18
     data = decode_function_signature("setNumber(uint256)", [contract_data])
@@ -342,7 +342,7 @@ def multiply_scheduled_tx_receipts(
     return receipts
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def recursion_tx_receipt(accounts, web3_client, recursion_factory):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(sender_account)
@@ -353,7 +353,7 @@ def recursion_tx_receipt(accounts, web3_client, recursion_factory):
     return receipt
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def iteration_tx_receipt(accounts, web3_client, counter_contract):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(from_=sender_account)
@@ -368,7 +368,7 @@ def iteration_tx_receipt(accounts, web3_client, counter_contract):
     return receipt
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def iterative_tx_with_erc20_for_spl_receipt(accounts, web3_client, multiple_actions_erc20):
     sender_account = accounts[0]
     acc, contract = multiple_actions_erc20
@@ -389,18 +389,17 @@ def iterative_tx_with_erc20_for_spl_receipt(accounts, web3_client, multiple_acti
     return receipt
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def chain_transactions_receipt(accounts, web3_client, chain_execution_contracts):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(from_=sender_account)
     instruction_tx = chain_execution_contracts.functions.start_execution().build_transaction(tx)
     receipt = web3_client.send_transaction(sender_account, instruction_tx)
-
-    assert receipt["status"] == 1
+    assert receipt["status"] == 1, f"Transaction failed: {receipt}"
     return receipt
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def failed_scheduled_tx_receipt(
     web3_client_sol, neon_user, treasury_pool, revert_contract_caller, event_caller_contract, evm_loader
 ):
@@ -437,11 +436,21 @@ def failed_scheduled_tx_receipt(
     return receipt
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def reverted_iterative_tx_receipt(accounts, web3_client, revert_contract_caller):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(sender_account, gas=10000000)
     instruction_tx = revert_contract_caller.functions.doTrivialRevertAferIterativeActions().build_transaction(tx)
     receipt = web3_client.send_transaction(sender_account, instruction_tx)
     assert receipt["status"] == 0
+    return receipt
+
+
+@pytest.fixture(scope="class")
+def canceled_tx_with_hash_receipt(accounts, web3_client, expected_error_checker):
+    sender_account = accounts[0]
+    tx = web3_client.make_raw_tx(sender_account)
+    instruction_tx = expected_error_checker.functions.method1().build_transaction(tx)
+    receipt = web3_client.send_transaction(sender_account, instruction_tx)
+    assert receipt["status"] == 0, f"Transaction success: {receipt}"
     return receipt
