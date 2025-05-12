@@ -1,4 +1,5 @@
 import pytest
+import eth_abi
 from solana.rpc.core import RPCException as SolanaRPCException
 from solders.pubkey import Pubkey
 
@@ -27,6 +28,29 @@ class TestAccountRevision:
             neon_api_client,
             treasury_pool,
             contract_name="RevisionChanger",
+            version="0.8.12",
+        )
+
+    @pytest.fixture(scope="class")
+    def revision_contract_caller(
+        self,
+        request,
+        revision_contract,
+        evm_loader,
+        operator_keypair,
+        sender_with_tokens,
+        neon_api_client,
+        treasury_pool,
+    ):
+        constructor_args = eth_abi.encode(["address"], [revision_contract.eth_address.hex()])
+        return evm_loader.deploy_contract(
+            operator_keypair,
+            sender_with_tokens,
+            "common/Revision.sol",
+            neon_api_client,
+            treasury_pool,
+            encoded_args=constructor_args,
+            contract_name="RevisionChangerCaller",
             version="0.8.12",
         )
 
@@ -879,101 +903,6 @@ class TestAccountRevision:
         assert balance_before == balance_after
         assert revision_before == revision_after
 
-    def test_1_user_2_parallel_trx_of_one_contract_with_nested_call(
-        self,
-        operator_keypair,
-        treasury_pool,
-        neon_api_client,
-        session_user,
-        rw_lock_contract,
-        evm_loader,
-        holder_acc,
-        sol_client,
-    ):
-        call_params = [0, 3000, 5]
-        additional_accounts = [session_user.balance_account_address, rw_lock_contract.solana_address]
-        operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
-
-        emulate_result = neon_api_client.emulate_contract_call(
-            session_user.eth_address.hex(),
-            rw_lock_contract.eth_address.hex(),
-            "call_nested_contracts_and_change_data(uint,uint,uint)",
-            call_params,
-        )
-
-        acc_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
-        data_accounts = set(acc_from_emulation) - set(additional_accounts)
-
-        signed_tx1 = make_contract_call_trx(
-            evm_loader,
-            session_user,
-            rw_lock_contract,
-            "call_nested_contracts_and_change_data(uint,uint,uint)",
-            call_params,
-        )
-        evm_loader.write_transaction_to_holder_account(signed_tx1, holder_acc, operator_keypair)
-
-        evm_loader.send_transaction_step_from_account(
-            operator_keypair,
-            operator_balance_pubkey,
-            treasury_pool,
-            holder_acc,
-            acc_from_emulation,
-            EVM_STEPS,
-            operator_keypair,
-        )
-        evm_loader.send_transaction_step_from_account(
-            operator_keypair,
-            operator_balance_pubkey,
-            treasury_pool,
-            holder_acc,
-            acc_from_emulation,
-            EVM_STEPS,
-            operator_keypair,
-        )
-
-        for _ in range(2):
-            holder_acc_for_trx_from_instr = evm_loader.create_holder(operator_keypair)
-            signed_tx2 = make_contract_call_trx(
-                evm_loader,
-                session_user,
-                rw_lock_contract,
-                "call_nested_contracts_and_change_data(uint,uint,uint)",
-                call_params,
-            )
-            resp = evm_loader.execute_trx_from_instruction(
-                operator_keypair,
-                holder_acc_for_trx_from_instr,
-                treasury_pool.account,
-                treasury_pool.buffer,
-                signed_tx2,
-                acc_from_emulation,
-            )
-            check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x11")
-
-        resp = evm_loader.send_transaction_step_from_account(
-            operator_keypair,
-            operator_balance_pubkey,
-            treasury_pool,
-            holder_acc,
-            acc_from_emulation,
-            EVM_STEPS,
-            operator_keypair,
-        )
-
-        check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x11")
-        check_holder_account_tag(
-            solana_client=sol_client,
-            storage_account=holder_acc,
-            layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
-            expected_tag=TAG_FINALIZED_STATE,
-        )
-
-        for acc in data_accounts:
-            if evm_loader.get_solana_balance(acc) > 0:
-                data_acc_revision_after = evm_loader.get_data_account_revision(acc)
-                assert data_acc_revision_after == 3
-
     def test_2_users_call_one_contract_with_nested_call(
         self,
         user_account,
@@ -983,17 +912,25 @@ class TestAccountRevision:
         new_holder_acc,
         holder_acc,
         neon_api_client,
-        rw_lock_contract,
+        revision_contract,
+        revision_contract_caller,
         session_user,
         sol_client,
     ):
+        contract_revision_before = evm_loader.get_contract_account_revision(revision_contract.solana_address)
+        contract_revision_caller_before = evm_loader.get_contract_account_revision(
+            revision_contract_caller.solana_address
+        )
         user1 = session_user
         user2 = user_account
         holder1 = holder_acc
         holder2 = new_holder_acc
-        call_params = [0, 3000, 5]
-
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
+        additional_accounts = [
+            session_user.balance_account_address,
+            revision_contract.solana_address,
+            revision_contract_caller.solana_address,
+        ]
 
         def send_transaction_steps(holder_account, accounts):
             return evm_loader.send_transaction_step_from_account(
@@ -1008,37 +945,77 @@ class TestAccountRevision:
 
         emulate_result1 = neon_api_client.emulate_contract_call(
             user1.eth_address.hex(),
-            rw_lock_contract.eth_address.hex(),
-            "call_nested_contracts_and_change_data(uint,uint,uint)",
-            call_params,
+            revision_contract_caller.eth_address.hex(),
+            "executeIterativeActionsAndChangeData(uint256,uint256,uint256)",
+            [10, 0, 3000],
         )
 
         acc_from_emulation1 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result1["solana_accounts"]]
         signed_tx1 = make_contract_call_trx(
-            evm_loader, user1, rw_lock_contract, "call_nested_contracts_and_change_data(uint,uint,uint)", call_params
+            evm_loader,
+            user1,
+            revision_contract_caller,
+            "executeIterativeActionsAndChangeData(uint256,uint256,uint256)",
+            [10, 0, 3000],
         )
-
         evm_loader.write_transaction_to_holder_account(signed_tx1, holder1, operator_keypair)
 
         emulate_result2 = neon_api_client.emulate_contract_call(
             user2.eth_address.hex(),
-            rw_lock_contract.eth_address.hex(),
-            "call_nested_contracts_and_change_data(uint,uint,uint)",
-            call_params,
+            revision_contract_caller.eth_address.hex(),
+            "executeIterativeActionsAndChangeData(uint256,uint256,uint256)",
+            [4, 0, 3000],
         )
         acc_from_emulation2 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result2["solana_accounts"]]
         signed_tx2 = make_contract_call_trx(
-            evm_loader, user2, rw_lock_contract, "call_nested_contracts_and_change_data(uint,uint,uint)", call_params
+            evm_loader,
+            user2,
+            revision_contract_caller,
+            "executeIterativeActionsAndChangeData(uint256,uint256,uint256)",
+            [4, 0, 3000],
         )
         evm_loader.write_transaction_to_holder_account(signed_tx2, holder2, operator_keypair)
 
+        for i in range(220):
+            send_transaction_steps(holder1, acc_from_emulation1)
+            send_transaction_steps(holder2, acc_from_emulation2)
+
         send_transaction_steps(holder1, acc_from_emulation1)
-        send_transaction_steps(holder2, acc_from_emulation2)
-        send_transaction_steps(holder1, acc_from_emulation1)
-        send_transaction_steps(holder2, acc_from_emulation2)
         resp1 = send_transaction_steps(holder1, acc_from_emulation1)
-        send_transaction_steps(holder2, acc_from_emulation2)
+
+        check_holder_account_tag(
+            solana_client=sol_client,
+            storage_account=holder1,
+            layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
+            expected_tag=TAG_FINALIZED_STATE,
+        )
         check_transaction_logs_have_text(solana_client=sol_client, trx=resp1, text="exit_status=0x11")
 
+        contract_revision_after = evm_loader.get_contract_account_revision(revision_contract.solana_address)
+        contract_revision_caller_after = evm_loader.get_contract_account_revision(
+            revision_contract_caller.solana_address
+        )
+        assert contract_revision_before == contract_revision_after - 1
+        assert contract_revision_caller_before == contract_revision_caller_after
+
+        data_accounts = set(acc_from_emulation1) - set(additional_accounts)
+        for acc in data_accounts:
+            if evm_loader.get_solana_balance(acc) > 0:
+                data_acc_revision_after = evm_loader.get_data_account_revision(acc)
+                assert data_acc_revision_after == 2
+
+        for i in range(219):
+            send_transaction_steps(holder2, acc_from_emulation2)
         resp2 = send_transaction_steps(holder2, acc_from_emulation2)
+        check_holder_account_tag(
+            solana_client=sol_client,
+            storage_account=holder2,
+            layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
+            expected_tag=TAG_FINALIZED_STATE,
+        )
         check_transaction_logs_have_text(solana_client=sol_client, trx=resp2, text="exit_status=0x11")
+
+        for acc in data_accounts:
+            if evm_loader.get_solana_balance(acc) > 0:
+                data_acc_revision_after = evm_loader.get_data_account_revision(acc)
+                assert data_acc_revision_after == 3

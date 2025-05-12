@@ -2,7 +2,6 @@
 pragma solidity ^0.8.12;
 
 contract RevisionChanger {
-
     uint256 public number_inner_contract_scope = 1;
     bytes32[64] public b;
     uint256 public number_outer_contract_scope = 2;
@@ -15,9 +14,8 @@ contract RevisionChanger {
 
         for (uint i = 0; i < n; i++) {
             computedValue *= original;
-            number_inner_contract_scope=computedValue;
+            number_inner_contract_scope = computedValue;
         }
-
         number_inner_contract_scope = original;
     }
 
@@ -29,10 +27,35 @@ contract RevisionChanger {
 
         for (uint i = 0; i < n; i++) {
             computedValue *= original;
-            number_outer_contract_scope=computedValue;
+            number_outer_contract_scope = computedValue;
         }
+    }
 
-        number_outer_contract_scope = original;
+    function changeGlobalVarB(uint i) public {
+        bytes32 a = 0x68656c6c3f000000000000000000000000000000000000000000000000000000;
+        b[i] = bytes32(a);
     }
 }
 
+contract RevisionChangerCaller {
+    RevisionChanger rch;
+    constructor(address revisionChangerAddress) {
+        rch = RevisionChanger(revisionChangerAddress);
+    }
+
+    function executeIterativeActionsAndChangeData(
+        uint256 n,
+        uint256 x,
+        uint256 y
+    ) public {
+        rch.powNumberInnerAndRollback(n);
+        rch.changeGlobalVarB(0);
+        rch.powNumberOuterAndRollback(n);
+        rch.changeGlobalVarB(5);
+        uint z = x;
+        while (x < y) {
+            z++;
+            x = z;
+        }
+    }
+}
