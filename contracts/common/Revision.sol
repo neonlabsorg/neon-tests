@@ -6,6 +6,10 @@ contract RevisionChanger {
     bytes32[64] public b;
     uint256 public number_outer_contract_scope = 2;
 
+    function getVarB() public returns (bytes32[64] memory) {
+        return b;
+    }
+
     function powNumberInnerAndRollback(uint256 n) public {
         require(n > 0, "Exponent should be > 0");
 
@@ -48,5 +52,12 @@ contract RevisionChangerCaller {
         rch.powNumberInnerAndRollback(n);
         rch.changeGlobalVarB(n);
         rch.powNumberOuterAndRollback(n);
+    }
+
+    // we do not change rch.b value here
+    // we need to have a func with the same signature as in the RevisionChanger contract
+    function changeGlobalVarB(uint256 n) public {
+        bytes32[64] memory b = rch.getVarB();
+        b[0] = bytes32(abi.encodePacked(n));
     }
 }

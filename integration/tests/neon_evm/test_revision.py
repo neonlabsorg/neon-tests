@@ -949,7 +949,6 @@ class TestAccountRevision:
             "callRevisionChangerMethods(uint256)",
             [10],
         )
-        print("Emulation result 1 trx: ", emulate_result1)
 
         acc_from_emulation1 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result1["solana_accounts"]]
         signed_tx1 = make_contract_call_trx(
@@ -967,7 +966,7 @@ class TestAccountRevision:
             "callRevisionChangerMethods(uint256)",
             [4],
         )
-        print("Emulation result 2 trx: ", emulate_result2)
+
         acc_from_emulation2 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result2["solana_accounts"]]
         signed_tx2 = make_contract_call_trx(
             evm_loader,
