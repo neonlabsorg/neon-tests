@@ -11,6 +11,7 @@ from ..basic.helpers.assert_message import ErrorMessage
 
 
 class TestAccountRevision:
+    @pytest.mark.skip(reason="not implemented in v1.20.x")
     def test_call_contract_with_changing_data(
         self,
         operator_keypair,
@@ -224,6 +225,7 @@ class TestAccountRevision:
             data_acc_revision_after_user2_finished = evm_loader.get_data_account_revision(data_account)
             assert data_acc_revision_after_user2_finished == 2
 
+    @pytest.mark.skip(reason="not implemented in v1.20.x")
     def test_2_users_sent_neons_to_the_same_recipients(
         self,
         operator_keypair,
@@ -320,6 +322,7 @@ class TestAccountRevision:
         for acc in recipients:
             assert evm_loader.get_neon_balance(acc.eth_address) == amount * 2
 
+    @pytest.mark.skip(reason="not implemented in v1.20.x")
     def test_1_user_2_parallel_trx_with_data_change(
         self,
         operator_keypair,
