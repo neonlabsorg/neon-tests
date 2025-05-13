@@ -31,9 +31,10 @@ contract RevisionChanger {
         }
     }
 
-    function changeGlobalVarB(uint i) public {
-        bytes32 a = 0x68656c6c3f000000000000000000000000000000000000000000000000000000;
-        b[i] = bytes32(a);
+    function changeGlobalVarB(uint256 n) public {
+        for (uint i = 0; i < 64; i++) {
+            b[i] = bytes32(abi.encodePacked(n));
+        }
     }
 }
 
@@ -45,7 +46,7 @@ contract RevisionChangerCaller {
 
     function callRevisionChangerMethods(uint256 n) public {
         rch.powNumberInnerAndRollback(n);
-        rch.changeGlobalVarB(0);
+        rch.changeGlobalVarB(n);
         rch.powNumberOuterAndRollback(n);
     }
 }

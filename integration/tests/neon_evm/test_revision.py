@@ -978,7 +978,7 @@ class TestAccountRevision:
         )
         evm_loader.write_transaction_to_holder_account(signed_tx2, holder2, operator_keypair)
 
-        for _ in range(3):
+        for _ in range(10):
             send_transaction_steps(holder1, acc_from_emulation1)
 
         resp2 = evm_loader.execute_transaction_steps_from_account(
@@ -995,7 +995,7 @@ class TestAccountRevision:
         contract_revision_caller_after = evm_loader.get_contract_account_revision(
             revision_contract_caller.solana_address
         )
-        assert contract_revision_before == contract_revision_after - 1
+        assert contract_revision_before == contract_revision_after - 2
         assert contract_revision_caller_before == contract_revision_caller_after
 
         data_accounts = set(acc_from_emulation1) - set(additional_accounts)
