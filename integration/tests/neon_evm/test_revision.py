@@ -977,7 +977,8 @@ class TestAccountRevision:
         )
         evm_loader.write_transaction_to_holder_account(signed_tx2, holder2, operator_keypair)
 
-        for _ in range(10):
+        # we need 16 steps to complete trx1
+        for _ in range(14):
             send_transaction_steps(holder1, acc_from_emulation1)
 
         resp2 = evm_loader.execute_transaction_steps_from_account(
