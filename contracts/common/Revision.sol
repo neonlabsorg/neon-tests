@@ -51,6 +51,7 @@ contract RevisionChangerCaller {
     function callRevisionChangerMethods(uint256 n) public {
         rch.powNumberInnerAndRollback(n);
         rch.changeGlobalVarB(n);
+        checkGlobalVarBChanged(n);
         rch.powNumberOuterAndRollback(n);
     }
 
@@ -58,6 +59,17 @@ contract RevisionChangerCaller {
     // we need to have a func with the same signature as in the RevisionChanger contract
     function changeGlobalVarB(uint256 n) public {
         bytes32[64] memory b = rch.getVarB();
-        b[0] = bytes32(abi.encodePacked(n));
+        b[0] = bytes32(abi.encodePacked(n+n));
+        require(false, "Wrong method taken from caller contract");
+    }
+
+    function checkGlobalVarBChanged(uint256 n) public {
+        bytes32[64] memory b = rch.getVarB();
+        for (uint i = 0; i < 64; i++) {
+            require(
+                b[i] == bytes32(abi.encodePacked(n)),
+                "Global var is not changed"
+            );
+        }
     }
 }
