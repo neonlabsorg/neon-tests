@@ -6,16 +6,11 @@ from decimal import Decimal
 import allure
 import pytest
 import rlp
-from _pytest.config import Config
 from eth_account.signers.local import LocalAccount
-from solders.keypair import Keypair as SolanaAccount
+from solders.keypair import Keypair as SolanaAccount, Keypair
 from solders.pubkey import Pubkey
 from solana.rpc.types import Commitment
-from solana.transaction import Transaction
-from spl.token.instructions import (
-    create_associated_token_account,
-    get_associated_token_address,
-)
+
 from web3.contract import Contract
 from web3.exceptions import Web3RPCError
 
@@ -179,13 +174,13 @@ class TestEconomics:
         assert sol_balance_before == sol_balance_after
         assert token_balance_before == token_balance_after
 
-    def test_erc20wrapper_transfer(self, erc20_wrapper, client_and_price, sol_price, operator, accounts):
+    def test_erc20_for_spl_transfer(self, erc20_wrapper, client_and_price, sol_price, operator, accounts):
         sender_account = accounts[0]
         w3_client, token_price = client_and_price
         sol_balance_before = operator.get_solana_balance()
         token_balance_before = operator.get_token_balance(w3_client)
         assert erc20_wrapper.contract.functions.balanceOf(sender_account.address).call() == 0
-        transfer_tx = erc20_wrapper.transfer(erc20_wrapper.account, sender_account, 25)
+        transfer_tx = erc20_wrapper.transfer(erc20_wrapper.owner, sender_account, 25)
 
         assert erc20_wrapper.contract.functions.balanceOf(sender_account.address).call() == 25
         wait_condition(lambda: sol_balance_before > operator.get_solana_balance())
@@ -221,7 +216,6 @@ class TestEconomics:
     @pytest.mark.eip_1559
     def test_withdraw_neon_unexisting_ata(
         self,
-        pytestconfig: Config,
         neon_price: float,
         sol_price: float,
         sol_client: SolanaClient,
@@ -279,7 +273,6 @@ class TestEconomics:
     @pytest.mark.eip_1559
     def test_withdraw_neon_existing_ata(
         self,
-        pytestconfig: Config,
         neon_mint: Pubkey,
         neon_price: float,
         sol_price: float,
@@ -289,19 +282,11 @@ class TestEconomics:
         accounts: EthAccounts,
         withdraw_contract: Contract,
         tx_type: TransactionType,
+        solana_account: Keypair,
     ):
         sender_account = accounts[0]
-        sol_user = SolanaAccount()
-        sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
 
-        wait_condition(lambda: sol_client.get_balance(sol_user.pubkey()) != 0)
-
-        trx = Transaction()
-        trx.add(create_associated_token_account(sol_user.pubkey(), sol_user.pubkey(), neon_mint))
-
-        sol_client.send_tx_and_check_status_ok(trx, sol_user)
-
-        dest_token_acc = get_associated_token_address(sol_user.pubkey(), neon_mint)
+        ata = sol_client.create_associate_token_acc(solana_account, solana_account, neon_mint)
 
         sol_balance_before = operator.get_solana_balance()
         neon_balance_before = operator.get_token_balance(web3_client)
@@ -310,14 +295,14 @@ class TestEconomics:
         move_amount = web3_client._web3.to_wei(5, "ether")
 
         tx = web3_client.make_raw_tx(sender_account, amount=move_amount, tx_type=tx_type)
-        instruction_tx = withdraw_contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
+        instruction_tx = withdraw_contract.functions.withdraw(bytes(solana_account.pubkey())).build_transaction(tx)
 
         receipt = web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
 
         assert (user_neon_balance_before - web3_client.get_balance(sender_account)) > 5
 
-        balances = json.loads(sol_client.get_token_account_balance(dest_token_acc, Commitment("confirmed")).to_json())
+        balances = json.loads(sol_client.get_token_account_balance(ata, Commitment("confirmed")).to_json())
         assert int(balances["result"]["value"]["amount"]) == int(move_amount / 1_000_000_000)
 
         sol_balance_after = operator.get_solana_balance()
@@ -1092,7 +1077,7 @@ class TestEconomics:
         token_diff = web3_client.to_main_currency(token_balance_after - token_balance_before)
         assert_profit(sol_diff, sol_price, token_diff, neon_price, web3_client.native_token_name)
 
-    def test_iterative_failed_canceled_trx_with_out_of_gas(
+    def test_check_iterative_trx_with_different_gas_limit_values(
         self,
         counter_contract: Contract,
         web3_client,
@@ -1101,28 +1086,32 @@ class TestEconomics:
         sol_price: float,
         operator: Operator,
     ):
-        sol_balance_before = operator.get_solana_balance()
-        token_balance_before = operator.get_token_balance(web3_client)
         tx = web3_client.make_raw_tx(from_=accounts[0].address, tx_type=TransactionType.EIP_1559)
-
         instruction_tx = counter_contract.functions.moreInstruction(0, 3000).build_transaction(tx)
         receipt = web3_client.send_transaction(accounts[0], instruction_tx)
         assert receipt["status"] == 1
 
         gas_used = receipt["gasUsed"]
+        sol_balance_before = operator.get_solana_balance()
+        token_balance_before = operator.get_token_balance(web3_client)
 
-        tx = web3_client.make_raw_tx(from_=accounts[0].address, tx_type=TransactionType.EIP_1559, gas=gas_used // 3)
-        instruction_tx = counter_contract.functions.moreInstruction(0, 3000).build_transaction(tx)
-        receipt = web3_client.send_transaction(accounts[0], instruction_tx)
-        assert receipt["status"] == 0
+        while receipt["status"] != 0:
+            gas = gas_used // 2
+            tx = web3_client.make_raw_tx(from_=accounts[0].address, tx_type=TransactionType.EIP_1559, gas=gas)
+            instruction_tx = counter_contract.functions.moreInstruction(0, 3000).build_transaction(tx)
+            receipt = web3_client.send_transaction(accounts[0], instruction_tx)
 
-        sol_balance_after = operator.get_solana_balance()
-        token_balance_after = operator.get_token_balance(web3_client)
+            sol_balance_after = operator.get_solana_balance()
+            token_balance_after = operator.get_token_balance(web3_client)
 
-        assert sol_balance_before > sol_balance_after, "SOL Balance not changed"
-        assert token_balance_after > token_balance_before, "TOKEN Balance incorrect"
+            assert sol_balance_before > sol_balance_after, "SOL Balance not changed"
+            assert token_balance_after > token_balance_before, "TOKEN Balance incorrect"
 
-        token_diff = web3_client.to_main_currency(token_balance_after - token_balance_before)
-        assert_profit(
-            sol_balance_before - sol_balance_after, sol_price, token_diff, neon_price, web3_client.native_token_name
-        )
+            token_diff = web3_client.to_main_currency(token_balance_after - token_balance_before)
+            assert_profit(
+                sol_balance_before - sol_balance_after, sol_price, token_diff, neon_price, web3_client.native_token_name
+            )
+
+            sol_balance_before = sol_balance_after
+            token_balance_before = token_balance_after
+            gas_used = gas

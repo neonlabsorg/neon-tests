@@ -142,13 +142,13 @@ class TestScheduledTrxERC20:
             approve_ata_amount=transfer_amount + start_balance,
         )
 
-        erc20_spl_mintable.approve(erc20_spl_mintable.account, neon_user.checksum_address, transfer_amount)
+        erc20_spl_mintable.approve(erc20_spl_mintable.owner, neon_user.checksum_address, transfer_amount)
         balance_before = erc20_spl_mintable.get_balance(neon_user.checksum_address)
         if balance_before == 0:
             balance_before = start_balance
         call_data = decode_function_signature(
             "transferSolanaFrom(address,bytes32,uint64)",
-            [erc20_spl_mintable.account.address, bytes(my_ata), transfer_amount],
+            [erc20_spl_mintable.owner.address, bytes(my_ata), transfer_amount],
         )
 
         trx_estimate_obj = ScheduledTrxEstimateRequest(
@@ -192,14 +192,14 @@ class TestScheduledTrxERC20:
         # └───────┘  └──────┘
         recipient = NeonUser(evm_loader.loader_id)
 
-        erc20_spl_mintable.approve(erc20_spl_mintable.account, neon_user.checksum_address, 800)
+        erc20_spl_mintable.approve(erc20_spl_mintable.owner, neon_user.checksum_address, 800)
 
         top_up_in_trx = 400
         amount_to_recipient = 400
 
         data_0 = data_1 = decode_function_signature(
             "transferFrom(address,address,uint256)",
-            [erc20_spl_mintable.account.address, neon_user.checksum_address, top_up_in_trx],
+            [erc20_spl_mintable.owner.address, neon_user.checksum_address, top_up_in_trx],
         )
         data_2 = data_3 = decode_function_signature(
             "transfer(address,uint256)", [recipient.checksum_address, amount_to_recipient]
@@ -273,12 +273,12 @@ class TestScheduledTrxERC20:
         # └───────┘
         recipient = NeonUser(evm_loader.loader_id)
 
-        erc20_spl_mintable.approve(erc20_spl_mintable.account, neon_user.checksum_address, 1000)
+        erc20_spl_mintable.approve(erc20_spl_mintable.owner, neon_user.checksum_address, 1000)
         transfer_amount = 400
 
         data_0 = data_1 = decode_function_signature(
             "transferFrom(address,address,uint256)",
-            [erc20_spl_mintable.account.address, neon_user.checksum_address, transfer_amount],
+            [erc20_spl_mintable.owner.address, neon_user.checksum_address, transfer_amount],
         )
         data_2 = decode_function_signature(
             "transfer(address,address,uint256)",
@@ -313,7 +313,7 @@ class TestScheduledTrxERC20:
         tree_acc_data.add_trx(trxs[1], 2, 0)
         tree_acc_data.add_trx(trxs[2], 0xFFFF, 2)
 
-        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"])
+        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
         web3_client_sol.send_all_scheduled_transactions(trxs)
 
         for trx in trxs:
