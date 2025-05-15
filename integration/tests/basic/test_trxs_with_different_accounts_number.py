@@ -78,7 +78,7 @@ class TestTrxsWithDifferentAccountsCount:
 
         assert receipt["status"] == 1, "Transaction failed"
 
-    @pytest.mark.parametrize("accounts_quantity", [180, 7000])
+    @pytest.mark.parametrize("accounts_quantity", [65, 180, 7000])
     def test_estimate_trx_with_too_many_accounts(self, web3_client, accounts, alt_contract, accounts_quantity):
         """Estimate transaction with more than 180 accounts"""
         sender_account = accounts[1]
