@@ -390,13 +390,13 @@ def iterative_tx_with_erc20_for_spl_receipt(accounts, web3_client, multiple_acti
 
 
 @pytest.fixture(scope="class")
-def chain_transactions_receipt(accounts, web3_client, chain_execution_contracts):
+def chain_transactions_receipt_and_contracts(accounts, web3_client, chain_execution_contracts):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(from_=sender_account)
-    instruction_tx = chain_execution_contracts.functions.start_execution().build_transaction(tx)
+    instruction_tx = chain_execution_contracts[0].functions.start_execution().build_transaction(tx)
     receipt = web3_client.send_transaction(sender_account, instruction_tx)
     assert receipt["status"] == 1, f"Transaction failed: {receipt}"
-    return receipt
+    return receipt, chain_execution_contracts
 
 
 @pytest.fixture(scope="class")

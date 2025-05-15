@@ -124,10 +124,14 @@ class TestTraceTransactionMethod:
         tracer_response = self.tracer_api.trace_transaction(reverted_iterative_tx_receipt["transactionHash"].hex())
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
-    def test_chain_transactions(self, chain_transactions_receipt):
-        tx_data = self.web3_client.get_transaction_by_hash(chain_transactions_receipt["transactionHash"].hex())
-        tracer_response = self.tracer_api.trace_transaction(chain_transactions_receipt["transactionHash"].hex())
+    def test_chain_transactions(self, chain_transactions_receipt_and_contracts):
+        receipt, contracts = chain_transactions_receipt_and_contracts
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
+
+        assert "error" not in tracer_response
+
         # Expected trace structure based on the contract execution tree
         expected_traces = [
             {"trace": [], "subtraces": 2},  # Root call (Func1)
@@ -139,6 +143,29 @@ class TestTraceTransactionMethod:
             {"trace": [1, 2], "subtraces": 0},  # Func6 call
         ]
 
+        # Validate root "from" and "to" addresses
+        root_action = tracer_response["result"][0]["action"]
+        assert tx_data["from"].lower() == root_action["from"].lower()
+        assert tx_data["to"].lower() == root_action["to"].lower()
+
+        # Validate subsequent "from" and "to" addresses
+        expected_addresses = [
+            (0, 1),  # result[1]: from addr[1][0] to addr[1][1]
+            (0, 2),  # result[2]: from addr[1][0] to addr[1][2]
+            (2, 3),  # result[3]: from addr[1][2] to addr[1][3]
+            (2, 4),  # result[4]: from addr[1][2] to addr[1][4]
+            (4, 6),  # result[5]: from addr[1][4] to addr[1][6]
+            (2, 5),  # result[6]: from addr[1][2] to addr[1][5]
+        ]
+
+        for idx, (from_idx, to_idx) in enumerate(expected_addresses, start=1):
+            result_action = tracer_response["result"][idx]["action"]
+            expected_from = chain_transactions_receipt_and_contracts[1][from_idx].address.lower()
+            expected_to = chain_transactions_receipt_and_contracts[1][to_idx].address.lower()
+            assert result_action["from"].lower() == expected_from
+            assert result_action["to"].lower() == expected_to
+
+        # Validate trace structure and subtrace counts
         for i, expected in enumerate(expected_traces):
             result = tracer_response["result"][i]
             assert (
@@ -148,4 +175,21 @@ class TestTraceTransactionMethod:
                 result["subtraces"] == expected["subtraces"]
             ), f"Subtrace count mismatch for trace {i}: expected {expected['subtraces']}, got {result['subtraces']}"
 
-        assert "error" not in tracer_response
+        # todo
+
+    #     -- add check from-to for all calls
+    #     -- check all receipes
+
+    # todo
+    def test_transaction_return_value(self):
+        pass
+
+    def test_third_transaction_in_chain_return_value(self):
+        pass
+
+    def test_chain_of_transactions_reverted(self):
+        "all transactions in chain are reverted, so the whole chain is reverted as well"
+        pass
+
+    def test_chain_of_transactions_reverted_with_events(self):
+        pass

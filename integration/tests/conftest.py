@@ -5,6 +5,7 @@ import random
 import string
 import time
 import typing as tp
+from typing import Generator
 
 import allure
 import base58
@@ -755,7 +756,7 @@ def precompiled_contract(web3_client, faucet, accounts):
 
 
 @pytest.fixture(scope="class")
-def chain_execution_contracts(accounts, web3_client) -> tp.Generator[Contract, None, None]:
+def chain_execution_contracts(accounts, web3_client) -> Generator[list[Contract], None, None]:
     sender_account = accounts[0]
 
     # Deploy contracts without dependencies first
@@ -796,8 +797,8 @@ def chain_execution_contracts(accounts, web3_client) -> tp.Generator[Contract, N
         contract_name="ChainExecution",
         constructor_args=[func2.address, func3.address],
     )
-
-    yield chain_execution_contract
+    chain_execution_contracts = [chain_execution_contract, func2, func3, func4, func5, func6, func7]
+    yield chain_execution_contracts
 
 
 @pytest.fixture(scope="class")
