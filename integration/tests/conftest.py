@@ -324,6 +324,11 @@ def neon_mint(environment: EnvironmentConfig) -> Pubkey:
     return Pubkey.from_string(environment.spl_neon_mint)
 
 
+@pytest.fixture(scope="function")
+def main_treasury_account(treasury_pool) -> Pubkey:
+    return Pubkey.from_string(environment.spl_neon_mint)
+
+
 @pytest.fixture(scope="class")
 def withdraw_contract(web3_client, faucet, accounts) -> Contract:
     contract, _ = web3_client.deploy_and_get_contract("precompiled/NeonToken", "0.8.10", account=accounts[1])

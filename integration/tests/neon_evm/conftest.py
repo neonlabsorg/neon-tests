@@ -44,7 +44,7 @@ def default_operator_keypair(evm_loader: EvmLoader) -> Keypair:
     """
     Initialized solana keypair with balance. Get private keys from ci/operator-keypairs/id.json
     """
-    key_file = pathlib.Path(OPERATOR_KEYPAIR_PATH / "id.json")
+    key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id.json")
     return prepare_operator(key_file, evm_loader)
 
 

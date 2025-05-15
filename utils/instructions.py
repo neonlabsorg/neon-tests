@@ -372,6 +372,44 @@ def make_OperatorBalanceAccount(operator_keypair, operator_balance_pubkey, ether
     return trx
 
 
+def make_OperatorBalanceAccountDelete(operator_keypair, operator_balance_pubkey, ether_bytes, chain_id, evm_loader_id):
+    tag = InstructionTags.OPERATOR_BALANCE_DELETE
+    trx = Transaction()
+    trx.add(
+        Instruction(
+            accounts=[
+                AccountMeta(pubkey=operator_keypair.pubkey(), is_signer=True, is_writable=True),
+                AccountMeta(pubkey=operator_balance_pubkey, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=True),
+            ],
+            program_id=evm_loader_id,
+            data=tag + ether_bytes + chain_id.to_bytes(8, "little"),
+        )
+    )
+    return trx
+
+
+def make_OperatorBalanceAccountWithdraw(
+    operator_keypair, operator_balance_pubkey, target_balance_pubkey, ether_bytes, chain_id, evm_loader_id
+):
+    print(operator_keypair.pubkey(), operator_balance_pubkey, target_balance_pubkey)
+    tag = InstructionTags.OPERATOR_BALANCE_WITHDRAW
+    trx = Transaction()
+    trx.add(
+        Instruction(
+            accounts=[
+                AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=operator_keypair.pubkey(), is_signer=True, is_writable=True),
+                AccountMeta(pubkey=operator_balance_pubkey, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=target_balance_pubkey, is_signer=False, is_writable=True),
+            ],
+            program_id=evm_loader_id,
+            data=tag,
+        )
+    )
+    return trx
+
+
 def make_ScheduledTransactionCreate(signer, balance_pubkey, treasury, tree_account, pool, msg, evm_loader_id):
     tag = InstructionTags.SCHEDULED_TRANSACTION_CREATE
     trx = Transaction()

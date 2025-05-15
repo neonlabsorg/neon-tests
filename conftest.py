@@ -304,6 +304,14 @@ def treasury_pool_new(evm_loader, pytestconfig) -> TreasuryPool:
 
 
 @pytest.fixture(scope="session")
+def treasury_pool_main(evm_loader, pytestconfig) -> TreasuryPool:
+    index = 3
+    address = evm_loader.create_main_treasury_pool_address()
+    index_buf = index.to_bytes(4, "little")
+    return TreasuryPool(index, address, index_buf)
+
+
+@pytest.fixture(scope="session")
 def index_of_process(worker_id) -> int:
     if worker_id in ("master", "gw1"):
         return 1

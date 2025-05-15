@@ -88,6 +88,7 @@ class InstructionTags(bytes, Enum):
     HOLDER_WRITE = b"\x26"
     CREATE_MAIN_TREASURY = b"\x29"
     ACCOUNT_CREATE_BALANCE = b"\x30"
+    COLLECT_TREASURE = b"\x1e"
     DEPOSIT = b"\x31"
     TRANSACTION_EXECUTE_FROM_INSTRUCTION = b"\x3D"
     TRANSACTION_EXECUTE_FROM_ACCOUNT = b"\x33"

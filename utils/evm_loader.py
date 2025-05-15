@@ -59,6 +59,8 @@ from utils.instructions import (
     make_CreateAccountWithSeed,
     make_CreateHolderAccount,
     make_DeleteHolderAccount,
+    make_OperatorBalanceAccountDelete,
+    make_OperatorBalanceAccountWithdraw,
 )
 from utils.layouts import (
     BALANCE_ACCOUNT_LAYOUT,
@@ -108,6 +110,9 @@ class EvmLoader(SolanaClient):
         return Pubkey.find_program_address(
             [bytes(TREASURY_POOL_SEED, "utf8"), pool_index.to_bytes(4, "little")], self.loader_id
         )[0]
+
+    def create_main_treasury_pool_address(self):
+        return Pubkey.find_program_address([bytes(TREASURY_POOL_SEED, "utf8")], self.loader_id)[0]
 
     def create_tree_account_address(self, neon_address, nonce, chain_id: int | None = None):
         chain_id = chain_id or self.sol_chain_id
@@ -712,7 +717,31 @@ class EvmLoader(SolanaClient):
         trx = make_OperatorBalanceAccount(
             operator_keypair, account, ether2bytes(operator_ether), chain_id, self.loader_id
         )
-        self.send_tx(trx, operator_keypair)
+        trx = self.send_tx(trx, operator_keypair)
+        print(f"Create trx {trx}")
+
+    def delete_operator_balance_account(self, operator_keypair, operator_ether, chain_id: int | str | None = ""):
+        if chain_id == "":
+            chain_id = self.chain_id
+
+        account = self.ether2operator_balance(operator_keypair, operator_ether, chain_id)
+        trx = make_OperatorBalanceAccountDelete(
+            operator_keypair, account, ether2bytes(operator_ether), chain_id, self.loader_id
+        )
+        trx = self.send_tx(trx, operator_keypair)
+        print(f"Delete trx {trx}")
+
+    def withdraw_operator_balance_account(self, operator_keypair, operator_ether, chain_id: int | str | None = ""):
+        if chain_id == "":
+            chain_id = self.chain_id
+
+        balance_account = self.ether2operator_balance(operator_keypair, operator_ether, chain_id)
+        target_account = self.create_balance_account(operator_ether, operator_keypair, chain_id)
+        trx = make_OperatorBalanceAccountWithdraw(
+            operator_keypair, balance_account, target_account, ether2bytes(operator_ether), chain_id, self.loader_id
+        )
+        trx = self.send_tx_and_check_status_ok(trx, operator_keypair)
+        print(f"Withdraw trx {trx}")
 
     def create_tree_account(
         self, neon_user: NeonUser, treasury, transaction, mint=WRAPPED_SOL_MINT, chain_id: int | str | None = ""
