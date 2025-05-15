@@ -478,7 +478,6 @@ class TestDebugTraceIterativeTransaction:
         # )
         # assert self.tracer_validator.check_call_tracer_type(resp, tx_data, error_message="execution reverted")
 
-    # @pytest.mark.skip(reason="Canceled tx doesnt sent")
     def test_cancel_during_iterative_transaction(self, canceled_iterative_tx_with_hash_receipt, json_rpc_client):
         neon_tx_receipt = json_rpc_client.get_neon_trx_receipt(
             canceled_iterative_tx_with_hash_receipt["transactionHash"]
