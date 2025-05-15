@@ -22,9 +22,9 @@ tracer_params = {"tracer": "callTracer", "tracerConfig": {"withLog": True}}
 
 
 @allure.feature("Tracer API")
-@allure.story("Tracer API RPC calls debug method trace_transaction iterative and scheduled txs check")
+@allure.story("Tracer API RPC calls debug method trace_transaction complex txs check")
 @pytest.mark.usefixtures("accounts", "web3_client", "tracer_api", "tracer_validator")
-class TestDebugTraceIterativeAndScheduledTransactions:
+class TestDebugTraceComplexTransactions:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
     tracer_api: TracerClient
