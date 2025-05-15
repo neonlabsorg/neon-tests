@@ -499,7 +499,6 @@ class TestDebugTraceIterativeTransaction:
         call_tracer_resp = self.tracer_api.debug_trace_transaction(
             canceled_iterative_tx_with_hash_receipt["transactionHash"].hex(), tracer_type="callTracer", with_log=True
         )
-
         assert call_tracer_resp["result"]["from"].lower() == "0x0000000000000000000000000000000000000000"
         assert call_tracer_resp["result"]["input"].lower() == "0x"
         assert call_tracer_resp["result"]["type"] == "STOP"
