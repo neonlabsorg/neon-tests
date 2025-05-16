@@ -20,35 +20,6 @@ contract A {
         }
     }
 
-    function cancel_in_iterative_tx(uint N, address resaver) public payable {
-        for (uint i = 1; i <= N; i++) {
-            if (i == N / 2) {
-                method1();
-            }
-        }
-    }
-
-    function loopWithMethodCall(uint N, address payable recipient) public payable {
-        for (uint i = 1; i <= N; i++) {
-            if (i == N / 2) {
-                // Отправка всего полученного value получателю
-                (bool success,) = recipient.call{value: msg.value}("");
-                require(success, "Transfer failed");
-
-                method1();
-            }
-        }
-    }
-
-    function loopAndReturnNumber(uint N) public pure returns (uint) {
-        uint result;
-
-        for (uint i = 0; i < N; i++) {
-            result = i;
-        }
-        return result;
-    }
-
     function riskyDivision(uint x, uint y) public pure returns (uint) {
         return x / y;
     }

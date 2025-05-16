@@ -342,7 +342,7 @@ def multiple_scheduled_tx_receipts(
     return receipts
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def recursion_tx_receipt(accounts, web3_client, recursion_factory):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(sender_account)
