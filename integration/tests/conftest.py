@@ -5,7 +5,6 @@ import random
 import string
 import time
 import typing as tp
-from typing import Generator
 
 import allure
 import base58
@@ -756,7 +755,7 @@ def precompiled_contract(web3_client, faucet, accounts):
 
 
 @pytest.fixture(scope="class")
-def chain_execution_contracts(accounts, web3_client) -> Generator[list[Contract], None, None]:
+def chain_execution_contracts(accounts, web3_client):
     sender_account = accounts[0]
 
     # Deploy contracts without dependencies first
@@ -799,6 +798,59 @@ def chain_execution_contracts(accounts, web3_client) -> Generator[list[Contract]
     )
     chain_execution_contracts = [chain_execution_contract, func2, func3, func4, func5, func6, func7]
     yield chain_execution_contracts
+
+
+@pytest.fixture(scope="class")
+def chain_execution_contracts_with_revert(accounts, web3_client, events_checker_contract, common_contract):
+    sender_account = accounts[0]
+
+    middle_call_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="MiddleCall",
+        constructor_args=[events_checker_contract.address],
+    )
+
+    chain_with_revert_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="ChainWithRevert",
+        constructor_args=[middle_call_contract.address],
+    )
+
+    chain_with_revert_contracts = [
+        chain_with_revert_contract,
+        middle_call_contract,
+        events_checker_contract,
+        common_contract,
+    ]
+    yield chain_with_revert_contracts
+
+
+@pytest.fixture(scope="class")
+def chain_execution_contracts_with_return_data(accounts, web3_client, common_contract):
+    sender_account = accounts[0]
+
+    middle_call_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="MiddleCall",
+        constructor_args=[common_contract.address],
+    )
+
+    chain_with_revert_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="ChainWithReturnData",
+        constructor_args=[middle_call_contract.address],
+    )
+
+    chain_with_revert_contracts = [chain_with_revert_contract, middle_call_contract, common_contract]
+    yield chain_with_revert_contracts
 
 
 @pytest.fixture(scope="class")

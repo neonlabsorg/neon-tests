@@ -3,6 +3,7 @@ import pytest
 from utils.tracer_client import TracerClient
 from utils.tracer_validator import TracerValidator
 from utils.web3client import NeonChainWeb3Client
+from eth_abi.abi import default_codec
 
 
 @pytest.mark.usefixtures("accounts", "web3_client", "tracer_api", "tracer_validator")
@@ -143,11 +144,6 @@ class TestTraceTransactionMethod:
             {"trace": [1, 2], "subtraces": 0},  # Func6 call
         ]
 
-        # Validate root "from" and "to" addresses
-        root_action = tracer_response["result"][0]["action"]
-        assert tx_data["from"].lower() == root_action["from"].lower()
-        assert tx_data["to"].lower() == root_action["to"].lower()
-
         # Validate subsequent "from" and "to" addresses
         expected_addresses = [
             (0, 1),  # result[1]: from addr[1][0] to addr[1][1]
@@ -175,21 +171,50 @@ class TestTraceTransactionMethod:
                 result["subtraces"] == expected["subtraces"]
             ), f"Subtrace count mismatch for trace {i}: expected {expected['subtraces']}, got {result['subtraces']}"
 
-        # todo
+    def test_transaction_return_data(self, transaction_return_data_receipt):
+        receipt, expected_output = transaction_return_data_receipt
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
-    #     -- add check from-to for all calls
-    #     -- check all receipes
+        data_bytes = bytes.fromhex(tracer_response["result"][0]["result"]["output"][2:])
+        decoded_output = default_codec.decode(["string"], data_bytes)[0]
+        assert decoded_output == expected_output, "Expected output doesn't match with actual output"
 
-    # todo
-    def test_transaction_return_value(self):
-        pass
+    def test_third_transaction_in_chain_return_value(self, chain_with_return_data_receipt_and_contracts):
+        receipt, expected_output = chain_with_return_data_receipt_and_contracts
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
-    def test_third_transaction_in_chain_return_value(self):
-        pass
+        for i in range(len(tracer_response["result"])):
+            data_bytes = bytes.fromhex(tracer_response["result"][i]["result"]["output"][2:])
+            decoded_output = default_codec.decode(["string"], data_bytes)[0]
+            assert decoded_output == expected_output, "Expected output doesn't match with actual output"
 
-    def test_chain_of_transactions_reverted(self):
-        "all transactions in chain are reverted, so the whole chain is reverted as well"
-        pass
+    def test_chain_of_transactions_reverted(self, chain_with_revert_receipt):
+        receipt = chain_with_revert_receipt
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
-    def test_chain_of_transactions_reverted_with_events(self):
-        pass
+        for i in range(len(tracer_response["result"])):
+            resp = self.tracer_api.debug_trace_transaction(
+                tracer_response["result"][i]["transactionHash"], tracer_type="callTracer", with_log=True
+            )
+            assert resp["result"]["calls"][0]["calls"][0]["error"] == "execution reverted"
+
+    def test_chain_of_middle_transaction_reverted(self, chain_with_revert_in_middle_call_receipt_and_contracts):
+        receipt, expected_output = chain_with_revert_in_middle_call_receipt_and_contracts
+        tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
+
+        resp = self.tracer_api.debug_trace_transaction(
+            tracer_response["result"][0]["transactionHash"], tracer_type="callTracer", with_log=True
+        )
+        assert resp["result"]["calls"][0]["calls"][1]["error"] == "execution reverted"
+
+        data_bytes = bytes.fromhex(tracer_response["result"][2]["result"]["output"][2:])
+        decoded_output = default_codec.decode(["string"], data_bytes)[0]
+        assert decoded_output == expected_output, "Expected output doesn't match with actual output"

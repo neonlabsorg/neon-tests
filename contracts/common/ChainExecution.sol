@@ -15,7 +15,7 @@ contract ChainExecution {
     Func2 private func2;
     Func3 private func3;
 
-    constructor(address _func2, address _func3) {
+    constructor(address _func2, address _func3, address _middleCall) {
         func2 = Func2(_func2);
         func3 = Func3(_func3);
     }
@@ -88,3 +88,60 @@ contract Func7 {
         return 7;
     }
 }
+
+
+contract ChainWithRevert {
+    MiddleCall public middleCall;
+
+    constructor(address _middleCall) {
+        middleCall = MiddleCall(_middleCall);
+    }
+
+    function execute_trivial_revert(address _contractCallee) public returns (bool){
+        return middleCall.callContactTrivialRevert(_contractCallee);
+    }
+
+    function execute_revert_in_middle_call(address _contractCommon, address _contractCallee) public{
+        middleCall.callGetTextAndDoRevert(_contractCommon, _contractCallee);
+    }
+}
+
+contract ChainWithReturnData {
+    MiddleCall public middleCall;
+
+    constructor(address _middleCall) {
+        middleCall = MiddleCall(_middleCall);
+    }
+
+    function start_chain_with_return_data(address _commonContract) public view returns (string memory) {
+        return middleCall.callGetText(_commonContract);
+    }
+}
+
+contract MiddleCall {
+    function callContactTrivialRevert(address _contractCallee) public returns (bool) {
+        bytes memory payload = abi.encodeWithSignature("emitEventRevert()");
+        (bool success, ) = _contractCallee.call(payload);
+        return success;
+    }
+
+    function callGetText(address _commonContract) public view returns (string memory) {
+        bytes memory payload = abi.encodeWithSignature("getText()");
+        (bool success, bytes memory returnData) = _commonContract.staticcall(payload);
+        require(success, "Call to getText() failed");
+
+        return abi.decode(returnData, (string));
+    }
+
+    function callGetTextAndDoRevert(address _commonContract, address _contractCallee) public returns (bool) {
+        bytes memory payload_1 = abi.encodeWithSignature("getText()");
+        (bool success_1, bytes memory returnData) = _commonContract.staticcall(payload_1);
+        require(success_1, "Call to getText() failed");
+
+        bytes memory payload_2 = abi.encodeWithSignature("emitEventRevert()");
+        (bool success_2, ) = _contractCallee.call(payload_2);
+        return success_2;
+}
+}
+
+
