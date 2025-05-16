@@ -293,8 +293,8 @@ def scheduled_tx_receipt(web3_client_sol, neon_user, common_contract, evm_loader
     return receipt
 
 
-@pytest.fixture(scope="function")
-def multiply_scheduled_tx_receipts(
+@pytest.fixture(scope="class")
+def multiple_scheduled_tx_receipts(
     web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
 ) -> list[TxReceipt]:
     data = decode_function_signature("setNumber(uint256)", [10])
@@ -500,7 +500,6 @@ def chain_with_revert_in_middle_call_receipt_and_contracts(
     accounts, web3_client, chain_execution_contracts_with_revert
 ):
     sender_account = accounts[0]
-
     test_text = "check_revert_after_return_data"
     tx_1 = web3_client.make_raw_tx(from_=sender_account)
     instruction_tx_1 = chain_execution_contracts_with_revert[3].functions.setText(test_text).build_transaction(tx_1)
@@ -531,12 +530,12 @@ def chain_with_return_data_receipt_and_contracts(accounts, web3_client, chain_ex
     web3_client.send_transaction(sender_account, instruction_tx_1)
 
     sender_account = accounts[0]
-    tx = web3_client.make_raw_tx(from_=sender_account)
-    instruction_tx = (
+    tx_2 = web3_client.make_raw_tx(from_=sender_account)
+    instruction_tx_2 = (
         chain_execution_contracts_with_return_data[0]
         .functions.start_chain_with_return_data(chain_execution_contracts_with_return_data[2].address)
-        .build_transaction(tx)
+        .build_transaction(tx_2)
     )
-    receipt = web3_client.send_transaction(sender_account, instruction_tx)
+    receipt = web3_client.send_transaction(sender_account, instruction_tx_2)
     assert receipt["status"] == 1, f"Transaction failed: {receipt}"
     return receipt, test_text

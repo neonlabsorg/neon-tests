@@ -42,8 +42,8 @@ class TestTraceTransactionMethod:
             assert tracer_response["result"][i]["action"]["callType"] == call_type
             assert tracer_response["result"][i]["subtraces"] == subtraces
 
-    def test_multiply_scheduled_tx(self, multiply_scheduled_tx_receipts):
-        for receipt in multiply_scheduled_tx_receipts:
+    def test_multiply_scheduled_tx(self, multiple_scheduled_tx_receipts):
+        for receipt in multiple_scheduled_tx_receipts:
             tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
             tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
             self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
@@ -120,17 +120,6 @@ class TestTraceTransactionMethod:
 
         assert "error" not in tracer_response
 
-        # Expected trace structure based on the contract execution tree
-        expected_traces = [
-            {"trace": [], "subtraces": 2},  # Root call (Func1)
-            {"trace": [0], "subtraces": 0},  # Func2 call
-            {"trace": [1], "subtraces": 3},  # Func3 call
-            {"trace": [1, 0], "subtraces": 0},  # Func4 call
-            {"trace": [1, 1], "subtraces": 1},  # Func5 call
-            {"trace": [1, 1, 0], "subtraces": 0},  # Func7 call
-            {"trace": [1, 2], "subtraces": 0},  # Func6 call
-        ]
-
         # Validate subsequent "from" and "to" addresses
         expected_addresses = [
             (0, 1),  # result[1]: from addr[1][0] to addr[1][1]
@@ -147,6 +136,17 @@ class TestTraceTransactionMethod:
             expected_to = chain_transactions_receipt_and_contracts[1][to_idx].address.lower()
             assert result_action["from"].lower() == expected_from
             assert result_action["to"].lower() == expected_to
+
+        # Expected trace structure based on the contract execution tree
+        expected_traces = [
+            {"trace": [], "subtraces": 2},  # Root call (Func1)
+            {"trace": [0], "subtraces": 0},  # Func2 call
+            {"trace": [1], "subtraces": 3},  # Func3 call
+            {"trace": [1, 0], "subtraces": 0},  # Func4 call
+            {"trace": [1, 1], "subtraces": 1},  # Func5 call
+            {"trace": [1, 1, 0], "subtraces": 0},  # Func7 call
+            {"trace": [1, 2], "subtraces": 0},  # Func6 call
+        ]
 
         # Validate trace structure and subtrace counts
         for i, expected in enumerate(expected_traces):
