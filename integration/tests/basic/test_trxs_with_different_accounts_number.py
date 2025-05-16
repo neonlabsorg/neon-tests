@@ -1,5 +1,4 @@
 import pytest
-import web3.exceptions
 from web3.contract import Contract
 
 from utils.accounts import EthAccounts
@@ -79,9 +78,12 @@ class TestTrxsWithDifferentAccountsCount:
         assert receipt["status"] == 1, "Transaction failed"
 
     @pytest.mark.parametrize("accounts_quantity", [65, 180, 7000])
-    def test_estimate_trx_with_too_many_accounts(self, web3_client, accounts, alt_contract, accounts_quantity):
-        """Estimate transaction with more than 180 accounts"""
-        sender_account = accounts[1]
-        tx = web3_client.make_raw_tx(from_=sender_account)
-        with pytest.raises(web3.exceptions.ContractLogicError, match="too many accounts"):
-            alt_contract.functions.fill(accounts_quantity).build_transaction(tx)
+    def test_estimate_trx_with_too_many_accounts(
+        self, web3_client, accounts, alt_contract, json_rpc_client, accounts_quantity
+    ):
+        """Estimate transaction with more than 64 accounts"""
+        tx = web3_client.make_raw_tx(from_=accounts[1], gas=10000000)
+        tx = alt_contract.functions.fill(accounts_quantity).build_transaction(tx)
+        response = json_rpc_client.send_rpc(method="eth_estimateGas", params=[dict(tx)])
+        assert response["error"]["code"] == 3 or response["error"]["code"] == -32000
+        assert "too many accounts" in response["error"]["message"]

@@ -337,3 +337,23 @@ def erc20_for_spl(
     token_mint = decoded_data[0]
     erc20_for_spl_address = decoded_data[1]
     return token_mint, erc20_for_spl_address
+
+
+@pytest.fixture(scope="session")
+def alt_contract(
+    evm_loader: EvmLoader,
+    operator_keypair: Keypair,
+    session_user: Caller,
+    treasury_pool: TreasuryPool,
+    neon_api_client: NeonApiClient,
+) -> Contract:
+    contract = evm_loader.deploy_contract(
+        operator_keypair,
+        session_user,
+        "common/ALT",
+        neon_api_client,
+        treasury_pool,
+        version="0.8.10",
+        encoded_args=eth_abi.encode(["uint256"], [8]),
+    )
+    return contract

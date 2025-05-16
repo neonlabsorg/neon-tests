@@ -109,3 +109,43 @@ def test_emulate_call_contract_with_block_timestamp_number(
 
     assert result["exit_status"] == "succeed", f"The 'exit_status' field is not succeed. Result: {result}"
     assert result["is_timestamp_number_used"], f"Timestamp number is not used. Result: {result}"
+
+
+def test_emulate_call_contract_with_account_limitation_positive(
+    neon_api_client, operator_keypair, treasury_pool, evm_loader, alt_contract, session_user
+):
+    result = neon_api_client.emulate_contract_call(
+        session_user.eth_address.hex(),
+        contract=alt_contract.eth_address.hex(),
+        function_signature="fill(uint256)",
+        params=[150],
+        account_limit=150,
+    )
+    assert len(result["solana_accounts"]) < 150
+    assert result["exit_status"] == "succeed", f"The 'exit_status' field is not succeed. Result: {result}"
+
+
+@pytest.mark.parametrize("contract_mapping_data_count", [70, 200])
+def test_emulate_call_contract_with_account_limitation_negative(
+    neon_api_client,
+    operator_keypair,
+    treasury_pool,
+    evm_loader,
+    alt_contract,
+    session_user,
+    contract_mapping_data_count,
+):
+    account_limit = 64
+    result = neon_api_client.emulate_contract_call(
+        session_user.eth_address.hex(),
+        contract=alt_contract.eth_address.hex(),
+        function_signature="fill(uint256)",
+        params=[contract_mapping_data_count],
+        account_limit=account_limit,
+    )
+    assert (
+        "exit_status" not in result
+    ), f"The trx is not reverted with account_limit={account_limit}. Trx account count is {len(result['solana_accounts'])}"
+    assert (
+        f"Fatal Error: too many accounts: {account_limit + 1} > {account_limit}" in result["error"]
+    ), f"Error message is not correct. Result: {result}"
