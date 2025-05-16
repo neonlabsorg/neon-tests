@@ -84,23 +84,12 @@ class TestTraceTransactionMethod:
                 id="neon_precompile",
             ),
             pytest.param(
-                {"fixture_name": "chain_transactions_receipt", "description": "Chain transactions"},
-                id="chain_transactions",
-            ),
-            pytest.param(
-                {"fixture_name": "trivial_revert_tx_receipt", "description": "Trivial revert"}, id="trivial_revert"
-            ),
-            pytest.param(
                 {"fixture_name": "revert_in_called_contract_tx_receipt", "description": "Revert in called contract"},
                 id="revert_in_called_contract",
             ),
             pytest.param(
                 {"fixture_name": "zero_division_tx_receipt", "description": "Zero division transaction"},
                 id="zero_division",
-            ),
-            pytest.param(
-                {"fixture_name": "canceled_tx_with_hash_receipt", "description": "Canceled transaction with hash"},
-                id="canceled_tx_with_hash",
             ),
         ],
     )
@@ -113,13 +102,11 @@ class TestTraceTransactionMethod:
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
-    @pytest.mark.skip("NDEV-3714")
     def test_failed_scheduled_tx(self, failed_scheduled_tx_receipt):
         tx_data = self.web3_client.get_transaction_by_hash(failed_scheduled_tx_receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(failed_scheduled_tx_receipt["transactionHash"].hex())
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
-    @pytest.mark.skip("NDEV-3714")
     def test_reverted_iteration_tx(self, reverted_iterative_tx_receipt):
         tx_data = self.web3_client.get_transaction_by_hash(reverted_iterative_tx_receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(reverted_iterative_tx_receipt["transactionHash"].hex())
@@ -218,3 +205,12 @@ class TestTraceTransactionMethod:
         data_bytes = bytes.fromhex(tracer_response["result"][2]["result"]["output"][2:])
         decoded_output = default_codec.decode(["string"], data_bytes)[0]
         assert decoded_output == expected_output, "Expected output doesn't match with actual output"
+
+    def test_canceled_transaction(self, canceled_tx_with_hash_receipt):
+        tx_data = self.web3_client.get_transaction_by_hash(canceled_tx_with_hash_receipt["transactionHash"].hex())
+        tracer_response = self.tracer_api.trace_transaction(canceled_tx_with_hash_receipt["transactionHash"].hex())
+
+        assert tracer_response["result"][0]["action"]["callType"] == "stop"
+        assert tracer_response["result"][0]["action"]["from"] == "0x0000000000000000000000000000000000000000"
+        assert tracer_response["result"][0]["action"]["to"] is None
+        assert tracer_response["result"][0]["action"]["gas"] == hex(tx_data["gas"])

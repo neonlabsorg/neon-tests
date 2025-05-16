@@ -15,7 +15,7 @@ contract ChainExecution {
     Func2 private func2;
     Func3 private func3;
 
-    constructor(address _func2, address _func3, address _middleCall) {
+    constructor(address _func2, address _func3) {
         func2 = Func2(_func2);
         func3 = Func3(_func3);
     }
