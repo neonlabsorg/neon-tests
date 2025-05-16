@@ -69,6 +69,7 @@ class TracerValidator:
     def check_trace_transaction_response(
         tracer_response: dict,
         tx_data,
+        tx_receipt=None,
         wait_error=False,
     ) -> bool:
 
@@ -84,6 +85,9 @@ class TracerValidator:
         assert tx_data["hash"].to_0x_hex() == tracer_response["result"][0]["transactionHash"]
         assert tx_data["input"].to_0x_hex() == tracer_response["result"][0]["action"]["input"]
         assert tx_data["gas"] == int(tracer_response["result"][0]["action"]["gas"], 16)
+
+        if tx_receipt:
+            assert tx_receipt["gasUsed"] == int(tracer_response["result"][0]["result"]["gasUsed"], 16)
 
         assert len(tracer_response["result"]) > 0, f"tracer_response: {tracer_response}"
         for i in range(len(tracer_response["result"])):

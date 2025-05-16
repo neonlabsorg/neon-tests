@@ -100,7 +100,7 @@ class TestTraceTransactionMethod:
         receipt = request.getfixturevalue(test_case["fixture_name"])
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
+        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data, receipt)
 
     def test_failed_scheduled_tx(self, failed_scheduled_tx_receipt):
         tx_data = self.web3_client.get_transaction_by_hash(failed_scheduled_tx_receipt["transactionHash"].hex())
