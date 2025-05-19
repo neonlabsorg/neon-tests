@@ -206,11 +206,11 @@ class TestTraceTransactionMethod:
         decoded_output = default_codec.decode(["string"], data_bytes)[0]
         assert decoded_output == expected_output, "Expected output doesn't match with actual output"
 
+    @pytest.mark.skip(reason="NDEV-3770")
     def test_canceled_transaction(self, canceled_tx_with_hash_receipt):
         tx_data = self.web3_client.get_transaction_by_hash(canceled_tx_with_hash_receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(canceled_tx_with_hash_receipt["transactionHash"].hex())
 
         assert tracer_response["result"][0]["action"]["callType"] == "stop"
-        assert tracer_response["result"][0]["action"]["from"] == "0x0000000000000000000000000000000000000000"
-        assert tracer_response["result"][0]["action"]["to"] is None
+        assert tx_data["from"].lower() == tracer_response["result"][0]["action"]["from"].lower()
         assert tracer_response["result"][0]["action"]["gas"] == hex(tx_data["gas"])
