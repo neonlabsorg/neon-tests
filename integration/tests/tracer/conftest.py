@@ -277,7 +277,7 @@ def event_tx_receipt(accounts, web3_client, event_caller_contract):
     return receipt
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def scheduled_tx_receipt(web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
     contract_data = 18
     data = decode_function_signature("setNumber(uint256)", [contract_data])
@@ -293,7 +293,7 @@ def scheduled_tx_receipt(web3_client_sol, neon_user, common_contract, evm_loader
     return receipt
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def multiple_scheduled_tx_receipts(
     web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
 ) -> list[TxReceipt]:
@@ -399,7 +399,7 @@ def chain_transactions_receipt_and_contracts(accounts, web3_client, chain_execut
     return receipt, chain_execution_contracts
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def failed_scheduled_tx_receipt(
     web3_client_sol, neon_user, treasury_pool, revert_contract_caller, event_caller_contract, evm_loader
 ):

@@ -246,7 +246,7 @@ def accounts_session(pytestconfig: Config, web3_client_session, faucet, eth_bank
     accounts_session._accounts = []
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def neon_user(
     evm_loader: EvmLoader,
     bank_account,
