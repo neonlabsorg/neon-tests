@@ -7,7 +7,7 @@ import allure
 import pytest
 import rlp
 from eth_account.signers.local import LocalAccount
-from solders.keypair import Keypair as SolanaAccount, Keypair
+from solders.keypair import Keypair as SolanaAccount
 from solders.pubkey import Pubkey
 from solana.rpc.types import Commitment
 
@@ -282,11 +282,12 @@ class TestEconomics:
         accounts: EthAccounts,
         withdraw_contract: Contract,
         tx_type: TransactionType,
-        solana_account: Keypair,
     ):
+        sol_user = SolanaAccount()
+        sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
         sender_account = accounts[0]
 
-        ata = sol_client.create_associate_token_acc(solana_account, solana_account, neon_mint)
+        ata = sol_client.create_associate_token_acc(sol_user, sol_user, neon_mint)
 
         sol_balance_before = operator.get_solana_balance()
         neon_balance_before = operator.get_token_balance(web3_client)
@@ -295,7 +296,7 @@ class TestEconomics:
         move_amount = web3_client._web3.to_wei(5, "ether")
 
         tx = web3_client.make_raw_tx(sender_account, amount=move_amount, tx_type=tx_type)
-        instruction_tx = withdraw_contract.functions.withdraw(bytes(solana_account.pubkey())).build_transaction(tx)
+        instruction_tx = withdraw_contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
 
         receipt = web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
