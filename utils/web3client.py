@@ -14,8 +14,11 @@ from eth_abi import abi
 from eth_typing import BlockIdentifier
 from solders.instruction import Instruction
 from solders.pubkey import Pubkey
+from web3 import Web3
 from web3.contract import Contract
 from web3.exceptions import TransactionNotFound
+from eth_abi import decode
+from eth_abi.exceptions import InsufficientDataBytes
 
 from utils import helpers
 from utils.consts import InputTestConstants, Unit
@@ -26,6 +29,22 @@ from utils.types import TransactionType
 LOG = logging.getLogger(__name__)
 
 BASE_MAX_PRIORITY_FEE = 2_500_000_000
+
+# Селектора для трёх типов
+SELECTOR_ERROR = Web3.keccak(text="Error(string)")[:4]
+SELECTOR_PANIC = Web3.keccak(text="Panic(uint256)")[:4]
+# Описания Panic-кодов в Solidity
+PANIC_CODES = {
+    0x01: "Assertion violated or invalid enum value",
+    0x11: "Arithmetic overflow or underflow",
+    0x12: "Division or modulo by zero",
+    0x21: "Shift by too large amount",
+    0x22: "Access to invalid array index",
+    0x31: "Pop from empty array",
+    0x32: "Array too large or memory allocation overflow",
+    0x41: "Too much memory allocated",
+    0x51: "Callstack depth exceeded",
+}
 
 
 class Web3Client:
@@ -718,3 +737,35 @@ class NeonChainWeb3Client(Web3Client):
     ) -> web3.types.TxReceipt:
         value = web3.Web3.to_wei(amount, "ether")
         return self.send_tokens(from_, to, value, gas, gas_price, nonce)
+
+    @staticmethod
+    def decode_error_output(data_hex):
+        if not data_hex:
+            return "Revert without reason"
+        if not data_hex.startswith("0x"):
+            data_hex = "0x" + data_hex
+
+        data = Web3.to_bytes(hexstr=data_hex)
+        # 1) пустой revert
+        if len(data) == 0:
+            return "Revert without reason"
+
+        # 2) Error(string)
+        if data[:4] == SELECTOR_ERROR:
+            try:
+                msg = decode(["string"], data[4:])
+                return f"Error(string): {msg}"
+            except Exception:
+                return "Error(string) decoding failed"
+
+        # 3) Panic(uint256)
+        if data[:4] == SELECTOR_PANIC:
+            try:
+                code = decode(["uint256"], data[4:])[0]
+            except InsufficientDataBytes:
+                # If something wrong, return a raw hex
+                return f"Panic(uint256): <cannot decode {data[4:].hex()}>"
+            desc = PANIC_CODES.get(code, f"Unknown Panic code {code}")
+            return f"Panic(uint256): {desc}"
+        # 4) Unknow format
+        return f"Unknown revert payload: {data_hex}"

@@ -56,9 +56,6 @@ class TestTraceTransactionMethod:
                 id="scheduled_transaction",
             ),
             pytest.param(
-                {"fixture_name": "trivial_revert_tx_receipt", "description": "Trivial revert"}, id="trivial_revert"
-            ),
-            pytest.param(
                 {"fixture_name": "recursion_tx_receipt", "description": "Recursion transaction"}, id="recursion"
             ),
             pytest.param(
@@ -84,11 +81,27 @@ class TestTraceTransactionMethod:
                 id="neon_precompile",
             ),
             pytest.param(
-                {"fixture_name": "revert_in_called_contract_tx_receipt", "description": "Revert in called contract"},
+                {
+                    "fixture_name": "trivial_revert_tx_receipt",
+                    "description": "Trivial revert",
+                    "error_message": "Error(string): ('Revert Contract',)",
+                },
+                id="trivial_revert",
+            ),
+            pytest.param(
+                {
+                    "fixture_name": "revert_in_called_contract_tx_receipt",
+                    "description": "Revert in called contract",
+                    "error_message": "Error(string): ('Insufficient balance for transfer,",
+                },
                 id="revert_in_called_contract",
             ),
             pytest.param(
-                {"fixture_name": "zero_division_tx_receipt", "description": "Zero division transaction"},
+                {
+                    "fixture_name": "zero_division_tx_receipt",
+                    "description": "Zero division transaction",
+                    "error_message": "Panic(uint256): Division or modulo by zero",
+                },
                 id="zero_division",
             ),
         ],
@@ -98,13 +111,24 @@ class TestTraceTransactionMethod:
         Test different types of transactions with tracer_transaction method.
         """
         receipt = request.getfixturevalue(test_case["fixture_name"])
+        error_message = test_case.get("error_message")
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
+
+        if error_message:
+            error = self.web3_client.decode_error_output(tracer_response["result"][1]["result"]["output"])
+            assert error_message in error, f"Expected error message '{error_message}' not found in '{error}'"
+
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data, receipt)
 
     def test_failed_scheduled_tx(self, failed_scheduled_tx_receipt):
         tx_data = self.web3_client.get_transaction_by_hash(failed_scheduled_tx_receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(failed_scheduled_tx_receipt["transactionHash"].hex())
+
+        error = self.web3_client.decode_error_output(tracer_response["result"][1]["result"]["output"])
+        expected_error_message = "Panic(uint256): Assertion violated or invalid enum value"
+        assert error in expected_error_message
+
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
     def test_reverted_iteration_tx(self, reverted_iterative_tx_receipt):
@@ -112,14 +136,15 @@ class TestTraceTransactionMethod:
         tracer_response = self.tracer_api.trace_transaction(reverted_iterative_tx_receipt["transactionHash"].hex())
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
+        error = self.web3_client.decode_error_output(tracer_response["result"][1]["result"]["output"])
+        expected_error_message = "Revert without reason"
+        assert error in expected_error_message
+
     def test_chain_transactions(self, chain_transactions_receipt_and_contracts):
         receipt, contracts = chain_transactions_receipt_and_contracts
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
-
-        assert "error" not in tracer_response
-
         # Validate subsequent "from" and "to" addresses
         expected_addresses = [
             (0, 1),  # result[1]: from addr[1][0] to addr[1][1]
@@ -210,6 +235,7 @@ class TestTraceTransactionMethod:
     def test_canceled_transaction(self, canceled_tx_with_hash_receipt):
         tx_data = self.web3_client.get_transaction_by_hash(canceled_tx_with_hash_receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(canceled_tx_with_hash_receipt["transactionHash"].hex())
+        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)  # must work after NDEV-3770
 
         assert tracer_response["result"][0]["action"]["callType"] == "stop"
         assert tx_data["from"].lower() == tracer_response["result"][0]["action"]["from"].lower()

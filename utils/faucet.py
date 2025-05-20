@@ -5,6 +5,7 @@ import typing as tp
 import urllib.parse
 
 from utils.helpers import wait_condition
+from utils.tracker_decorator import track_spent_amount
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -19,6 +20,7 @@ class Faucet:
         self._session = session or requests.Session()
         self.web3_client = web3_client
 
+    @track_spent_amount
     def request_neon(self, address: str, amount: int = 100) -> requests.Response:
         assert address.startswith("0x"), "Invalid address format"
         url = urllib.parse.urljoin(self._url, "request_neon")
