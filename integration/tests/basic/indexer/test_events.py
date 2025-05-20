@@ -237,3 +237,13 @@ class TestEvents:
             assert count_events(validated_response) == Counter({"Cancel": 1})
             assert_events_order(validated_response)
             assert_events_by_type(validated_response)
+
+    @pytest.mark.parametrize("index", range(64))
+    def test_load_iterative_tx(self, counter_contract, json_rpc_client, index):
+        sender_account = self.accounts[0]
+        tx = self.web3_client.make_raw_tx(sender_account)
+
+        instruction_tx = counter_contract.functions.moreInstructionWithLogs(0, 2000).build_transaction(tx)
+        resp = self.web3_client.send_transaction(sender_account, instruction_tx, timeout=180)
+        print(resp["transactionHash"].hex())
+        assert resp["status"] == 1
