@@ -7,7 +7,7 @@ import allure
 import pytest
 import rlp
 from eth_account.signers.local import LocalAccount
-from solders.keypair import Keypair as SolanaAccount
+from solders.keypair import Keypair as SolanaAccount, Keypair
 from solders.pubkey import Pubkey
 from solana.rpc.types import Commitment
 
@@ -277,18 +277,17 @@ class TestEconomics:
         neon_price: float,
         sol_price: float,
         sol_client: SolanaClient,
+        solana_account: Keypair,
         operator: Operator,
         web3_client: NeonChainWeb3Client,
         accounts: EthAccounts,
         withdraw_contract: Contract,
         tx_type: TransactionType,
     ):
-        sol_user = SolanaAccount()
-        sol_client.request_airdrop(sol_user.pubkey(), 5 * LAMPORT_PER_SOL)
         sender_account = accounts[0]
 
-        ata = sol_client.create_associate_token_acc(sol_user, sol_user, neon_mint)
-
+        ata = sol_client.create_associate_token_acc(solana_account, solana_account, neon_mint)
+        balances_before = json.loads(sol_client.get_token_account_balance(ata, Commitment("confirmed")).to_json())
         sol_balance_before = operator.get_solana_balance()
         neon_balance_before = operator.get_token_balance(web3_client)
 
@@ -296,7 +295,7 @@ class TestEconomics:
         move_amount = web3_client._web3.to_wei(5, "ether")
 
         tx = web3_client.make_raw_tx(sender_account, amount=move_amount, tx_type=tx_type)
-        instruction_tx = withdraw_contract.functions.withdraw(bytes(sol_user.pubkey())).build_transaction(tx)
+        instruction_tx = withdraw_contract.functions.withdraw(bytes(solana_account.pubkey())).build_transaction(tx)
 
         receipt = web3_client.send_transaction(sender_account, instruction_tx)
         assert receipt["status"] == 1
@@ -304,7 +303,9 @@ class TestEconomics:
         assert (user_neon_balance_before - web3_client.get_balance(sender_account)) > 5
 
         balances = json.loads(sol_client.get_token_account_balance(ata, Commitment("confirmed")).to_json())
-        assert int(balances["result"]["value"]["amount"]) == int(move_amount / 1_000_000_000)
+        balance_before = int(balances_before["result"]["value"]["amount"])
+        balance_after = int(balances["result"]["value"]["amount"])
+        assert balance_after - balance_before == int(move_amount / 1_000_000_000)
 
         sol_balance_after = operator.get_solana_balance()
         neon_balance_after = operator.get_token_balance(web3_client)
