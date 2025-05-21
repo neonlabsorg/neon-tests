@@ -193,16 +193,19 @@ class TestTraceTransactionMethod:
         decoded_output = default_codec.decode(["string"], data_bytes)[0]
         assert decoded_output == expected_output, "Expected output doesn't match with actual output"
 
-    def test_third_transaction_in_chain_return_data(self, chain_with_return_data_receipt_and_contracts):
+    def test_transaction_in_chain_return_data_and_send_value(self, chain_with_return_data_receipt_and_contracts):
         receipt, expected_output = chain_with_return_data_receipt_and_contracts
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
+        assert len(tracer_response["result"]) == 2
         for i in range(len(tracer_response["result"])):
             data_bytes = bytes.fromhex(tracer_response["result"][i]["result"]["output"][2:])
             decoded_output = default_codec.decode(["string"], data_bytes)[0]
             assert decoded_output == expected_output, "Expected output doesn't match with actual output"
+
+        assert tracer_response["result"][0]["action"]["value"] == hex(tx_data["value"])
 
     def test_chain_of_transactions_reverted(self, chain_with_revert_receipt):
         receipt = chain_with_revert_receipt
@@ -214,6 +217,7 @@ class TestTraceTransactionMethod:
         expected_error_message = "Revert"
         assert expected_error_message in error
 
+        assert len(tracer_response["result"]) == 3
         for i in range(len(tracer_response["result"])):
             resp = self.tracer_api.debug_trace_transaction(
                 tracer_response["result"][i]["transactionHash"], tracer_type="callTracer", with_log=True
@@ -239,7 +243,9 @@ class TestTraceTransactionMethod:
     def test_canceled_transaction(self, canceled_tx_with_hash_receipt):
         tx_data = self.web3_client.get_transaction_by_hash(canceled_tx_with_hash_receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(canceled_tx_with_hash_receipt["transactionHash"].hex())
-        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)  # must work after NDEV-3770
+
+        # todo  must work after NDEV-3770
+        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
         assert tracer_response["result"][0]["action"]["callType"] == "stop"
         assert tx_data["from"].lower() == tracer_response["result"][0]["action"]["from"].lower()

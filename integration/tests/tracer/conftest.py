@@ -536,7 +536,7 @@ def chain_with_return_data_receipt_and_contracts(accounts, web3_client, chain_ex
     web3_client.send_transaction(sender_account, instruction_tx_1)
 
     sender_account = accounts[0]
-    tx_2 = web3_client.make_raw_tx(from_=sender_account)
+    tx_2 = web3_client.make_raw_tx(from_=sender_account, amount=1001)
     instruction_tx_2 = (
         chain_execution_contracts_with_return_data[0]
         .functions.start_chain_with_return_data(chain_execution_contracts_with_return_data[2].address)

@@ -113,8 +113,13 @@ contract ChainWithReturnData {
         middleCall = MiddleCall(_middleCall);
     }
 
-    function start_chain_with_return_data(address _commonContract) public view returns (string memory) {
-        return middleCall.callGetText(_commonContract);
+    function start_chain_with_return_data(address payable _commonContract) public payable returns (string memory) {
+        (bool success, bytes memory data) = _commonContract.call{value: msg.value}(
+        abi.encodeWithSignature("getTextAndReceiveValue()")
+        );
+
+        require(success, "External call failed");
+        return abi.decode(data, (string));
     }
 }
 
