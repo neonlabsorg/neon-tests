@@ -193,7 +193,7 @@ class TestTraceTransactionMethod:
         decoded_output = default_codec.decode(["string"], data_bytes)[0]
         assert decoded_output == expected_output, "Expected output doesn't match with actual output"
 
-    def test_third_transaction_in_chain_return_value(self, chain_with_return_data_receipt_and_contracts):
+    def test_third_transaction_in_chain_return_data(self, chain_with_return_data_receipt_and_contracts):
         receipt, expected_output = chain_with_return_data_receipt_and_contracts
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
@@ -209,6 +209,10 @@ class TestTraceTransactionMethod:
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
+
+        error = self.web3_client.decode_error_output(tracer_response["result"][2]["result"]["output"])
+        expected_error_message = "Revert"
+        assert expected_error_message in error
 
         for i in range(len(tracer_response["result"])):
             resp = self.tracer_api.debug_trace_transaction(

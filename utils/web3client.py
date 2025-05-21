@@ -746,7 +746,7 @@ class NeonChainWeb3Client(Web3Client):
             data_hex = "0x" + data_hex
 
         data = Web3.to_bytes(hexstr=data_hex)
-        # 1) пустой revert
+        # 1)  revert
         if len(data) == 0:
             return "Revert without reason"
 
