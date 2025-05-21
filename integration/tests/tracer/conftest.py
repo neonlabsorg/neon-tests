@@ -277,25 +277,29 @@ def event_tx_receipt(accounts, web3_client, event_caller_contract):
     return receipt
 
 
-@pytest.fixture(scope="function")
-def scheduled_tx_receipt(web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
+@pytest.fixture(scope="class")
+def scheduled_tx_receipt(web3_client_sol, neon_user_for_session, common_contract, evm_loader, treasury_pool):
     contract_data = 18
     data = decode_function_signature("setNumber(uint256)", [contract_data])
-    trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
-    estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+    trx_estimate_obj = ScheduledTrxEstimateRequest(
+        neon_user_for_session.checksum_address, common_contract.address, data
+    )
+    estimate_result = web3_client_sol.estimate_scheduled(
+        neon_user_for_session.solana_account.pubkey(), [trx_estimate_obj]
+    )
     tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
     evm_loader.create_tree_account(
-        neon_user, treasury_pool, tx.encode(), WRAPPED_SOL_MINT, chain_id=evm_loader.sol_chain_id
+        neon_user_for_session, treasury_pool, tx.encode(), WRAPPED_SOL_MINT, chain_id=evm_loader.sol_chain_id
     )
     check_trx_is_success(web3_client_sol, evm_loader, tx.hash().hex())
     receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash().hex())
     return receipt
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def multiple_scheduled_tx_receipts(
-    web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
+    web3_client_sol, neon_user_for_session, common_contract, evm_loader, treasury_pool
 ) -> list[TxReceipt]:
     data = decode_function_signature("setNumber(uint256)", [10])
 
@@ -303,15 +307,17 @@ def multiple_scheduled_tx_receipts(
     for i in range(3):
         trx_estimate_obj_list.append(
             ScheduledTrxEstimateRequest(
-                neon_user.checksum_address, common_contract.address, data, child_transaction=hex(3)
+                neon_user_for_session.checksum_address, common_contract.address, data, child_transaction=hex(3)
             )
         )
     trx_estimate_obj_list.append(
         ScheduledTrxEstimateRequest(
-            neon_user.checksum_address, common_contract.address, data, child_transaction="0xFFFF"
+            neon_user_for_session.checksum_address, common_contract.address, data, child_transaction="0xFFFF"
         )
     )
-    estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), trx_estimate_obj_list)
+    estimate_result = web3_client_sol.estimate_scheduled(
+        neon_user_for_session.solana_account.pubkey(), trx_estimate_obj_list
+    )
     trxs = []
     for i in range(4):
         trxs.append(ScheduledTransaction.from_estimate_result(i, trx_estimate_obj_list[i], estimate_result))
@@ -328,7 +334,7 @@ def multiple_scheduled_tx_receipts(
     tree_acc_data.add_trx(trxs[3], 0xFFFF, 3)
 
     evm_loader.create_tree_account_multiple(
-        neon_user,
+        neon_user_for_session,
         treasury_pool,
         tree_acc_data.data,
         WRAPPED_SOL_MINT,
@@ -342,7 +348,7 @@ def multiple_scheduled_tx_receipts(
     return receipts
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def recursion_tx_receipt(accounts, web3_client, recursion_factory):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(sender_account)
@@ -399,11 +405,11 @@ def chain_transactions_receipt_and_contracts(accounts, web3_client, chain_execut
     return receipt, chain_execution_contracts
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def failed_scheduled_tx_receipt(
-    web3_client_sol, neon_user, treasury_pool, revert_contract_caller, event_caller_contract, evm_loader
+    web3_client_sol, neon_user_for_session, treasury_pool, revert_contract_caller, event_caller_contract, evm_loader
 ):
-    nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
+    nonce = web3_client_sol.get_nonce(neon_user_for_session.checksum_address)
 
     max_priority_fee_per_gas = BASE_MAX_PRIORITY_FEE
     max_fee_per_gas = web3_client_sol.get_max_fee_per_gas()
@@ -412,7 +418,7 @@ def failed_scheduled_tx_receipt(
     call_data_trx0 = decode_function_signature("doAssert()")
 
     tx = ScheduledTransaction(
-        neon_user.neon_address,
+        neon_user_for_session.neon_address,
         None,
         nonce,
         index=0,
@@ -428,7 +434,7 @@ def failed_scheduled_tx_receipt(
         nonce=nonce, max_fee_per_gas=max_fee_per_gas, max_priority_fee_per_gas=max_priority_fee_per_gas
     )
     tree_acc_data.add_trx(tx, 0xFFFF, 0)
-    evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
+    evm_loader.create_tree_account_multiple(neon_user_for_session, treasury_pool, tree_acc_data.data)
 
     web3_client_sol.send_all_scheduled_transactions([tx])
 
