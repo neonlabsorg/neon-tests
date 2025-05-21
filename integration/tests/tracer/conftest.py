@@ -349,13 +349,23 @@ def multiple_scheduled_tx_receipts(
 
 
 @pytest.fixture(scope="class")
-def recursion_tx_receipt(accounts, web3_client, recursion_factory):
+def recursion_tx_receipt(accounts, web3_client):
+
+    sender_account = accounts[0]
+    contract, _ = web3_client.deploy_and_get_contract(
+        "common/Recursion",
+        "0.8.10",
+        sender_account,
+        contract_name="DeployRecursionFactory",
+        constructor_args=[3],
+    )
+
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(sender_account)
-    instruction_tx = recursion_factory.functions.deployFirstContract().build_transaction(tx)
+    instruction_tx = contract.functions.deployFirstContract().build_transaction(tx)
     receipt = web3_client.send_transaction(sender_account, instruction_tx)
     assert receipt["status"] == 1
-    assert recursion_factory.functions.getFirstDeployedContractCount().call() == 3
+    assert contract.functions.getFirstDeployedContractCount().call() == 3
     return receipt
 
 
