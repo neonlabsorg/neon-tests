@@ -525,7 +525,7 @@ class TestSolanaInteroperability:
         tx = self.web3_client.make_raw_tx(sender.address)
 
         with pytest.raises(
-            web3.exceptions.ContractLogicError,
+            web3.exceptions.Web3RPCError,
             match="too many accounts",
         ):
             call_solana_caller.functions.executeInIterativeMode(loop_count, lamports, serialized).build_transaction(tx)
