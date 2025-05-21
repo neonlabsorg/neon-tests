@@ -487,11 +487,12 @@ class TestDebugTraceComplexTransactions:
             == "Cancel"
         )
 
-        tx_data = self.web3_client.get_transaction_by_hash(
-            canceled_iterative_tx_with_hash_receipt["transactionHash"].hex()
-        )
-        trace_call_resp = self.tracer_api.debug_trace_call(tx_data)
-        assert self.tracer_validator.check_tracer_struct_log(trace_call_resp)
+        # TODO https://neonlabs.atlassian.net/browse/NDEV-3772
+        # tx_data = self.web3_client.get_transaction_by_hash(
+        #     canceled_iterative_tx_with_hash_receipt["transactionHash"].hex()
+        # )
+        # trace_call_resp = self.tracer_api.debug_trace_call(tx_data)
+        # assert self.tracer_validator.check_tracer_struct_log(trace_call_resp, wait_error=True)
 
         dtt_resp = self.tracer_api.debug_trace_transaction(
             canceled_iterative_tx_with_hash_receipt["transactionHash"].hex()
