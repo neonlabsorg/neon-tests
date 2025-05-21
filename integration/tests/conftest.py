@@ -747,33 +747,37 @@ def chain_execution_contracts(accounts, web3_client):
     sender_account = accounts[0]
 
     # Deploy contracts without dependencies first
-    func2, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution", "0.8.10", sender_account, contract_name="Func2"
+    contract2, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract2"
     )
 
-    func4, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution", "0.8.10", sender_account, contract_name="Func4"
+    contract4, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract4"
     )
 
-    func6, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution", "0.8.10", sender_account, contract_name="Func6"
+    contract6, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract6"
     )
 
-    func7, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution", "0.8.10", sender_account, contract_name="Func7"
+    contract7, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract7"
     )
 
     # Deploy contracts with dependencies
-    func5, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution", "0.8.10", sender_account, contract_name="Func5", constructor_args=[func7.address]
-    )
-
-    func3, _ = web3_client.deploy_and_get_contract(
+    contract5, _ = web3_client.deploy_and_get_contract(
         "common/ChainExecution",
         "0.8.10",
         sender_account,
-        contract_name="Func3",
-        constructor_args=[func4.address, func5.address, func6.address],
+        contract_name="Contract5",
+        constructor_args=[contract7.address],
+    )
+
+    contract3, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="Contract3",
+        constructor_args=[contract4.address, contract5.address, contract6.address],
     )
 
     # Deploy the root contract
@@ -782,9 +786,17 @@ def chain_execution_contracts(accounts, web3_client):
         "0.8.10",
         sender_account,
         contract_name="ChainExecution",
-        constructor_args=[func2.address, func3.address],
+        constructor_args=[contract2.address, contract3.address],
     )
-    chain_execution_contracts = [chain_execution_contract, func2, func3, func4, func5, func6, func7]
+    chain_execution_contracts = [
+        chain_execution_contract,
+        contract2,
+        contract3,
+        contract4,
+        contract5,
+        contract6,
+        contract7,
+    ]
     yield chain_execution_contracts
 
 

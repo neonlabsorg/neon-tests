@@ -3,86 +3,86 @@ pragma solidity ^0.8.10;
 
 //Tree of execution:
 
-    //Func1.execute()
-    //├── Func2.execute()
-    //└── Func3.execute()
-    //    ├── Func4.execute()
-    //    ├── Func5.execute()
-    //    │   └── Func7.execute()
-    //    └── Func6.execute()
+    //ChainExecution.start_execution()
+    //├── Contract2.execute()
+    //└── Contract3.execute()
+    //    ├── Contract4.execute()
+    //    ├── Contract5.execute()
+    //    │   └── Contract7.execute()
+    //    └── Contract6.execute()
 
 contract ChainExecution {
-    Func2 private func2;
-    Func3 private func3;
+    Contract2 private contract2;
+    Contract3 private contract3;
 
-    constructor(address _func2, address _func3) {
-        func2 = Func2(_func2);
-        func3 = Func3(_func3);
+    constructor(address _contract2, address _contract3) {
+        contract2 = Contract2(_contract2);
+        contract3 = Contract3(_contract3);
     }
 
     function start_execution() external view returns (uint256) {
-        uint256 result1 = func2.execute();
-        uint256 result2 = func3.execute();
+        uint256 result1 = contract2.execute();
+        uint256 result2 = contract3.execute();
         uint256 sum = result1 + result2;
         return sum;
     }
 }
 
-contract Func2 {
+contract Contract2 {
 
     function execute() external pure returns (uint256) {
         return 2;
     }
 }
 
-contract Func3 {
-    Func4 private func4;
-    Func5 private func5;
-    Func6 private func6;
+contract Contract3 {
+    Contract4 private contract4;
+    Contract5 private contract5;
+    Contract6 private contract6;
 
-    constructor(address _func4, address _func5, address _func6) {
-        func4 = Func4(_func4);
-        func5 = Func5(_func5);
-        func6 = Func6(_func6);
+    constructor(address _contract4, address _contract5, address _contract6) {
+        contract4 = Contract4(_contract4);
+        contract5 = Contract5(_contract5);
+        contract6 = Contract6(_contract6);
     }
 
     function execute() external view returns (uint256) {
-        uint256 result1 = func4.execute();
-        uint256 result2 = func5.execute();
-        uint256 result3 = func6.execute();
+        uint256 result1 = contract4.execute();
+        uint256 result2 = contract5.execute();
+        uint256 result3 = contract6.execute();
         uint256 sum = result1 + result2 + result3;
         return sum;
     }
 }
 
-contract Func4 {
+contract Contract4 {
 
     function execute() external pure returns (uint256) {
         return 4;
     }
 }
 
-contract Func5 {
-    Func7 private func7;
+contract Contract5 {
+    Contract7 private contract7;
 
-    constructor(address _func7) {
-        func7 = Func7(_func7);
+    constructor(address _contract7) {
+        contract7 = Contract7(_contract7);
     }
 
     function execute() external view returns (uint256) {
-        uint256 result1 = func7.execute();
+        uint256 result1 = contract7.execute();
         return result1 + 5;
     }
 }
 
-contract Func6 {
+contract Contract6 {
 
     function execute() external pure returns (uint256) {
         return 6;
     }
 }
 
-contract Func7 {
+contract Contract7 {
 
     function execute() external pure returns (uint256) {
         return 7;

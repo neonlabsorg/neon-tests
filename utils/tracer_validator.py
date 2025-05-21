@@ -85,6 +85,7 @@ class TracerValidator:
         assert tx_data["hash"].to_0x_hex() == tracer_response["result"][0]["transactionHash"]
         assert tx_data["input"].to_0x_hex() == tracer_response["result"][0]["action"]["input"]
         assert tx_data["gas"] == int(tracer_response["result"][0]["action"]["gas"], 16)
+        assert tracer_response["result"][0]["action"]["value"] == hex(tx_data["value"])
 
         if tx_receipt:
             assert tx_receipt["gasUsed"] == int(tracer_response["result"][0]["result"]["gasUsed"], 16)

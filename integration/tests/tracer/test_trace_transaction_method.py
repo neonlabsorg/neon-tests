@@ -1,5 +1,6 @@
 import pytest
 
+from utils.helpers import decode_error_output
 from utils.tracer_client import TracerClient
 from utils.tracer_validator import TracerValidator
 from utils.web3client import NeonChainWeb3Client
@@ -116,7 +117,7 @@ class TestTraceTransactionMethod:
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
 
         if error_message:
-            error = self.web3_client.decode_error_output(tracer_response["result"][1]["result"]["output"])
+            error = decode_error_output(tracer_response["result"][1]["result"]["output"])
             assert error_message in error, f"Expected error message '{error_message}' not found in '{error}'"
 
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data, receipt)
@@ -125,7 +126,7 @@ class TestTraceTransactionMethod:
         tx_data = self.web3_client.get_transaction_by_hash(failed_scheduled_tx_receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(failed_scheduled_tx_receipt["transactionHash"].hex())
 
-        error = self.web3_client.decode_error_output(tracer_response["result"][1]["result"]["output"])
+        error = decode_error_output(tracer_response["result"][1]["result"]["output"])
         expected_error_message = "Panic(uint256): Assertion violated or invalid enum value"
         assert error in expected_error_message
 
@@ -136,7 +137,7 @@ class TestTraceTransactionMethod:
         tracer_response = self.tracer_api.trace_transaction(reverted_iterative_tx_receipt["transactionHash"].hex())
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
-        error = self.web3_client.decode_error_output(tracer_response["result"][1]["result"]["output"])
+        error = decode_error_output(tracer_response["result"][1]["result"]["output"])
         expected_error_message = "Revert without reason"
         assert error in expected_error_message
 
@@ -205,15 +206,13 @@ class TestTraceTransactionMethod:
             decoded_output = default_codec.decode(["string"], data_bytes)[0]
             assert decoded_output == expected_output, "Expected output doesn't match with actual output"
 
-        assert tracer_response["result"][0]["action"]["value"] == hex(tx_data["value"])
-
     def test_chain_of_transactions_reverted(self, chain_with_revert_receipt):
         receipt = chain_with_revert_receipt
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
         self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
-        error = self.web3_client.decode_error_output(tracer_response["result"][2]["result"]["output"])
+        error = decode_error_output(tracer_response["result"][2]["result"]["output"])
         expected_error_message = "Revert"
         assert expected_error_message in error
 
