@@ -19,7 +19,6 @@ from solders.pubkey import Pubkey
 
 import allure
 from utils import create_allure_environment_opts, setup_logging
-from utils.AmountTracker import amount_tracker
 from utils.accounts import EthAccounts
 from utils.consts import LAMPORT_PER_SOL, EnvName, TEST_GROUPS
 from utils.error_log import error_log
@@ -335,9 +334,3 @@ def index_of_process(worker_id) -> int:
         return 1
     match = re.search(r"gw(\d+)", worker_id)
     return int(match.group(1))
-
-
-def pytest_sessionfinish(session, exitstatus):
-    print("\n" + "=" * 30)
-    print(f"TOTAL REQUESTED NEON DURING TESTS: {amount_tracker.get_total()}")
-    print("=" * 30 + "\n")
