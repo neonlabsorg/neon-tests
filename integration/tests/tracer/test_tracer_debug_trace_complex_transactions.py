@@ -487,7 +487,7 @@ class TestDebugTraceComplexTransactions:
             == "Cancel"
         )
 
-        # TODO https://neonlabs.atlassian.net/browse/NDEV-3772
+        # TODO NDEV-3772
         # tx_data = self.web3_client.get_transaction_by_hash(
         #     canceled_iterative_tx_with_hash_receipt["transactionHash"].hex()
         # )
