@@ -475,6 +475,24 @@ class TestPrecompiledSplToken:
         except ValueError as e:
             assert ErrorMessage.INVALID_ACC_DATA.value in str(e)
 
+    def test_failed_transfer_low_level_call(
+        self, spl_token_caller, token_mint, bob, non_initialized_acc, json_rpc_client
+    ):
+        amount = 100
+        tx = self.web3_client.make_raw_tx(bob)
+        instruction_tx = spl_token_caller.functions.mintTo(bob.address, amount, token_mint).build_transaction(tx)
+        self.web3_client.send_transaction(bob, instruction_tx)
+
+        tx = self.web3_client.make_raw_tx(bob, gas=10000000)
+        instruction_tx = spl_token_caller.functions.transferByLowLevelCall(
+            bob.address, non_initialized_acc.address, amount
+        ).build_transaction(tx)
+        response = json_rpc_client.send_rpc(method="eth_estimateGas", params=[dict(instruction_tx)])
+        assert "error" not in response
+
+        resp = self.web3_client.send_transaction(bob, instruction_tx)
+        assert resp["status"] == 0
+
     def test_transfer_with_incorrect_signer(self, spl_token_caller, token_mint, bob, alice):
         amount = 100
 

@@ -505,6 +505,38 @@ class TestSolanaInteroperability:
         event_logs = call_solana_caller.events.LogStr().process_receipt(resp)
         assert len(event_logs) == 0
 
+    @pytest.mark.parametrize("iterative_trx", [True, False])
+    def test_failed_low_level_solana_call(
+        self, call_solana_caller, sol_client, solana_account, json_rpc_client, iterative_trx
+    ):
+        sender = self.accounts[0]
+        from_wallet = solana_account
+        to_wallet = Keypair()
+        amount = 100000
+
+        serialized, _, _ = self.serialized_transfer(
+            sol_client, from_wallet, to_wallet, amount, call_solana_caller, False
+        )
+
+        tx = self.web3_client.make_raw_tx(from_=sender.address, gas=100000000)
+
+        if iterative_trx:
+            instruction_tx = call_solana_caller.functions.executeLowLevelCall(0, serialized).build_transaction(tx)
+        else:
+            instruction_tx = call_solana_caller.functions.executeLowLevelCallInIterativeMode(
+                20, 0, serialized
+            ).build_transaction(tx)
+        response = json_rpc_client.send_rpc(method="eth_estimateGas", params=[dict(instruction_tx)])
+        assert "error" in response
+        assert response["error"]["code"] == 3
+        assert "External call fails" in response["error"]["message"]
+
+        resp = self.web3_client.send_transaction(sender, instruction_tx)
+        assert resp["status"] == 0
+
+        event_logs = call_solana_caller.events.LogStr().process_receipt(resp)
+        assert len(event_logs) == 0
+
     @pytest.mark.only_stands  #  This doesn't work on devnet
     def test_solana_call_after_iterative_actions_exceed_accounts_limit(
         self, counter_resource_address: bytes, call_solana_caller

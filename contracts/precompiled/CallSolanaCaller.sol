@@ -5,8 +5,9 @@ import {ICallSolana} from "../external/neon-contracts/contracts/precompiles/ICal
 pragma abicoder v2;
 
 contract CallSolanaCaller {
+    address public constant CALL_SOLANA_ADDRESS = 0xFF00000000000000000000000000000000000006;
     ICallSolana constant _callSolana =
-        ICallSolana(0xFF00000000000000000000000000000000000006);
+        ICallSolana(CALL_SOLANA_ADDRESS);
     struct Data {
         uint256 value1;
         uint256 value2;
@@ -25,10 +26,12 @@ contract CallSolanaCaller {
     }
 
     event LogBytes(bytes32 value);
+    event LogBytes(bytes value);
     event LogStr(string value);
     event LogInt(uint value);
     event LogAddress(address value);
     event LogData(bytes32 program, bytes value);
+    event LogBool(bool value);
 
     function getNeonAddress(address addr) public returns (bytes32) {
         bytes32 solanaAddr = _callSolana.getNeonAddress(addr);
@@ -43,6 +46,12 @@ contract CallSolanaCaller {
         emit LogBytes(returnData);
     }
 
+    function executeLowLevelCall(uint64 lamports, bytes calldata instruction) public {
+        (bool success, bytes memory result) = CALL_SOLANA_ADDRESS.call(abi.encodeWithSignature("execute(uint64,bytes)", lamports, instruction));
+        emit LogBytes(result);
+        emit LogBool(success);
+    }
+
 
     function executeInIterativeMode(
         uint256 actionsNumber,
@@ -54,6 +63,15 @@ contract CallSolanaCaller {
         return actionsNumber;
     }
 
+    function executeLowLevelCallInIterativeMode(
+        uint256 actionsNumber,
+        uint64 lamports,
+        bytes calldata instruction
+    ) public returns (uint256){
+        doIterativeActions(actionsNumber);
+        executeLowLevelCall(lamports, instruction);
+        return actionsNumber;
+    }
     function solanaCallBeforeActionWithMatrix(
         uint[][] memory a,
         uint64 lamports,
