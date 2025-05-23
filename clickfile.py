@@ -574,7 +574,7 @@ def run(
         if network == EnvName.MAINNET:
             command += " -m mainnet"
         if network == EnvName.DEVNET:
-            command += " --retries 3 --retry-delay 2"
+            command += " --retries 3 --retry-delay 120"
 
     if name in {"services", "compiler_compatibility", "evm", "basic"} and numprocesses:
         command += f" --numprocesses {numprocesses}"
