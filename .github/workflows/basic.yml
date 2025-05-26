@@ -113,6 +113,7 @@ jobs:
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
           aws_default_region: "eu-central-1"
+          gh_token: ${{ secrets.GHTOKEN }}
     outputs:
       proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}
       solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}

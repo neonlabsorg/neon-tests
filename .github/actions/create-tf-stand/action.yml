@@ -37,6 +37,8 @@ inputs:
   docker_password:
     description: 'docker hub password'
     required: true
+  gh_token:
+    required: true
 
 
 runs:
@@ -50,7 +52,7 @@ runs:
     with:
       repository: 'neonlabsorg/dynamic-ci-cd'
       ref: 'feat/prepare-instance'
-      token: ${{ secrets.GHTOKEN }}
+      token: ${{ inputs.gh_token }}
       path: ./dynamic-ci-cd
   - name: Create instance
     uses: ./dynamic-ci-cd/actions/create-instance
@@ -60,7 +62,7 @@ runs:
       run-id: ${{github.run_id}}
       cpu: 16
       memory: 32
-      hcloud-token: ${{ secrets.HCLOUD_TOKEN }}
+      hcloud-token: ${{ inputs.hcloud_token }}
     env:
       AWS_ACCESS_KEY_ID: ${{ inputs.aws_secret_access_key }}
       AWS_DEFAULT_REGION: ${{ inputs.aws_default_region }}
