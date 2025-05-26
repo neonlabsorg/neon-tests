@@ -64,9 +64,9 @@ runs:
       memory: 32
       hcloud-token: ${{ inputs.hcloud_token }}
     env:
-      AWS_ACCESS_KEY_ID: ${{ inputs.aws_secret_access_key }}
+      AWS_ACCESS_KEY_ID: ${{ inputs.aws_secret_access_key_id }}
       AWS_DEFAULT_REGION: ${{ inputs.aws_default_region }}
-      AWS_SECRET_ACCESS_KEY: ${{ inputs.aws_secret_access_key_id }}
+      AWS_SECRET_ACCESS_KEY: ${{ inputs.aws_secret_access_key }}
   - name: Install docker
     uses: ./actions/prepare-docker-instance
     id: prepare-docker-instance
