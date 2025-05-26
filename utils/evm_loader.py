@@ -1,33 +1,33 @@
 import json
 import pathlib
 import typing
+import typing as tp
 from hashlib import sha256
 from random import randrange
 from typing import Union
 
 import allure
+import solders.system_program as sp
 import spl
-import typing as tp
-
+from eth_account.datastructures import SignedTransaction
 from eth_account.signers.local import LocalAccount
 from eth_keys import keys as eth_keys
-from eth_account.datastructures import SignedTransaction
 from eth_utils import keccak
-from solders.keypair import Keypair
-from solders.pubkey import Pubkey
-import solders.system_program as sp
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
 from solders.rpc.responses import GetTransactionResp
+from spl.token.constants import TOKEN_PROGRAM_ID, WRAPPED_SOL_MINT
 from spl.token.instructions import (
     get_associated_token_address,
     MintToParams,
     ApproveParams,
     approve,
 )
-from spl.token.constants import TOKEN_PROGRAM_ID, WRAPPED_SOL_MINT
 
+from integration.tests.neon_evm.utils.constants import TREASURY_POOL_SEED
 from integration.tests.neon_evm.utils.contract import get_contract_bin
 from integration.tests.neon_evm.utils.ethereum import create_contract_address, make_deployment_transaction
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
@@ -67,6 +67,9 @@ from utils.layouts import (
     STORAGE_CELL_LAYOUT,
     OPERATOR_BALANCE_ACCOUNT_LAYOUT,
 )
+from utils.logger import log_text_to_allure_and_stdout
+from utils.neon_user import NeonUser
+from utils.scheduled_trx import ScheduledTransaction
 from utils.solana_client import SolanaClient
 from utils.solana_logs_helper import decode_logs
 from utils.types import Caller, Contract, TreasuryPool
@@ -626,18 +629,25 @@ class EvmLoader(SolanaClient):
         return receipt
 
     @allure.step("Create new user")
-    def make_new_user(self, sender: Keypair) -> Caller:
-        key = Keypair()
+    def make_new_user(self, sender: Keypair, key: Keypair | None = None) -> Caller:
+        key = key or Keypair()
         if self.get_solana_balance(key.pubkey()) == 0:
             self.request_airdrop(key.pubkey(), 1000 * 10**9, commitment=Confirmed)
         caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
-        caller_solana = self.ether2program(caller_ether)[0]
-        caller_balance = self.ether2balance(caller_ether)
-        caller_token = get_associated_token_address(caller_balance, self.neon_token_mint_id)
+        solana_account_address = self.ether2program(caller_ether)[0]
+        balance_account_address = self.ether2balance(caller_ether)
+        ata = get_associated_token_address(balance_account_address, self.neon_token_mint_id)
 
-        if self.get_solana_balance(caller_balance) == 0:
+        if self.get_solana_balance(balance_account_address) == 0:
             self.create_balance_account(caller_ether, sender)
-        user = Caller(key, Pubkey.from_string(caller_solana), caller_balance, caller_ether, caller_token)
+
+        user = Caller(
+            solana_account=key,
+            solana_account_address=Pubkey.from_string(solana_account_address),
+            balance_account_address=balance_account_address,
+            eth_address=caller_ether,
+            token_address=ata,
+        )
         log_text_to_allure_and_stdout("Created user", str(user))
         return user
 
@@ -1005,9 +1015,8 @@ class EvmLoader(SolanaClient):
                 make_account_create_holder(storage, signer.pubkey(), bytes(seed, "utf8"), self.loader_id),
             )
             self.send_tx(trx, signer)
-            return storage
-        else:
-            self.create_holder(signer, seed, size, fund, storage)
+
+        return storage
 
     @allure.step("Delete holder account")
     def delete_holder(self, del_key: Pubkey, acc: Keypair, signer: Keypair):
