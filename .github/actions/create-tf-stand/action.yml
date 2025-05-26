@@ -39,7 +39,16 @@ inputs:
     required: true
   gh_token:
     required: true
-
+  dockerhub_org_name:
+    required: true
+  devnet_solana_url:
+    required: true
+  neonevm_commit:
+    required: true
+  revision:
+    default: "latest"
+  faucet_commit:
+    default: "latest"
 
 runs:
   using: composite
@@ -88,11 +97,11 @@ runs:
 
           services:
             solana:
-              image: ${DOCKERHUB_ORG_NAME}/evm_loader:${NEON_EVM_COMMIT}
+              image: ${{ inputs.dockerhub_org_name }}/evm_loader:${{ inputs.neonevm_commit }}
               container_name: solana
               environment:
                 SOLANA_URL: http://127.0.0.1:8899
-                DEVNET_SOLANA_URL: $DEVNET_SOLANA_URL
+                DEVNET_SOLANA_URL: ${{ inputs.devnet_solana_url }}
               hostname: solana
               networks:
                 - net
@@ -124,7 +133,7 @@ runs:
                 SOLANA_KEY_FOR_CONFIG: BMp6gEnveANdvSvspESJUrNczuHz1GF5UQKjVLCkAZih
                 COMMITMENT: confirmed
                 NEON_DB_CLICKHOUSE_URLS: "http://45.250.253.36:8123;http://45.250.253.38:8123"
-              image: $DOCKERHUB_ORG_NAME/evm_loader:$NEON_EVM_COMMIT
+              image: ${{ inputs.dockerhub_org_name }}/evm_loader:${{ inputs.neonevm_commit }}
               ports:
               - "8085:8085"
               expose:
@@ -154,7 +163,7 @@ runs:
                 NEON_DB_INDEXER_PASSWORD: "vUlpDyAP0gA98R5Bu"
                 KEYPAIR: /opt/operator-keypairs/id.json
                 FEEPAIR: /opt/operator-keypairs/id.json
-              image: $DOCKERHUB_ORG_NAME/evm_loader:$NEON_EVM_COMMIT
+              image: ${{ inputs.dockerhub_org_name }}/evm_loader:${{ inputs.neonevm_commit }}
               ports:
                 - "3100:3100"
               expose:
@@ -183,7 +192,7 @@ runs:
                 - net
 
             dbcreation:
-              image: ${DOCKERHUB_ORG_NAME}/neon-proxy.py:${REVISION}
+              image: ${{ inputs.dockerhub_org_name }}/neon-proxy.py:${{ inputs.revision }}
               container_name: dbcreation
               environment:
                 SOLANA_URL: http://solana:8899
@@ -200,7 +209,7 @@ runs:
                   condition: service_healthy
 
             proxy:
-              image: ${DOCKERHUB_ORG_NAME}/neon-proxy.py:${REVISION}
+              image: ${{ inputs.dockerhub_org_name }}/neon-proxy.py:${{ inputs.revision }}
               container_name: proxy
               environment:
                 SOLANA_URL: http://solana:8899
@@ -249,7 +258,7 @@ runs:
 
             faucet:
               restart: always
-              image: ${DOCKERHUB_ORG_NAME}/faucet:${FAUCET_COMMIT}
+              image: ${{ inputs.dockerhub_org_name }}/faucet:${{ inputs.faucet_commit }}
               container_name: faucet
               environment:
                 FAUCET_RPC_BIND: 0.0.0.0
@@ -281,7 +290,7 @@ runs:
 
             indexer:
               restart: always
-              image: ${DOCKERHUB_ORG_NAME}/neon-proxy.py:${REVISION}
+              image: ${{ inputs.dockerhub_org_name }}/neon-proxy.py:${{ inputs.revision }}
               container_name: indexer
               environment:
                 SOLANA_URL: http://solana:8899

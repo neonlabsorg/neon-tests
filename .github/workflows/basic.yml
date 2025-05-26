@@ -116,6 +116,9 @@ jobs:
           aws_secret_access_key_id: ${{ secrets.CI_AWS_ACCESS_KEY }}
           aws_secret_access_key: ${{ secrets.CI_AWS_SECRET_ACCESS_KEY }}
           gh_token: ${{ secrets.GHTOKEN }}
+          dockerhub_org_name: ${{ github.repository_owner }}
+          devnet_solana_url: "${{ secrets.SOLANA_URL }}"
+          neonevm_commit: ${{ steps.share.outputs.evm_tag }}
     outputs:
       proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}
       solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
