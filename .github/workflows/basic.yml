@@ -113,8 +113,8 @@ jobs:
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
           aws_default_region: "eu-central-1"
-          aws_secret_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_secret_access_key_id: ${{ secrets.CI_AWS_ACCESS_KEY }}
+          aws_secret_access_key: ${{ secrets.CI_AWS_SECRET_ACCESS_KEY }}
           gh_token: ${{ secrets.GHTOKEN }}
     outputs:
       proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}
