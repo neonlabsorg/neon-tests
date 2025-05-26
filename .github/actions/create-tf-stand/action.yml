@@ -68,14 +68,14 @@ runs:
       AWS_DEFAULT_REGION: ${{ inputs.aws_default_region }}
       AWS_SECRET_ACCESS_KEY: ${{ inputs.aws_secret_access_key }}
   - name: Install docker
-    uses: ./actions/prepare-docker-instance
+    uses: ./dynamic-ci-cd/actions/prepare-docker-instance
     id: prepare-docker-instance
     with:
         host: ${{ steps.create-instance.outputs.public-ip-v4 }}
         ssh-user: ${{ steps.create-instance.outputs.ssh-user }}
         ssh-key: ${{ steps.create-instance.outputs.ssh-key }}
   - name: Run docker containers
-    uses: ./actions/run-docker-containers
+    uses: ./dynamic-ci-cd/actions/run-docker-containers
     id: run-docker-containers
     with:
         docker_host: ${{ steps.create-instance.outputs.public-ip-v4 }}
