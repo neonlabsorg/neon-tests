@@ -15,6 +15,8 @@ inputs:
     required: true
   aws_secret_access_key:
     required: true
+  aws_default_region:
+    required: true
   gh_token:
     required: true
 
@@ -46,6 +48,10 @@ runs:
         job-id: ${{ github.job }}
         run-id: ${{github.run_id}}
         hcloud-token: ${{ inputs.hcloud_token }}
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.aws_secret_access_key_id }}
+        AWS_DEFAULT_REGION: ${{ inputs.aws_default_region }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.aws_secret_access_key }}
     - uses: actions/upload-artifact@v4
       if: always()
       with:

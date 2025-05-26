@@ -290,6 +290,7 @@ jobs:
           docker_cert: ${{ needs.prepare-env-proxy.outputs.docker_cert }}
           docker_key: ${{ needs.prepare-env-proxy.outputs.docker_key }}
           aws_secret_access_key_id: ${{ secrets.CI_AWS_ACCESS_KEY }}
+          aws_default_region: "eu-central-1"
           aws_secret_access_key: ${{ secrets.CI_AWS_SECRET_ACCESS_KEY }}
           gh_token: ${{ secrets.GHTOKEN }}
   send-notification:
