@@ -104,12 +104,33 @@ jobs:
     if: always()
     steps:
       - uses: actions/checkout@v4
+      - name: Install python requirements
+        if: ${{ env.NETWORK != 'devnet' }}
+        uses: ./.github/actions/python-requirements
+      - name: Set evm image tag
+        if: ${{ env.NETWORK != 'devnet' }}
+        id: share
+        run: |
+          env_tag=$(python3 ./clickfile.py infra get-stand-param \
+            --current_branch "${{ github.ref_name }}" \
+            --head_branch "${{ github.head_ref }}" \
+            --base_branch "${{ github.base_ref }}" \
+            --param "evm_tag")
+
+          evm_branch=$(python3 ./clickfile.py infra get-stand-param \
+            --current_branch "${{ github.ref_name }}" \
+            --head_branch "${{ github.head_ref }}" \
+            --base_branch "${{ github.base_ref }}" \
+            --param "evm_branch")
+
+          echo "evm_tag=$env_tag"
+          echo "evm_tag=$env_tag" >> $GITHUB_OUTPUT
+          echo "evm_branch=$evm_branch"
+          echo "evm_branch=$evm_branch" >> $GITHUB_OUTPUT
       - name: "Prepare terraform stand"
         id: prepare_terraform
         uses: ./.github/actions/create-tf-stand
         with:
-          ci_stands_key_hcloud: ${{ secrets.CI_STANDS_KEY_HCLOUD }}
-          hetzner_instance_types: ${{vars.HETZNER_INSTANCE_TYPES}}
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
           aws_default_region: "eu-central-1"
