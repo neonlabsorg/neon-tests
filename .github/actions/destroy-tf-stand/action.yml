@@ -31,7 +31,7 @@ runs:
         token: ${{ inputs.gh_token }}
         path: dynamic-ci-cd
     - name: Fetch docker logs
-      uses: ./actions/fetch-docker-container-logs
+      uses: ./dynamic-ci-cd/actions/fetch-docker-container-logs
       with:
           docker_host: ${{ inputs.instance_public_ipv4 }}
           docker_ca_cert: ${{ inputs.docker_ca_cert }}
