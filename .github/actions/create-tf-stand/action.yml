@@ -45,6 +45,7 @@ inputs:
     required: true
   neonevm_commit:
     required: true
+    default: "latest"
   revision:
     default: "latest"
   faucet_commit:
@@ -140,7 +141,7 @@ runs:
               - "8085"
               networks:
                 - net
-            
+
             neon-core-rpc:
               restart: unless-stopped
               container_name: neon-core-rpc
