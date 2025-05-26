@@ -15,6 +15,8 @@ inputs:
     required: true
   aws_secret_access_key:
     required: true
+  gh_token:
+    required: true
 
 runs:
   using: composite
@@ -26,7 +28,7 @@ runs:
       with:
         repository: 'neonlabsorg/dynamic-ci-cd'
         ref: 'main'
-        token: ${{ secrets.GHTOKEN }}
+        token: ${{ inputs.gh_token }}
         path: dynamic-ci-cd
     - name: Fetch docker logs
       uses: ./actions/fetch-docker-container-logs
@@ -43,7 +45,7 @@ runs:
         project-repository: ${{ github.event.repository.name }}
         job-id: ${{ github.job }}
         run-id: ${{github.run_id}}
-        hcloud-token: ${{ secrets.HCLOUD_TOKEN }}
+        hcloud-token: ${{ inputs.hcloud_token }}
     - uses: actions/upload-artifact@v4
       if: always()
       with:
