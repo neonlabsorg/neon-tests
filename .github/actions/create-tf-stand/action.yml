@@ -84,6 +84,14 @@ runs:
         host: ${{ steps.create-instance.outputs.public-ip-v4 }}
         ssh-user: ${{ steps.create-instance.outputs.ssh-user }}
         ssh-key: ${{ steps.create-instance.outputs.ssh-key }}
+  - name: Set Gas Price
+    id: set-gas-price
+    run: |
+      echo "CONST GAS PRICE VARIABLE IS: ${{ inputs.use_real_price }}"
+      echo "CONST GAS PRICE VARIABLE IS: ${{ inputs.use_real_price }}"
+      if [[ "${{ inputs.use_real_price }}" == "0" ]]; then
+        echo -e "CONST_GAS_PRICE<<EOF\n1\nEOF" >> "$GITHUB_OUTPUT"
+      fi
   - name: Run docker containers
     uses: ./dynamic-ci-cd/actions/run-docker-containers
     id: run-docker-containers
@@ -227,7 +235,7 @@ runs:
                 #PYTH_MAPPING_ACCOUNT: ${CI_PYTH_MAPPING_ACCOUNT:-BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2}
                 # Set to 0 + CONST_GAS_PRICE to 0, if you want 0 gas-price
                 MINIMAL_GAS_PRICE: 1
-                CONST_GAS_PRICE: 2
+                ${{ steps.set-gas-price.outputs.CONST_GAS_PRICE }}
                 MINIMAL_WITHOUT_CHAIN_ID_GAS_PRICE: 1
                 CU_PRIORITY_FEE: 2
                 DEFAULT_CU_PRICE: 10500
