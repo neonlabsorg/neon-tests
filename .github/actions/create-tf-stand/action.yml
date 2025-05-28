@@ -86,8 +86,8 @@ runs:
         ssh-key: ${{ steps.create-instance.outputs.ssh-key }}
   - name: Set Gas Price
     id: set-gas-price
+    shell: bash
     run: |
-      echo "CONST GAS PRICE VARIABLE IS: ${{ inputs.use_real_price }}"
       echo "CONST GAS PRICE VARIABLE IS: ${{ inputs.use_real_price }}"
       if [[ "${{ inputs.use_real_price }}" == "0" ]]; then
         echo -e "CONST_GAS_PRICE<<EOF\n1\nEOF" >> "$GITHUB_OUTPUT"
