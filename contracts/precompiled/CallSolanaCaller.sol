@@ -26,12 +26,10 @@ contract CallSolanaCaller {
     }
 
     event LogBytes(bytes32 value);
-    event LogBytes(bytes value);
     event LogStr(string value);
     event LogInt(uint value);
     event LogAddress(address value);
     event LogData(bytes32 program, bytes value);
-    event LogBool(bool value);
 
     function getNeonAddress(address addr) public returns (bytes32) {
         bytes32 solanaAddr = _callSolana.getNeonAddress(addr);
@@ -63,15 +61,6 @@ contract CallSolanaCaller {
         return actionsNumber;
     }
 
-    function executeLowLevelCallInIterativeMode(
-        uint256 actionsNumber,
-        uint64 lamports,
-        bytes calldata instruction
-    ) public returns (uint256){
-        doIterativeActions(actionsNumber);
-        executeLowLevelCall(lamports, instruction);
-        return actionsNumber;
-    }
     function solanaCallBeforeActionWithMatrix(
         uint[][] memory a,
         uint64 lamports,
@@ -117,6 +106,17 @@ contract CallSolanaCaller {
         ExecuteArgs[] memory _args
     ) public {
         doIterativeActions(actionsNumber);
+        batchExecute(_args);
+    }
+
+    function batchExecuteFixedIterativeSteps(ExecuteArgs[] memory _args) public {
+        uint x = 0;
+        uint y = 3000;
+        uint z = x;
+        while (x < y) {
+            z++;
+            x = z;
+        }
         batchExecute(_args);
     }
 
