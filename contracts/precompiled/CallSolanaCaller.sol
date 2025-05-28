@@ -30,6 +30,7 @@ contract CallSolanaCaller {
     event LogInt(uint value);
     event LogAddress(address value);
     event LogData(bytes32 program, bytes value);
+    event LogBool(bool value);
 
     function getNeonAddress(address addr) public returns (bytes32) {
         bytes32 solanaAddr = _callSolana.getNeonAddress(addr);
@@ -46,7 +47,6 @@ contract CallSolanaCaller {
 
     function executeLowLevelCall(uint64 lamports, bytes calldata instruction) public {
         (bool success, bytes memory result) = CALL_SOLANA_ADDRESS.call(abi.encodeWithSignature("execute(uint64,bytes)", lamports, instruction));
-        emit LogBytes(result);
         emit LogBool(success);
     }
 
