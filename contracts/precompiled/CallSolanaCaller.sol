@@ -61,6 +61,16 @@ contract CallSolanaCaller {
         return actionsNumber;
     }
 
+    function executeLowLevelCallInIterativeMode(
+        uint256 actionsNumber,
+        uint64 lamports,
+        bytes calldata instruction
+    ) public returns (uint256){
+        doIterativeActions(actionsNumber);
+        executeLowLevelCall(lamports, instruction);
+        return actionsNumber;
+    }
+
     function solanaCallBeforeActionWithMatrix(
         uint[][] memory a,
         uint64 lamports,
