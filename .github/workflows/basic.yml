@@ -152,8 +152,8 @@ jobs:
           devnet_solana_url: "${{ secrets.SOLANA_URL }}"
           neonevm_commit: ${{ needs.share-tags.outputs.evm_tag }}
     outputs:
-      proxy_ip: ${{ steps.prepare_terraform.outputs.proxy_ip }}
-      solana_ip: ${{ steps.prepare_terraform.outputs.solana_ip }}
+      proxy_ip: ${{ steps.prepare_terraform.outputs.instance_public_ip_v4 }}
+      solana_ip: ${{ steps.prepare_terraform.outputs.instance_public_ip_v4 }}
   run-evm-tests:
     name: Run EVM tests
     runs-on: ["self-hosted", "k8s-prod"]
