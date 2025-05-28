@@ -247,7 +247,7 @@ class Web3Client:
         return transaction
 
     @allure.step("Wait for transaction receipt for {tx_hash}")
-    def wait_for_transaction_receipt(self, tx_hash, timeout=120) -> web3.types.TxReceipt:
+    def wait_for_transaction_receipt(self, tx_hash, timeout=240) -> web3.types.TxReceipt:
         try:
             return self._web3.eth.wait_for_transaction_receipt(tx_hash, timeout=timeout)
         except web3.exceptions.TimeExhausted as e:
@@ -258,7 +258,7 @@ class Web3Client:
         self,
         account: eth_account.signers.local.LocalAccount,
         transaction: tp.Dict,
-        timeout: int = 120,
+        timeout: int = 240,
     ) -> web3.types.TxReceipt:
         signed_tx = self._web3.eth.account.sign_transaction(transaction, account.key)
         transaction_hash = self._web3.eth.send_raw_transaction(signed_tx.raw_transaction)
