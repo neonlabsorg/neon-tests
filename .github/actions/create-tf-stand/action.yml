@@ -61,7 +61,7 @@ runs:
   - uses: actions/checkout@v4
     with:
       repository: 'neonlabsorg/dynamic-ci-cd'
-      ref: 'fix/run-containers'
+      ref: 'main'
       token: ${{ inputs.gh_token }}
       path: ./dynamic-ci-cd
   - name: Create instance
