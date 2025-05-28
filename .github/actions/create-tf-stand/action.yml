@@ -112,7 +112,7 @@ runs:
                 - "8899:8899"
               healthcheck:
                 # Must be available from outside (calling without -u causes premature result)
-                test: [ '/bin/bash', '-c', 'curl http://localhost:8899 -s -X POST -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getHealth\"}" | grep -cF "ok"']
+                test: [ CMD-SHELL, 'curl http://localhost:8899 -s -X POST -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getHealth\"}" | grep -cF "ok"']
                 interval: 5s
                 timeout: 5s
                 retries: 20
@@ -251,7 +251,7 @@ runs:
                 - net
               entrypoint: proxy/run-test-proxy.sh
               healthcheck:
-                test: [ '/bin/bash', '-c', 'curl http://localhost:9090/solana -s -X POST -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getBlockByNumber\",\"params\":[\"latest\", false],\"id\":1}" | grep -cF "number"' ]
+                test: [ CMD-SHELL, 'curl http://localhost:9090/solana -s -X POST -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getBlockByNumber\",\"params\":[\"latest\", false],\"id\":1}" | grep -cF "number"' ]
                 interval: 5s
                 timeout: 3s
                 retries: 20
