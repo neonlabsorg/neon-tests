@@ -458,7 +458,7 @@ class TestPrecompiledSplToken:
         assert "External call fails" in response["error"]["message"]
 
         resp = self.web3_client.send_transaction(bob, instruction_tx)
-        assert resp["status"] == 0
+        assert resp["status"] == 0, "Transaction should fail"
 
     def test_transfer_more_than_balance(self, spl_token_caller, token_mint, bob, alice):
         transfer_amount = self.get_account(spl_token_caller, bob).amount + 1
