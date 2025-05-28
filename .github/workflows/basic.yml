@@ -134,7 +134,7 @@ jobs:
     name: Prepare environment for proxy tests
     runs-on: ["self-hosted", "k8s-prod"]
     needs:
-      - pre-commit-check
+      - share-tags
     if: always()
     steps:
       - uses: actions/checkout@v4
