@@ -532,7 +532,7 @@ class TestSolanaInteroperability:
         assert "External call fails" in response["error"]["message"]
 
         resp = self.web3_client.send_transaction(sender, instruction_tx)
-        assert resp["status"] == 0
+        assert resp["status"] == 0, "Transaction should fail"
 
         event_logs = call_solana_caller.events.LogStr().process_receipt(resp)
         assert len(event_logs) == 0
