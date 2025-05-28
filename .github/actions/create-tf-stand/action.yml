@@ -90,7 +90,7 @@ runs:
     run: |
       echo "CONST GAS PRICE VARIABLE IS: ${{ inputs.use_real_price }}"
       if [[ "${{ inputs.use_real_price }}" == "0" ]]; then
-        echo -e "CONST_GAS_PRICE<<EOF\n1\nEOF" >> "$GITHUB_OUTPUT"
+        echo -e "CONST_GAS_PRICE<<EOF\nCONST_GAS_PRICE: 1\nEOF" >> "$GITHUB_OUTPUT"
       fi
   - name: Run docker containers
     uses: ./dynamic-ci-cd/actions/run-docker-containers
