@@ -18,17 +18,6 @@ class TestChainIdDependentOpcodes:
         return contract
 
     @pytest.fixture(scope="class")
-    def contract_neon_caller(self, web3_client_sol, accounts):
-        contract, _ = web3_client_sol.deploy_and_get_contract(
-            "opcodes/ChainIdDependentOpCodes",
-            "0.8.10",
-            accounts[0],
-            contract_name="ChainIdDependentOpCodesCaller",
-            constructor_args=[accounts[0].address],
-        )
-        return contract
-
-    @pytest.fixture(scope="class")
     def contract_sol(self, web3_client_sol, class_account_sol_chain):
         contract, _ = web3_client_sol.deploy_and_get_contract(
             "opcodes/ChainIdDependentOpCodes", "0.8.10", class_account_sol_chain
@@ -56,11 +45,11 @@ class TestChainIdDependentOpcodes:
         return contract
 
     @pytest.mark.multipletokens
-    def test_chain_id_sol(self, contract_sol, pytestconfig):
-        assert contract_sol.functions.getChainId().call() == pytestconfig.environment.network_ids["sol"]
+    def test_chain_id_sol(self, contract_sol, environment):
+        assert contract_sol.functions.getChainId().call() == environment.network_ids["sol"]
 
-    def test_chain_id_neon(self, contract_neon, pytestconfig):
-        assert contract_neon.functions.getChainId().call() == pytestconfig.environment.network_ids["neon"]
+    def test_chain_id_neon(self, contract_neon, environment):
+        assert contract_neon.functions.getChainId().call() == environment.network_ids["neon"]
 
     @pytest.mark.multipletokens
     def test_balance_by_sol_contract(

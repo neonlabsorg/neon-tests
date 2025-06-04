@@ -11,7 +11,7 @@ from utils.consts import Unit
 @allure.story("Verify RLP decoding with invalid values")
 class TestTrxRlpDecoding:
     def modify_raw_trx(self, signed_tx, new_v=None, new_r=None, new_s=None):
-        decoded_tx = rlp.decode(signed_tx.rawTransaction)
+        decoded_tx = rlp.decode(signed_tx.raw_transaction)
         if new_s is not None:
             decoded_tx[-1] = new_s
         if new_r is not None:
@@ -30,7 +30,7 @@ class TestTrxRlpDecoding:
             "value": web3_client.to_wei(2, Unit.ETHER),
             "chainId": web3_client.eth.chain_id,
             "gasPrice": web3_client.gas_price(),
-            "gas": 21_000,
+            "gas": 35_000,
             "nonce": web3_client.eth.get_transaction_count(acc.address),
         }
 
@@ -77,13 +77,13 @@ class TestTrxRlpDecoding:
 
     @pytest.mark.parametrize("index", [6, 10])
     def test_add_waste_to_trx(self, signed_tx, index, json_rpc_client):
-        decoded_tx = rlp.decode(signed_tx.rawTransaction)
+        decoded_tx = rlp.decode(signed_tx.raw_transaction)
         decoded_tx.insert(index, HexBytes(b"\x19p\x16l\xc0"))
         new_trx = HexBytes(rlp.encode(decoded_tx))
         response = json_rpc_client.send_rpc("eth_sendRawTransaction", [new_trx.hex()])
         assert "wrong transaction format" in response["error"]["message"]
 
     def test_add_waste_to_trx_without_decoding(self, signed_tx, json_rpc_client):
-        new_trx = signed_tx.rawTransaction + HexBytes(b"\x19p\x16l\xc0")
+        new_trx = signed_tx.raw_transaction + HexBytes(b"\x19p\x16l\xc0")
         response = json_rpc_client.send_rpc("eth_sendRawTransaction", [new_trx.hex()])
         assert "wrong transaction format" in response["error"]["message"]

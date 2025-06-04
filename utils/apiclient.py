@@ -1,8 +1,10 @@
+import json
+import random
 import time
 import typing as tp
-import random
 
 import allure
+from hexbytes import HexBytes
 from requests import Session
 
 
@@ -38,17 +40,17 @@ class JsonRPCSession(Session):
             assert "result" not in response_body, "Response can't contains error and result"
         if "error" not in response_body:
             assert response_body["id"] == req_id
-
+        allure.attach(json.dumps(response_body, indent=2), name="response", attachment_type=allure.attachment_type.JSON)
         return response_body
 
     def get_contract_code(self, contract_address: str) -> str:
         response = self.send_rpc("eth_getCode", [contract_address, "latest"])
         return response["result"]
 
-    def get_neon_trx_receipt(self, trx_hash: str) -> tp.Dict:
+    def get_neon_trx_receipt(self, trx_hash: HexBytes) -> tp.Dict:
         return self.send_rpc("neon_getTransactionReceipt", params=[trx_hash.hex()])
 
-    def get_solana_trx_by_neon(self, trx_hash: str) -> tp.Dict:
+    def get_solana_trx_by_neon(self, trx_hash: HexBytes) -> tp.Dict:
         return self.send_rpc("neon_getSolanaTransactionByNeonTransaction", params=[trx_hash.hex()])
 
 

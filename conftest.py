@@ -5,19 +5,20 @@ import pathlib
 import re
 import shutil
 import sys
-from dataclasses import dataclass, field
-from typing import Optional, Dict
+from dataclasses import dataclass
+from typing import Optional, Dict, Generator
 
+import base58
 import pytest
 from _pytest.config import Config
 from _pytest.config.argparsing import Parser
+from _pytest.logging import LoggingPlugin
 from _pytest.nodes import Item
 from _pytest.runner import runtestprotocol
+from allure_commons.model2 import TestResult, StatusDetails
 from solana.rpc.commitment import Confirmed
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
-from spl.token.constants import WRAPPED_SOL_MINT
-from web3.middleware import geth_poa_middleware
 
 import allure
 from utils import create_allure_environment_opts, setup_logging
@@ -26,6 +27,7 @@ from utils.consts import LAMPORT_PER_SOL, EnvName, TEST_GROUPS
 from utils.error_log import error_log
 from utils.evm_loader import EvmLoader
 from utils.faucet import Faucet
+from utils.logger import RedactingColoredLevelFormatter, redact_string
 from utils.neon_user import NeonUser
 from utils.solana_client import SolanaClient
 from utils.types import TestGroup, TreasuryPool
@@ -48,12 +50,12 @@ class EnvironmentConfig:
     neon_erc20wrapper_address: str
     use_bank: bool
     eth_bank_account: str
+    default_cu_price: int | None = None
     neonpass_url: str = ""
     ws_subscriber_url: str = ""
     account_seed_version: str = "\3"
     neon_core_api_url: Optional[str] = None
     neon_core_api_rpc_url: Optional[str] = None
-    sol_mint_id: Pubkey = field(default=WRAPPED_SOL_MINT)
 
 
 def pytest_addoption(parser: Parser):
@@ -121,7 +123,33 @@ def pytest_runtest_protocol(item: Item, nextitem):
     return True
 
 
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_runtest_makereport(item, call):
+    yield
+
+    # masks secrets in Allure exception logs
+    if call.excinfo:
+        allure_listener = item.config.pluginmanager.get_plugin("allure_listener")
+        uuid = allure_listener._cache.get(item.nodeid)
+        test_result: TestResult = allure_listener.allure_logger.get_test(uuid)
+        status_details: StatusDetails = test_result.statusDetails
+
+        if status_details:
+            status_details.message = redact_string(status_details.message)
+            status_details.trace = redact_string(status_details.trace)
+
+
+@pytest.hookimpl(trylast=True)  # allows pytest to initialize logging-plugin first
 def pytest_configure(config: Config):
+    # configure pytest logging - masks secrets in allure attachments
+    logging_plugin: LoggingPlugin = config.pluginmanager.get_plugin("logging-plugin")
+    terminal_writer = logging_plugin.formatter._terminalwriter
+    pytest_redacting_formatter = RedactingColoredLevelFormatter(terminal_writer)
+    logging_plugin.formatter = pytest_redacting_formatter
+    logging_plugin.caplog_handler.formatter = pytest_redacting_formatter
+    logging_plugin.log_cli_handler.formatter = pytest_redacting_formatter
+    logging_plugin.report_handler.formatter = pytest_redacting_formatter
+
     # redirect print to stderr for xdist-spawned processes because otherwise print statements get lost
     if "PYTEST_XDIST_WORKER" in os.environ:
         original_print = builtins.print
@@ -140,8 +168,8 @@ def pytest_configure(config: Config):
     if network_name in ["devnet", "tracer_ci"]:
         if "DEVNET_SOLANA_URL" in os.environ and os.environ["DEVNET_SOLANA_URL"]:
             env["solana_url"] = os.environ.get("DEVNET_SOLANA_URL")
-        if "PROXY_URL" in os.environ and os.environ["PROXY_URL"]:
-            env["proxy_url"] = os.environ.get("PROXY_URL")
+        if "DEVNET_PROXY_URL" in os.environ and os.environ["DEVNET_PROXY_URL"]:
+            env["proxy_url"] = os.environ.get("DEVNET_PROXY_URL")
         if "DEVNET_FAUCET_URL" in os.environ and os.environ["DEVNET_FAUCET_URL"]:
             env["faucet_url"] = os.environ.get("DEVNET_FAUCET_URL")
     if "use_bank" not in env:
@@ -165,13 +193,6 @@ def env_name(pytestconfig: Config) -> EnvName:
 @pytest.fixture(scope="session")
 def operator_keypair() -> Keypair:
     with open("operator-keypair.json", "r") as key:
-        secret_key = json.load(key)
-        return Keypair.from_bytes(secret_key)
-
-
-@pytest.fixture(scope="session")
-def evm_loader_keypair() -> Keypair:
-    with open("evm_loader-keypair.json", "r") as key:
         secret_key = json.load(key)
         return Keypair.from_bytes(secret_key)
 
@@ -256,21 +277,53 @@ def accounts_session(pytestconfig: Config, web3_client_session, faucet, eth_bank
 
 
 @pytest.fixture(scope="function")
-def neon_user(evm_loader: EvmLoader, bank_account, environment: EnvironmentConfig) -> NeonUser:
-    user = NeonUser(environment.evm_loader, bank_account)
-    lamports = 2 * LAMPORT_PER_SOL
+def neon_user(
+    evm_loader: EvmLoader,
+    bank_account,
+    environment: EnvironmentConfig,
+    sol_client_session: SolanaClient,
+) -> Generator[NeonUser, None, None]:
+    user = NeonUser(evm_loader_id=environment.evm_loader)
+    lamports = 3 * LAMPORT_PER_SOL
 
     if environment.use_bank:
-        balance = evm_loader.get_solana_balance(user.solana_account.pubkey())
-        if balance < lamports:
-            evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
+        evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
     else:
         evm_loader.request_airdrop(
             pubkey=user.solana_account.pubkey(),
             lamports=lamports,
             commitment=Confirmed,
         )
-    return user
+
+    yield user
+
+    if environment.use_bank:
+        sol_client_session.drain_sol(from_=user.solana_account, to=bank_account.pubkey())
+
+
+@pytest.fixture(scope="session")
+def neon_user_for_session(
+    evm_loader: EvmLoader,
+    bank_account,
+    environment: EnvironmentConfig,
+    sol_client_session: SolanaClient,
+) -> Generator[NeonUser, None, None]:
+    user = NeonUser(evm_loader_id=environment.evm_loader)
+    lamports = 2 * LAMPORT_PER_SOL
+
+    if environment.use_bank:
+        evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
+    else:
+        evm_loader.request_airdrop(
+            pubkey=user.solana_account.pubkey(),
+            lamports=lamports,
+            commitment=Confirmed,
+        )
+
+    yield user
+
+    if environment.use_bank:
+        sol_client_session.drain_sol(from_=user.solana_account, to=bank_account.pubkey())
 
 
 @pytest.fixture(scope="function")
@@ -280,7 +333,22 @@ def neon_user_no_sols(pytestconfig, bank_account, faucet, environment) -> NeonUs
 
 
 @pytest.fixture(scope="session")
-def treasury_pool(evm_loader: EvmLoader, pytestconfig, index_of_process) -> TreasuryPool:
+def bank_account(pytestconfig: Config) -> Generator[Keypair | None, None, None]:
+    account = None
+    if pytestconfig.environment.use_bank:
+        if pytestconfig.getoption("--network") == "devnet":
+            private_key = os.environ.get("BANK_PRIVATE_KEY")
+        elif pytestconfig.getoption("--network") == "mainnet":
+            private_key = os.environ.get("BANK_PRIVATE_KEY_MAINNET")
+        else:
+            raise ValueError("set BANK_PRIVATE_KEY or BANK_PRIVATE_KEY_MAINNET env variable")
+        key = base58.b58decode(private_key)
+        account = Keypair.from_bytes(key)
+    yield account
+
+
+@pytest.fixture(scope="session")
+def treasury_pool(evm_loader: EvmLoader, pytestconfig, index_of_process, bank_account) -> TreasuryPool:
     index = index_of_process
     evm_loader.create_treasury_pool_address(index)
     if pytestconfig.getoption("--network") == "mainnet":
@@ -289,24 +357,29 @@ def treasury_pool(evm_loader: EvmLoader, pytestconfig, index_of_process) -> Trea
         address = evm_loader.create_treasury_pool_address(index)
     index_buf = index.to_bytes(4, "little")
     balance = evm_loader.get_solana_balance(address)
-    if pytestconfig.getoption("--network") != "mainnet":
+    if pytestconfig.getoption("--network") not in ["mainnet", "devnet"]:
         if balance < 5 * LAMPORT_PER_SOL:
             evm_loader.request_airdrop(address, 5 * LAMPORT_PER_SOL, commitment=Confirmed)
+    else:
+        if balance < LAMPORT_PER_SOL:
+            amount = LAMPORT_PER_SOL - balance
+            evm_loader.send_sol(bank_account, address, amount)
     return TreasuryPool(index, address, index_buf)
 
 
 @pytest.fixture(scope="session")
-def treasury_pool_new(evm_loader) -> TreasuryPool:
+def treasury_pool_new(evm_loader, pytestconfig) -> TreasuryPool:
     index = 3
     address = evm_loader.create_treasury_pool_address(index)
     index_buf = index.to_bytes(4, "little")
-    evm_loader.request_airdrop(address, 10000 * 10**9, commitment=Confirmed)
+    if pytestconfig.getoption("--network") not in ["mainnet", "devnet"]:
+        evm_loader.request_airdrop(address, 10000 * 10**9, commitment=Confirmed)
     return TreasuryPool(index, address, index_buf)
 
 
 @pytest.fixture(scope="session")
-def index_of_process(worker_id):
+def index_of_process(worker_id) -> int:
     if worker_id in ("master", "gw1"):
         return 1
     match = re.search(r"gw(\d+)", worker_id)
-    return int(match.group(1)) if match else None
+    return int(match.group(1))

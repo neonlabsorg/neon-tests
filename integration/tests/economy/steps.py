@@ -9,9 +9,9 @@ from solders.rpc.responses import GetTransactionResp
 from solders.signature import Signature
 
 from integration.tests.economy.const import DECIMAL_CONTEXT
-from utils.consts import LAMPORT_PER_SOL
+from utils.consts import LAMPORT_PER_SOL, Time
 from utils.helpers import wait_condition, hasattr_recursive
-
+from utils.solana_data_for_neon_trx_helper import get_alt_by_neon_trx
 
 logger = logging.getLogger(__name__)
 
@@ -37,35 +37,30 @@ def assert_profit(sol_diff, sol_price, token_diff, token_price, token_name):
         expense_usd,
         profit_percentage,
     )
-    logger.log(level=log_level, msg=msg)
     with allure.step(msg):
         assert revenue_usd > expense_usd, msg
 
 
 @allure.step("Check transaction used ALT")
-def check_alt_on(web3_client, sol_client, receipt, accounts_quantity):
-    solana_trx = web3_client.get_solana_trx_by_neon(receipt["transactionHash"].hex())
+def check_alt_on(web3_client, sol_client, receipt):
+    alt = get_alt_by_neon_trx(web3_client, sol_client, receipt["transactionHash"].hex())
+    assert alt is not None, "There are no lookup table for transaction"
+
+
+@allure.step("Check transaction not used ALT")
+def check_alt_off(web3_client, sol_client, receipt):
+    alt = get_alt_by_neon_trx(web3_client, sol_client, receipt["transactionHash"].hex())
+    assert alt is None, "Lookup table is used for transaction"
+
+
+@allure.step("Wait until ALT will be deleted")
+def wait_until_alt_deleted(web3_client, sol_client, receipt):
+    alt = get_alt_by_neon_trx(web3_client, sol_client, receipt["transactionHash"].hex())
     wait_condition(
-        lambda: sol_client.get_transaction(
-            Signature.from_string(solana_trx["result"][0]),
-            max_supported_transaction_version=0,
-        )
-        != GetTransactionResp(None)
+        lambda: not sol_client.account_exists(alt),
+        timeout_sec=10 * Time.MINUTE,
+        delay=3,
     )
-    trx = sol_client.get_transaction(
-        Signature.from_string(solana_trx["result"][0]),
-        max_supported_transaction_version=0,
-    )
-    alt = trx.value.transaction.transaction.message.address_table_lookups
-    assert alt
-
-
-@allure.step("Check block for not using ALT")
-def check_alt_off(block):
-    txs = block.value.transactions
-    for tx in txs:
-        if tx.version == 0 and tx.transaction.message.address_table_lookups:
-            raise AssertionError("ALT should not be used")
 
 
 @allure.step("Get gas used percent")

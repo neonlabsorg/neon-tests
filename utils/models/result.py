@@ -102,9 +102,9 @@ class Transaction(BaseModel):
     transactionIndex: HexString
     value: HexString
     chainId: HexString
-    v: HexString
-    r: HexString
-    s: HexString
+    v: Union[str, None]
+    r: Union[str, None]
+    s: Union[str, None]
     type: HexString
 
 
@@ -180,33 +180,7 @@ class EthGetBlockByHashFullDetails(ForbidExtra):
     gasLimit: HexString
     gasUsed: HexString
     timestamp: HexString
-    transactions: List[Transaction]
-    uncles: List[HexString]
-    mixHash: HexString
-
-
-class EthGetScheduledTxBlockByHashFullDetails(ForbidExtra):
-    number: Union[HexString, None]
-    hash: Union[HexString, None]
-    parentHash: HexString
-    nonce: Union[HexString, None]
-    sha3Uncles: HexString
-    logsBloom: HexString
-    transactionsRoot: HexString
-    stateRoot: HexString
-    receiptsRoot: HexString
-    miner: tp.Optional[HexString]
-    baseFeePerGas: tp.Optional[HexString] = None
-    withdrawals: tp.Optional[List[HexString]] = None
-    withdrawalsRoot: tp.Optional[HexString] = None
-    difficulty: HexString
-    totalDifficulty: Union[HexString, None]
-    extraData: HexString
-    size: HexString
-    gasLimit: HexString
-    gasUsed: HexString
-    timestamp: HexString
-    transactions: List[ScheduledTransaction]
+    transactions: List[Union[Transaction, ScheduledTransaction]]
     uncles: List[HexString]
     mixHash: HexString
 
@@ -217,10 +191,6 @@ class EthGetBlockByHashResult(EthResult):
 
 class EthGetBlockByHashFullResult(EthResult):
     result: Union[EthGetBlockByHashFullDetails, None]
-
-
-class EthGetScheduledTxBlockByHashFullResult(EthResult):
-    result: Union[EthGetScheduledTxBlockByHashFullDetails, None]
 
 
 class EstimateScheduledGasDetails(ForbidExtra):
@@ -465,3 +435,33 @@ class NeonGetTransactionResult(EthResult):
 
 class SolanaByNeonTransaction(EthResult):
     result: List[str]
+
+
+class Action(BaseModel):
+    from_: HexString = Field(alias="from")
+    callType: str
+    gas: HexString
+    input: HexString
+    to: HexString
+    value: HexString
+
+
+class Result(BaseModel):
+    gasUsed: HexString
+    output: HexString
+
+
+class TraceTransaction(BaseModel):
+    action: Action
+    blockHash: HexString
+    blockNumber: int
+    result: Result
+    subtraces: int
+    traceAddress: List[int]
+    transactionHash: HexString
+    transactionPosition: int
+    type: str
+
+
+class TraceTransactionResponse(EthResult):
+    result: List[TraceTransaction]

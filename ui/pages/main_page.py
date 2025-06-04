@@ -40,7 +40,7 @@ class MainPage(BasePage):
     subscribe_button = (By.XPATH, "//button/span[text()='Subscribe']")
     subscription_notification_text = (
         By.XPATH,
-        "//div[contains(@class,'sm:w-auto')]/div[contains(.,'already subscribed')][2]",
+        "//div[contains(@message,'already subscribed')]",
     )
     problem_with_subscription_text = (
         By.XPATH,
@@ -137,6 +137,8 @@ class MainPage(BasePage):
         try:
             notification = self.wait.until(
                 EC.any_of(
+                    EC.presence_of_element_located(MainPage.subscription_notification_text),
+                    EC.presence_of_element_located(MainPage.problem_with_subscription_text),
                     EC.visibility_of_element_located(MainPage.subscription_notification_text),
                     EC.visibility_of_element_located(MainPage.problem_with_subscription_text),
                 )

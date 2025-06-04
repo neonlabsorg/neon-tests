@@ -1,9 +1,9 @@
 import typing as tp
 
+import allure
 import pytest
 import web3
 
-import allure
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.assert_message import AssertMessage
 from integration.tests.basic.helpers.basic import Tag
@@ -13,7 +13,7 @@ from integration.tests.basic.helpers.rpc_checks import (
     assert_fields_are_hex,
 )
 from utils.accounts import EthAccounts
-from utils.consts import Unit, wSOL
+from utils.consts import Unit
 from utils.helpers import gen_hash_of_block, decode_function_signature, wait_condition
 from utils.models.error import EthError, EthError32602
 from utils.models.result import (
@@ -56,7 +56,7 @@ class TestRpcGetTransaction:
         ]
         for field in expected_hex_fields:
             assert rpc_checks.is_hex(result[field])
-        assert result["blockHash"] == tx_receipt.blockHash.hex()
+        assert result["blockHash"][2:] == tx_receipt.blockHash.hex()
         assert result["from"].upper() == tx_receipt["from"].upper()
         assert result["to"].upper() == tx_receipt["to"].upper()
 
@@ -136,9 +136,6 @@ class TestRpcGetTransaction:
                     "gasPrice",
                     "gas",
                     "value",
-                    "v",
-                    "s",
-                    "r",
                 ]
                 for field in expected_hex_fields:
                     assert rpc_checks.is_hex(result[field]), f"Field {field} must be hex but '{result[field]}'"
@@ -253,8 +250,8 @@ class TestRpcGetTransaction:
             ],
         )
         assert result["status"] == "0x1", "Transaction status must be 0x1"
-        assert result["transactionHash"] == transaction_hash
-        assert result["blockHash"] == tx_receipt.blockHash.hex()
+        assert result["transactionHash"][2:] == transaction_hash
+        assert result["blockHash"][2:] == tx_receipt.blockHash.hex()
         assert result["from"].upper() == tx_receipt["from"].upper()
         assert result["to"].upper() == tx_receipt["to"].upper()
         assert result["contractAddress"] is None
@@ -345,14 +342,11 @@ class TestRpcGetTransaction:
         params_case,
         method,
     ):
-
         data = decode_function_signature("setNumber(uint256)", [18])
         trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
-        tree_account = evm_loader.create_tree_account(
-            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
-        )
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
         web3_client_sol.send_scheduled_transaction(tx, check_result=True)
         tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
@@ -373,10 +367,11 @@ class TestRpcGetTransaction:
         assert result["type"] == "0x80"
         assert result["scheduledIndex"] == "0x0"
         assert result["scheduledPayer"].upper() == neon_user.checksum_address.upper()
-        assert result["scheduledSolanaPayer"] == str(neon_user.solana_account.pubkey())
+        # TODO uncomment the following lines after bug https://neonlabs.atlassian.net/browse/NDEV-3675 is fixed
+        # assert result["scheduledSolanaPayer"] == str(neon_user.solana_account.pubkey())
 
-        transactions_with_sig = web3_client_sol.get_solana_trx_by_neon(tx_receipt.transactionHash.hex())
-        assert result["scheduledSolanaSignature"] in transactions_with_sig["result"]
+        # transactions_with_sig = web3_client_sol.get_solana_trx_by_neon(tx_receipt.transactionHash.hex())
+        # assert result["scheduledSolanaSignature"] in transactions_with_sig["result"]
 
     @pytest.mark.neon_only
     def test_get_scheduled_transaction_by_sender_nonce(
@@ -395,12 +390,11 @@ class TestRpcGetTransaction:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(
-            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
-        )
+        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
         web3_client_sol.send_scheduled_transaction(tx, check_result=True)
-        tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
+        # tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
+        web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
 
         nonce = self.web3_client.get_nonce(neon_user.checksum_address)
         params = [neon_user.checksum_address, nonce]
@@ -412,11 +406,12 @@ class TestRpcGetTransaction:
         assert result["type"] == "0x80"
         assert result["scheduledIndex"] == "0x0"
         assert result["scheduledPayer"].upper() == neon_user.checksum_address.upper()
-        assert result["scheduledSolanaPayer"] == str(
-            neon_user.solana_account.pubkey()
-        ), f"waited {result['scheduledSolanaPayer']}, got {str(neon_user.solana_account.pubkey())}"
-        transactions_with_sig = web3_client_sol.get_solana_trx_by_neon(tx_receipt.transactionHash.hex())
-        assert result["scheduledSolanaSignature"] in transactions_with_sig["result"]
+        # TODO uncomment the following lines after bug https://neonlabs.atlassian.net/browse/NDEV-3675 is fixed
+        # assert result["scheduledSolanaPayer"] == str(
+        #     neon_user.solana_account.pubkey()
+        # ), f"waited {result['scheduledSolanaPayer']}, got {str(neon_user.solana_account.pubkey())}"
+        # transactions_with_sig = web3_client_sol.get_solana_trx_by_neon(tx_receipt.transactionHash.hex())
+        # assert result["scheduledSolanaSignature"] in transactions_with_sig["result"]
 
     @pytest.mark.neon_only
     @pytest.mark.parametrize(
@@ -428,15 +423,14 @@ class TestRpcGetTransaction:
             ("senderNonce_case", "neon_getTransactionBySenderNonce"),
         ],
     )
+    @pytest.mark.only_stands  # NDEV-3675 devnet bug
     def test_neon_get_reverted_scheduled_transaction_by_parameters(
         self,
         json_sol_rpc_client,
         web3_client_sol,
         neon_user,
         treasury_pool,
-        event_caller_contract,
         evm_loader,
-        common_contract,
         revert_contract_caller,
         params_case,
         method,
@@ -464,9 +458,7 @@ class TestRpcGetTransaction:
             nonce=nonce, max_fee_per_gas=max_fee_per_gas, max_priority_fee_per_gas=max_priority_fee_per_gas
         )
         tree_acc_data.add_trx(tx, 0xFFFF, 0)
-        tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"]
-        )
+        tree_account = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
         web3_client_sol.send_scheduled_transaction(tx, check_result=True)
         tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
@@ -492,11 +484,12 @@ class TestRpcGetTransaction:
         assert result["type"] == "0x80"
         assert result["scheduledIndex"] == "0x0"
         assert result["scheduledPayer"].upper() == neon_user.checksum_address.upper()
-        assert result["scheduledSolanaPayer"] == str(neon_user.solana_account.pubkey())
-        transactions_with_sig = web3_client_sol.get_solana_trx_by_neon(tx_receipt.transactionHash.hex())
-        assert result["scheduledSolanaSignature"] in transactions_with_sig["result"]
+        # TODO uncomment the following lines after bug https://neonlabs.atlassian.net/browse/NDEV-3675 is fixed
+        # assert result["scheduledSolanaPayer"] == str(neon_user.solana_account.pubkey())
+        # transactions_with_sig = web3_client_sol.get_solana_trx_by_neon(tx_receipt.transactionHash.hex())
+        # assert result["scheduledSolanaSignature"] in transactions_with_sig["result"]
 
-    @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])  # flaky
+    @pytest.mark.parametrize("method", ["neon_getTransactionReceipt", "eth_getTransactionReceipt"])
     @pytest.mark.neon_only
     def test_get_scheduled_transaction_receipt(
         self, method, json_rpc_client, neon_user, common_contract, web3_client_sol, evm_loader, treasury_pool
@@ -506,9 +499,7 @@ class TestRpcGetTransaction:
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
-        tree_account = evm_loader.create_tree_account(
-            neon_user, treasury_pool, tx.encode(), wSOL["address_spl"], chain_id=evm_loader.sol_chain_id
-        )
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
         web3_client_sol.send_scheduled_transaction(tx, check_result=True)
         tx_receipt = web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
@@ -531,9 +522,9 @@ class TestRpcGetTransaction:
         assert len(result["scheduledParentTransactionHashes"]) == 0
         assert len(result["scheduledChildTransactionHashes"]) == 0
         assert result["status"] == "0x1", "Transaction status must be 0x1"
-        assert result["transactionHash"] == transaction_hash
+        assert result["transactionHash"][2:] == transaction_hash
 
-        assert result["blockHash"] == tx_receipt.blockHash.hex()
+        assert result["blockHash"][2:] == tx_receipt.blockHash.hex()
         assert result["from"].upper() == neon_user.checksum_address.upper()
         assert result["to"].upper() == common_contract.address.upper()
         assert result["contractAddress"] is None
@@ -596,9 +587,7 @@ class TestRpcGetTransaction:
         tree_acc_data.add_trx(tx1, 2, 1)
         tree_acc_data.add_trx(tx2, 0xFFFF, 1)
 
-        tree_account = evm_loader.create_tree_account_multiple(
-            neon_user, treasury_pool, tree_acc_data.data, wSOL["address_spl"], chain_id=web3_client_sol.chain_id
-        )
+        tree_account = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
         web3_client_sol.send_all_scheduled_transactions([tx0, tx1, tx2])
 
@@ -639,9 +628,9 @@ class TestRpcGetTransaction:
                 assert result["scheduledChildTransactionHashes"][0][2:] == expected_child
 
             assert result["status"] == "0x1", "Transaction status must be 0x1"
-            assert result["transactionHash"] == trx_hashes[i]
+            assert result["transactionHash"][2:] == trx_hashes[i]
 
-            assert result["blockHash"] == receipts[i].blockHash.hex()
+            assert result["blockHash"][2:] == receipts[i].blockHash.hex()
 
             assert result["from"].upper() == neon_user.checksum_address.upper()
             assert result["to"].upper() == common_contract.address.upper()

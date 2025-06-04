@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import pathlib
 import random
 import string
@@ -12,11 +13,15 @@ import base58
 import polling2
 import solcx
 import web3
-from eth_abi import abi
+from eth_abi import abi, decode
+from eth_abi.exceptions import InsufficientDataBytes
 from eth_utils import keccak
+from semantic_version import Version
+
 from solcx import link_code
 from solders.pubkey import Pubkey
 from solders.rpc.responses import GetTransactionResp
+from web3 import Web3
 
 T = tp.TypeVar("T")
 
@@ -44,7 +49,8 @@ def get_contract_interface(
         else:
             contract_name = contract.rsplit(".", 1)[0]
 
-    solcx.install_solc(version)
+    installed_version = solcx.install_solc(version)
+    allure.attach(str(installed_version), "Installed solc version", allure.attachment_type.TEXT)
     if contract.startswith("/"):
         contract_path = pathlib.Path(contract)
     else:
@@ -57,14 +63,14 @@ def get_contract_interface(
     compiled = solcx.compile_files(
         [contract_path],
         output_values=["abi", "bin"],
-        solc_version=version,
+        solc_version=Version(version),
         import_remappings=import_remapping,
         allow_paths=["."],
         optimize=True,
     )  # this allow_paths isn't very good...
     contract_interface = get_contract_abi(contract_name, compiled)
     if libraries:
-        contract_interface["bin"] = link_code(contract_interface["bin"], libraries)
+        contract_interface["bin"] = link_code(contract_interface["bin"], libraries, solc_version=Version(version))
 
     return contract_interface
 
@@ -131,6 +137,20 @@ def decode_function_signature(function_name: str, args=None) -> str:
     if args is not None:
         types = function_name.split("(")[1].split(")")[0].split(",")
         data += abi.encode(types, args)
+    return "0x" + data.hex()
+
+
+@allure.step("Decode function signature")
+def decode_function_with_stucture_in_arg_signature(function_name: str, args=None) -> str:
+    data = keccak(text=function_name)[:4]
+    if args is not None:
+        match = re.search(r"\(\((.*?)\)\)", function_name)
+    if match:
+        inner = match.group(1)
+        types = inner.split(",")
+    else:
+        print("No match found")
+    data += abi.encode(types, args)
     return "0x" + data.hex()
 
 
@@ -253,3 +273,54 @@ def get_key_index_from_solana_tx(tx: GetTransactionResp, key: Pubkey) -> int:
             return index
     else:
         raise LookupError(f"Key {key} not found in transaction {tx.value}")
+
+
+# Selector for revert and panic in Solidity.
+SELECTOR_ERROR = Web3.keccak(text="Error(string)")[:4]
+SELECTOR_PANIC = Web3.keccak(text="Panic(uint256)")[:4]
+
+#  Panic-codes in Solidity
+PANIC_CODES = {
+    0x01: "Assertion violated or invalid enum value",
+    0x11: "Arithmetic overflow or underflow",
+    0x12: "Division or modulo by zero",
+    0x21: "Shift by too large amount",
+    0x22: "Access to invalid array index",
+    0x31: "Pop from empty array",
+    0x32: "Array too large or memory allocation overflow",
+    0x41: "Too much memory allocated",
+    0x51: "Callstack depth exceeded",
+}
+
+
+@allure.step("Decode error output of transaction")
+def decode_error_output(data_hex):
+    if not data_hex:
+        return "Revert without reason"
+    if not data_hex.startswith("0x"):
+        data_hex = "0x" + data_hex
+
+    data = Web3.to_bytes(hexstr=data_hex)
+    # 1)  revert
+    if len(data) == 0:
+        return "Revert without reason"
+
+    # 2) Error(string)
+    if data[:4] == SELECTOR_ERROR:
+        try:
+            msg = decode(["string"], data[4:])
+            return f"Error(string): {msg}"
+        except Exception:
+            return "Error(string) decoding failed"
+
+    # 3) Panic(uint256)
+    if data[:4] == SELECTOR_PANIC:
+        try:
+            code = decode(["uint256"], data[4:])[0]
+        except InsufficientDataBytes:
+            # If something wrong, return a raw hex
+            return f"Panic(uint256): <cannot decode {data[4:].hex()}>"
+        desc = PANIC_CODES.get(code, f"Unknown Panic code {code}")
+        return f"Panic(uint256): {desc}"
+    # 4) Unknow format
+    return f"Unknown revert payload: {data_hex}"

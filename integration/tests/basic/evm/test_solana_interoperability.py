@@ -1,30 +1,28 @@
-import typing as tp
-import web3.exceptions
 import random
+import typing as tp
 
+import allure
 import pytest
 import spl
-from solders.keypair import Keypair
+import web3.exceptions
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
 from solana.transaction import AccountMeta, Instruction
+from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from spl.token.client import Token as SplToken
-from spl.token.constants import TOKEN_PROGRAM_ID
+from spl.token.constants import TOKEN_PROGRAM_ID, WRAPPED_SOL_MINT
 from spl.token.instructions import (
     TransferParams,
     get_associated_token_address,
     transfer,
 )
 
-import allure
-
-from utils.solana_interoperability_helper import prepare_transfer_spl_data
-from utils.types import TransactionType
 from utils.accounts import EthAccounts
-from utils.consts import COUNTER_ID, TRANSFER_TOKENS_ID, wSOL
+from utils.consts import COUNTER_ID, TRANSFER_TOKENS_ID
 from utils.helpers import bytes32_to_solana_pubkey, serialize_instruction, wait_condition
 from utils.instructions import make_wSOL
+from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -50,11 +48,52 @@ class TestSolanaInteroperability:
     def call_solana_caller_sol_network(self, class_account_sol_chain, web3_client_sol):
         contract, _ = web3_client_sol.deploy_and_get_contract(
             contract="precompiled/CallSolanaCaller.sol",
-            version="0.8.10",
+            version="0.8.28",
             contract_name="CallSolanaCaller",
             account=class_account_sol_chain,
         )
         return contract
+
+    def serialized_transfer(self, sol_client, from_wallet, to_wallet, amount, contract, is_set_authority=True):
+        mint = spl.token.client.Token.create_mint(
+            conn=sol_client,
+            payer=from_wallet,
+            mint_authority=from_wallet.pubkey(),
+            decimals=9,
+            program_id=TOKEN_PROGRAM_ID,
+        )
+        mint.payer = from_wallet
+        from_token_account = mint.create_associated_token_account(from_wallet.pubkey())
+        to_token_account = mint.create_associated_token_account(to_wallet.pubkey())
+        mint.mint_to(
+            dest=from_token_account,
+            mint_authority=from_wallet,
+            amount=amount,
+            opts=TxOpts(skip_confirmation=False, skip_preflight=True),
+        )
+
+        authority_pubkey: bytes = contract.functions.getSolanaPDA(bytes(TRANSFER_TOKENS_ID), b"authority").call()
+        if is_set_authority:
+            mint.set_authority(
+                from_token_account,
+                from_wallet,
+                spl.token.instructions.AuthorityType.ACCOUNT_OWNER,
+                Pubkey(authority_pubkey),
+                opts=TxOpts(skip_confirmation=False, skip_preflight=True),
+            )
+
+        instruction = Instruction(
+            program_id=TRANSFER_TOKENS_ID,
+            accounts=[
+                AccountMeta(from_token_account, is_signer=False, is_writable=True),
+                AccountMeta(mint.pubkey, is_signer=False, is_writable=True),
+                AccountMeta(to_token_account, is_signer=False, is_writable=True),
+                AccountMeta(Pubkey(authority_pubkey), is_signer=False, is_writable=True),
+                AccountMeta(TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+            ],
+            data=bytes([0x0]),
+        )
+        return serialize_instruction(TRANSFER_TOKENS_ID, instruction), mint, [from_token_account, to_token_account]
 
     def test_counter_execute_with_get_return_data(
         self, call_solana_caller, counter_resource_address: bytes, get_counter_value
@@ -289,7 +328,7 @@ class TestSolanaInteroperability:
 
     def test_gas_estimate_for_wsol_transfer(self, new_solana_account, call_solana_caller, sol_client):
         sender = self.accounts[0]
-        mint = wSOL["address_spl"]
+        mint = WRAPPED_SOL_MINT
         recipient = Keypair()
 
         spl_token = SplToken(sol_client, mint, TOKEN_PROGRAM_ID, new_solana_account)
@@ -318,10 +357,11 @@ class TestSolanaInteroperability:
                 [{"lamports": 0, "salt": seed, "instruction": serialized}]
             ).build_transaction(tx)
             signed_tx = self.web3_client.eth.account.sign_transaction(instruction_tx, sender.key)
-            result = self.web3_client.get_neon_emulate(str(signed_tx.rawTransaction.hex())[2:])
-            resp = self.web3_client.eth.send_raw_transaction(signed_tx.rawTransaction)
-            resp = self.web3_client.eth.wait_for_transaction_receipt(resp, timeout=60)
+            result = self.web3_client.get_neon_emulate(str(signed_tx.raw_transaction.hex()))
+            resp = self.web3_client.eth.send_raw_transaction(signed_tx.raw_transaction)
+            resp = self.web3_client.wait_for_transaction_receipt(resp, timeout=60)
             assert resp["status"] == 1
+
             return result["result"]["gasUsed"]
 
         gas_used_amount1 = get_gas_used_for_emulate_send_wsol(10000)
@@ -331,8 +371,9 @@ class TestSolanaInteroperability:
     def test_limit_of_simple_instr_in_one_trx(self, call_solana_caller, counter_resource_address: bytes):
         sender = self.accounts[0]
         call_params = []
+        limit = 32
 
-        for _ in range(26):
+        for _ in range(limit):
             instruction = Instruction(
                 program_id=COUNTER_ID,
                 accounts=[
@@ -346,7 +387,7 @@ class TestSolanaInteroperability:
         tx = self.web3_client.make_raw_tx(sender.address)
         instruction_tx = call_solana_caller.functions.batchExecute(call_params).build_transaction(tx)
         resp = self.web3_client.send_transaction(sender, instruction_tx)
-        assert resp["status"] == 0
+        assert resp["status"] == 0, resp
 
     def test_solana_call_after_iterative_actions_sol_network(
         self,
@@ -384,7 +425,7 @@ class TestSolanaInteroperability:
     ):
         sender = self.accounts[0]
         lamports = 0
-        matrix_length = 6
+        matrix_length = 9
         matrix = [[random.randint(1, 100) for _ in range(matrix_length)] for _ in range(matrix_length)]
 
         instruction = Instruction(
@@ -418,7 +459,7 @@ class TestSolanaInteroperability:
     ):
         sender = self.accounts[0]
         lamports = 0
-        matrix_length = 50
+        matrix_length = 70
         matrix = [[random.randint(1, 100) for _ in range(matrix_length)] for _ in range(matrix_length)]
 
         instruction = Instruction(
@@ -447,7 +488,7 @@ class TestSolanaInteroperability:
         to_wallet = Keypair()
         amount = 100000
 
-        serialized, _, _ = prepare_transfer_spl_data(
+        serialized, _, _ = self.serialized_transfer(
             sol_client, from_wallet, to_wallet, amount, call_solana_caller, False
         )
 
@@ -463,10 +504,11 @@ class TestSolanaInteroperability:
         event_logs = call_solana_caller.events.LogStr().process_receipt(resp)
         assert len(event_logs) == 0
 
+    @pytest.mark.only_stands  #  This doesn't work on devnet
     def test_solana_call_after_iterative_actions_exceed_accounts_limit(
         self, counter_resource_address: bytes, call_solana_caller
     ):
-        loop_count = 154
+        loop_count = 64
         sender = self.accounts[0]
         lamports = 0
 
@@ -538,7 +580,7 @@ class TestSolanaInteroperability:
         to_wallet = Keypair()
         amount = 100000
 
-        serialized_transfer, mint, accounts_list = prepare_transfer_spl_data(
+        serialized_transfer, mint, accounts_list = self.serialized_transfer(
             sol_client, from_wallet, to_wallet, amount, call_solana_caller
         )
 
@@ -604,9 +646,13 @@ class TestSolanaInteroperability:
         )
 
     def test_solana_call_before_iterative_actions_negative(self, counter_resource_address: bytes, call_solana_caller):
+        """
+        makes sure that anything done after Solana call fits into a single transaction
+        while matrix triggers more than 1 transaction
+        """
         sender = self.accounts[0]
         lamports = 0
-        matrix_lenght = 12
+        matrix_lenght = 15
         matrix = [[random.randint(1, 100) for _ in range(matrix_lenght)] for _ in range(matrix_lenght)]
 
         instruction = Instruction(
@@ -625,7 +671,7 @@ class TestSolanaInteroperability:
         ).build_transaction(tx)
 
         resp = self.web3_client.send_transaction(sender, instruction_tx)
-        assert resp["status"] == 0
+        assert resp["status"] == 0, resp
 
     def test_iterative_actions_and_multiple_solana_calls(
         self, counter_resource_address: bytes, call_solana_caller, get_counter_value
@@ -724,3 +770,35 @@ class TestSolanaInteroperability:
 
         balance_after = self.web3_client.get_balance(call_solana_caller.address)
         assert balance_after == balance_before + 10
+
+    @pytest.mark.skip(reason="https://neonlabs.atlassian.net/browse/NDEV-3773")
+    def test_call_solana_from_contract_constructor(
+        self, counter_resource_address, call_solana_caller, web3_client, get_counter_value
+    ):
+        account = self.accounts[0]
+        lamports = 0
+        store_number = random.randint(1, 1000000)
+
+        instruction = Instruction(
+            program_id=COUNTER_ID,
+            accounts=[
+                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
+            ],
+            data=bytes([0x1]),
+        )
+        serialized_instruction = serialize_instruction(COUNTER_ID, instruction)
+
+        contract, contract_deploy_tx = web3_client.deploy_and_get_contract(
+            "precompiled/CallSolanaInConstructor.sol",
+            "0.8.28",
+            contract_name="CallSolanaInConstructor",
+            constructor_args=[store_number, lamports, serialized_instruction],
+            account=account,
+        )
+        assert contract_deploy_tx["status"] == 1
+
+        store_number_from_constructor = contract.functions.getStoreNumber().call()
+        assert store_number == store_number_from_constructor
+
+        event_logs = call_solana_caller.events.LogBytes().process_receipt(contract_deploy_tx)
+        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)

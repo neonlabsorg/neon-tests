@@ -7,7 +7,6 @@ import time
 import typing as tp
 
 import allure
-import base58
 import pytest
 from _pytest.config import Config
 from eth_account.signers.local import LocalAccount
@@ -22,14 +21,15 @@ from clickfile import EnvName
 from conftest import EnvironmentConfig
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
-from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS_USDT
+from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS_USDT, REMAPPING_ZEPPELIN
 from utils.erc20 import ERC20
-from utils.erc20wrapper import ERC20Wrapper, ERC20NewWrapper
+from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
 from utils.helpers import decode_function_signature, get_selectors
 from utils.operator import Operator
 from utils.prices import get_sol_price_with_retry
 from utils.solana_client import SolanaClient
+from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client, Web3Client
 from .basic.helpers.chains import make_nonce_the_biggest_for_chain
 
@@ -95,21 +95,6 @@ def operator(environment: EnvironmentConfig, web3_client_session: NeonChainWeb3C
 
 
 @pytest.fixture(scope="session")
-def bank_account(pytestconfig: Config) -> tp.Generator[Keypair | None, None, None]:
-    account = None
-    if pytestconfig.environment.use_bank:
-        if pytestconfig.getoption("--network") == "devnet":
-            private_key = os.environ.get("BANK_PRIVATE_KEY")
-        elif pytestconfig.getoption("--network") == "mainnet":
-            private_key = os.environ.get("BANK_PRIVATE_KEY_MAINNET")
-        else:
-            raise ValueError("set BANK_PRIVATE_KEY or BANK_PRIVATE_KEY_MAINNET env variable")
-        key = base58.b58decode(private_key)
-        account = Keypair.from_bytes(key)
-    yield account
-
-
-@pytest.fixture(scope="session")
 def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Generator[Keypair | None, None, None]:
     account = None
     if pytestconfig.environment.eth_bank_account != "":
@@ -121,22 +106,21 @@ def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Generator[
 
 @pytest.fixture(scope="session")
 def solana_account(
-    bank_account, environment: EnvironmentConfig, sol_client_session
-) -> tp.Generator[Keypair, None, None]:
+    bank_account,
+    environment: EnvironmentConfig,
+    sol_client_session: SolanaClient,
+) -> Keypair:
     account = Keypair()
+    lamports = 1 * LAMPORT_PER_SOL
 
     if environment.use_bank:
-        sol_client_session.send_sol(bank_account, account.pubkey(), int(0.5 * LAMPORT_PER_SOL))
+        sol_client_session.send_sol(bank_account, account.pubkey(), lamports)
     else:
-        sol_client_session.request_airdrop(account.pubkey(), 1 * LAMPORT_PER_SOL)
+        sol_client_session.request_airdrop(account.pubkey(), lamports)
     yield account
 
     if environment.use_bank:
-        balance = sol_client_session.get_balance(account.pubkey(), commitment=commitment.Confirmed).value
-        try:
-            sol_client_session.send_sol(account, bank_account.pubkey(), balance - 5000)
-        except Exception as e:
-            log.info(f"Failed to send sol to bank: {e}")
+        sol_client_session.drain_sol(from_=account, to=bank_account.pubkey())
 
 
 @pytest.fixture(scope="function")
@@ -185,13 +169,12 @@ def erc20_spl(
         solana_account=solana_account,
         mintable=False,
         bank_account=eth_bank_account,
-        account=accounts_session[0],
-        evm_loader_id=environment.evm_loader,
+        owner=accounts_session[0],
     )
     erc20.token_mint.approve(
         source=erc20.solana_associated_token_acc,
         delegate=sol_client_session.get_erc_auth_address(
-            erc20.account.address,
+            erc20.owner.address,
             erc20.contract.address,
             environment.evm_loader,
         ),
@@ -200,46 +183,7 @@ def erc20_spl(
         opts=TxOpts(preflight_commitment=commitment.Confirmed, skip_confirmation=False),
     )
 
-    erc20.claim(erc20.account, bytes(erc20.solana_associated_token_acc), 100000000000000)
-    yield erc20
-
-
-@pytest.fixture(scope="session")
-def erc20_spl_new(
-    web3_client_session: NeonChainWeb3Client,
-    faucet,
-    environment: EnvironmentConfig,
-    sol_client_session,
-    solana_account,
-    eth_bank_account,
-    accounts_session,
-) -> tp.Generator[ERC20NewWrapper, tp.Any, tp.Any]:
-    symbol = "".join([random.choice(string.ascii_uppercase) for _ in range(3)])
-    erc20 = ERC20NewWrapper(
-        web3_client_session,
-        faucet,
-        f"Test {symbol}",
-        symbol,
-        sol_client_session,
-        solana_account=solana_account,
-        mintable=False,
-        bank_account=eth_bank_account,
-        account=accounts_session[0],
-        evm_loader_id=environment.evm_loader,
-    )
-    erc20.token_mint.approve(
-        source=erc20.solana_associated_token_acc,
-        delegate=sol_client_session.get_erc_auth_address(
-            erc20.account.address,
-            erc20.contract.address,
-            environment.evm_loader,
-        ),
-        owner=erc20.solana_acc.pubkey(),
-        amount=1000000000000000,
-        opts=TxOpts(preflight_commitment=commitment.Confirmed, skip_confirmation=False),
-    )
-
-    erc20.claim(erc20.account, bytes(erc20.solana_associated_token_acc), 100000000000000)
+    erc20.claim(erc20.owner, bytes(erc20.solana_associated_token_acc), 100000000000000)
     yield erc20
 
 
@@ -270,47 +214,23 @@ def erc20_spl_mintable(
         solana_account=solana_account,
         mintable=True,
         bank_account=eth_bank_account,
-        account=accounts_session[0],
+        owner=accounts_session[0],
     )
-    erc20.mint_tokens(erc20.account, erc20.account.address)
-    yield erc20
-
-
-@pytest.fixture(scope="session")
-def erc20_spl_mintable_new(
-    web3_client_session: NeonChainWeb3Client,
-    faucet,
-    sol_client_session,
-    solana_account,
-    accounts_session,
-    eth_bank_account,
-) -> tp.Generator[ERC20NewWrapper, tp.Any, tp.Any]:
-    symbol = "".join([random.choice(string.ascii_uppercase) for _ in range(3)])
-    erc20 = ERC20NewWrapper(
-        web3_client_session,
-        faucet,
-        f"Test {symbol}",
-        symbol,
-        sol_client_session,
-        solana_account=solana_account,
-        mintable=True,
-        bank_account=eth_bank_account,
-        account=accounts_session[0],
-    )
-    erc20.mint_tokens(erc20.account, erc20.account.address)
+    erc20.mint_tokens(erc20.owner, erc20.owner.address)
     yield erc20
 
 
 @pytest.fixture(scope="class")
 def class_account_sol_chain(
     evm_loader,
-    solana_account,
+    solana_account: Keypair,
     web3_client,
     faucet,
     eth_bank_account,
-    bank_account,
+    bank_account: Keypair,
     environment: EnvironmentConfig,
-) -> LocalAccount:
+    web3_client_sol: Web3Client,
+) -> tp.Generator[LocalAccount, None, None]:
     account = web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account)
     if environment.use_bank:
         evm_loader.send_sol(bank_account, solana_account.pubkey(), int(1 * LAMPORT_PER_SOL))
@@ -322,7 +242,8 @@ def class_account_sol_chain(
         account,
         int(1 * LAMPORT_PER_SOL),
     )
-    return account
+
+    yield account
 
 
 @pytest.fixture(scope="session")
@@ -338,8 +259,8 @@ def evm_loader(environment: EnvironmentConfig) -> EvmLoader:
 
 @pytest.fixture(scope="session")
 def account_with_all_tokens(
-    evm_loader,
-    solana_account,
+    evm_loader: EvmLoader,
+    solana_account: Keypair,
     web3_client_session,
     web3_client_usdt,
     web3_client_sol,
@@ -348,9 +269,8 @@ def account_with_all_tokens(
     eth_bank_account,
     neon_mint,
     operator_keypair,
-    evm_loader_keypair,
     bank_account: Keypair | None,
-) -> LocalAccount:
+) -> tp.Generator[LocalAccount, None, None]:
     neon_account = web3_client_session.create_account_with_balance(faucet, bank_account=eth_bank_account)
     if web3_client_sol:
         lamports = 2 * LAMPORT_PER_SOL
@@ -372,14 +292,15 @@ def account_with_all_tokens(
         1000000000000000,
     )
 
-    evm_loader.sent_token_from_solana_to_neon(
+    evm_loader.send_token_from_solana_to_neon(
         solana_account,
         token_mint,
         neon_account,
         100000000,
         web3_client_usdt.chain_id,
     )
-    return neon_account
+
+    yield neon_account
 
 
 @pytest.fixture(scope="session")
@@ -390,6 +311,14 @@ def neon_mint(environment: EnvironmentConfig) -> Pubkey:
 @pytest.fixture(scope="class")
 def withdraw_contract(web3_client, faucet, accounts) -> Contract:
     contract, _ = web3_client.deploy_and_get_contract("precompiled/NeonToken", "0.8.10", account=accounts[1])
+    return contract
+
+
+@pytest.fixture(scope="class")
+def withdraw_contract_sol_chain(web3_client_sol, faucet, account_with_all_tokens) -> Contract:
+    contract, _ = web3_client_sol.deploy_and_get_contract(
+        "precompiled/NeonToken", "0.8.10", account=account_with_all_tokens
+    )
     return contract
 
 
@@ -405,18 +334,6 @@ def common_contract(web3_client, accounts, pytestconfig) -> tp.Generator[Contrac
             contract_name="Common",
             account=accounts[0],
         )
-    yield contract
-
-
-@pytest.fixture(scope="class")
-def common_caller_contract(web3_client, accounts, common_contract) -> tp.Generator[Contract, None, None]:
-    contract, tx = web3_client.deploy_and_get_contract(
-        contract="common/Common",
-        version="0.8.12",
-        contract_name="CommonCaller",
-        account=accounts[0],
-        constructor_args=[common_contract.address],
-    )
     yield contract
 
 
@@ -513,7 +430,7 @@ def storage_contract_with_deploy_tx(web3_client, accounts) -> tp.Generator[tp.Tu
 def revert_contract(web3_client, accounts) -> tp.Generator[Contract, None, None]:
     contract, _ = web3_client.deploy_and_get_contract(
         contract="common/Revert",
-        version="0.8.10",
+        version="0.8.28",
         contract_name="TrivialRevert",
         account=accounts[0],
     )
@@ -524,7 +441,7 @@ def revert_contract(web3_client, accounts) -> tp.Generator[Contract, None, None]
 def revert_contract_caller(web3_client, accounts, revert_contract) -> tp.Generator[Contract, None, None]:
     contract, _ = web3_client.deploy_and_get_contract(
         contract="common/Revert",
-        version="0.8.10",
+        version="0.8.28",
         contract_name="Caller",
         account=accounts[0],
         constructor_args=[revert_contract.address],
@@ -613,10 +530,11 @@ def expected_error_checker(accounts, web3_client) -> tp.Generator[Contract, None
 def multiple_actions_erc20(web3_client_session, accounts, erc20_spl_mintable):
     contract, contract_deploy_tx = web3_client_session.deploy_and_get_contract(
         "EIPs/ERC20/MultipleActions",
-        "0.8.24",
+        "0.8.28",
         accounts[0],
         contract_name="MultipleActionsERC20",
-        constructor_args=["Test TTT", "TTT", 18],
+        constructor_args=["Test TTT", "TTT", 9],
+        import_remapping=REMAPPING_ZEPPELIN,
     )
     return accounts[0], contract
 
@@ -624,14 +542,14 @@ def multiple_actions_erc20(web3_client_session, accounts, erc20_spl_mintable):
 @pytest.fixture(scope="class")
 def multiple_actions_erc721(web3_client, accounts):
     contract, contract_deploy_tx = web3_client.deploy_and_get_contract(
-        "EIPs/ERC721/MultipleActions", "0.8.10", accounts[0], contract_name="MultipleActionsERC721"
+        "EIPs/ERC721/MultipleActions", "0.8.28", accounts[0], contract_name="MultipleActionsERC721"
     )
     return accounts[0], contract
 
 
 @pytest.fixture(scope="class")
 def call_solana_caller(accounts, web3_client):
-    contract, _ = web3_client.deploy_and_get_contract("precompiled/CallSolanaCaller.sol", "0.8.10", accounts[0])
+    contract, _ = web3_client.deploy_and_get_contract("precompiled/CallSolanaCaller.sol", "0.8.28", accounts[0])
     return contract
 
 
@@ -787,3 +705,144 @@ def diamond(web3_client_session, diamond_init, facet_cuts, accounts):
         constructor_args=[facet_cuts, diamond_args],
     )
     return contract
+
+
+@pytest.fixture(scope="class")
+def neon_token_contract(web3_client_session, accounts):
+    contract, _ = web3_client_session.deploy_and_get_contract(
+        contract="precompiled/NeonToken",
+        version="0.8.10",
+        account=accounts[0],
+        tx_type=TransactionType(2),  # EIP_1559
+    )
+    yield contract
+
+
+@pytest.fixture(scope="class")
+def precompiled_contract(web3_client, faucet, accounts):
+    contract, contract_deploy_tx = web3_client.deploy_and_get_contract(
+        "precompiled/CommonCaller", "0.8.10", accounts[0]
+    )
+    return contract
+
+
+@pytest.fixture(scope="class")
+def chain_execution_contracts(accounts, web3_client):
+    sender_account = accounts[0]
+
+    # Deploy contracts without dependencies first
+    contract2, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract2"
+    )
+
+    contract4, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract4"
+    )
+
+    contract6, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract6"
+    )
+
+    contract7, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract7"
+    )
+
+    # Deploy contracts with dependencies
+    contract5, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="Contract5",
+        constructor_args=[contract7.address],
+    )
+
+    contract3, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="Contract3",
+        constructor_args=[contract4.address, contract5.address, contract6.address],
+    )
+
+    # Deploy the root contract
+    chain_execution_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="ChainExecution",
+        constructor_args=[contract2.address, contract3.address],
+    )
+    chain_execution_contracts = [
+        chain_execution_contract,
+        contract2,
+        contract3,
+        contract4,
+        contract5,
+        contract6,
+        contract7,
+    ]
+    yield chain_execution_contracts
+
+
+@pytest.fixture(scope="class")
+def chain_execution_contracts_with_revert(accounts, web3_client, events_checker_contract, common_contract):
+    sender_account = accounts[0]
+
+    middle_call_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="MiddleCall",
+        constructor_args=[events_checker_contract.address],
+    )
+
+    chain_with_revert_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="ChainWithRevert",
+        constructor_args=[middle_call_contract.address],
+    )
+
+    chain_with_revert_contracts = [
+        chain_with_revert_contract,
+        middle_call_contract,
+        events_checker_contract,
+        common_contract,
+    ]
+    yield chain_with_revert_contracts
+
+
+@pytest.fixture(scope="class")
+def chain_execution_contracts_with_return_data(accounts, web3_client, common_contract):
+    sender_account = accounts[0]
+
+    middle_call_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="MiddleCall",
+        constructor_args=[common_contract.address],
+    )
+
+    chain_with_revert_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="ChainWithReturnData",
+        constructor_args=[middle_call_contract.address],
+    )
+
+    chain_with_revert_contracts = [chain_with_revert_contract, middle_call_contract, common_contract]
+    yield chain_with_revert_contracts
+
+
+@pytest.fixture(scope="class")
+def alt_contract(accounts, web3_client):
+    contract, _ = web3_client.deploy_and_get_contract("common/ALT", "0.8.10", account=accounts[0], constructor_args=[8])
+    return contract
+
+
+@pytest.fixture(scope="session")
+def default_cu_price(pytestconfig: Config) -> int | None:
+    return pytestconfig.environment.default_cu_price  # must be equal to compose.proxy.environment.DEFAULT_CU_PRICE

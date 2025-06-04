@@ -119,12 +119,12 @@ def erc20(web3_client, faucet, sol_client, solana_account, bob):
             "Test AAA",
             "AAA",
             sol_client,
-            account=bob,
+            owner=bob,
             solana_account=solana_account,
             mintable=True,
         )
         print(f"ERC20 deployed at address: {erc20.contract.address}")
-        erc20.mint_tokens(erc20.account, erc20.account.address)
+        erc20.mint_tokens(erc20.owner, erc20.owner.address)
     return erc20
 
 
@@ -184,7 +184,7 @@ def get_solana_accounts_by_emulation(web3_client, sender, contract, function_sig
         data += eth_abi.encode(types, params)
     tx = web3_client.make_raw_tx(sender.address, contract, data=data, estimate_gas=True)
     signed_tx = web3_client.eth.account.sign_transaction(tx, sender.key)
-    result = web3_client.get_neon_emulate(str(signed_tx.rawTransaction.hex())[2:])
+    result = web3_client.get_neon_emulate(str(signed_tx.raw_transaction.hex())[2:])
     print(result)
     return [item["pubkey"] for item in result["result"]["solanaAccounts"]]
 
@@ -332,17 +332,17 @@ class TestAccountMigration:
             assert balance_usr2_after - balance_usr2_before == 1
 
     def test_erc20_interaction(self, erc20, web3_client, bob, alice, accounts, trx_list):
-        balance_before = erc20.contract.functions.balanceOf(erc20.account.address).call()
+        balance_before = erc20.contract.functions.balanceOf(erc20.owner.address).call()
         amount = 500
-        resp = erc20.mint_tokens(erc20.account, erc20.account.address, amount)
+        resp = erc20.mint_tokens(erc20.owner, erc20.owner.address, amount)
         trx_list.append(resp["transactionHash"])
 
-        balance_after = erc20.contract.functions.balanceOf(erc20.account.address).call()
+        balance_after = erc20.contract.functions.balanceOf(erc20.owner.address).call()
         assert balance_after == balance_before + amount
 
         tom = accounts[9]
         balance_before = erc20.contract.functions.balanceOf(tom.address).call()
-        resp = erc20.mint_tokens(erc20.account, tom.address, amount)
+        resp = erc20.mint_tokens(erc20.owner, tom.address, amount)
         trx_list.append(resp["transactionHash"])
 
         balance_after = erc20.contract.functions.balanceOf(tom.address).call()
@@ -360,7 +360,7 @@ class TestAccountMigration:
         assert total_after == total_before - amount
 
         amount = 1000000000000000
-        resp = erc20.mint_tokens(erc20.account, accounts[9].address, amount)
+        resp = erc20.mint_tokens(erc20.owner, accounts[9].address, amount)
         trx_list.append(resp["transactionHash"])
 
         amount = 500

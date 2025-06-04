@@ -2,17 +2,17 @@ import os
 import pathlib
 import typing as tp
 import uuid
-
-import allure
 import pytest
-from _pytest.config import Config
+import allure
 
 from ui import libs
+from ui.plugins import browser
+from ui.pages import metamask
+from ui.constants import PLATFORM_NETWORKS
+from ui.tests.test_faucet import get_metamask_extension_id, BASE_NEON_BALANCE
 
-PLATFORM_NETWORKS = {
-    "night-stand": "NEON EVM night-stand",
-    "devnet": "NeonEVM DevNet",
-}
+from _pytest.config import Config
+from playwright.sync_api import BrowserContext, BrowserType
 
 CHROME_TAR_PATH = pathlib.Path(__file__).absolute().parent / "extensions" / "data"
 CHROME_DATA_PATH = pathlib.Path(__file__).absolute().parent.parent / "chrome-data" / uuid.uuid4().hex
@@ -87,28 +87,62 @@ def use_persistent_context() -> bool:
     return True
 
 
-# @pytest.hookimpl(tryfirst=True, hookwrapper=True)
-# def pytest_runtest_makereport(item, call):
-#     """Save screenshot on fail"""
-#     outcome = yield
-#     rep = outcome.get_result()
-#     if rep.when == 'call' and rep.failed:
-#         mode = 'a' if os.path.exists('failures') else 'w'
-#         try:
-#             with open('failures', mode):
-#                 if 'page' in item.fixturenames:
-#                     page = item.funcargs['page']
-#                 else:
-#                     print('Fail to take screenshot')
-#                     return
-#             allure.attach(
-#                 page.screenshot(full_page=True),
-#                 name='screenshot',
-#                 attachment_type=allure.attachment_type.PNG,
-#                 extension="png"
-#             )
-#         except Exception as e:
-#             print('Fail to take screenshot: {}'.format(e))
+@pytest.fixture(scope="session")
+def required_extensions() -> tp.List:
+    return "metamask"
+
+
+@pytest.fixture
+def context(
+    browser_type: BrowserType,
+    browser_context_args: tp.Dict,
+    browser_type_launch_args: tp.Dict,
+    chrome_extensions_path: pathlib.Path,
+    chrome_extension_user_data: pathlib.Path,
+    use_extension: bool,
+) -> BrowserContext:
+    """Override default context for MetaMasks load"""
+    context = None
+    try:
+        if use_extension:
+            context = browser.create_persistent_context(
+                browser_type,
+                browser_context_args,
+                browser_type_launch_args,
+                ext_source=chrome_extensions_path,
+                user_data_dir=chrome_extension_user_data.as_posix(),
+            )
+        else:
+            context = browser_type.launch_persistent_context(
+                user_data_dir="/tmp/without-extension",
+                headless=False,
+            )
+        yield context
+    finally:
+        if context:
+            try:
+                context.close()
+            except Exception as e:
+                print(f"Failed to close browser context: {e}")
+
+
+@pytest.fixture
+def use_extension(request) -> bool:
+    """Fixture that determines whether to load browser extensions (e.g., MetaMask)
+    for the current test.
+
+    If the test is marked with `@pytest.mark.no_extension`, the fixture returns False,
+    indicating that the browser should be launched without loading any extensions.
+    Otherwise, it returns True.
+
+    Args:
+        request (pytest.FixtureRequest): The request object providing information
+            about the test function.
+
+    Returns:
+        bool: True if extensions should be loaded, False if the test is marked with 'no_extension'."""
+    marker = request.node.get_closest_marker("no_extension")
+    return marker is None
 
 
 def pytest_exception_interact(node, call, report):
@@ -130,16 +164,6 @@ def pytest_exception_interact(node, call, report):
                 )
             except Exception as e:
                 print("Fail to take screenshot: {}".format(e))
-
-
-# def save_screenshot_on_fail(request: pytest.FixtureRequest, page: Page):
-#     if request.session.testsfailed and not page.is_closed():
-#         allure.attach(
-#             page.screenshot(full_page=True),
-#             name="screenshot",
-#             attachment_type=allure.attachment_type.PNG,
-#             extension="png",
-#         )
 
 
 def pytest_generate_tests(metafunc: tp.Any) -> None:
@@ -185,3 +209,31 @@ def pytest_runtest_setup(item: tp.Any) -> None:
 
     if browser_name in skip_browsers_names:
         pytest.skip("skipped for this browser: {}".format(browser_name))
+
+
+@pytest.fixture
+def metamask_page(
+    context: BrowserContext,
+    network: str,
+    chrome_extension_password: str,
+) -> metamask.MetaMaskAccountsPage:
+    page = context.new_page()
+    page.goto("about:blank")
+    extension_id = get_metamask_extension_id(context)
+    page.goto(f"chrome-extension://{extension_id}/home.html")
+
+    login_page = metamask.MetaMaskLoginPage(page)
+    popup_news = login_page.login(password=chrome_extension_password)
+    mm_page = popup_news.close()
+    mm_page.check_funds_protection()
+    mm_page.change_network(network)
+    mm_page.switch_assets()
+    # wait MetaMask initialization
+    libs.try_until(
+        lambda: int(mm_page.neon_balance) != BASE_NEON_BALANCE,
+        times=5,
+        interval=2,
+        raise_on_timeout=False,
+    )
+
+    return mm_page

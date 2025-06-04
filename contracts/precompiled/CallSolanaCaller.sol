@@ -1,12 +1,12 @@
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity ^0.8.28;
+
+import {Storage} from "../common/StorageSoliditySource.sol";
+import {ICallSolana} from "../external/neon-contracts/contracts/precompiles/ICallSolana.sol";
 pragma abicoder v2;
 
-import "../external/neon-evm/call_solana.sol";
-import "../common/StorageSoliditySource.sol";
-
 contract CallSolanaCaller {
-    CallSolana constant _callSolana =
-        CallSolana(0xFF00000000000000000000000000000000000006);
+    ICallSolana constant _callSolana =
+        ICallSolana(0xFF00000000000000000000000000000000000006);
     struct Data {
         uint256 value1;
         uint256 value2;
@@ -43,14 +43,14 @@ contract CallSolanaCaller {
         emit LogBytes(returnData);
     }
 
-
     function executeInIterativeMode(
         uint256 actionsNumber,
         uint64 lamports,
         bytes calldata instruction
-    ) public {
+    ) public returns (uint256) {
         doIterativeActions(actionsNumber);
         execute(lamports, instruction);
+        return actionsNumber;
     }
 
     function solanaCallBeforeActionWithMatrix(
@@ -92,12 +92,22 @@ contract CallSolanaCaller {
         emit LogInt(sum);
     }
 
-
     function batchExecuteInIterativeMode(
         uint256 actionsNumber,
         ExecuteArgs[] memory _args
     ) public {
         doIterativeActions(actionsNumber);
+        batchExecute(_args);
+    }
+
+    function batchExecuteFixedIterativeSteps(ExecuteArgs[] memory _args) public {
+        uint x = 0;
+        uint y = 3000;
+        uint z = x;
+        while (x < y) {
+            z++;
+            x = z;
+        }
         batchExecute(_args);
     }
 

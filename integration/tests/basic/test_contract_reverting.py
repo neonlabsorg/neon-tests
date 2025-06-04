@@ -82,7 +82,7 @@ class TestContractReverting:
         sender_account = self.accounts[0]
         contract, _ = self.web3_client.deploy_and_get_contract(
             contract="common/Revert",
-            version="0.8.10",
+            version="0.8.28",
             contract_name="Caller",
             account=sender_account,
             constructor_args=[revert_contract.address],
@@ -103,7 +103,7 @@ class TestContractReverting:
         tx = self.web3_client.make_raw_tx(sender_account, amount=1)
         tx["gas"] = 1  # setting low level of gas limit to get the error
         instruction_tx = revert_contract.functions.deposit().build_transaction(tx)
-        with pytest.raises(ValueError, match=ErrorMessage.GAS_LIMIT_REACHED.value):
+        with pytest.raises(web3.exceptions.Web3RPCError, match=ErrorMessage.GAS_LIMIT_REACHED.value):
             self.web3_client.send_transaction(sender_account, instruction_tx)
 
     def test_custom_error_revert(self, revert_contract):
