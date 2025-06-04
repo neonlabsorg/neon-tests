@@ -853,13 +853,16 @@ class TestEconomics:
 
         instr = alt_contract.functions.fill(accounts_quantity).build_transaction(tx)
         receipt = web3_client.send_transaction(sender_account, instr)
+        assert receipt["status"] == 1
 
         check_alt_on(web3_client, sol_client, receipt)
         wait_until_alt_deleted(web3_client, sol_client, receipt)
+
+        wait_condition(lambda: sol_balance_before > operator.get_solana_balance())
         sol_balance_after = operator.get_solana_balance()
+
         neon_balance_after = operator.get_token_balance(web3_client)
 
-        assert sol_balance_before > sol_balance_after
         assert neon_balance_after > neon_balance_before
         neon_diff = web3_client.to_main_currency(neon_balance_after - neon_balance_before)
         assert_profit(
