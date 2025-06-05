@@ -473,7 +473,7 @@ class TestSolanaInteroperability:
         to_wallet = Keypair()
         amount = 100000
 
-        serialized, _, _ = self.serialized_transfer(
+        serialized, _, _ = prepare_transfer_spl_data(
             sol_client, from_wallet, to_wallet, amount, call_solana_caller, False
         )
 
