@@ -342,16 +342,8 @@ class TestInteroperability:
         treasury_pool,
         holder_acc,
         environment,
+        precompiled_caller,
     ):
-        precompiled_caller = evm_loader.deploy_contract(
-            operator_keypair,
-            sender_with_tokens,
-            "precompiled/CommonCaller",
-            neon_api_client,
-            treasury_pool,
-            contract_name="CommonCaller",
-            version="0.8.3",
-        )
 
         resource_addr = solana_caller.create_resource(sender_with_tokens, b"12ss3", 8, 1000000000, COUNTER_ID)
 
