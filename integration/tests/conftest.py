@@ -7,7 +7,6 @@ import time
 import typing as tp
 
 import allure
-import base58
 import pytest
 from _pytest.config import Config
 from eth_account.signers.local import LocalAccount
@@ -23,10 +22,12 @@ from conftest import EnvironmentConfig
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
 from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS_USDT, REMAPPING_ZEPPELIN
+
 from utils.erc20 import ERC20
 from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
-from utils.helpers import decode_function_signature, get_selectors
+from utils.neon_user import NeonUser
+from utils.helpers import decode_function_signature, get_selectors, withdraw_neon_to_solana_eth_sign
 from utils.operator import Operator
 from utils.prices import get_sol_price_with_retry
 from utils.solana_client import SolanaClient
@@ -96,21 +97,6 @@ def operator(environment: EnvironmentConfig, web3_client_session: NeonChainWeb3C
 
 
 @pytest.fixture(scope="session")
-def bank_account(pytestconfig: Config) -> tp.Generator[Keypair | None, None, None]:
-    account = None
-    if pytestconfig.environment.use_bank:
-        if pytestconfig.getoption("--network") == "devnet":
-            private_key = os.environ.get("BANK_PRIVATE_KEY")
-        elif pytestconfig.getoption("--network") == "mainnet":
-            private_key = os.environ.get("BANK_PRIVATE_KEY_MAINNET")
-        else:
-            raise ValueError("set BANK_PRIVATE_KEY or BANK_PRIVATE_KEY_MAINNET env variable")
-        key = base58.b58decode(private_key)
-        account = Keypair.from_bytes(key)
-    yield account
-
-
-@pytest.fixture(scope="session")
 def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Generator[Keypair | None, None, None]:
     account = None
     if pytestconfig.environment.eth_bank_account != "":
@@ -127,6 +113,7 @@ def solana_account(
     sol_client_session: SolanaClient,
 ) -> Keypair:
     account = Keypair()
+
     lamports = 1 * LAMPORT_PER_SOL
 
     if environment.use_bank:
@@ -163,6 +150,76 @@ def accounts(request, accounts_session, web3_client_session, pytestconfig: Confi
     if inspect.isclass(request.cls):
         request.cls.accounts = accounts_session
     return accounts_session
+
+
+@pytest.fixture(scope="session")
+def neon_user_for_session(
+    evm_loader: EvmLoader,
+    bank_account,
+    environment: EnvironmentConfig,
+    web3_client_sol: NeonChainWeb3Client,
+    withdraw_contract_sol_chain,
+    treasury_pool,
+) -> tp.Generator[NeonUser, None, None]:
+    user = NeonUser(evm_loader_id=environment.evm_loader)
+    lamports = 2 * LAMPORT_PER_SOL
+
+    if environment.use_bank:
+        evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
+    else:
+        evm_loader.request_airdrop(
+            pubkey=user.solana_account.pubkey(),
+            lamports=lamports,
+            commitment=commitment.Confirmed,
+        )
+
+    yield user
+
+    if environment.use_bank:
+        # TODO: enable after fix NDEV-3795
+        # if web3_client_sol.get_balance(user.checksum_address) != 0:
+        #     withdraw_neon_to_solana_sol_sign(
+        #         user, bank_account, withdraw_contract_sol_chain, evm_loader, web3_client_sol, treasury_pool
+        #     )
+        evm_loader.drain_sol(from_=user.solana_account, to=bank_account.pubkey())
+
+
+@pytest.fixture(scope="function")
+def neon_user_no_sols(pytestconfig, bank_account, faucet, environment) -> NeonUser:
+    user = NeonUser(environment.evm_loader, bank_account)
+    return user
+
+
+@pytest.fixture(scope="function")
+def neon_user(
+    evm_loader: EvmLoader,
+    bank_account,
+    environment: EnvironmentConfig,
+    web3_client_sol: NeonChainWeb3Client,
+    withdraw_contract_sol_chain,
+    treasury_pool,
+) -> tp.Generator[NeonUser, None, None]:
+    user = NeonUser(evm_loader_id=environment.evm_loader)
+    lamports = 2 * LAMPORT_PER_SOL
+
+    if environment.use_bank:
+        evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
+    else:
+        evm_loader.request_airdrop(
+            pubkey=user.solana_account.pubkey(),
+            lamports=lamports,
+            commitment=commitment.Confirmed,
+        )
+
+    yield user
+
+    if environment.use_bank:
+        # TODO: enable after fix NDEV-3795
+        # if web3_client_sol.get_balance(user.checksum_address) != 0:
+        #     withdraw_neon_to_solana_sol_sign(
+        #         user, bank_account, withdraw_contract_sol_chain, evm_loader, web3_client_sol, treasury_pool
+        #     )
+        evm_loader.drain_sol(from_=user.solana_account, to=bank_account.pubkey())
 
 
 @pytest.fixture(scope="session")
@@ -243,6 +300,7 @@ def class_account_sol_chain(
     web3_client,
     faucet,
     eth_bank_account,
+    withdraw_contract_sol_chain,
     bank_account: Keypair,
     environment: EnvironmentConfig,
     web3_client_sol: Web3Client,
@@ -260,6 +318,8 @@ def class_account_sol_chain(
     )
 
     yield account
+    if environment.use_bank:
+        withdraw_neon_to_solana_eth_sign(web3_client_sol, account, bank_account, withdraw_contract_sol_chain)
 
 
 @pytest.fixture(scope="session")
@@ -283,6 +343,7 @@ def account_with_all_tokens(
     environment: EnvironmentConfig,
     faucet,
     eth_bank_account,
+    withdraw_contract_sol_chain,
     neon_mint,
     operator_keypair,
     bank_account: Keypair | None,
@@ -317,6 +378,9 @@ def account_with_all_tokens(
     )
 
     yield neon_account
+    if web3_client_sol:
+        if environment.use_bank:
+            withdraw_neon_to_solana_eth_sign(web3_client_sol, neon_account, bank_account, withdraw_contract_sol_chain)
 
 
 @pytest.fixture(scope="session")
@@ -330,12 +394,32 @@ def withdraw_contract(web3_client, faucet, accounts) -> Contract:
     return contract
 
 
-@pytest.fixture(scope="class")
-def withdraw_contract_sol_chain(web3_client_sol, faucet, account_with_all_tokens) -> Contract:
-    contract, _ = web3_client_sol.deploy_and_get_contract(
-        "precompiled/NeonToken", "0.8.10", account=account_with_all_tokens
+@pytest.fixture(scope="session")
+def withdraw_contract_sol_chain(
+    evm_loader,
+    web3_client_sol,
+    web3_client_session,
+    faucet,
+    eth_bank_account,
+    bank_account,
+    solana_account,
+    environment: EnvironmentConfig,
+) -> Contract:
+    account = web3_client_session.create_account_with_balance(faucet, bank_account=eth_bank_account)
+    if environment.use_bank:
+        evm_loader.send_sol(bank_account, solana_account.pubkey(), int(2 * LAMPORT_PER_SOL))
+    else:
+        evm_loader.request_airdrop(solana_account.pubkey(), 2 * LAMPORT_PER_SOL)
+
+    evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+        solana_account,
+        account,
+        int(1 * LAMPORT_PER_SOL),
     )
-    return contract
+    contract, _ = web3_client_sol.deploy_and_get_contract("precompiled/NeonToken", "0.8.10", account=account)
+    yield contract
+    if environment.use_bank:
+        withdraw_neon_to_solana_eth_sign(web3_client_sol, account, bank_account, contract)
 
 
 @pytest.fixture(scope="class")
@@ -446,7 +530,7 @@ def storage_contract_with_deploy_tx(web3_client, accounts) -> tp.Generator[tp.Tu
 def revert_contract(web3_client, accounts) -> tp.Generator[Contract, None, None]:
     contract, _ = web3_client.deploy_and_get_contract(
         contract="common/Revert",
-        version="0.8.10",
+        version="0.8.28",
         contract_name="TrivialRevert",
         account=accounts[0],
     )
@@ -457,7 +541,7 @@ def revert_contract(web3_client, accounts) -> tp.Generator[Contract, None, None]
 def revert_contract_caller(web3_client, accounts, revert_contract) -> tp.Generator[Contract, None, None]:
     contract, _ = web3_client.deploy_and_get_contract(
         contract="common/Revert",
-        version="0.8.10",
+        version="0.8.28",
         contract_name="Caller",
         account=accounts[0],
         constructor_args=[revert_contract.address],

@@ -22,6 +22,7 @@ from utils.accounts import EthAccounts
 from utils.consts import COUNTER_ID, TRANSFER_TOKENS_ID
 from utils.helpers import bytes32_to_solana_pubkey, serialize_instruction, wait_condition
 from utils.instructions import make_wSOL
+from utils.solana_interoperability_helper import prepare_transfer_spl_data
 from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client
 
@@ -53,47 +54,6 @@ class TestSolanaInteroperability:
             account=class_account_sol_chain,
         )
         return contract
-
-    def serialized_transfer(self, sol_client, from_wallet, to_wallet, amount, contract, is_set_authority=True):
-        mint = spl.token.client.Token.create_mint(
-            conn=sol_client,
-            payer=from_wallet,
-            mint_authority=from_wallet.pubkey(),
-            decimals=9,
-            program_id=TOKEN_PROGRAM_ID,
-        )
-        mint.payer = from_wallet
-        from_token_account = mint.create_associated_token_account(from_wallet.pubkey())
-        to_token_account = mint.create_associated_token_account(to_wallet.pubkey())
-        mint.mint_to(
-            dest=from_token_account,
-            mint_authority=from_wallet,
-            amount=amount,
-            opts=TxOpts(skip_confirmation=False, skip_preflight=True),
-        )
-
-        authority_pubkey: bytes = contract.functions.getSolanaPDA(bytes(TRANSFER_TOKENS_ID), b"authority").call()
-        if is_set_authority:
-            mint.set_authority(
-                from_token_account,
-                from_wallet,
-                spl.token.instructions.AuthorityType.ACCOUNT_OWNER,
-                Pubkey(authority_pubkey),
-                opts=TxOpts(skip_confirmation=False, skip_preflight=True),
-            )
-
-        instruction = Instruction(
-            program_id=TRANSFER_TOKENS_ID,
-            accounts=[
-                AccountMeta(from_token_account, is_signer=False, is_writable=True),
-                AccountMeta(mint.pubkey, is_signer=False, is_writable=True),
-                AccountMeta(to_token_account, is_signer=False, is_writable=True),
-                AccountMeta(Pubkey(authority_pubkey), is_signer=False, is_writable=True),
-                AccountMeta(TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-            ],
-            data=bytes([0x0]),
-        )
-        return serialize_instruction(TRANSFER_TOKENS_ID, instruction), mint, [from_token_account, to_token_account]
 
     def test_counter_execute_with_get_return_data(
         self, call_solana_caller, counter_resource_address: bytes, get_counter_value
@@ -129,7 +89,7 @@ class TestSolanaInteroperability:
         to_wallet = Keypair()
         amount = 100000
 
-        serialized, mint, accounts_list = self.serialized_transfer(
+        serialized, mint, accounts_list = prepare_transfer_spl_data(
             sol_client, from_wallet, to_wallet, amount, call_solana_caller
         )
         tx = self.web3_client.make_raw_tx(
@@ -368,11 +328,10 @@ class TestSolanaInteroperability:
         gas_used_amount2 = get_gas_used_for_emulate_send_wsol(10000 * 2)
         assert gas_used_amount1 == gas_used_amount2, "Gas used for different transfer amounts should be the same"
 
-    @pytest.mark.skip(reason="https://neonlabs.atlassian.net/browse/NDEV-3761")
     def test_limit_of_simple_instr_in_one_trx(self, call_solana_caller, counter_resource_address: bytes):
         sender = self.accounts[0]
         call_params = []
-        limit = 30
+        limit = 32
 
         for _ in range(limit):
             instruction = Instruction(
@@ -489,7 +448,7 @@ class TestSolanaInteroperability:
         to_wallet = Keypair()
         amount = 100000
 
-        serialized, _, _ = self.serialized_transfer(
+        serialized, _, _ = prepare_transfer_spl_data(
             sol_client, from_wallet, to_wallet, amount, call_solana_caller, False
         )
 
@@ -581,7 +540,7 @@ class TestSolanaInteroperability:
         to_wallet = Keypair()
         amount = 100000
 
-        serialized_transfer, mint, accounts_list = self.serialized_transfer(
+        serialized_transfer, mint, accounts_list = prepare_transfer_spl_data(
             sol_client, from_wallet, to_wallet, amount, call_solana_caller
         )
 
@@ -771,3 +730,35 @@ class TestSolanaInteroperability:
 
         balance_after = self.web3_client.get_balance(call_solana_caller.address)
         assert balance_after == balance_before + 10
+
+    @pytest.mark.skip(reason="https://neonlabs.atlassian.net/browse/NDEV-3773")
+    def test_call_solana_from_contract_constructor(
+        self, counter_resource_address, call_solana_caller, web3_client, get_counter_value
+    ):
+        account = self.accounts[0]
+        lamports = 0
+        store_number = random.randint(1, 1000000)
+
+        instruction = Instruction(
+            program_id=COUNTER_ID,
+            accounts=[
+                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
+            ],
+            data=bytes([0x1]),
+        )
+        serialized_instruction = serialize_instruction(COUNTER_ID, instruction)
+
+        contract, contract_deploy_tx = web3_client.deploy_and_get_contract(
+            "precompiled/CallSolanaInConstructor.sol",
+            "0.8.28",
+            contract_name="CallSolanaInConstructor",
+            constructor_args=[store_number, lamports, serialized_instruction],
+            account=account,
+        )
+        assert contract_deploy_tx["status"] == 1
+
+        store_number_from_constructor = contract.functions.getStoreNumber().call()
+        assert store_number == store_number_from_constructor
+
+        event_logs = call_solana_caller.events.LogBytes().process_receipt(contract_deploy_tx)
+        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
