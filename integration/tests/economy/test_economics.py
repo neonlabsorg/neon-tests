@@ -1507,12 +1507,13 @@ class TestEconomicsSche:
         token_balance_before = operator.get_token_balance(web3_client_sol)
 
         # todo remove
-        # evm_loader.deposit_wrapped_sol_from_solana_to_neon(
-        #     neon_user.solana_account,
-        #     "0x" + neon_user.neon_address.hex(),
-        #     int(1 * LAMPORT_PER_SOL),
-        # )
-        multiplyer = LAMPORT_PER_SOL * LAMPORT_PER_SOL  # 10^18
+        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+            neon_user.solana_account,
+            "0x" + neon_user.neon_address.hex(),
+            int(1 * LAMPORT_PER_SOL),
+        )
+
+        multiplyer = LAMPORT_PER_SOL  # 10^18
 
         operator_inner_balance_b = operator.get_token_balance(web3_client_sol)
         operator_outer_balance_b = operator.get_solana_balance()
@@ -1520,7 +1521,7 @@ class TestEconomicsSche:
         user_inner_sol_balance_b = web3_client_sol.get_balance(neon_user.checksum_address)
         user_outer_sol_balance_b = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
 
-        full_volume_before = (operator_outer_balance_b * multiplyer + operator_inner_balance_b) + (
+        full_volume_before = (operator_outer_balance_b * multiplyer + operator_inner_balance_b * multiplyer) + (
             user_inner_sol_balance_b + user_outer_sol_balance_b
         )
 
@@ -1538,7 +1539,7 @@ class TestEconomicsSche:
         user_inner_sol_balance_a = web3_client_sol.get_balance(neon_user.checksum_address)
         user_outer_sol_balance_a = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
 
-        full_volume_after = (operator_inner_balance_a * multiplyer + operator_outer_balance_a) + (
+        full_volume_after = ((operator_inner_balance_a * multiplyer) + (operator_outer_balance_a * multiplyer)) + (
             user_inner_sol_balance_a + user_outer_sol_balance_a
         )
 
