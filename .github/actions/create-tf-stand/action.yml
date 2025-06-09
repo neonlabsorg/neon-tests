@@ -109,7 +109,7 @@ runs:
     shell: bash
     run: echo "${{ steps.read_compose_file.outputs.value }}"
   - name: Run docker containers
-    uses: ./dynamic-ci-cd/.github/workflows/actions/run-docker-containers
+    uses: ./dynamic-ci-cd/actions/run-docker-containers
     id: run-docker-containerss
     with:
         docker_host: ${{ steps.create-instance.outputs.public-ip-v4 }}
