@@ -48,6 +48,10 @@ inputs:
     default: "latest"
   proxy_branch:
     required: true
+  use_real_price:
+    description: 'Remove CONST_GAS_PRICE option from proxy'
+    default: '0'
+    required: false
 
 runs:
   using: composite
@@ -88,6 +92,18 @@ runs:
         host: ${{ steps.create-instance.outputs.public-ip-v4 }}
         ssh-user: ${{ steps.create-instance.outputs.ssh-user }}
         ssh-key: ${{ steps.create-instance.outputs.ssh-key }}
+  - name: Set Gas Price
+    id: set-gas-price
+    shell: bash
+    run: |
+      set -euo pipefail
+        COMPOSE_FILE="./neon-proxy.py/docker-compose/docker-compose-ci.yml"
+        USE_REAL="${{ inputs.use_real_price }}"
+
+        # Only strip out CONST_GAS_PRICE when use_real_price != "0"
+        if [[ "$USE_REAL" != "0" ]]; then
+          sed -i '/^[[:space:]]*-[[:space:]]*CONST_GAS_PRICE=.*$/d' "$COMPOSE_FILE"
+        fi
   - name: Install envsubst
     shell: bash
     run: sudo apt-get update && sudo apt-get install -y gettext
