@@ -6,7 +6,6 @@ import pytest
 from web3.exceptions import Web3RPCError
 
 from integration.tests.basic.helpers.assert_message import ErrorMessage
-from integration.tests.basic.helpers.rpc_checks import is_hex
 from utils.accounts import EthAccounts
 from utils.web3client import NeonChainWeb3Client
 from utils.helpers import gen_hash_of_block
@@ -83,23 +82,6 @@ class TestTransactionsValidation:
         assert ErrorMessage.TOO_BIG_TRANSACTION.value in response["error"]["message"]
         assert response["error"]["code"] == -32000
 
-    @pytest.mark.skip(reason="Test doesn't work with MINIMAL_GAS_PRICE in config. NDEV-2386")
-    def test_send_transaction_with_small_gas_price(self, json_rpc_client):
-        """Check that transaction can't be accepted if gas value is too small"""
-        new_account = self.accounts.create_account()
-        gas_price = self.web3_client.gas_price()
-        sender_account = self.accounts[0]
-        recipient_account = self.accounts[1]
-        transaction = self.web3_client.make_raw_tx(
-            from_=sender_account, to=recipient_account, amount=1, gas_price=(int(gas_price * 0.01))
-        )
-        signed_tx = self.web3_client.eth.account.sign_transaction(transaction, new_account.key)
-        response = json_rpc_client.send_rpc("eth_sendRawTransaction", [signed_tx.raw_transaction.hex()])
-        assert is_hex(response["result"])
-        self.web3_client.wait_for_transaction_receipt(response["result"])
-        receipt = json_rpc_client.send_rpc(method="eth_getTransactionReceipt", params=[response["result"]])
-        assert receipt["result"] is None
-
     def test_big_memory_value(self):
         sender_account = self.accounts[0]
         contract, contract_deploy_tx = self.web3_client.deploy_and_get_contract(
@@ -107,3 +89,38 @@ class TestTransactionsValidation:
         )
         bytes_amount = contract.functions.makeBigMemoryValue(5).call()
         assert bytes_amount == 32 * 1024
+
+    def test_erc_1820_contract_call_transaction(self):
+        """Check ERC-1820 transaction (without chain_id in sign)"""
+        sender_account = self.accounts[0]
+        recipient_account = self.accounts[1]
+
+        initial_sender_balance = self.web3_client.get_balance(sender_account)
+        initial_recipient_balance = self.web3_client.get_balance(recipient_account)
+
+        transfer_amount = 100
+
+        transaction = self.web3_client.make_raw_tx(
+            from_=sender_account, to=recipient_account, amount=transfer_amount, chain_id=None, estimate_gas=True
+        )
+        resp = self.web3_client.send_transaction(sender_account, transaction)
+
+        assert resp["status"] == 1, "Transaction status must be 0x1"
+
+        assert self.web3_client.get_balance(sender_account.address) < (initial_sender_balance - transfer_amount)
+        assert self.web3_client.get_balance(recipient_account.address) == (initial_recipient_balance + transfer_amount)
+
+    def test_transaction_does_not_fail_nested_contract(self):
+        """Send Neon to contract via low level call"""
+        sender_account = self.accounts[0]
+        _, contract_deploy_tx = self.web3_client.deploy_and_get_contract(
+            "issues/ndev1004/ContractOne", "0.8.15", account=sender_account
+        )
+        address = contract_deploy_tx["contractAddress"]
+
+        contractTwo, _ = self.web3_client.deploy_and_get_contract(
+            "issues/ndev1004/ContractTwo", "0.8.15", account=sender_account
+        )
+        balance = contractTwo.functions.getBalance().call()
+        assert balance == 0
+        contractTwo.functions.depositOnContractOne(address).call()

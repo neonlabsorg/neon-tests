@@ -523,8 +523,8 @@ def update_contracts(branch, with_uniswap):
 @click.option("--cost_reports_dir", default="", help="Directory where CostReports will be created")
 @click.option(
     "--ui-item",
-    default="all",
-    type=click.Choice(["faucet", "neonpass", "all"]),
+    default="website",
+    type=click.Choice(["faucet", "neonpass", "website"]),
     help="Which UI test run",
 )
 @click.option(
@@ -558,11 +558,11 @@ def run(
     commands = {
         "economy": "py.test integration/tests/economy/test_economics.py",
         "basic": "py.test integration/tests/basic --dist loadgroup",
-        "tracer": "py.test -n 5 integration/tests/tracer",
+        "tracer": "py.test -n 5 integration/tests/tracer --dist loadscope",
         "services": "py.test integration/tests/services",
         "compiler_compatibility": "py.test integration/tests/compiler_compatibility --dist loadscope",
         "evm": "py.test integration/tests/neon_evm",
-        "ui": "pytest ui/tests/website_tests",
+        "ui": "pytest ui/tests/",
         "oz": "",  # the command is defined in run_openzeppelin_tests()
     }
 
@@ -579,8 +579,16 @@ def run(
     if name in {"services", "compiler_compatibility", "evm", "basic"} and numprocesses:
         command += f" --numprocesses {numprocesses}"
 
-    if name == "ui" and ui_item != "all":
-        command += f"/test_{ui_item}.py"
+    UI_TEST_PATHS = {
+        "faucet": "test_faucet.py",
+        "website": "website_tests/test_website.py",
+        "neonpass": "test_neonpass.py",
+    }
+
+    if name == "ui":
+        if ui_item not in UI_TEST_PATHS:
+            raise click.ClickException(f"Invalid UI item '{ui_item}'. Available: {', '.join(UI_TEST_PATHS.keys())}")
+        command += UI_TEST_PATHS[ui_item]
 
     if name == "oz":
         if not keep_error_log:
@@ -827,32 +835,6 @@ def allure_cli(ctx):
     """Commands for load test manipulation."""
 
 
-@allure_cli.command("get-history", help="Download allure history")
-@click.argument("name", type=click.STRING)
-@click.option("-n", "--network", default=EnvName.LOCAL, type=str, help="In which stand run tests")
-@click.option(
-    "-d",
-    "--destination",
-    default="./allure-results",
-    type=click.Path(file_okay=False, dir_okay=True),
-)
-def get_allure_history(name: str, network: str, destination: str = "./allure-results"):
-    branch = os.environ.get("GITHUB_REF_NAME")
-    path = Path(name) / network / branch
-
-    runs = []
-    previous_runs = cloud.client.list_objects_v2(
-        Bucket=cloud.NEON_TESTS_BUCKET_NAME, Prefix=f"{path}/", Delimiter="/"
-    ).get("CommonPrefixes", [])
-    for run in previous_runs:
-        run_id = re.findall(r"(\d+)", run["Prefix"])
-        if len(run_id) > 0:
-            runs.append(int(run_id[0]))
-    if len(runs) > 0:
-        print(f"Downloading allure history from build: {max(runs)}")
-        cloud.download(path / str(max(runs)) / "history", Path(destination) / "history")
-
-
 @allure_cli.command("upload-report", help="Upload allure history")
 @click.argument("name", type=click.Choice(TEST_GROUPS))
 @click.option("-n", "--network", default=EnvName.DEVNET, type=EnvName, help="In which stand run tests")
@@ -884,13 +866,6 @@ def upload_allure_report(name: TestGroup, network: EnvName, source: str = "./all
 
     with open("allure_report_info", "w") as f:
         f.write(f"🔗 Allure [report]({report_url})\n")
-
-
-@allure_cli.command("generate", help="Generate allure history")
-def generate_allure_report():
-    cmd = subprocess.run("allure generate", shell=True)
-    if cmd.returncode != 0:
-        sys.exit(cmd.returncode)
 
 
 @cli.command(help="Send notification to slack")

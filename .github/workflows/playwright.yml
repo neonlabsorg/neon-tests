@@ -2,7 +2,10 @@ name: "Playwright Tests"
 run-name: Playwright tests / ${{ github.event.pull_request.title || github.event_name }}
 
 on:
+  schedule:
+    - cron: "0 3 * * 0,1,2,3,4"
   workflow_dispatch:
+
 env:
   IMAGE:  ${{ github.repository_owner }}/neon_tests
   CONTAINER:  services-${{ github.run_id }}
@@ -59,7 +62,7 @@ jobs:
         run: |
           docker exec -i ${{ env.CONTAINER }} \
             /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && export DEVNET_SOLANA_URL=${{ env.DEVNET_SOLANA_URL }} && \
-            xvfb-run python3 ./clickfile.py run ui --network=${{ env.NETWORK }} --ui-item=neonpass"
+            xvfb-run python3 ./clickfile.py run ui --network=${{ env.NETWORK }} --ui-item=faucet"
       - name: "Generate allure report"
         if: always()
         uses: ./.github/actions/generate-allure-report
