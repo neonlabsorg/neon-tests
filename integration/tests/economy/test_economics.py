@@ -1458,9 +1458,14 @@ class TestEconomicsSche:
         erc20_spl: ERC20Wrapper,
         web3_client,
     ):
+        operator_inner_balance_before = operator.get_token_balance(web3_client_sol)
+        # operator_outer_balance_before = operator.get_solana_balance()
+
+        user_inner_sol_balance_b1 = web3_client_sol.get_balance(neon_user.checksum_address)  # 200000000
         recipient = NeonUser(evm_loader.loader_id)
 
         erc20_spl_mintable.approve(erc20_spl_mintable.owner, neon_user.checksum_address, 800)
+        user_inner_sol_balance_b2 = web3_client_sol.get_balance(neon_user.checksum_address)  # 200000000
 
         top_up_in_trx = 400
         amount_to_recipient = 400
@@ -1487,7 +1492,7 @@ class TestEconomicsSche:
         trx_estimate_obj_list = [trx_estimate_0, trx_estimate_1, trx_estimate_2, trx_estimate_3]
 
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), trx_estimate_obj_list)
-
+        user_inner_sol_balance_b3 = web3_client_sol.get_balance(neon_user.checksum_address)  # 200000000
         trxs = []
         for i in range(len(trx_estimate_obj_list)):
             trxs.append(ScheduledTransaction.from_estimate_result(i, trx_estimate_obj_list[i], estimate_result))
@@ -1506,44 +1511,51 @@ class TestEconomicsSche:
         sol_balance_before = operator.get_solana_balance()
         token_balance_before = operator.get_token_balance(web3_client_sol)
 
-        # todo remove
-        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
-            neon_user.solana_account,
-            "0x" + neon_user.neon_address.hex(),
-            int(1 * LAMPORT_PER_SOL),
-        )
-
-        multiplyer = LAMPORT_PER_SOL  # 10^18
-
-        operator_inner_balance_b = operator.get_token_balance(web3_client_sol)
-        operator_outer_balance_b = operator.get_solana_balance()
+        multiplyer = LAMPORT_PER_SOL  # 10^9
 
         user_inner_sol_balance_b = web3_client_sol.get_balance(neon_user.checksum_address)
         user_outer_sol_balance_b = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
 
-        full_volume_before = (operator_outer_balance_b * multiplyer + operator_inner_balance_b * multiplyer) + (
-            user_inner_sol_balance_b + user_outer_sol_balance_b
+        full_volume_before = operator_inner_balance_before + (
+            user_inner_sol_balance_b + user_outer_sol_balance_b * multiplyer
         )
 
         evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
+        user_inner_sol_balance_b4 = web3_client_sol.get_balance(neon_user.checksum_address)
+        assert (
+            2000000000000000000 - web3_client_sol.get_balance(neon_user.checksum_address)
+        ) == 15775782762019644  # why ?
+
         web3_client_sol.send_all_scheduled_transactions(trxs)
+        user_inner_sol_balance_b5 = web3_client_sol.get_balance(neon_user.checksum_address)
 
         for trx in trxs:
             check_trx_is_success(web3_client_sol, evm_loader, trx.hash().hex(), timeout=180)
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client_sol)
+        user_inner_sol_balance_b6 = web3_client_sol.get_balance(neon_user.checksum_address)
 
-        operator_inner_balance_a = operator.get_token_balance(web3_client_sol)
-        operator_outer_balance_a = operator.get_solana_balance()
-
-        user_inner_sol_balance_a = web3_client_sol.get_balance(neon_user.checksum_address)
-        user_outer_sol_balance_a = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
-
-        full_volume_after = ((operator_inner_balance_a * multiplyer) + (operator_outer_balance_a * multiplyer)) + (
-            user_inner_sol_balance_a + user_outer_sol_balance_a
+        print(
+            user_inner_sol_balance_b1,
+            user_inner_sol_balance_b2,
+            user_inner_sol_balance_b3,
+            user_inner_sol_balance_b4,
+            user_inner_sol_balance_b5,
+            user_inner_sol_balance_b6,
         )
 
-        assert full_volume_before == full_volume_after, f"not same, diff={full_volume_before-full_volume_after}"
+        operator_inner_balance_after = operator.get_token_balance(web3_client_sol)
+        # operator_outer_balance_after = operator.get_solana_balance()
+
+        user_inner_sol_balance_after = web3_client_sol.get_balance(neon_user.checksum_address)
+        user_outer_sol_balance_after = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
+
+        full_volume_after = operator_inner_balance_after + (
+            user_inner_sol_balance_after + user_outer_sol_balance_after * multiplyer
+        )
+
+        diff_volume = full_volume_before - full_volume_after  # 14999999960000  why ?
+        assert diff_volume == 0, f"not same, diff={full_volume_before-full_volume_after}"
 
         token_price = web3_client_sol.get_token_usd_gas_price()
         sol_diff = sol_balance_before - sol_balance_after
@@ -1564,7 +1576,6 @@ class TestEconomicsSche:
     - когда баланса не хватает на транзакции
 
     outer -> inner balance : evm_loader.deposite. ... (посмотреть тест на шедулед тх)
-
 
     ---
     добавть тест шедулед с отправкой Value sender -> recepient (contract)

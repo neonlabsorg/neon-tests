@@ -198,6 +198,8 @@ def neon_user(
     web3_client_sol: NeonChainWeb3Client,
     withdraw_contract_sol_chain,
     treasury_pool,
+    web3_client_usdt,
+    solana_account: Keypair,
 ) -> tp.Generator[NeonUser, None, None]:
     user = NeonUser(evm_loader_id=environment.evm_loader)
     lamports = 2 * LAMPORT_PER_SOL
@@ -210,6 +212,35 @@ def neon_user(
             lamports=lamports,
             commitment=commitment.Confirmed,
         )
+
+    # Todo remove
+    if web3_client_sol:
+        lamports = 2 * LAMPORT_PER_SOL
+        if environment.use_bank:
+            bank_account: Keypair
+            evm_loader.send_sol(bank_account, solana_account.pubkey(), lamports)
+        else:
+            evm_loader.request_airdrop(solana_account.pubkey(), lamports)
+        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+            solana_account,
+            user.checksum_address,
+            lamports,
+        )
+    # token_mint = Pubkey.from_string(MULTITOKEN_MINTS_USDT)
+    # evm_loader.mint_spl_to(
+    #     token_mint,
+    #     solana_account,
+    #     1000000000000000,
+    # )
+    #
+    # evm_loader.send_token_from_solana_to_neon(
+    #     solana_account,
+    #     token_mint,
+    #     user.checksum_address,
+    #     100000000,
+    #     web3_client_usdt.chain_id,
+    # )
+    # Todo remove
 
     yield user
 
