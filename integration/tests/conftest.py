@@ -212,6 +212,39 @@ def neon_user(
             lamports=lamports,
             commitment=commitment.Confirmed,
         )
+    yield user
+
+    if environment.use_bank:
+        # TODO: enable after fix NDEV-3795
+        # if web3_client_sol.get_balance(user.checksum_address) != 0:
+        #     withdraw_neon_to_solana_sol_sign(
+        #         user, bank_account, withdraw_contract_sol_chain, evm_loader, web3_client_sol, treasury_pool
+        #     )
+        evm_loader.drain_sol(from_=user.solana_account, to=bank_account.pubkey())
+
+
+@pytest.fixture(scope="function")
+def neon_user_with_all_tokens(
+    evm_loader: EvmLoader,
+    bank_account,
+    environment: EnvironmentConfig,
+    web3_client_sol: NeonChainWeb3Client,
+    withdraw_contract_sol_chain,
+    treasury_pool,
+    web3_client_usdt,
+    solana_account: Keypair,
+) -> tp.Generator[NeonUser, None, None]:
+    user = NeonUser(evm_loader_id=environment.evm_loader)
+    lamports = 2 * LAMPORT_PER_SOL
+
+    if environment.use_bank:
+        evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
+    else:
+        evm_loader.request_airdrop(
+            pubkey=user.solana_account.pubkey(),
+            lamports=lamports,
+            commitment=commitment.Confirmed,
+        )
 
     # Todo remove
     if web3_client_sol:
