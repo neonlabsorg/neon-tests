@@ -246,7 +246,6 @@ def neon_user_with_all_tokens(
             commitment=commitment.Confirmed,
         )
 
-    # Todo remove
     if web3_client_sol:
         lamports = 2 * LAMPORT_PER_SOL
         if environment.use_bank:
@@ -259,24 +258,7 @@ def neon_user_with_all_tokens(
             user.checksum_address,
             lamports,
         )
-    # token_mint = Pubkey.from_string(MULTITOKEN_MINTS_USDT)
-    # evm_loader.mint_spl_to(
-    #     token_mint,
-    #     solana_account,
-    #     1000000000000000,
-    # )
-    #
-    # evm_loader.send_token_from_solana_to_neon(
-    #     solana_account,
-    #     token_mint,
-    #     user.checksum_address,
-    #     100000000,
-    #     web3_client_usdt.chain_id,
-    # )
-    # Todo remove
-
     yield user
-
     if environment.use_bank:
         # TODO: enable after fix NDEV-3795
         # if web3_client_sol.get_balance(user.checksum_address) != 0:
