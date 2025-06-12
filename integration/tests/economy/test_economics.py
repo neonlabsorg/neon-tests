@@ -1320,9 +1320,6 @@ class TestEconomics:
         sol_balance_before = operator.get_solana_balance()
         token_balance_before = operator.get_token_balance(web3_client_sol)
 
-        # user_balance_before = erc20_spl.get_balance(neon_user.neon_address)
-        # sum_of_tokens_before = token_balance_before + user_balance_before
-
         trx_estimate_obj_list = []
         for i in range(trx_count):
             child_transaction = None if is_dependent else "0xFFFF"
@@ -1360,12 +1357,6 @@ class TestEconomics:
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client_sol)
-
-        # todo skip cause bug
-        # user_balance_after = erc20_spl.get_balance(neon_user.neon_address)
-        # sum_of_tokens_after = token_balance_after + user_balance_after
-        # assert_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after)
-
         token_price = web3_client_sol.get_token_usd_gas_price()
         sol_diff = sol_balance_before - sol_balance_after
         token_diff = web3_client_sol.to_main_currency(token_balance_after - token_balance_before)
@@ -1428,11 +1419,6 @@ class TestEconomics:
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client_sol)
-
-        # todo skip cause bug
-        # user_balance_after = erc20_spl.get_balance(neon_user.neon_address)
-        # sum_of_tokens_after = token_balance_after + user_balance_after
-        # assert_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after)
 
         token_price = web3_client_sol.get_token_usd_gas_price()
         sol_diff = sol_balance_before - sol_balance_after
