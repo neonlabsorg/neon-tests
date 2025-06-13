@@ -7,6 +7,7 @@ from decimal import Decimal
 import allure
 import pytest
 import rlp
+from eth_utils import abi
 from eth_account.signers.local import LocalAccount
 from solders.instruction import AccountMeta, Instruction
 from solders.keypair import Keypair as SolanaAccount, Keypair
@@ -20,7 +21,6 @@ from utils import helpers
 from utils.accounts import EthAccounts
 from utils.consts import LAMPORT_PER_SOL, Time, COUNTER_ID
 from utils.erc20 import ERC20
-from utils.erc20wrapper import ERC20Wrapper
 from utils.helpers import wait_condition, gen_hash_of_block, decode_function_signature, serialize_instruction
 from utils.neon_user import NeonUser
 from utils.operator import Operator
@@ -984,7 +984,7 @@ class TestEconomics:
     ):
         """Trigger transaction than requires more than 30 accounts"""
         sender_account = accounts[1]
-        accounts_quantity = 45  # todo Спросить
+        accounts_quantity = 45
         sol_balance_before = operator.get_solana_balance()
         neon_balance_before = operator.get_token_balance(web3_client)
         sum_of_tokens_before = sum_balances(web3_client, operator, sender_account.address)
@@ -1119,7 +1119,6 @@ class TestEconomics:
         )
         get_gas_used_percent(web3_client, receipt)
 
-    # TODO check
     @pytest.mark.timeout(30 * Time.MINUTE)
     @pytest.mark.slow
     @pytest.mark.parametrize("value", [20, 30])
@@ -1305,14 +1304,13 @@ class TestEconomics:
         self,
         operator,
         web3_client_sol,
-        neon_user,
         increase_storage_contract,
         evm_loader,
         treasury_pool,
         sol_price,
         sol_client,
         is_dependent,
-        erc20_spl: ERC20Wrapper,
+        neon_user_with_all_tokens,
     ):
         trx_count = 4
         data = decode_function_signature("incWithoutALT()")
@@ -1320,18 +1318,24 @@ class TestEconomics:
         sol_balance_before = operator.get_solana_balance()
         token_balance_before = operator.get_token_balance(web3_client_sol)
 
+        operator_inner_balance_before = operator.get_token_balance(web3_client_sol)
+        user_inner_sol_balance_b = web3_client_sol.get_balance(neon_user_with_all_tokens.checksum_address)
+        full_volume_before = operator_inner_balance_before + user_inner_sol_balance_b
+
         trx_estimate_obj_list = []
         for i in range(trx_count):
             child_transaction = None if is_dependent else "0xFFFF"
             trx_estimate_obj_list.append(
                 ScheduledTrxEstimateRequest(
-                    neon_user.checksum_address,
+                    neon_user_with_all_tokens.checksum_address,
                     increase_storage_contract.address,
                     data,
                     child_transaction=child_transaction,
                 )
             )
-        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), trx_estimate_obj_list)
+        estimate_result = web3_client_sol.estimate_scheduled(
+            neon_user_with_all_tokens.solana_account.pubkey(), trx_estimate_obj_list
+        )
         trxs = []
         for i in range(trx_count):
             trxs.append(ScheduledTransaction.from_estimate_result(i, trx_estimate_obj_list[i], estimate_result))
@@ -1347,7 +1351,7 @@ class TestEconomics:
             tree_acc_data.add_trx(trxs[i], child_transaction, success_limit)
 
         evm_loader.create_tree_account_multiple(
-            neon_user,
+            neon_user_with_all_tokens,
             treasury_pool,
             tree_acc_data.data,
         )
@@ -1357,6 +1361,12 @@ class TestEconomics:
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client_sol)
+        operator_inner_balance_after = operator.get_token_balance(web3_client_sol)
+        user_inner_sol_balance_after = web3_client_sol.get_balance(neon_user_with_all_tokens.checksum_address)
+        full_volume_after = operator_inner_balance_after + user_inner_sol_balance_after
+        diff_volume = full_volume_before - full_volume_after
+        assert diff_volume == 0, f"not same, diff={full_volume_before-full_volume_after}"
+
         token_price = web3_client_sol.get_token_usd_gas_price()
         sol_diff = sol_balance_before - sol_balance_after
         token_diff = web3_client_sol.to_main_currency(token_balance_after - token_balance_before)
@@ -1372,7 +1382,6 @@ class TestEconomics:
         evm_loader,
         operator,
         sol_price,
-        erc20_spl: ERC20Wrapper,
     ):
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
 
@@ -1408,9 +1417,6 @@ class TestEconomics:
 
         sol_balance_before = operator.get_solana_balance()
         token_balance_before = operator.get_token_balance(web3_client_sol)
-        # user_balance_before = erc20_spl.get_balance(neon_user.neon_address)
-        # sum_of_tokens_before = token_balance_before + user_balance_before
-
         evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
         web3_client_sol.send_all_scheduled_transactions(trxs)
@@ -1434,13 +1440,12 @@ class TestEconomics:
         treasury_pool,
         operator,
         sol_price,
-        erc20_spl: ERC20Wrapper,
         web3_client,
     ):
         operator_inner_balance_before = operator.get_token_balance(web3_client_sol)
         operator_sol_balance_before = operator.get_solana_balance()
-        # user_inner_sol_balance_b = web3_client_sol.get_balance(neon_user_with_all_tokens.checksum_address)
-        # full_volume_before = operator_inner_balance_before + user_inner_sol_balance_b
+        user_inner_sol_balance_b = web3_client_sol.get_balance(neon_user_with_all_tokens.checksum_address)
+        full_volume_before = operator_inner_balance_before + user_inner_sol_balance_b
 
         recipient = NeonUser(evm_loader.loader_id)
         erc20_spl_mintable.approve(erc20_spl_mintable.owner, neon_user_with_all_tokens.checksum_address, 800)
@@ -1488,10 +1493,7 @@ class TestEconomics:
         tree_acc_data.add_trx(trxs[2], 0xFFFF, 1)
         tree_acc_data.add_trx(trxs[3], 0xFFFF, 1)
 
-        """ почему то fee 15000 списывается с outer баланса + некоторая сумма с inner sol"""
-        evm_loader.create_tree_account_multiple(
-            neon_user_with_all_tokens, treasury_pool, tree_acc_data.data
-        )  # внешний sol баланс уменьшается на 15_000 - это ок ?
+        evm_loader.create_tree_account_multiple(neon_user_with_all_tokens, treasury_pool, tree_acc_data.data)
         web3_client_sol.send_all_scheduled_transactions(trxs)
 
         for trx in trxs:
@@ -1500,16 +1502,116 @@ class TestEconomics:
         operator_inner_balance_after = operator.get_token_balance(web3_client_sol)
         operator_sol_balance_after = operator.get_solana_balance()
 
-        # user_inner_sol_balance_after = web3_client_sol.get_balance(neon_user_with_all_tokens.checksum_address)
-        # full_volume_after = operator_inner_balance_after + user_inner_sol_balance_after
-        # diff_volume = full_volume_before - full_volume_after
-        """-40000 потому что по 10_000 за каждую шедулед транзакцию"""
-        # assert diff_volume == -40000, f"not same, diff={full_volume_before-full_volume_after}"
+        user_inner_sol_balance_after = web3_client_sol.get_balance(neon_user_with_all_tokens.checksum_address)
+        full_volume_after = operator_inner_balance_after + user_inner_sol_balance_after
+        diff_volume = full_volume_before - full_volume_after
+        assert diff_volume == 0, f"not same, diff={full_volume_before-full_volume_after}"
 
         token_price = web3_client_sol.get_token_usd_gas_price()
         sol_diff = operator_sol_balance_before - operator_sol_balance_after
         token_diff = web3_client_sol.to_main_currency(operator_inner_balance_after - operator_inner_balance_before)
         assert_profit(sol_diff, sol_price, token_diff, token_price, web3_client_sol.native_token_name)
+
+    def test_scheduled_trx_send_value(
+        self,
+        web3_client_sol,
+        neon_user,
+        evm_loader,
+        treasury_pool,
+        operator,
+        sol_price,
+        web3_client,
+        operator_keypair,
+        common_contract,
+        neon_api_client,
+        treasury_pool_new,
+        second_operator_keypair,
+        sender_with_wsol,
+    ):
+        contract = evm_loader.deploy_contract(
+            second_operator_keypair,
+            sender_with_wsol,
+            "transfers",
+            neon_api_client,
+            treasury_pool_new,
+            chain_id=evm_loader.sol_chain_id,
+        )
+
+        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+            neon_user.solana_account,
+            "0x" + neon_user.neon_address.hex(),
+            int(1 * LAMPORT_PER_SOL),
+        )
+        holder_acc = evm_loader.create_holder(second_operator_keypair)
+        nonce = evm_loader.get_neon_nonce(account=neon_user.neon_address, chain_id=evm_loader.sol_chain_id)
+        data = abi.function_signature_to_4byte_selector("donate1000()")
+        amount = 10000
+        tx = ScheduledTransaction(
+            neon_user.neon_address,
+            None,
+            nonce,
+            0,
+            target=contract.eth_address,
+            value=amount,
+            call_data=data,
+            chain_id=evm_loader.sol_chain_id,
+        )
+        user_balance_before = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
+        treasury_balance_before = evm_loader.get_solana_balance(treasury_pool_new.account)
+
+        receiver_balance_before = evm_loader.get_neon_balance(contract.eth_address, evm_loader.sol_chain_id)
+        operator_inner_balance_before = operator.get_token_balance(web3_client_sol)
+        full_volume_before = operator_inner_balance_before + user_balance_before + receiver_balance_before
+
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool_new, tx.encode())
+
+        wait_condition(lambda: evm_loader.get_solana_balance(treasury_pool_new.account) < treasury_balance_before)
+        wait_condition(lambda: evm_loader.get_solana_balance(tree_account) > 0)
+        wait_condition(
+            lambda: evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id) < user_balance_before
+        )
+
+        user_balance_after = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
+        treasury_balance_after = evm_loader.get_solana_balance(treasury_pool_new.account)
+        user_balance_diff = user_balance_before - user_balance_after
+        treasury_balance_diff = treasury_balance_before - treasury_balance_after
+
+        assert treasury_balance_diff > 0
+        assert user_balance_diff > 0
+
+        emulate_result = neon_api_client.emulate(
+            neon_user.neon_address.hex(),
+            contract.eth_address.hex(),
+            data,
+            chain_id=evm_loader.sol_chain_id,
+            value=hex(amount),
+        )
+        additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+
+        evm_loader.write_transaction_to_holder_account(tx.encode(), holder_acc, second_operator_keypair)
+        evm_loader.execute_scheduled_trx_from_account(
+            0,
+            second_operator_keypair,
+            holder_acc,
+            tree_account,
+            treasury_pool_new,
+            additional_accounts,
+            compute_unit_price=3929,
+        )
+        evm_loader.finish_scheduled_trx(second_operator_keypair, tree_account, holder_acc)
+        user_balance_before_destroy = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
+
+        evm_loader.destroy_tree_account(neon_user, treasury_pool_new, tree_account)
+        user_balance_after_destroy = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
+
+        assert user_balance_after_destroy > user_balance_before_destroy
+
+        receiver_balance_after = evm_loader.get_neon_balance(contract.eth_address, evm_loader.sol_chain_id)
+
+        operator_inner_balance_after = operator.get_token_balance(web3_client_sol)
+        full_volume_after = operator_inner_balance_after + user_balance_after_destroy + receiver_balance_after
+        diff_volume = full_volume_before - full_volume_after
+        assert diff_volume == 0, f"not same, diff={full_volume_before - full_volume_after}"
 
     def test_solana_interoperability_iterative_tx_eip_1559(
         self,
@@ -1520,7 +1622,6 @@ class TestEconomics:
         accounts,
         operator,
         sol_price,
-        erc20_spl: ERC20Wrapper,
     ):
         iterations = 5
         sender = accounts[0]
@@ -1566,7 +1667,6 @@ class TestEconomics:
         sol_client,
         accounts,
         operator,
-        erc20_spl: ERC20Wrapper,
     ):
         sender = accounts[0]
         matrix_length = 8
