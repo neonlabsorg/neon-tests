@@ -201,8 +201,6 @@ def neon_user(
     web3_client_sol: NeonChainWeb3Client,
     withdraw_contract_sol_chain,
     treasury_pool,
-    web3_client_usdt,
-    solana_account: Keypair,
 ) -> tp.Generator[NeonUser, None, None]:
     user = NeonUser(evm_loader_id=environment.evm_loader)
     lamports = 2 * LAMPORT_PER_SOL
@@ -234,7 +232,6 @@ def neon_user_with_all_tokens(
     web3_client_sol: NeonChainWeb3Client,
     withdraw_contract_sol_chain,
     treasury_pool,
-    web3_client_usdt,
     solana_account: Keypair,
 ) -> tp.Generator[NeonUser, None, None]:
     user = NeonUser(evm_loader_id=environment.evm_loader)
