@@ -60,21 +60,6 @@ def operator_keypair(index_of_process: int, evm_loader: EvmLoader) -> Keypair:
     return prepare_operator(key_file, evm_loader)
 
 
-@pytest.fixture(scope="session")
-def second_operator_keypair(index_of_process: int, evm_loader: EvmLoader) -> Keypair:
-    """
-    Initialized solana keypair with balance. Get private key from cli or ./ci/operator-keypairs
-    """
-    file_id = 20 + index_of_process
-    key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
-    allure.attach(
-        f"current key_file {key_file}",
-        "Operator key",
-        attachment_type=allure.attachment_type.TEXT,
-    )
-    return prepare_operator(key_file, evm_loader)
-
-
 @pytest.fixture(scope="function")
 def user_account(evm_loader, operator_keypair) -> Caller:
     return evm_loader.make_new_user(operator_keypair)
@@ -94,18 +79,6 @@ def second_session_user(evm_loader, operator_keypair) -> Caller:
 def sender_with_tokens(evm_loader: EvmLoader, operator_keypair: Keypair) -> Caller:
     user = evm_loader.make_new_user(operator_keypair)
     evm_loader.deposit_neon(operator_keypair, user.eth_address, 10000000)
-    return user
-
-
-@pytest.fixture(scope="session")
-def sender_with_wsol(evm_loader: EvmLoader, operator_keypair: Keypair) -> Caller:
-    user = evm_loader.make_new_user(operator_keypair)
-    evm_loader.deposit_wrapped_sol_from_solana_to_neon(
-        solana_account=user.solana_account,
-        neon_account="0x" + user.eth_address.hex(),
-        full_amount=100000,
-    )
-
     return user
 
 
@@ -272,15 +245,6 @@ def multiple_actions_erc20(
 @pytest.fixture(scope="session")
 def neon_rpc_client(environment: EnvironmentConfig) -> NeonApiRpcClient:
     return NeonApiRpcClient(url=environment.neon_core_api_rpc_url, chain_id=environment.network_ids["neon"])
-
-
-@pytest.fixture(scope="session")
-def neon_api_client(environment: EnvironmentConfig) -> NeonApiClient:
-    return NeonApiClient(
-        url=environment.neon_core_api_url,
-        chain_id=environment.network_ids["neon"],
-        sol_chain_id=environment.network_ids["sol"],
-    )
 
 
 @pytest.fixture(scope="session")

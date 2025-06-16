@@ -55,17 +55,6 @@ def heat_stand(web3_client, faucet):
 
 
 def sum_balances(w3_client, operator, sender_account, receiver_account=None):
-    """
-    Retrieves token balance and ether balances for two accounts and returns their total.
-
-    Arguments:
-        w3_client: Web3 client instance with methods get_balance.
-        sender_account: Address of the sender account (string or format supported by w3_client.get_balance).
-        receiver_account: Address of the receiver account.
-
-    Returns:
-        The sum of balance_sender + balance_receiver + token_balance.
-    """
     token_balance = operator.get_token_balance(w3_client)
     balance_sender = w3_client.get_balance(sender_account)
     if receiver_account is not None:

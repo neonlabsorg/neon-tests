@@ -13,7 +13,7 @@ class AmountTracker:
         return self.total_spent
 
 
-# Глобальный экземпляр
+# Global instance
 amount_tracker = AmountTracker()
 
 
@@ -22,7 +22,7 @@ def track_spent_amount(func):
     def wrapper(*args, **kwargs):
         amount = kwargs.get("amount")
         if amount is None and len(args) > 3:
-            amount = args[3]  # предполагается, что amount 3-й аргумент
+            amount = args[3]  # amount is a 3rd arg
         if amount is not None:
             amount_tracker.add(amount)
         return func(*args, **kwargs)
