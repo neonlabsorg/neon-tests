@@ -87,11 +87,13 @@ jobs:
           aws_access_key_id:  ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key:  ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           tests_name: basic
-      - name: Remove docker container
-        if: always()
-        run: docker rm -f ${{ env.CONTAINER }}
       - name: Notify on failure
         if: failure()
         run: |
-          python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
-          -b ${{ env.BUILD_URL }} --network ${{ env.NETWORK }} --test-group basic
+          docker exec -i ${{ env.CONTAINER }} \
+            python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
+            -b ${{ env.BUILD_URL }} --network ${{ env.NETWORK }} --test-group basic
+      - name: Remove docker container
+        if: always()
+        run: docker rm -f ${{ env.CONTAINER }}
+

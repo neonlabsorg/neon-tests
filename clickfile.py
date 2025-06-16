@@ -909,9 +909,9 @@ def send_notification(url, build_url, network, test_group: str):
     response = requests.post(url=url, data=payload)
     if response.status_code != 200:
         click.echo(f"Response status code: {response.status_code}")
-        click.echo(f"Response status code: {response.text}")
+        click.echo(f"Response text: {response.text}")
         click.echo(f"Payload: {payload}")
-        raise RuntimeError(f"Notification is not sent. Error: {response.text}")
+        raise RuntimeError("Notification is not sent")
 
 
 @cli.command(name="get-balances", help="Get operator balances in NEON and SOL")
