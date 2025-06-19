@@ -113,29 +113,31 @@ class TestTraceTransactionMethod:
         """
         receipt = request.getfixturevalue(test_case["fixture_name"])
         error_message = test_case.get("error_message")
+        if error_message is None:
+            error_message = ""
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
 
-        if error_message:
-            error = decode_error_output(tracer_response["result"][1]["result"]["output"])
-            assert error_message in error, f"Expected error message '{error_message}' not found in '{error}'"
-
-        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data, receipt)
+        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data, receipt, error_message)
 
     def test_failed_scheduled_tx(self, failed_scheduled_tx_receipt):
         tx_data = self.web3_client.get_transaction_by_hash(failed_scheduled_tx_receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(failed_scheduled_tx_receipt["transactionHash"].hex())
 
-        error = decode_error_output(tracer_response["result"][1]["result"]["output"])
         expected_error_message = "Panic(uint256): Assertion violated or invalid enum value"
-        assert error in expected_error_message
 
-        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
+        self.tracer_validator.check_trace_transaction_response(
+            tracer_response, tx_data, error_message=expected_error_message
+        )
 
     def test_reverted_iteration_tx(self, reverted_iterative_tx_receipt):
         tx_data = self.web3_client.get_transaction_by_hash(reverted_iterative_tx_receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(reverted_iterative_tx_receipt["transactionHash"].hex())
-        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
+
+        expected_error_message = "Revert without reason"
+        self.tracer_validator.check_trace_transaction_response(
+            tracer_response, tx_data, error_message=expected_error_message
+        )
 
         error = decode_error_output(tracer_response["result"][1]["result"]["output"])
         expected_error_message = "Revert without reason"
@@ -210,11 +212,11 @@ class TestTraceTransactionMethod:
         receipt = chain_with_revert_receipt
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         tracer_response = self.tracer_api.trace_transaction(receipt["transactionHash"].hex())
-        self.tracer_validator.check_trace_transaction_response(tracer_response, tx_data)
 
-        error = decode_error_output(tracer_response["result"][2]["result"]["output"])
         expected_error_message = "Revert"
-        assert expected_error_message in error
+        self.tracer_validator.check_trace_transaction_response(
+            tracer_response, tx_data, error_message=expected_error_message
+        )
 
         assert len(tracer_response["result"]) == 3
         for i in range(len(tracer_response["result"])):

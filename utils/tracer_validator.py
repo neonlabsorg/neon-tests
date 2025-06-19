@@ -4,6 +4,7 @@ import pathlib
 import allure
 from jsonschema import Draft4Validator
 
+from utils.helpers import decode_error_output
 from utils.models.result import TraceTransactionResponse
 
 SCHEMAS = "./integration/tests/tracer/schemas/"
@@ -70,15 +71,14 @@ class TracerValidator:
         tracer_response: dict,
         tx_data,
         tx_receipt=None,
-        wait_error=False,
-    ) -> bool:
+        error_message="",
+    ):
 
         TraceTransactionResponse(**tracer_response)
         """check trace_transaction method response"""
-        if wait_error:
-            assert "error" in tracer_response, f"No Error in tracer_response: {tracer_response}"
-        else:
-            assert "error" not in tracer_response, f"Error in tracer_response: {tracer_response}"
+        if error_message != "":
+            error = decode_error_output(tracer_response["result"][-1]["result"]["output"])
+            assert error_message in error, f"expected {error_message}, got {error}"
 
         assert tx_data["from"].lower() == tracer_response["result"][0]["action"]["from"].lower()
         assert tx_data["to"].lower() == tracer_response["result"][0]["action"]["to"].lower()
