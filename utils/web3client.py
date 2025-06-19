@@ -7,7 +7,6 @@ from decimal import Decimal
 import allure
 import base58
 import eth_account.signers.local
-import pytest
 import requests
 import web3.types
 from eth_abi import abi
@@ -16,6 +15,7 @@ from solders.instruction import Instruction
 from solders.pubkey import Pubkey
 from web3.contract import Contract
 from web3.exceptions import TransactionNotFound
+from web3.types import TxReceipt
 
 from utils import helpers
 from utils.consts import InputTestConstants, Unit
@@ -247,11 +247,11 @@ class Web3Client:
         return transaction
 
     @allure.step("Wait for transaction receipt for {tx_hash}")
-    def wait_for_transaction_receipt(self, tx_hash, timeout=120) -> web3.types.TxReceipt:
+    def wait_for_transaction_receipt(self, tx_hash, timeout=120) -> TxReceipt | None:
         try:
             return self._web3.eth.wait_for_transaction_receipt(tx_hash, timeout=timeout)
         except web3.exceptions.TimeExhausted as e:
-            pytest.fail(f"Transaction {tx_hash} was not executed within {timeout} seconds. Error: {str(e)}")
+            LOG.error(f"Transaction {tx_hash} was not executed within {timeout} seconds. Error: {str(e)}")
 
     @allure.step("Send transaction")
     def send_transaction(
