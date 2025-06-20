@@ -18,6 +18,31 @@ class TestTraceTransactionMethod:
                 {"fixture_name": "send_neon_tx_receipt", "description": "simple send transaction"},
                 id="send neon transaction",
             ),
+            pytest.param(
+                {"fixture_name": "recursion_tx_receipt", "description": "Recursion transaction"}, id="recursion"
+            ),
+            pytest.param(
+                {"fixture_name": "iteration_tx_receipt", "description": "Iterative transaction"}, id="iterative"
+            ),
+            pytest.param(
+                {
+                    "fixture_name": "iterative_tx_with_erc20_for_spl_receipt",
+                    "description": "Iterative transaction with 51 contract calls",
+                },
+                id="iterative_erc20_spl",
+            ),
+            pytest.param(
+                {"fixture_name": "precompile_contract_call_tx_receipt", "description": "Precompile contract call"},
+                id="precompile_contract",
+            ),
+            pytest.param(
+                {"fixture_name": "eth_precompile_contract_tx_receipt", "description": "ETH precompile contract"},
+                id="eth_precompile",
+            ),
+            pytest.param(
+                {"fixture_name": "precompiled_neon_contract_tx_receipt", "description": "Precompiled NEON contract"},
+                id="neon_precompile",
+            ),
         ],
     )
     @pytest.mark.parametrize(
@@ -70,6 +95,30 @@ class TestTraceTransactionMethod:
             pytest.param(
                 {"fixture_name": "trivial_error_tx_receipt", "description": "trivial error transaction"},
                 id="trivial error transaction",
+            ),
+            pytest.param(
+                {
+                    "fixture_name": "trivial_revert_tx_receipt",
+                    "description": "Trivial revert",
+                    "error_message": "Error(string): ('Revert Contract',)",
+                },
+                id="trivial_revert",
+            ),
+            pytest.param(
+                {
+                    "fixture_name": "revert_in_called_contract_tx_receipt",
+                    "description": "Revert in called contract",
+                    "error_message": "Error(string): ('Insufficient balance for transfer,",
+                },
+                id="revert_in_called_contract",
+            ),
+            pytest.param(
+                {
+                    "fixture_name": "zero_division_tx_receipt",
+                    "description": "Zero division transaction",
+                    "error_message": "Panic(uint256): Division or modulo by zero",
+                },
+                id="zero_division",
             ),
         ],
     )
