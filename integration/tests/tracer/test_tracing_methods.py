@@ -189,3 +189,104 @@ class TestTraceTransactionMethod:
         validator_method = getattr(self.tracer_validator, validator_name)
         call_args = [response, tx_data]
         validator_method(*call_args, **validator_kwargs)
+
+    test_specs = [
+        # === НЕГАТИВНЫЕ СЛУЧАИ ===
+        # trivial error
+        {
+            "id": "trivial_error__trace_transaction",
+            "fixture_name": "trivial_error_tx_receipt",
+            "tracer_name": "trace_transaction",
+            "tracer_args": [],
+            "validator_name": "check_trace_transaction_response",
+            "validator_args": ["tx_data", "receipt"],
+            "validator_kwargs": {"error_message": "Error(string): ('Revert Contract',)"},
+        },
+        # {
+        #     "id": "trivial_error__debug_trace_basic",
+        #     "fixture_name": "trivial_error_tx_receipt",
+        #     "tracer_name": "debug_trace_transaction",
+        #     "tracer_args": ["callTracer"],
+        #     "validator_name": "check_call_tracer_type",
+        #     "validator_args": ["tx_data"],
+        #     "validator_kwargs": {"error_message": "execution reverted"},
+        # },
+        # # trivial revert
+        # {
+        #     "id": "trivial_revert__trace_transaction",
+        #     "fixture_name": "trivial_revert_tx_receipt",
+        #     "tracer_name": "trace_transaction",
+        #     "tracer_args": [],
+        #     "validator_name": "check_trace_transaction_response",
+        #     "validator_args": ["tx_data", "receipt"],
+        #     "validator_kwargs": {"error_message": "Error(string): ('Revert Contract',)"},
+        # },
+        # {
+        #     "id": "trivial_revert__debug_trace_basic",
+        #     "fixture_name": "trivial_revert_tx_receipt",
+        #     "tracer_name": "debug_trace_transaction",
+        #     "tracer_args": ["callTracer"],
+        #     "validator_name": "check_call_tracer_type",
+        #     "validator_args": ["tx_data"],
+        #     "validator_kwargs": {"error_message": "execution reverted"},
+        # },
+        # # revert in called contract
+        # {
+        #     "id": "revert_in_called__trace_transaction",
+        #     "fixture_name": "revert_in_called_contract_tx_receipt",
+        #     "tracer_name": "trace_transaction",
+        #     "tracer_args": [],
+        #     "validator_name": "check_trace_transaction_response",
+        #     "validator_args": ["tx_data", "receipt"],
+        #     "validator_kwargs": {"error_message": "Error(string): ('Insufficient balance for transfer,"},
+        # },
+        # {
+        #     "id": "revert_in_called__debug_trace_basic",
+        #     "fixture_name": "revert_in_called_contract_tx_receipt",
+        #     "tracer_name": "debug_trace_transaction",
+        #     "tracer_args": ["callTracer"],
+        #     "validator_name": "check_call_tracer_type",
+        #     "validator_args": ["tx_data"],
+        #     "validator_kwargs": {"error_message": "execution reverted"},
+        # },
+        # zero division
+        {
+            "id": "zero_division__trace_transaction",
+            "fixture_name": "zero_division_tx_receipt",
+            "tracer_name": "trace_transaction",
+            "tracer_args": [],
+            "validator_name": "check_trace_transaction_response",
+            "validator_args": ["tx_data", "receipt"],
+            "validator_kwargs": {"Panic(uint256): Division or modulo by zero"},
+        },
+        {
+            "id": "zero_division__debug_trace_basic",
+            "fixture_name": "zero_division_tx_receipt",
+            "tracer_name": "debug_trace_transaction",
+            "tracer_args": ["callTracer"],
+            "validator_name": "check_call_tracer_type",
+            "validator_args": ["tx_data"],
+            "validator_kwargs": {"error_message": "execution reverted"},
+        },
+    ]
+
+    @pytest.mark.parametrize("spec", test_specs, ids=[s["id"] for s in test_specs])
+    def test_all_tracers(self, spec, request):
+
+        # 1) prepare
+        receipt = request.getfixturevalue(spec["fixture_name"])
+        tx_hash = receipt["transactionHash"].hex()
+        tx_data = self.web3_client.get_transaction_by_hash(tx_hash)
+
+        # 2) call tracer method
+        tracer = getattr(self.tracer_api, spec["tracer_name"])
+        if spec["tracer_name"] == "debug_trace_call":
+            response = tracer(tx_data)
+        else:
+            response = tracer(tx_hash, *spec["tracer_args"])
+
+        # 3) validate
+        validator = getattr(self.tracer_validator, spec["validator_name"])
+        # call_args = [response] + [locals()[arg] for arg in spec["validator_args"]]
+        call_args = [response, tx_data]
+        validator(*call_args, **spec["validator_kwargs"])
