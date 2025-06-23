@@ -371,8 +371,8 @@ def make_wSOL(amount, solana_wallet, ata_address):
     return tx
 
 
-@log_instruction_fields("OperatorBalanceAccount")
-def make_OperatorBalanceAccount(operator_keypair, operator_balance_pubkey, ether_bytes, chain_id, evm_loader_id):
+@log_instruction_fields("OperatorBalanceCreate")
+def make_OperatorBalanceCreate(operator_keypair, operator_balance_pubkey, ether_bytes, chain_id, evm_loader_id):
     tag = InstructionTags.OPERATOR_BALANCE_CREATE
     trx = Transaction()
     trx.add(
