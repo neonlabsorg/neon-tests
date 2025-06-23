@@ -344,7 +344,7 @@ jobs:
         timeout-minutes: 120
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: ${{ github.repository_owner }}/aave-v3-core:latest
+          IMAGE: ${{ github.repository_owner }}/aave-v3-core:043e85ccdf1e0f1c7239026b70ecb2aad5e5eb1a
         run: |
           docker pull ${{ env.IMAGE }}
           docker run -i -d --name=aave-v3-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
