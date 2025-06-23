@@ -1,8 +1,8 @@
 pragma solidity ^0.8.28;
 
 import {Storage} from "../common/StorageSoliditySource.sol";
-//import {ICallSolana} from "../external/neon-contracts/contracts/precompiles/ICallSolana.sol";
-import {ICallSolana} from "../../contracts/precompiled/ICallSolana.sol";
+import {ICallSolana} from "../external/neon-contracts/contracts/precompiles/ICallSolana.sol";
+//import {ICallSolana} from "../../contracts/precompiled/ICallSolana.sol";
 pragma abicoder v2;
 
 contract CallSolanaCaller {
@@ -120,6 +120,17 @@ contract CallSolanaCaller {
         batchExecute(_args);
     }
 
+    function batchExecuteFixedIterativeStepsOverload(ExecuteArgs[] memory _args) public {
+        uint x = 0;
+        uint y = 3000;
+        uint z = x;
+        while (x < y) {
+            z++;
+            x = z;
+        }
+        batchExecuteOver(_args);
+    }
+
     function sendTokensAndExecuteInIterativeMode(
         uint256 actionsNumber,
         uint64 lamports,
@@ -160,6 +171,15 @@ contract CallSolanaCaller {
     function batchExecute(ExecuteArgs[] memory _args) public {
         for (uint i = 0; i < _args.length; i++) {
             _callSolana.execute(_args[i].lamports, _args[i].instruction);
+        }
+        (bytes32 program, bytes memory returnData) = _callSolana
+            .getReturnData();
+        emit LogData(program, returnData);
+    }
+
+    function batchExecuteOver(ExecuteArgs[] memory _args) public {
+        for (uint i = 0; i < _args.length; i++) {
+            _callSolana.execute(_args[i].instruction);
         }
         (bytes32 program, bytes memory returnData) = _callSolana
             .getReturnData();

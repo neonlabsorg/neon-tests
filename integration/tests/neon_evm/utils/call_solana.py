@@ -203,6 +203,53 @@ class SolanaCaller:
         )
         return resp
 
+    def batch_execute_overload(
+        self, call_params, sender=None, additional_accounts=None, additional_signers=None, is_iterative=False
+    ):
+        # call_params = [(program_id, lamports, instruction), ...]
+        execute_params = []
+        for program_id, instruction in call_params:
+            serialized_instruction = serialize_instruction(program_id, instruction)
+            execute_params.append((serialized_instruction,))
+
+        if is_iterative:
+            calldata = keccak(text="batchExecuteFixedIterativeStepsOverload((uint64,bytes)[])")[:4] + eth_abi.encode(
+                ["(uint64,bytes)[]"],
+                [execute_params],
+            )
+        else:
+            calldata = keccak(text="batchExecuteOver((bytes)[])")[:4] + eth_abi.encode(
+                ["(bytes)[]"],
+                [execute_params],
+            )
+
+        signed_tx = make_eth_transaction(self.evm_loader, self.contract.eth_address, calldata, sender)
+
+        self.evm_loader.write_transaction_to_holder_account(signed_tx, self.holder_acc, self.operator_keypair)
+        accounts = (
+            [
+                sender.balance_account_address,
+                sender.solana_account_address,
+                self.contract.balance_account_address,
+                self.contract.solana_address,
+                SOLANA_CALL_PRECOMPILED_ID,
+            ]
+            + [item[0] for item in call_params]
+            + self._get_all_pubkeys_from_instructions([item[1] for item in call_params])
+            + (additional_accounts or [])
+        )
+
+        resp = self.evm_loader.execute_trx_from_account_with_solana_call(
+            self.operator_keypair,
+            self.holder_acc,
+            self.treasury_pool.account,
+            self.treasury_pool.buffer,
+            accounts,
+            self.operator_keypair,
+            additional_signers,
+        )
+        return resp
+
     def get_resource_address(self, salt, sender):
         encoded_args = eth_abi.encode(["bytes32"], [salt])
 
