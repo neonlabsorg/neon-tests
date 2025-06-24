@@ -36,18 +36,18 @@ from utils.logger import log_text_to_allure_and_stdout
 from utils.scheduled_trx import ScheduledTransaction
 from utils.neon_user import NeonUser
 from integration.tests.neon_evm.utils.constants import TREASURY_POOL_SEED
-from utils.consts import LAMPORT_PER_SOL
+from utils.consts import LAMPORT_PER_SOL, InstructionTags
 from utils.helpers import ether2bytes
 from utils.instructions import (
     TransactionWithComputeBudget,
     make_ExecuteTrxFromInstruction,
     make_WriteHolder,
     make_ExecuteTrxFromAccount,
-    make_PartialCallOrContinueFromRawEthereumTX,
-    make_ExecuteTrxFromAccountDataIterativeOrContinue,
+    make_transaction_step_from_instruction,
+    make_ExecuteTrxFromAccountOrAccountNoChainId,
     make_CreateBalanceAccount,
     make_CreateAssociatedTokenIdempotent,
-    make_DepositV03,
+    make_deposit,
     make_wSOL,
     make_OperatorBalanceCreate,
     make_ScheduledTransactionCreate,
@@ -395,7 +395,7 @@ class EvmLoader(SolanaClient):
         else:
             raw_trx = instruction
         trx.add(
-            make_PartialCallOrContinueFromRawEthereumTX(
+            make_transaction_step_from_instruction(
                 index,
                 steps_count,
                 raw_trx,
@@ -468,11 +468,11 @@ class EvmLoader(SolanaClient):
         signer: Keypair,
         system_program=sp.ID,
         compute_unit_price=None,
-        tag=0x35,
+        tag=InstructionTags.TRANSACTION_STEP_FROM_ACCOUNT,
     ) -> GetTransactionResp:
         trx = TransactionWithComputeBudget(operator, compute_unit_price=compute_unit_price)
         trx.add(
-            make_ExecuteTrxFromAccountDataIterativeOrContinue(
+            make_ExecuteTrxFromAccountOrAccountNoChainId(
                 step_count=steps_count,
                 operator=operator,
                 operator_balance=operator_balance_pubkey,
@@ -605,7 +605,7 @@ class EvmLoader(SolanaClient):
                     amount,
                 )
             ),
-            make_DepositV03(
+            make_deposit(
                 ether2bytes(ether_address),
                 self.chain_id,
                 balance_pubkey,
@@ -663,7 +663,7 @@ class EvmLoader(SolanaClient):
         )
 
         tx.add(
-            make_DepositV03(
+            make_deposit(
                 bytes.fromhex(neon_account[2:]),
                 chain_id,
                 balance_pubkey,

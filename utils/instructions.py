@@ -166,8 +166,8 @@ def make_ExecuteTrxFromAccount(
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
 
-@log_instruction_fields("ExecuteTrxFromAccountIterativeOrContinue")
-def make_ExecuteTrxFromAccountDataIterativeOrContinue(
+@log_instruction_fields("make_ExecuteTrxFromAccountOrAccountNoChainId")
+def make_ExecuteTrxFromAccountOrAccountNoChainId(
     step_count: int,
     operator: Keypair,
     operator_balance: Pubkey,
@@ -176,11 +176,12 @@ def make_ExecuteTrxFromAccountDataIterativeOrContinue(
     treasury,
     additional_accounts: tp.List[Pubkey],
     sys_program_id=sp.ID,
-    tag=0x35,
+    tag: InstructionTags = InstructionTags.TRANSACTION_STEP_FROM_ACCOUNT,
 ):
     # 0x35 - TransactionStepFromAccount
     # 0x36 - TransactionStepFromAccountNoChainId
-    data = tag.to_bytes(1, "little") + treasury.buffer + step_count.to_bytes(4, "little")
+
+    data = tag + treasury.buffer + step_count.to_bytes(4, "little")
 
     accounts = [
         AccountMeta(pubkey=holder_address, is_signer=False, is_writable=True),
@@ -199,7 +200,7 @@ def make_ExecuteTrxFromAccountDataIterativeOrContinue(
 
 
 @log_instruction_fields("PartialCallOrContinueFromRawEthereumTX")
-def make_PartialCallOrContinueFromRawEthereumTX(
+def make_transaction_step_from_instruction(
     index: int,
     step_count: int,
     instruction: bytes,
@@ -230,7 +231,7 @@ def make_PartialCallOrContinueFromRawEthereumTX(
 
 
 @log_instruction_fields("Cancel")
-def make_Cancel(
+def make_cancel(
     evm_loader_id: Pubkey,
     storage_address: Pubkey,
     operator: Keypair,
@@ -254,8 +255,8 @@ def make_Cancel(
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
 
-@log_instruction_fields("DepositV03")
-def make_DepositV03(
+@log_instruction_fields("Deposit")
+def make_deposit(
     ether_address: bytes,
     chain_id: int,
     balance_account: Pubkey,
@@ -329,7 +330,7 @@ def make_CreateBalanceAccount(
 
 
 @log_instruction_fields("SyncNative")
-def make_SyncNative(account: Pubkey):
+def make_SyncNative(account: Pubkey):  # todo what
     keys = [AccountMeta(pubkey=account, is_signer=False, is_writable=True)]
     data = bytes.fromhex("11")
     return Instruction(accounts=keys, program_id=TOKEN_PROGRAM_ID, data=data)

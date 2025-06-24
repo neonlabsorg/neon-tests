@@ -242,7 +242,7 @@ class TestSimulateSolana:
             sol_tx = instructions.TransactionWithComputeBudget(operator_keypair)
             operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
             sol_tx.add(
-                instructions.make_ExecuteTrxFromAccountDataIterativeOrContinue(
+                instructions.make_ExecuteTrxFromAccountOrAccountNoChainId(
                     step_count=500,
                     operator=operator_keypair,
                     operator_balance=operator_balance_pubkey,
@@ -324,7 +324,7 @@ class TestSimulateSolana:
             sol_tx = instructions.TransactionWithComputeBudget(operator_keypair)
             operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
             sol_tx.add(
-                instructions.make_ExecuteTrxFromAccountDataIterativeOrContinue(
+                instructions.make_ExecuteTrxFromAccountOrAccountNoChainId(
                     step_count=500,
                     operator=operator_keypair,
                     operator_balance=operator_balance_pubkey,
@@ -391,7 +391,7 @@ class TestSimulateSolana:
             sol_tx = instructions.TransactionWithComputeBudget(operator_keypair)
             operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
             sol_tx.add(
-                instructions.make_PartialCallOrContinueFromRawEthereumTX(
+                instructions.make_transaction_step_from_instruction(
                     index=index,
                     step_count=500,
                     instruction=neon_signed_tx.raw_transaction,
@@ -563,7 +563,7 @@ class TestSimulateSolana:
             # Create a Solana transaction
             sol_tx = instructions.TransactionWithComputeBudget(operator_keypair, compute_unit_price=3929)
             sol_tx.add(
-                instructions.make_ExecuteTrxFromAccountDataIterativeOrContinue(
+                instructions.make_ExecuteTrxFromAccountOrAccountNoChainId(
                     step_count=500,
                     operator=operator_keypair,
                     operator_balance=operator_balance_pubkey,
