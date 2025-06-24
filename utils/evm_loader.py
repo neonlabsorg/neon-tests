@@ -855,7 +855,12 @@ class EvmLoader(SolanaClient):
 
         self.start_scheduled_trx_from_account(index, operator, holder, tree_account, additional_accounts, chain_id)
         return self.execute_transaction_steps_from_account(
-            operator, treasury, holder, additional_accounts, chain_id=chain_id, compute_unit_price=compute_unit_price
+            operator=operator,
+            treasury=treasury,
+            storage_account=holder,
+            additional_accounts=additional_accounts,
+            chain_id=chain_id,
+            compute_unit_price=compute_unit_price,
         )
 
     @allure.step("Execute scheduled transaction from instruction")

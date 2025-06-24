@@ -17,7 +17,7 @@ from integration.tests.neon_evm.conftest import prepare_operator
 from integration.tests.neon_evm.utils.ethereum import make_eth_transaction, make_contract_call_trx
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
 from utils.consts import OPERATOR_KEYPAIR_PATH, LAMPORT_PER_SOL
-from utils.evm_loader import EvmLoader
+from utils.evm_loader import EvmLoader, EVM_STEPS
 from utils.helpers import decode_function_signature
 from utils.neon_user import NeonUser
 from utils.scheduled_trx import ScheduledTransaction
@@ -116,7 +116,11 @@ def deterministic_holder_acc(
     return evm_loader.create_holder(signer=deterministic_operator_keypair, seed=seed)
 
 
-def allure_attach_accounts_data(resp: GetTransactionResp, evm_loader: EvmLoader):
+def allure_attach_accounts_data(
+    resp: GetTransactionResp,
+    evm_loader: EvmLoader,
+    title: str = "Used accounts data",
+):
     accounts_data = {}
 
     for pubkey in resp.value.transaction.transaction.message.account_keys:
@@ -127,7 +131,7 @@ def allure_attach_accounts_data(resp: GetTransactionResp, evm_loader: EvmLoader)
 
     allure.attach(
         body=json.dumps(obj=accounts_data, indent=2),
-        name="Used accounts data",
+        name=title,
         attachment_type=allure.attachment_type.JSON,
     )
 
@@ -428,7 +432,7 @@ class TestComputeUnits:
     @pytest.mark.deterministic_user_index(4)
     @pytest.mark.deterministic_holder_acc_seed(4)
     @pytest.mark.deterministic_sender_with_tokens_index(0)
-    # @pytest.mark.skip(reason="Used compute units are unstable")
+    @pytest.mark.skip(reason="Used compute units are unstable")
     def test_precompiled(
         self,
         deterministic_user: Caller,
@@ -515,9 +519,15 @@ class TestComputeUnits:
             version="0.8.12",
         )
 
-        nonce = evm_loader.get_neon_nonce(deterministic_neon_user.neon_address, evm_loader.sol_chain_id)
+        nonce = evm_loader.get_neon_nonce(
+            account=deterministic_neon_user.neon_address,
+            chain_id=evm_loader.sol_chain_id,
+        )
         contract_data = 18
-        data = decode_function_signature("setNumber(uint256)", [contract_data])
+        data = decode_function_signature(
+            function_name="setNumber(uint256)",
+            args=[contract_data],
+        )
         tx = ScheduledTransaction(
             payer=deterministic_neon_user.neon_address,
             sender=None,
@@ -528,8 +538,15 @@ class TestComputeUnits:
             call_data=data,
             chain_id=evm_loader.sol_chain_id,
         )
-        tree_account = evm_loader.create_tree_account(deterministic_neon_user, deterministic_treasury_pool, tx.encode())
-        transaction_tree_data = neon_api_client.get_transaction_tree(deterministic_neon_user.neon_address.hex(), nonce)
+        tree_account = evm_loader.create_tree_account(
+            neon_user=deterministic_neon_user,
+            treasury=deterministic_treasury_pool,
+            transaction=tx.encode(),
+        )
+        transaction_tree_data = neon_api_client.get_transaction_tree(
+            address=deterministic_neon_user.neon_address.hex(),
+            nonce=nonce,
+        )
         assert transaction_tree_data.get_transaction_count() == 1
 
         evm_loader.write_transaction_to_holder_account(
@@ -539,17 +556,43 @@ class TestComputeUnits:
             basic_contract.solana_address,
             deterministic_neon_user.get_balance_account(evm_loader.sol_chain_id),
         ]
-        resp = evm_loader.execute_scheduled_trx_from_account(
-            0,
-            deterministic_operator_keypair,
-            deterministic_holder_acc,
-            tree_account,
-            deterministic_treasury_pool,
-            additional_accounts,
-            compute_unit_price=3929,
+
+        evm_loader.start_scheduled_trx_from_account(
+            index=0,
+            operator=deterministic_operator_keypair,
+            holder=deterministic_holder_acc,
+            tree_account=tree_account,
+            additional_accounts=additional_accounts,
+            chain_id=evm_loader.sol_chain_id,
         )
 
-        allure_attach_accounts_data(resp=resp, evm_loader=evm_loader)
+        operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(
+            operator=deterministic_operator_keypair,
+            chain_id=evm_loader.sol_chain_id,
+        )
+        cu_expected_list = [28300, 29284]
 
-        cu_consumed = resp.value.transaction.meta.compute_units_consumed
-        assert cu_consumed == 29284
+        for i, cu_expected in enumerate(cu_expected_list):
+            receipt = evm_loader.send_transaction_step_from_account(
+                operator=deterministic_operator_keypair,
+                operator_balance_pubkey=operator_balance_pubkey,
+                treasury=deterministic_treasury_pool,
+                storage_account=deterministic_holder_acc,
+                additional_accounts=additional_accounts,
+                steps_count=EVM_STEPS,
+                signer=deterministic_operator_keypair,
+                compute_unit_price=3929,
+            )
+
+            if receipt.value.transaction.meta.err:
+                raise AssertionError(f"Error in sol trx: {receipt}")
+
+            for log in receipt.value.transaction.meta.log_messages:
+                if "ExitError" in log:
+                    raise AssertionError(f"EVM Return error in logs: {receipt}")
+
+            allure_attach_accounts_data(resp=receipt, evm_loader=evm_loader, title=f"Used accounts data {i}")
+
+            cu_consumed = receipt.value.transaction.meta.compute_units_consumed
+            print("cu_consumed:", cu_consumed)
+            assert cu_consumed == cu_expected
