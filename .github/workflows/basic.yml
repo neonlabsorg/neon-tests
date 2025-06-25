@@ -172,6 +172,7 @@ jobs:
     outputs:
       test-group : ${{ steps.step_fail.outputs.FAILED_TEST_GROUP  }}
       error-log-exists: ${{ steps.copy-error-log.outputs.exists}}
+      allure_report_url: ${{ steps.generate-allure-report.outputs.allure_report_url }}
     steps:
       - uses: actions/checkout@v4
         if: ${{ env.NETWORK != 'devnet' }}
@@ -220,6 +221,7 @@ jobs:
           name: click-cmd-err-log-evm
           path: click_cmd_err_evm.log
       - name: "Generate allure report"
+        id: generate-allure-report
         if: always() && env.NETWORK != 'devnet'
         uses: ./.github/actions/generate-allure-report
         with:
@@ -255,6 +257,7 @@ jobs:
     outputs:
       test-group: ${{ steps.step_fail.outputs.FAILED_TEST_GROUP  }}
       error-log-exists: ${{ steps.copy-error-log.outputs.exists}}
+      allure_report_url: ${{ steps.generate-allure-report.outputs.allure_report_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Log in to Docker Hub
@@ -306,6 +309,7 @@ jobs:
             --directory reports/cost_reports && \
           docker exec -i ${{ env.CONTAINER }} cat cost_reports.md >> $GITHUB_STEP_SUMMARY
       - name: "Generate allure report"
+        id: generate-allure-report
         if: always()
         uses: ./.github/actions/generate-allure-report
         with:
@@ -412,4 +416,10 @@ jobs:
           evm_tests="${{ needs.run-evm-tests.outputs.test-group }}"
           FAILED_TEST_GROUP="${proxy_tests:-evm_tests}"
           python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
-          -b ${{ env.BUILD_URL }} --network ${{ env.NETWORK }} --test-group $FAILED_TEST_GROUP
+          -b ${{ env.BUILD_URL }} \
+          --network ${{ env.NETWORK }} \
+          --test-group $FAILED_TEST_GROUP \
+          --report-group evm \
+          --report-group basic \
+          --report-url ${{ needs.run-evm-tests.outputs.allure_report_url }} \
+          --report-url ${{ needs.run-proxy-tests.outputs.allure_report_url }}

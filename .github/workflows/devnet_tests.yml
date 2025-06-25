@@ -79,6 +79,7 @@ jobs:
           mkdir -p ./reports/cost_reports/ && \
           docker cp ${{ env.CONTAINER }}:/opt/neon-tests/reports/cost_reports/. ./reports/cost_reports/
       - name: "Generate allure report"
+        id: generate-allure-report
         if: always()
         uses: ./.github/actions/generate-allure-report
         with:
@@ -92,7 +93,9 @@ jobs:
         run: |
           docker exec -i ${{ env.CONTAINER }} \
             python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
-            -b ${{ env.BUILD_URL }} --network ${{ env.NETWORK }} --test-group basic
+            -b ${{ env.BUILD_URL }} --network ${{ env.NETWORK }} --test-group basic \
+            --report-group basic \
+            --report-url ${{ steps.generate-allure-report.outputs.allure_report_url }}
       - name: Remove docker container
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}

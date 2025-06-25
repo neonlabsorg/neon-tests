@@ -71,6 +71,7 @@ jobs:
           docker exec -i ${{ env.CONTAINER_NAME }} bash -c "CHROME_EXT_PASSWORD=${{ secrets.CHROME_EXT_PASSWORD }} python3 clickfile.py run ui --network ${{ env.NETWORK }} --ui-item=website"
 
       - name: "Generate allure report"
+        id: generate-allure-report
         if: always()
         uses: ./.github/actions/generate-allure-report
         with:
@@ -84,7 +85,9 @@ jobs:
         run: |
           docker exec -i ${{ env.CONTAINER_NAME }} \
             python3 ./clickfile.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
-            -b ${{ env.BUILD_URL }} --network ${{ env.NETWORK }} --test-group ui
+            -b ${{ env.BUILD_URL }} --network ${{ env.NETWORK }} --test-group ui \
+            --report-group ui \
+            --report-url ${{ steps.generate-allure-report.outputs.allure_report_url }}
       - name: Remove docker container
         if: always()
         run: docker rm -f ${{ env.CONTAINER_NAME }}
