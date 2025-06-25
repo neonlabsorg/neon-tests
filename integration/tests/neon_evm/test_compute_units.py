@@ -7,6 +7,7 @@ from typing import Literal
 import allure
 import eth_abi
 import pytest
+from eth_account.datastructures import SignedTransaction
 from eth_utils import to_checksum_address
 from solana.rpc.commitment import Confirmed
 from solders.keypair import Keypair
@@ -136,6 +137,53 @@ def allure_attach_accounts_data(
     )
 
 
+def execute_transaction_steps_from_instruction_and_validate_cu(
+    evm_loader: EvmLoader,
+    operator: Keypair,
+    treasury,
+    storage_account,
+    instruction: SignedTransaction,
+    additional_accounts,
+    cu_expected_list: list[int],
+    cu_delta_allowed: int,
+    signer: Keypair = None,
+    compute_unit_price=None,
+    chain_id: int | None = None,
+):
+    chain_id = chain_id or evm_loader.chain_id
+
+    signer = operator if signer is None else signer
+    operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator, chain_id)
+    index = 0
+
+    for i, cu_expected in enumerate(cu_expected_list):
+        receipt = evm_loader.send_transaction_step_from_instruction(
+            operator,
+            operator_balance_pubkey,
+            treasury,
+            storage_account,
+            instruction,
+            additional_accounts,
+            EVM_STEPS,
+            signer,
+            compute_unit_price=compute_unit_price,
+            index=index,
+        )
+        index += 1
+        if receipt.value.transaction.meta.err:
+            raise AssertionError(f"Transaction failed with error: {receipt.value.transaction.meta.err}")
+        for log in receipt.value.transaction.meta.log_messages:
+            if "exit_status" in log:
+                break
+            if "ExitError" in log:
+                raise AssertionError(f"EVM Return error in logs: {receipt}")
+
+        allure_attach_accounts_data(resp=receipt, evm_loader=evm_loader, title=f"Used accounts data {i}")
+
+        cu_consumed = receipt.value.transaction.meta.compute_units_consumed
+        assert (cu_consumed - cu_expected) <= cu_delta_allowed
+
+
 class TestComputeUnits:
     @pytest.mark.deterministic_index_of_process(18)  # must be greater than max number of --numprocesses
     @pytest.mark.deterministic_sender_with_tokens_index(0)
@@ -181,7 +229,6 @@ class TestComputeUnits:
     @pytest.mark.deterministic_index_of_process(19)  # must be greater than max number of --numprocesses
     @pytest.mark.deterministic_user_index(1)
     @pytest.mark.deterministic_holder_acc_seed(1)
-    @pytest.mark.skip(reason="Used compute units are unstable")
     def test_iterative_with_many_accounts(
         self,
         deterministic_user: Caller,
@@ -215,85 +262,25 @@ class TestComputeUnits:
         )
 
         data = decode_function_signature("update_storage_map(uint256)", [15])
-        result = neon_api_client.emulate(
-            deterministic_user.eth_address.hex(), rw_lock_caller_contract.eth_address.hex(), data
+        emulate_result = neon_api_client.emulate(
+            deterministic_user.eth_address.hex(), rw_lock_caller_contract.eth_address.hex(), data[2:]
         )
-        additional_accounts = [
-            deterministic_user.solana_account_address,
-            deterministic_user.balance_account_address,
-            rw_lock.solana_address,
-            rw_lock_caller_contract.solana_address,
-        ]
+        additional_accounts = [Pubkey.from_string(acc["pubkey"]) for acc in emulate_result["solana_accounts"]]
 
-        for acc in result["solana_accounts"]:
-            pk = Pubkey.from_string(acc["pubkey"])
-            additional_accounts.append(pk)
-
-        # # operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(deterministic_operator_keypair)
-        # done = False
-        # simulated_compute_units = 0
-        #
-        # while not done:
-        #     sol_tx = instructions.TransactionWithComputeBudget(deterministic_operator_keypair)
-        #     operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(deterministic_operator_keypair)
-        #     sol_tx.add(
-        #         instructions.make_ExecuteTrxFromInstruction(
-        #             operator=deterministic_operator_keypair,
-        #             operator_balance=operator_balance_pubkey,
-        #             holder_address=deterministic_holder_acc,
-        #             evm_loader_id=evm_loader.loader_id,
-        #             treasury_address=deterministic_treasury_pool.account,
-        #             treasury_buffer=deterministic_treasury_pool.buffer,
-        #             message=signed_eth_tx.raw_transaction,
-        #             additional_accounts=additional_accounts,
-        #         )
-        #     )
-        #     sol_tx.sign(deterministic_operator_keypair)
-        #
-        #     blockhash = base58.b58decode(str(evm_loader.get_latest_blockhash(Finalized).value.blockhash)).hex()
-        #     simulate_response = neon_api_client.simulate_solana(
-        #         blockhash=blockhash,
-        #         transactions=[sol_tx.serialize().hex()],
-        #         verify_signature=False,
-        #     )
-        #     simulated_transactions = simulate_response.json()["value"]["transactions"]
-        #
-        #     for simulated_transaction in simulated_transactions:
-        #         if simulated_transaction["error"]:
-        #             raise AssertionError(f"Error in sol trx: {simulated_transaction}")
-        #
-        #         for log in simulated_transaction["logs"]:
-        #             if "ExitError" in log:
-        #                 raise AssertionError(f"EVM Return error in logs: {simulated_transaction}")
-        #
-        #             elif "exit_status" in log:
-        #                 done = True
-        #                 break
-        #
-        #     simulated_compute_units += sum(
-        #         [simulate_result["executed_units"] for simulate_result in simulated_transactions]
-        #     )
-        #
-        # assert simulated_compute_units == 333506  # unstable
-
-        # -------------------
-        resp = evm_loader.execute_transaction_steps_from_instruction(
+        execute_transaction_steps_from_instruction_and_validate_cu(
+            evm_loader=evm_loader,
             operator=deterministic_operator_keypair,
             treasury=deterministic_treasury_pool,
             storage_account=deterministic_holder_acc,
             instruction=signed_eth_tx,
             additional_accounts=additional_accounts,
+            cu_expected_list=[90142, 100145, 60996, 215937],
+            cu_delta_allowed=5000,
         )
-
-        allure_attach_accounts_data(resp=resp, evm_loader=evm_loader)
-
-        cu_consumed = resp.value.transaction.meta.compute_units_consumed
-        assert abs(cu_consumed - 218000) < 10_000
 
     @pytest.mark.deterministic_index_of_process(20)  # must be greater than max number of --numprocesses
     @pytest.mark.deterministic_user_index(2)
     @pytest.mark.deterministic_holder_acc_seed(2)
-    @pytest.mark.skip(reason="Used compute units are unstable")
     def test_iterative_with_math(
         self,
         deterministic_user: Caller,
@@ -320,36 +307,25 @@ class TestComputeUnits:
         )
 
         data = decode_function_signature("moreInstructionWithLogs(uint256,uint256)", [0, 10])
-
-        result = neon_api_client.emulate(deterministic_user.eth_address.hex(), counter.eth_address.hex(), data)
-
-        additional_accounts = [
-            deterministic_user.solana_account_address,
-            deterministic_user.balance_account_address,
-            counter.solana_address,
-        ]
-
-        for acc in result["solana_accounts"]:
-            pk = Pubkey.from_string(acc["pubkey"])
-            additional_accounts.append(pk)
-
-        resp = evm_loader.execute_transaction_steps_from_instruction(
-            deterministic_operator_keypair,
-            deterministic_treasury_pool,
-            deterministic_holder_acc,
-            signed_tx,
-            additional_accounts,
+        emulate_result = neon_api_client.emulate(
+            deterministic_user.eth_address.hex(), counter.eth_address.hex(), data[2:]
         )
+        additional_accounts = [Pubkey.from_string(acc["pubkey"]) for acc in emulate_result["solana_accounts"]]
 
-        allure_attach_accounts_data(resp=resp, evm_loader=evm_loader)
-
-        cu_consumed = resp.value.transaction.meta.compute_units_consumed
-        assert cu_consumed == 32505
+        execute_transaction_steps_from_instruction_and_validate_cu(
+            evm_loader=evm_loader,
+            operator=deterministic_operator_keypair,
+            treasury=deterministic_treasury_pool,
+            storage_account=deterministic_holder_acc,
+            instruction=signed_tx,
+            additional_accounts=additional_accounts,
+            cu_expected_list=[73489, 66137, 37610, 30942],
+            cu_delta_allowed=5000,
+        )
 
     @pytest.mark.deterministic_index_of_process(21)  # must be greater than max number of --numprocesses
     @pytest.mark.deterministic_user_index(3)
     @pytest.mark.deterministic_holder_acc_seed(3)
-    @pytest.mark.skip(reason="Used compute units are unstable")
     def test_nested_calls(
         self,
         deterministic_user: Caller,
@@ -406,33 +382,26 @@ class TestComputeUnits:
         )
 
         emulate_result = neon_api_client.emulate(
-            deterministic_user.eth_address.hex(), contract_a.eth_address.hex(), data
+            deterministic_user.eth_address.hex(), contract_a.eth_address.hex(), data[2:]
         )
 
-        additional_accounts = []
+        additional_accounts = [Pubkey.from_string(acc["pubkey"]) for acc in emulate_result["solana_accounts"]]
 
-        for acc in emulate_result["solana_accounts"]:
-            pk = Pubkey.from_string(acc["pubkey"])
-            additional_accounts.append(pk)
-
-        resp = evm_loader.execute_transaction_steps_from_instruction(
-            deterministic_operator_keypair,
-            deterministic_treasury_pool,
-            deterministic_holder_acc,
-            signed_tx,
-            additional_accounts,
+        execute_transaction_steps_from_instruction_and_validate_cu(
+            evm_loader=evm_loader,
+            operator=deterministic_operator_keypair,
+            treasury=deterministic_treasury_pool,
+            storage_account=deterministic_holder_acc,
+            instruction=signed_tx,
+            additional_accounts=additional_accounts,
+            cu_expected_list=[70710, 86456, 90710, 36603, 33050],
+            cu_delta_allowed=5000,
         )
-
-        allure_attach_accounts_data(resp=resp, evm_loader=evm_loader)
-
-        cu_consumed = resp.value.transaction.meta.compute_units_consumed
-        assert cu_consumed == 35788
 
     @pytest.mark.deterministic_index_of_process(22)  # must be greater than max number of --numprocesses
     @pytest.mark.deterministic_user_index(4)
     @pytest.mark.deterministic_holder_acc_seed(4)
-    @pytest.mark.deterministic_sender_with_tokens_index(0)
-    @pytest.mark.skip(reason="Used compute units are unstable")
+    @pytest.mark.deterministic_sender_with_tokens_index(4)
     def test_precompiled(
         self,
         deterministic_user: Caller,
@@ -479,18 +448,16 @@ class TestComputeUnits:
 
         additional_accounts = [Pubkey.from_string(acc["pubkey"]) for acc in emulate_result["solana_accounts"]]
 
-        resp = evm_loader.execute_transaction_steps_from_instruction(
-            deterministic_operator_keypair,
-            deterministic_treasury_pool,
-            deterministic_holder_acc,
-            signed_tx,
-            additional_accounts,
+        execute_transaction_steps_from_instruction_and_validate_cu(
+            evm_loader=evm_loader,
+            operator=deterministic_operator_keypair,
+            treasury=deterministic_treasury_pool,
+            storage_account=deterministic_holder_acc,
+            instruction=signed_tx,
+            additional_accounts=additional_accounts,
+            cu_expected_list=[73489, 28831, 32512],
+            cu_delta_allowed=5000,
         )
-
-        allure_attach_accounts_data(resp=resp, evm_loader=evm_loader)
-
-        cu_consumed = resp.value.transaction.meta.compute_units_consumed
-        assert cu_consumed == 29559
 
     @pytest.mark.deterministic_index_of_process(23)  # must be greater than max number of --numprocesses
     @pytest.mark.deterministic_sender_with_tokens_index(5)
@@ -503,7 +470,6 @@ class TestComputeUnits:
         deterministic_treasury_pool: TreasuryPool,
         deterministic_holder_acc: Pubkey,
         neon_api_client: NeonApiClient,
-        neon_user: NeonUser,
     ):
         deterministic_neon_user = NeonUser(
             evm_loader_id=str(evm_loader.loader_id),
@@ -594,5 +560,4 @@ class TestComputeUnits:
             allure_attach_accounts_data(resp=receipt, evm_loader=evm_loader, title=f"Used accounts data {i}")
 
             cu_consumed = receipt.value.transaction.meta.compute_units_consumed
-            print("cu_consumed:", cu_consumed)
             assert cu_consumed == cu_expected
