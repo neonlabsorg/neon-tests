@@ -166,7 +166,7 @@ def make_transaction_execute_from_account(
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
 
-@log_instruction_fields("transaction_execute_from_account")
+@log_instruction_fields("transaction_step_from_account")
 def make_transaction_step_from_account(
     step_count: int,
     operator: Keypair,
