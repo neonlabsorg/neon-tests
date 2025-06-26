@@ -177,7 +177,7 @@ class TestInteroperability:
         self, sender_with_tokens, solana_caller, evm_loader, solana_client, environment
     ):
         payer = solana_caller.get_payer()
-        instruction = make_CreateAssociatedTokenIdempotent(
+        instruction = make_create_associated_token_idempotent(
             payer, sender_with_tokens.solana_account_address, Pubkey.from_string(environment.spl_neon_mint)
         )
         resp = solana_caller.batch_execute_overload(
