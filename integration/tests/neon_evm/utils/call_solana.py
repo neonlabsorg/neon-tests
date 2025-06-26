@@ -210,16 +210,16 @@ class SolanaCaller:
         execute_params = []
         for program_id, instruction in call_params:
             serialized_instruction = serialize_instruction(program_id, instruction)
-            execute_params.append((serialized_instruction,))
+            execute_params.append(serialized_instruction)
 
         if is_iterative:
-            calldata = keccak(text="batchExecuteFixedIterativeStepsOverload((uint64,bytes)[])")[:4] + eth_abi.encode(
-                ["(uint64,bytes)[]"],
+            calldata = keccak(text="batchExecuteFixedIterativeStepsOverload(bytes[])")[:4] + eth_abi.encode(
+                ["bytes[]"],
                 [execute_params],
             )
         else:
-            calldata = keccak(text="batchExecuteOver((bytes)[])")[:4] + eth_abi.encode(
-                ["(bytes)[]"],
+            calldata = keccak(text="batchExecuteOverload(bytes[])")[:4] + eth_abi.encode(
+                ["bytes[]"],
                 [execute_params],
             )
 
