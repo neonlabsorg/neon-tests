@@ -16,6 +16,11 @@ inputs:
   tests_name:
     description: 'basic/oz/economic/ui/evm'
     required: true
+outputs:
+  allure_report_url:
+    description: Allure report url
+    value: ${{ steps.output-allure-report-url.outputs.allure_report_url }}
+
 runs:
   using: composite
   steps:
@@ -30,21 +35,11 @@ runs:
       with:
         name: ${{ inputs.tests_name }}-allure-results.tar.gz
         path: allure-results.tar.gz
-    - name: "Download allure history"
-      if: always()
-      shell: bash
-      run: |
-        docker exec -i -e GITHUB_REF_NAME=${{ github.ref_name }} \
-        -e AWS_ACCESS_KEY_ID=${{ inputs.aws_access_key_id }} \
-        -e AWS_SECRET_ACCESS_KEY=${{ inputs.aws_secret_access_key }} \
-        ${{ inputs.container }} \
-         python3 ./clickfile.py allure get-history ${{ inputs.tests_name }} \
-          --network ${{ inputs.network }}
     - name: "Generate allure report"
       if: always()
       shell: bash
       run: |
-        docker exec -i ${{ inputs.container }} python3 ./clickfile.py allure generate
+        docker exec -i ${{ inputs.container }} bash -c "allure generate"
     - name: "Upload allure history"
       if: always()
       shell: bash
@@ -54,7 +49,16 @@ runs:
         -e AWS_ACCESS_KEY_ID=${{ inputs.aws_access_key_id }} \
         -e AWS_SECRET_ACCESS_KEY=${{ inputs.aws_secret_access_key }} \
         ${{ inputs.container }} \
-        python3 ./clickfile.py allure upload-report ${{ inputs.tests_name }} --network ${{ inputs.network }}
+        bash -c "python3 ./clickfile.py allure upload-report ${{ inputs.tests_name }} --network ${{ inputs.network }}"
+    - name: Save allure_report_url to outputs
+      id: output-allure-report-url
+      if: always()
+      shell: bash
+      run: |
+        if docker cp ${{ inputs.container }}:/opt/neon-tests/allure_report.url ./allure_report.url; then
+          url=$(cat allure_report.url)
+          echo "allure_report_url=$url" | tee -a $GITHUB_OUTPUT
+        fi
     - name: "Add result info to github page summary"
       if: always()
       shell: bash
