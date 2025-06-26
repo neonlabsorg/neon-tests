@@ -73,9 +73,6 @@ def test_successful_single_trx_with_outer_deposit(
     estimated_gas_fee = tx_0.DEFAULTS["gas_limit"] * tx_0.DEFAULTS["max_fee_per_gas"] / LAMPORT_TO_INNER_SOL
     deposit_to_tree_acc = 10_000  # Where it comes from?
     trx_execution_price = 5_000
-    # 1. 9_000_000 - default gas_limit * max_fee_per_gas / (10 ^ 9)
-    # 2. 10_000 - deposit to tree_account
-    # 3. Create_tree_acc trx - 5_000 - trx execution fee
 
     assert (
         delta_neon_user == estimated_gas_fee + deposit_to_tree_acc + trx_execution_price
