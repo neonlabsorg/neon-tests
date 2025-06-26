@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import pathlib
+import re
 from typing import Literal
 
 import allure
@@ -10,6 +11,7 @@ import pytest
 from eth_account.datastructures import SignedTransaction
 from eth_utils import to_checksum_address
 from solana.rpc.commitment import Confirmed
+from solana.rpc.core import RPCException
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solders.rpc.responses import GetTransactionResp
@@ -281,34 +283,39 @@ class TestComputeUnits:
     @pytest.mark.deterministic_index_of_process(20)  # must be greater than max number of --numprocesses
     @pytest.mark.deterministic_user_index(2)
     @pytest.mark.deterministic_holder_acc_seed(2)
-    def test_iterative_with_math(
+    @pytest.mark.deterministic_sender_with_tokens_index(2)
+    def test_payable_function(
         self,
-        deterministic_user: Caller,
         evm_loader: EvmLoader,
         deterministic_operator_keypair: Keypair,
         deterministic_treasury_pool: TreasuryPool,
+        deterministic_sender_with_tokens: Caller,
         deterministic_holder_acc: Pubkey,
         neon_api_client: NeonApiClient,
     ):
-        counter = evm_loader.deploy_contract(
+        contract = evm_loader.deploy_contract(
             operator=deterministic_operator_keypair,
-            user=deterministic_user,
-            contract_file_name="common/Counter",
+            user=deterministic_sender_with_tokens,
+            contract_file_name="string_setter",
             neon_api_client=neon_api_client,
             treasury_pool=deterministic_treasury_pool,
-            version="0.8.10",
         )
+        function_signature = "set(string)"
+        params = ["Hello"]
         signed_tx = make_contract_call_trx(
             evm_loader=evm_loader,
-            user=deterministic_user,
-            contract=counter,
-            function_signature="moreInstructionWithLogs(uint256,uint256)",
-            params=[0, 10],
+            user=deterministic_sender_with_tokens,
+            contract=contract,
+            function_signature=function_signature,
+            params=params,
+            value=100,
         )
 
-        data = decode_function_signature("moreInstructionWithLogs(uint256,uint256)", [0, 10])
+        data = decode_function_signature(function_signature, params)
         emulate_result = neon_api_client.emulate(
-            deterministic_user.eth_address.hex(), counter.eth_address.hex(), data[2:]
+            sender=deterministic_sender_with_tokens.eth_address.hex(),
+            contract=contract.eth_address.hex(),
+            data=data[2:],
         )
         additional_accounts = [Pubkey.from_string(acc["pubkey"]) for acc in emulate_result["solana_accounts"]]
 
@@ -319,7 +326,7 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[73489, 66137, 37610, 30942],
+            cu_expected_list=[74215, 48320],
             cu_delta_allowed=5000,
         )
 
@@ -561,3 +568,57 @@ class TestComputeUnits:
 
             cu_consumed = receipt.value.transaction.meta.compute_units_consumed
             assert cu_consumed == cu_expected
+
+    @pytest.mark.deterministic_index_of_process(24)  # must be greater than max number of --numprocesses
+    @pytest.mark.deterministic_user_index(6)
+    @pytest.mark.deterministic_holder_acc_seed(6)
+    def test_negative(
+        self,
+        deterministic_user: Caller,
+        evm_loader: EvmLoader,
+        deterministic_operator_keypair: Keypair,
+        deterministic_treasury_pool: TreasuryPool,
+        deterministic_holder_acc: Pubkey,
+        neon_api_client: NeonApiClient,
+    ):
+        contract = evm_loader.deploy_contract(
+            operator=deterministic_operator_keypair,
+            user=deterministic_user,
+            contract_file_name="common/ExpectedErrorsChecker",
+            contract_name="A",
+            neon_api_client=neon_api_client,
+            treasury_pool=deterministic_treasury_pool,
+            version="0.8.12",
+        )
+        function_signature = "method1"
+        signed_tx = make_contract_call_trx(
+            evm_loader=evm_loader,
+            user=deterministic_user,
+            contract=contract,
+            function_signature=function_signature,
+        )
+
+        data = decode_function_signature(function_signature)
+        emulate_result = neon_api_client.emulate(
+            sender=deterministic_user.eth_address.hex(),
+            contract=contract.eth_address.hex(),
+            data=data[2:],
+        )
+        additional_accounts = [Pubkey.from_string(acc["pubkey"]) for acc in emulate_result["solana_accounts"]]
+
+        try:
+            execute_transaction_steps_from_instruction_and_validate_cu(
+                evm_loader=evm_loader,
+                operator=deterministic_operator_keypair,
+                treasury=deterministic_treasury_pool,
+                storage_account=deterministic_holder_acc,
+                instruction=signed_tx,
+                additional_accounts=additional_accounts,
+                cu_expected_list=[69937, 27968, 29559, -1] * 10,  # the fourth one is expected to fail
+                cu_delta_allowed=0,
+            )
+        except RPCException as e:
+            # validate the fourth step
+            error_message = repr(e)
+            cu_consumed = int(re.search(pattern="units_consumed.*\n\s*(\d+)", string=error_message).group(1))
+            assert (cu_consumed - 45136) <= 5000
