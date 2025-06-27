@@ -156,7 +156,6 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
     done = False
 
     while not done:
-        cu_expected = cu_expected_list[index]
         receipt = evm_loader.send_transaction_step_from_instruction(
             operator,
             operator_balance_pubkey,
@@ -181,6 +180,13 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
         allure_attach_accounts_data(resp=receipt, evm_loader=evm_loader, title=f"Used accounts data {index}")
 
         cu_consumed = receipt.value.transaction.meta.compute_units_consumed
+        allure.attach(
+            body=str(cu_consumed),
+            name=f"cu_consumed_{index}",
+            attachment_type=allure.attachment_type.TEXT,
+        )
+
+        cu_expected = cu_expected_list[index]
         assert (cu_consumed - cu_expected) <= cu_delta_allowed
         index += 1
 
