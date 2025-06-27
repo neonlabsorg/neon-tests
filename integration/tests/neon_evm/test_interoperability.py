@@ -413,6 +413,35 @@ class TestInteroperability:
 
         assert int(mint.get_balance(to_token_account, commitment=Confirmed).value.amount) == amount
 
+    def test_transfer_tokens_with_ext_authority_overload(
+        self, evm_loader, sender_with_tokens, solana_caller, solana_client
+    ):
+        from_wallet = sender_with_tokens
+        to_wallet = Keypair()
+        amount = 100000
+        mint, from_token_account, to_token_account = _create_mint_and_accounts(
+            evm_loader, from_wallet.solana_account, to_wallet, amount
+        )
+        seed = b"myseed"
+        authority = solana_caller.get_eth_ext_authority(seed, from_wallet)
+
+        mint.set_authority(
+            from_token_account,
+            from_wallet.solana_account,
+            spl.token.instructions.AuthorityType.ACCOUNT_OWNER,
+            authority,
+            opts=TxOpts(skip_confirmation=False, skip_preflight=True),
+        )
+
+        instruction = transfer(
+            TransferParams(TOKEN_PROGRAM_ID, from_token_account, to_token_account, authority, amount)
+        )
+
+        resp = solana_caller.execute_with_seed_overload(TOKEN_PROGRAM_ID, instruction, seed, sender=from_wallet)
+        check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
+
+        assert int(mint.get_balance(to_token_account, commitment=Confirmed).value.amount) == amount
+
     def test_transfer_tokens_with_unauthorized_signer(self, solana_caller, sender_with_tokens, evm_loader, environment):
         from_wallet = sender_with_tokens
         to_wallet = Keypair()
