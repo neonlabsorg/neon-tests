@@ -64,15 +64,11 @@ def deterministic_operator_keypair(
 def deterministic_treasury_pool(
     request: pytest.FixtureRequest,
     evm_loader: EvmLoader,
-    pytestconfig,
-    bank_account: Keypair,
     deterministic_index_of_process: int,
 ) -> TreasuryPool:
     index = deterministic_index_of_process
     evm_loader.create_treasury_pool_address(index)
-
     address = evm_loader.create_treasury_pool_address(index)
-
     index_buf = index.to_bytes(4, "little")
     balance = evm_loader.get_solana_balance(address)
 
@@ -157,8 +153,10 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
     signer = operator if signer is None else signer
     operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator, chain_id)
     index = 0
+    done = False
 
-    for i, cu_expected in enumerate(cu_expected_list):
+    while not done:
+        cu_expected = cu_expected_list[index]
         receipt = evm_loader.send_transaction_step_from_instruction(
             operator,
             operator_balance_pubkey,
@@ -171,19 +169,20 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
             compute_unit_price=compute_unit_price,
             index=index,
         )
-        index += 1
         if receipt.value.transaction.meta.err:
             raise AssertionError(f"Transaction failed with error: {receipt.value.transaction.meta.err}")
         for log in receipt.value.transaction.meta.log_messages:
             if "exit_status" in log:
+                done = True
                 break
             if "ExitError" in log:
                 raise AssertionError(f"EVM Return error in logs: {receipt}")
 
-        allure_attach_accounts_data(resp=receipt, evm_loader=evm_loader, title=f"Used accounts data {i}")
+        allure_attach_accounts_data(resp=receipt, evm_loader=evm_loader, title=f"Used accounts data {index}")
 
         cu_consumed = receipt.value.transaction.meta.compute_units_consumed
         assert (cu_consumed - cu_expected) <= cu_delta_allowed
+        index += 1
 
 
 class TestComputeUnits:
@@ -222,6 +221,7 @@ class TestComputeUnits:
             ],
             compute_unit_price=5000,
         )
+        assert resp.value.transaction.meta.err is None
 
         allure_attach_accounts_data(resp=resp, evm_loader=evm_loader)
 
@@ -544,8 +544,11 @@ class TestComputeUnits:
             chain_id=evm_loader.sol_chain_id,
         )
         cu_expected_list = [28300, 29284]
+        done = False
+        i = 0
 
-        for i, cu_expected in enumerate(cu_expected_list):
+        while not done:
+            cu_expected = cu_expected_list[i]
             receipt = evm_loader.send_transaction_step_from_account(
                 operator=deterministic_operator_keypair,
                 operator_balance_pubkey=operator_balance_pubkey,
@@ -561,6 +564,9 @@ class TestComputeUnits:
                 raise AssertionError(f"Error in sol trx: {receipt}")
 
             for log in receipt.value.transaction.meta.log_messages:
+                if "exit_status" in log:
+                    done = True
+                    break
                 if "ExitError" in log:
                     raise AssertionError(f"EVM Return error in logs: {receipt}")
 
@@ -568,6 +574,7 @@ class TestComputeUnits:
 
             cu_consumed = receipt.value.transaction.meta.compute_units_consumed
             assert cu_consumed == cu_expected
+            i += 1
 
     @pytest.mark.deterministic_index_of_process(24)  # must be greater than max number of --numprocesses
     @pytest.mark.deterministic_user_index(6)
