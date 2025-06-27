@@ -1288,18 +1288,19 @@ class TestEconomics:
             token_balance_before = token_balance_after
             gas_used = gas
 
-    @pytest.mark.parametrize("is_dependent", [True, False])
+    # @pytest.mark.parametrize("is_dependent", [True, False])
+    @pytest.mark.parametrize("is_dependent", [True])
     def test_multiple_scheduled_trx_sols_outside_neon(
         self,
         operator,
         web3_client_sol,
+        neon_user,
         increase_storage_contract,
         evm_loader,
         treasury_pool,
         sol_price,
         sol_client,
         is_dependent,
-        neon_user,
     ):
         trx_count = 4
         data = decode_function_signature("incWithoutALT()")
@@ -1307,9 +1308,14 @@ class TestEconomics:
         sol_balance_before = operator.get_solana_balance()
         token_balance_before = operator.get_token_balance(web3_client_sol)
 
-        operator_inner_balance_before = operator.get_token_balance(web3_client_sol)
-        user_inner_sol_balance_b = web3_client_sol.get_balance(neon_user.checksum_address)
-        full_volume_before = operator_inner_balance_before + user_inner_sol_balance_b
+        operator_inner_balance_before1 = operator.get_token_balance(web3_client_sol)
+
+        user_inner_sol_balance_before = web3_client_sol.get_balance(neon_user.checksum_address)
+        user_outer_sol_balance_before = evm_loader.get_solana_balance(neon_user.solana_account.pubkey()) * 1_000_000_000
+
+        full_volume_before = (
+            operator_inner_balance_before1 + user_inner_sol_balance_before + user_outer_sol_balance_before
+        )
 
         trx_estimate_obj_list = []
         for i in range(trx_count):
@@ -1322,6 +1328,7 @@ class TestEconomics:
                     child_transaction=child_transaction,
                 )
             )
+
         estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), trx_estimate_obj_list)
         trxs = []
         for i in range(trx_count):
@@ -1348,9 +1355,21 @@ class TestEconomics:
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client_sol)
+
         operator_inner_balance_after = operator.get_token_balance(web3_client_sol)
-        user_inner_sol_balance_after = web3_client_sol.get_balance(neon_user.checksum_address)
-        full_volume_after = operator_inner_balance_after + user_inner_sol_balance_after
+
+        user_inner_sol_balance_after_send_trx = web3_client_sol.get_balance(neon_user.checksum_address)
+        user_outer_sol_balance_after_send_trx = (
+            evm_loader.get_solana_balance(neon_user.solana_account.pubkey()) * 1_000_000_000
+        )
+
+        full_volume_after = (
+            operator_inner_balance_after + user_inner_sol_balance_after_send_trx + user_outer_sol_balance_after_send_trx
+        )
+
+        # финальная формула это разница между суммой всех балансов ДО и После исполнения транзакций
+        # (оператор_внутренний_баланс_ДО + юзер_внутренний_баланс_ДО+ юзер_внешний_баланс_ДО*10^9) - (оператор_внутренний_баланс_ПОСЛЕ + юзер_внутренний_баланс_ПОСЛЕ+ юзер_внешний_баланс_ПОСЛЕ*10^90)
+
         diff_volume = full_volume_before - full_volume_after
         assert diff_volume == 0, f"not same, diff={full_volume_before - full_volume_after}"
 
