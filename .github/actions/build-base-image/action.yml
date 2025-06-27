@@ -120,10 +120,11 @@ runs:
         delimiter=$(printf "%0.s-" {1..30})
         echo " ${delimiter} Build new docker image ${image_name} ${delimiter}"
 
+        # TODO get back MAIN branch after merge NDEV-3803
         docker build . --no-cache --tag ${image_name}:${{ inputs.image_tag }} \
             --file Dockerfile-base \
             --build-arg OZ_TAG=${{ inputs.oz_tag }} \
-            --build-arg CONTRACTS_BRANCH="main" \
+            --build-arg CONTRACTS_BRANCH="add/execute-without-lamports" \
             --build-arg DOCKER_HUB_ORG_NAME=${{env.DOCKER_HUB_ORG_NAME}}
 
         # Tag with branch name if available
