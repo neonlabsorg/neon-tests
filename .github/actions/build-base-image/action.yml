@@ -139,7 +139,7 @@ runs:
       if: steps.need_build.outputs.need_build == 'false'
       shell: bash
       run: |
-        echo "Skipping build as using existing image: ${{ steps.need_build.outputs.use_image }}"
+        echo "Skipping build as  using existing image: ${{ steps.need_build.outputs.use_image }}"
 
     - name: Set output
       id: set_output
