@@ -88,6 +88,7 @@ interface ICallSolana {
     // This method uses external authority to authorize the operation (`getExtAuthority(salt)`)
     // Returns the returned data of the executed instruction (if program returned the data is equal to the program_id of the instruction)
     function executeWithSeed(uint64 lamports, bytes32 salt, bytes memory instruction) external returns (bytes memory);
+    function executeWithSeed(bytes32 salt, bytes memory instruction) external returns (bytes memory);
 
 
     // Returns the program_id and returned data of the last executed instruction (if no return data was set returns zeroed bytes)

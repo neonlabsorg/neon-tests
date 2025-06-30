@@ -213,7 +213,7 @@ class TestInteroperability:
         self, sender_with_tokens, solana_caller, evm_loader, solana_client
     ):
         instruction_count = 10
-        resource_addr = solana_caller.create_resource(sender_with_tokens, b"1234", 8, 1000000000, COUNTER_ID)
+        resource_addr = solana_caller.create_resource(sender_with_tokens, b"2234", 8, 1000000000, COUNTER_ID)
 
         instruction = Instruction(
             program_id=COUNTER_ID,
@@ -255,7 +255,7 @@ class TestInteroperability:
 
     def test_limit_of_simple_instr_in_one_trx_overload(self, sender_with_tokens, solana_caller):
         instruction_count = 29
-        resource_addr = solana_caller.create_resource(sender_with_tokens, b"dss", 8, 1000000000, COUNTER_ID)
+        resource_addr = solana_caller.create_resource(sender_with_tokens, b"fss", 8, 1000000000, COUNTER_ID)
 
         instruction = Instruction(
             program_id=COUNTER_ID,
@@ -717,7 +717,7 @@ class TestInteroperability:
     ):
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
 
-        resource_addr = solana_caller.create_resource(sender_with_tokens, b"qqww", 8, 1000000000, COUNTER_ID)
+        resource_addr = solana_caller.create_resource(sender_with_tokens, b"rrww", 8, 1000000000, COUNTER_ID)
         matrix_size = 8
         matrix = [[random.randint(1, 100) for _ in range(matrix_size)] for _ in range(matrix_size)]
 
