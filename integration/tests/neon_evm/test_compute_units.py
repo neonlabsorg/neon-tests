@@ -10,20 +10,26 @@ import eth_abi
 import pytest
 from eth_account.datastructures import SignedTransaction
 from eth_utils import to_checksum_address
-from solana.rpc.commitment import Confirmed
+from solana.rpc.commitment import Confirmed, Finalized
 from solana.rpc.core import RPCException
+from solana.rpc.types import TxOpts
+from solana.transaction import Transaction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solders.rpc.responses import GetTransactionResp
 
+from integration.tests.basic.evm.test_spl_token import DECIMALS, NAME, SYMBOL
 from integration.tests.neon_evm.conftest import prepare_operator
 from integration.tests.neon_evm.utils.ethereum import make_eth_transaction, make_contract_call_trx
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
-from utils.consts import OPERATOR_KEYPAIR_PATH, LAMPORT_PER_SOL
+from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
+from utils.consts import OPERATOR_KEYPAIR_PATH, LAMPORT_PER_SOL, SolanaTxWithNeonStepExitStatus
 from utils.evm_loader import EvmLoader, EVM_STEPS
 from utils.helpers import decode_function_signature
+from utils.metaplex import create_metadata_instruction_data, create_metadata_instruction
 from utils.neon_user import NeonUser
 from utils.scheduled_trx import ScheduledTransaction
+from utils.solana_client import SolanaClient
 from utils.types import Caller, TreasuryPool
 
 logger = logging.getLogger(__name__)
@@ -120,16 +126,20 @@ def allure_attach_accounts_data(
     evm_loader: EvmLoader,
     title: str = "Used accounts data",
 ):
-    accounts_data = {}
+    data = {
+        "signatures": [str(s) for s in resp.value.transaction.transaction.signatures],
+        "cu_consumed": resp.value.transaction.meta.compute_units_consumed,
+        "accounts_data": {},
+    }
 
     for pubkey in resp.value.transaction.transaction.message.account_keys:
         info = evm_loader.get_account_info(pubkey).value
 
         if info:
-            accounts_data[str(pubkey)] = str(info.data)
+            data["accounts_data"][str(pubkey)] = str(info.data)
 
     allure.attach(
-        body=json.dumps(obj=accounts_data, indent=2),
+        body=json.dumps(obj=data, indent=2),
         name=title,
         attachment_type=allure.attachment_type.JSON,
     )
@@ -144,6 +154,8 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
     additional_accounts,
     cu_expected_list: list[int],
     cu_delta_allowed: int,
+    sol_client: SolanaClient,
+    expect_log: str,
     signer: Keypair = None,
     compute_unit_price=None,
     chain_id: int | None = None,
@@ -154,6 +166,7 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
     operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator, chain_id)
     index = 0
     done = False
+    receipt = None
 
     while not done:
         receipt = evm_loader.send_transaction_step_from_instruction(
@@ -180,15 +193,12 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
         allure_attach_accounts_data(resp=receipt, evm_loader=evm_loader, title=f"Used accounts data {index}")
 
         cu_consumed = receipt.value.transaction.meta.compute_units_consumed
-        allure.attach(
-            body=str(cu_consumed),
-            name=f"cu_consumed_{index}",
-            attachment_type=allure.attachment_type.TEXT,
-        )
-
         cu_expected = cu_expected_list[index]
         assert (cu_consumed - cu_expected) <= cu_delta_allowed
         index += 1
+
+    if receipt:
+        check_transaction_logs_have_text(solana_client=sol_client, trx=receipt, text=expect_log)
 
 
 class TestComputeUnits:
@@ -204,6 +214,7 @@ class TestComputeUnits:
         deterministic_user: Caller,
         evm_loader: EvmLoader,
         deterministic_holder_acc: Pubkey,
+        sol_client: SolanaClient,
     ):
         signed_tx = make_eth_transaction(
             evm_loader=evm_loader,
@@ -228,6 +239,11 @@ class TestComputeUnits:
             compute_unit_price=5000,
         )
         assert resp.value.transaction.meta.err is None
+        check_transaction_logs_have_text(
+            solana_client=sol_client,
+            trx=resp,
+            text=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
+        )
 
         allure_attach_accounts_data(resp=resp, evm_loader=evm_loader)
 
@@ -245,6 +261,7 @@ class TestComputeUnits:
         deterministic_treasury_pool: TreasuryPool,
         deterministic_holder_acc: Pubkey,
         neon_api_client: NeonApiClient,
+        sol_client: SolanaClient,
     ):
         rw_lock = evm_loader.deploy_contract(
             deterministic_operator_keypair,
@@ -284,6 +301,8 @@ class TestComputeUnits:
             additional_accounts=additional_accounts,
             cu_expected_list=[90142, 100145, 60996, 215937],
             cu_delta_allowed=5000,
+            sol_client=sol_client,
+            expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(20)  # must be greater than max number of --numprocesses
@@ -298,6 +317,7 @@ class TestComputeUnits:
         deterministic_sender_with_tokens: Caller,
         deterministic_holder_acc: Pubkey,
         neon_api_client: NeonApiClient,
+        sol_client: SolanaClient,
     ):
         contract = evm_loader.deploy_contract(
             operator=deterministic_operator_keypair,
@@ -324,6 +344,7 @@ class TestComputeUnits:
             data=data[2:],
         )
         additional_accounts = [Pubkey.from_string(acc["pubkey"]) for acc in emulate_result["solana_accounts"]]
+        additional_accounts += [contract.balance_account_address]
 
         execute_transaction_steps_from_instruction_and_validate_cu(
             evm_loader=evm_loader,
@@ -332,8 +353,10 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[74215, 48320],
+            cu_expected_list=[75347, 49302, 43307],
             cu_delta_allowed=5000,
+            sol_client=sol_client,
+            expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(21)  # must be greater than max number of --numprocesses
@@ -347,6 +370,7 @@ class TestComputeUnits:
         deterministic_treasury_pool: TreasuryPool,
         deterministic_holder_acc: Pubkey,
         neon_api_client: NeonApiClient,
+        sol_client: SolanaClient,
     ):
         contract_a = evm_loader.deploy_contract(
             contract_file_name="common/NestedCallsChecker",
@@ -409,6 +433,8 @@ class TestComputeUnits:
             additional_accounts=additional_accounts,
             cu_expected_list=[70710, 86456, 90710, 36603, 33050],
             cu_delta_allowed=5000,
+            sol_client=sol_client,
+            expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(22)  # must be greater than max number of --numprocesses
@@ -424,7 +450,30 @@ class TestComputeUnits:
         deterministic_holder_acc: Pubkey,
         deterministic_sender_with_tokens: Caller,
         neon_api_client: NeonApiClient,
+        sol_client: SolanaClient,
+        web3_client,
+        accounts,
     ):
+        token_mint, _ = sol_client.create_spl(deterministic_sender_with_tokens.solana_account, DECIMALS)
+        metadata = create_metadata_instruction_data(NAME, SYMBOL)
+        txn = Transaction()
+        txn.add(
+            create_metadata_instruction(
+                data=metadata,
+                update_authority=deterministic_sender_with_tokens.solana_account.pubkey(),
+                mint_key=token_mint.pubkey,
+                mint_authority_key=deterministic_sender_with_tokens.solana_account.pubkey(),
+                payer=deterministic_sender_with_tokens.solana_account.pubkey(),
+            )
+        )
+        metadata_signature = sol_client.send_transaction(
+            txn,
+            deterministic_sender_with_tokens.solana_account,
+            opts=TxOpts(preflight_commitment=Finalized, skip_confirmation=False),
+        ).value
+        metadata_receipt = sol_client.get_transaction(metadata_signature, commitment=Finalized)
+        assert metadata_receipt.value.transaction.meta.err is None
+
         contract = evm_loader.deploy_contract(
             operator=deterministic_operator_keypair,
             user=deterministic_user,
@@ -434,14 +483,8 @@ class TestComputeUnits:
             contract_name="SplTokenCaller",
             version="0.8.28",
         )
-        function_signature = "transfer(address,address,uint)"
-        sender_checksum_address = to_checksum_address("0x" + deterministic_sender_with_tokens.eth_address.hex())
-        receiver_checksum_address = to_checksum_address("0x" + deterministic_user.eth_address.hex())
-        params = [
-            sender_checksum_address,
-            receiver_checksum_address,
-            1000,
-        ]
+        function_signature = "initializeMint(uint8)"
+        params = [DECIMALS]
 
         signed_tx = make_contract_call_trx(
             evm_loader=evm_loader,
@@ -468,8 +511,10 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[73489, 28831, 32512],
+            cu_expected_list=[75813, 62316, 53276],
             cu_delta_allowed=5000,
+            sol_client=sol_client,
+            expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(23)  # must be greater than max number of --numprocesses
@@ -483,6 +528,7 @@ class TestComputeUnits:
         deterministic_treasury_pool: TreasuryPool,
         deterministic_holder_acc: Pubkey,
         neon_api_client: NeonApiClient,
+        sol_client: SolanaClient,
     ):
         deterministic_neon_user = NeonUser(
             evm_loader_id=str(evm_loader.loader_id),
@@ -552,6 +598,7 @@ class TestComputeUnits:
         cu_expected_list = [28300, 29284]
         done = False
         i = 0
+        receipt = None
 
         while not done:
             cu_expected = cu_expected_list[i]
@@ -582,6 +629,13 @@ class TestComputeUnits:
             assert cu_consumed == cu_expected
             i += 1
 
+        if receipt:
+            check_transaction_logs_have_text(
+                solana_client=sol_client,
+                trx=receipt,
+                text=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
+            )
+
     @pytest.mark.deterministic_index_of_process(24)  # must be greater than max number of --numprocesses
     @pytest.mark.deterministic_user_index(6)
     @pytest.mark.deterministic_holder_acc_seed(6)
@@ -593,6 +647,7 @@ class TestComputeUnits:
         deterministic_treasury_pool: TreasuryPool,
         deterministic_holder_acc: Pubkey,
         neon_api_client: NeonApiClient,
+        sol_client: SolanaClient,
     ):
         contract = evm_loader.deploy_contract(
             operator=deterministic_operator_keypair,
@@ -629,6 +684,8 @@ class TestComputeUnits:
                 additional_accounts=additional_accounts,
                 cu_expected_list=[69937, 27968, 29559, -1] * 10,  # the fourth one is expected to fail
                 cu_delta_allowed=0,
+                sol_client=sol_client,
+                expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.REVERT}",
             )
         except RPCException as e:
             # validate the fourth step
