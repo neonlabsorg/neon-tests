@@ -254,7 +254,7 @@ class TestInteroperability:
             solana_caller.batch_execute(call_params, sender_with_tokens)
 
     def test_limit_of_simple_instr_in_one_trx_overload(self, sender_with_tokens, solana_caller):
-        instruction_count = 29
+        instruction_count = 40
         resource_addr = solana_caller.create_resource(sender_with_tokens, b"fss", 8, 1000000000, COUNTER_ID)
 
         instruction = Instruction(
