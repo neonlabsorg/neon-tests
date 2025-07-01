@@ -625,11 +625,11 @@ class EvmLoader(SolanaClient):
         return receipt
 
     @allure.step("Create new user")
-    def make_new_user(self, sender: Keypair, key: Keypair | None = None) -> Caller:
-        key = key or Keypair()
-        if self.get_solana_balance(key.pubkey()) == 0:
-            self.request_airdrop(key.pubkey(), 1000 * 10**9, commitment=Confirmed)
-        caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
+    def make_new_user(self, sender: Keypair, key_pair: Keypair | None = None) -> Caller:
+        key_pair = key_pair or Keypair()
+        if self.get_solana_balance(key_pair.pubkey()) == 0:
+            self.request_airdrop(key_pair.pubkey(), 1000 * 10**9, commitment=Confirmed)
+        caller_ether = eth_keys.PrivateKey(key_pair.secret()[:32]).public_key.to_canonical_address()
         solana_account_address = self.ether2program(caller_ether)[0]
         balance_account_address = self.ether2balance(caller_ether)
         ata = get_associated_token_address(balance_account_address, self.neon_token_mint_id)
@@ -638,7 +638,7 @@ class EvmLoader(SolanaClient):
             self.create_balance_account(caller_ether, sender)
 
         user = Caller(
-            solana_account=key,
+            solana_account=key_pair,
             solana_account_address=Pubkey.from_string(solana_account_address),
             balance_account_address=balance_account_address,
             eth_address=caller_ether,

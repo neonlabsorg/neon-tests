@@ -35,10 +35,45 @@ from utils.types import Caller, TreasuryPool
 logger = logging.getLogger(__name__)
 
 
+deterministic_index_of_process_stash_key = pytest.StashKey[set]()
+deterministic_sender_with_tokens_index_stash_key = pytest.StashKey[set]()
+deterministic_user_index_stash_key = pytest.StashKey[set]()
+deterministic_holder_acc_seed_stash_key = pytest.StashKey[set]()
+
+
+def get_and_validate_mark_value(
+    request: pytest.FixtureRequest,
+    key: pytest.StashKey[set],
+    mark: str,
+) -> int:
+    """
+    Gets the closest mark value and makes sure it's unique
+    """
+    passed_value = request.node.get_closest_marker(mark).args[0]
+    used_values = request.config.stash.get(key, set())
+
+    if passed_value in used_values:
+        raise Exception(f"{mark}({passed_value}) was already used in another test")
+
+    used_values.add(passed_value)
+    request.config.stash[key] = used_values
+
+    return passed_value
+
+
+def skip_if_non_zero_balance(*pub_keys: Pubkey, evm_loader: EvmLoader):
+    for key in pub_keys:
+        balance = evm_loader.get_solana_balance(key)
+
+        if balance != 0:
+            pytest.skip(f"{key} has non-zero balance")
+
+
 @pytest.fixture
 def deterministic_index_of_process(request: pytest.FixtureRequest) -> int:
-    mark: pytest.Mark = request.node.get_closest_marker("deterministic_index_of_process")
-    process_index = mark.args[0]
+    process_index = get_and_validate_mark_value(
+        request=request, key=deterministic_index_of_process_stash_key, mark="deterministic_index_of_process"
+    )
     return process_index
 
 
@@ -63,6 +98,13 @@ def deterministic_operator_keypair(
     request: pytest.FixtureRequest, evm_loader: EvmLoader, deterministic_index_of_process: int
 ) -> Keypair:
     key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{deterministic_index_of_process}.json")
+
+    with open(key_file, "r") as key:
+        secret_key = json.load(key)
+        key_pair = Keypair.from_bytes(secret_key)
+
+    skip_if_non_zero_balance(key_pair.pubkey(), evm_loader=evm_loader)
+
     return prepare_operator(key_file, evm_loader)
 
 
@@ -91,10 +133,16 @@ def deterministic_sender_with_tokens(
     deterministic_operator_keypair: Keypair,
     deterministic_key_pairs: dict[Literal["sender_with_tokens", "user"], list[Keypair]],
 ) -> Caller:
-    mark: pytest.Mark = request.node.get_closest_marker("deterministic_sender_with_tokens_index")
-    index = mark.args[0]
-    key = deterministic_key_pairs["sender_with_tokens"][index]
-    user = evm_loader.make_new_user(deterministic_operator_keypair, key=key)
+    index = get_and_validate_mark_value(
+        request=request,
+        key=deterministic_sender_with_tokens_index_stash_key,
+        mark="deterministic_sender_with_tokens_index",
+    )
+    key_pair = deterministic_key_pairs["sender_with_tokens"][index]
+
+    skip_if_non_zero_balance(key_pair.pubkey(), evm_loader=evm_loader)
+
+    user = evm_loader.make_new_user(deterministic_operator_keypair, key_pair=key_pair)
     evm_loader.deposit_neon(deterministic_operator_keypair, user.eth_address, 10000000)
     return user
 
@@ -106,18 +154,32 @@ def deterministic_user(
     deterministic_operator_keypair: Keypair,
     deterministic_key_pairs: dict[Literal["sender_with_tokens", "user"], list[Keypair]],
 ) -> Caller:
-    mark: pytest.Mark = request.node.get_closest_marker("deterministic_user_index")
-    index = mark.args[0]
-    key = deterministic_key_pairs["user"][index]
-    return evm_loader.make_new_user(deterministic_operator_keypair, key=key)
+    index = get_and_validate_mark_value(
+        request=request, key=deterministic_user_index_stash_key, mark="deterministic_user_index"
+    )
+    key_pair = deterministic_key_pairs["user"][index]
+
+    skip_if_non_zero_balance(key_pair.pubkey(), evm_loader=evm_loader)
+
+    return evm_loader.make_new_user(deterministic_operator_keypair, key_pair=key_pair)
 
 
 @pytest.fixture
 def deterministic_holder_acc(
     request: pytest.FixtureRequest, deterministic_operator_keypair: Keypair, evm_loader: EvmLoader
 ) -> Pubkey:
-    mark: pytest.Mark = request.node.get_closest_marker("deterministic_holder_acc_seed")
-    seed = f"{mark.args[0]}_seed"
+    seed_int = get_and_validate_mark_value(
+        request=request, key=deterministic_holder_acc_seed_stash_key, mark="deterministic_holder_acc_seed"
+    )
+    seed = f"{seed_int}_seed"
+
+    pubkey = Pubkey.from_bytes(
+        hashlib.sha256(
+            bytes(deterministic_operator_keypair.pubkey()) + bytes(seed, "utf8") + bytes(evm_loader.loader_id)
+        ).digest()
+    )
+    skip_if_non_zero_balance(pubkey, evm_loader=evm_loader)
+
     return evm_loader.create_holder(signer=deterministic_operator_keypair, seed=seed)
 
 
@@ -236,7 +298,7 @@ class TestComputeUnits:
                 deterministic_user.balance_account_address,
                 deterministic_user.solana_account_address,
             ],
-            compute_unit_price=5000,
+            compute_unit_price=1000,
         )
         assert resp.value.transaction.meta.err is None
         check_transaction_logs_have_text(
@@ -300,7 +362,7 @@ class TestComputeUnits:
             instruction=signed_eth_tx,
             additional_accounts=additional_accounts,
             cu_expected_list=[90142, 100145, 60996, 215937],
-            cu_delta_allowed=5000,
+            cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
         )
@@ -328,13 +390,14 @@ class TestComputeUnits:
         )
         function_signature = "set(string)"
         params = ["Hello"]
+        value = 100
         signed_tx = make_contract_call_trx(
             evm_loader=evm_loader,
             user=deterministic_sender_with_tokens,
             contract=contract,
             function_signature=function_signature,
             params=params,
-            value=100,
+            value=value,
         )
 
         data = decode_function_signature(function_signature, params)
@@ -342,6 +405,7 @@ class TestComputeUnits:
             sender=deterministic_sender_with_tokens.eth_address.hex(),
             contract=contract.eth_address.hex(),
             data=data[2:],
+            value=hex(100),
         )
         additional_accounts = [Pubkey.from_string(acc["pubkey"]) for acc in emulate_result["solana_accounts"]]
         additional_accounts += [contract.balance_account_address]
@@ -354,7 +418,7 @@ class TestComputeUnits:
             instruction=signed_tx,
             additional_accounts=additional_accounts,
             cu_expected_list=[75347, 49302, 43307],
-            cu_delta_allowed=5000,
+            cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
         )
@@ -432,7 +496,7 @@ class TestComputeUnits:
             instruction=signed_tx,
             additional_accounts=additional_accounts,
             cu_expected_list=[70710, 86456, 90710, 36603, 33050],
-            cu_delta_allowed=5000,
+            cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
         )
@@ -512,7 +576,7 @@ class TestComputeUnits:
             instruction=signed_tx,
             additional_accounts=additional_accounts,
             cu_expected_list=[75813, 62316, 53276],
-            cu_delta_allowed=5000,
+            cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
         )
@@ -629,6 +693,9 @@ class TestComputeUnits:
             assert cu_consumed == cu_expected
             i += 1
 
+        evm_loader.finish_scheduled_trx(deterministic_operator_keypair, tree_account, deterministic_holder_acc)
+        evm_loader.destroy_tree_account(deterministic_neon_user, deterministic_treasury_pool, tree_account)
+
         if receipt:
             check_transaction_logs_have_text(
                 solana_client=sol_client,
@@ -682,7 +749,7 @@ class TestComputeUnits:
                 storage_account=deterministic_holder_acc,
                 instruction=signed_tx,
                 additional_accounts=additional_accounts,
-                cu_expected_list=[69937, 27968, 29559, -1] * 10,  # the fourth one is expected to fail
+                cu_expected_list=[69937, 27968, 29559, -1],  # the fourth step is expected to fail
                 cu_delta_allowed=0,
                 sol_client=sol_client,
                 expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.REVERT}",
@@ -691,4 +758,4 @@ class TestComputeUnits:
             # validate the fourth step
             error_message = repr(e)
             cu_consumed = int(re.search(pattern="units_consumed.*\n\s*(\d+)", string=error_message).group(1))
-            assert (cu_consumed - 45136) <= 5000
+            assert cu_consumed == 45136
