@@ -135,28 +135,8 @@ class TestSolanaInteroperability:
         event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
 
-    def test_counter_execute(self, call_solana_caller, counter_resource_address: bytes, get_counter_value):
-        sender = self.accounts[0]
-        lamports = 0
-
-        instruction = Instruction(
-            program_id=COUNTER_ID,
-            accounts=[
-                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
-            ],
-            data=bytes([0x1]),
-        )
-        serialized = serialize_instruction(COUNTER_ID, instruction)
-
-        tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.execute(lamports, serialized).build_transaction(tx)
-        resp = self.web3_client.send_transaction(sender, instruction_tx)
-        assert resp["status"] == 1
-
-        event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
-        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
-
-    def test_counter_execute_overload(self, call_solana_caller, counter_resource_address: bytes, get_counter_value):
+    @pytest.mark.parametrize("lamports", [0, None])
+    def test_counter_execute(self, call_solana_caller, counter_resource_address: bytes, get_counter_value, lamports):
         sender = self.accounts[0]
 
         instruction = Instruction(
@@ -169,7 +149,12 @@ class TestSolanaInteroperability:
         serialized = serialize_instruction(COUNTER_ID, instruction)
 
         tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.execute(serialized).build_transaction(tx)
+
+        if lamports is not None:
+            instruction_tx = call_solana_caller.functions.execute(lamports, serialized).build_transaction(tx)
+        else:
+            instruction_tx = call_solana_caller.functions.execute(serialized).build_transaction(tx)
+
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
 
@@ -203,7 +188,7 @@ class TestSolanaInteroperability:
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == current_counter
         assert bytes32_to_solana_pubkey(event_logs[0].args.program.hex()) == COUNTER_ID
 
-    def test_counter_batch_execute_overload(
+    def test_counter_batch_execute_without_lamports_in_params(
         self, call_solana_caller, counter_resource_address: bytes, get_counter_value
     ):
         sender = self.accounts[0]
@@ -223,7 +208,7 @@ class TestSolanaInteroperability:
             current_counter = next(get_counter_value)
 
         tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.batchExecuteOverload(call_params).build_transaction(tx)
+        instruction_tx = call_solana_caller.functions.batchExecuteWithoutLamports(call_params).build_transaction(tx)
 
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
@@ -287,7 +272,9 @@ class TestSolanaInteroperability:
         event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == 0
 
-    def test_transfer_with_pda_signature_overload(self, call_solana_caller, sol_client, solana_account):
+    def test_transfer_with_pda_signature_without_lamports_in_params(
+        self, call_solana_caller, sol_client, solana_account
+    ):
         sender = self.accounts[0]
         from_wallet = solana_account
         to_wallet = Keypair()

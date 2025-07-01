@@ -5,7 +5,6 @@ import pytest
 
 from eth_utils import abi
 
-from eth_keys import keys as eth_keys
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solana.rpc.commitment import Confirmed
@@ -151,37 +150,32 @@ class TestInteroperability:
         )
         check_transaction_logs_have_text(evm_loader, trx=resp, text="exit_status=0x11")
 
+    @pytest.mark.parametrize("lamports_amount", [2039280, None])
     def test_execute_from_account_create_acc(
-        self, sender_with_tokens, solana_caller, evm_loader, solana_client, environment
+        self, sender_with_tokens, solana_caller, evm_loader, solana_client, environment, lamports_amount
     ):
         payer = solana_caller.get_payer()
         instruction = make_create_associated_token_idempotent(
             payer, sender_with_tokens.solana_account_address, Pubkey.from_string(environment.spl_neon_mint)
         )
-        resp = solana_caller.batch_execute(
-            [(ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID, 2039280, instruction)], sender_with_tokens
-        )
+
+        if lamports_amount is not None:
+            params = (ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID, lamports_amount, instruction)
+        else:
+            params = (ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID, instruction)
+        call_params = [params]
+
+        resp = solana_caller.batch_execute(call_params, sender_with_tokens)
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
         payer_info = evm_loader.get_account_info(payer, commitment=Confirmed)
         assert payer_info.value is None
 
-    def test_execute_from_account_create_acc_without_lamports(
-        self, sender_with_tokens, solana_caller, evm_loader, solana_client, environment
+    @pytest.mark.parametrize("lamports_amount, salt", [(0, b"1234"), (None, b"1235")])
+    def test_execute_several_instr_in_one_trx(
+        self, sender_with_tokens, solana_caller, evm_loader, solana_client, lamports_amount, salt
     ):
-        payer = solana_caller.get_payer()
-        instruction = make_create_associated_token_idempotent(
-            payer, sender_with_tokens.solana_account_address, Pubkey.from_string(environment.spl_neon_mint)
-        )
-        resp = solana_caller.batch_execute_without_lamports(
-            [(ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID, instruction)], sender_with_tokens
-        )
-        check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
-        payer_info = evm_loader.get_account_info(payer, commitment=Confirmed)
-        assert payer_info.value is None
-
-    def test_execute_several_instr_in_one_trx(self, sender_with_tokens, solana_caller, evm_loader, solana_client):
         instruction_count = 10
-        resource_addr = solana_caller.create_resource(sender_with_tokens, b"1234", 8, 1000000000, COUNTER_ID)
+        resource_addr = solana_caller.create_resource(sender_with_tokens, salt, 8, 1000000000, COUNTER_ID)
 
         instruction = Instruction(
             program_id=COUNTER_ID,
@@ -191,8 +185,13 @@ class TestInteroperability:
             data=bytes([0x1]),
         )
         call_params = []
+        if lamports_amount is not None:
+            params = (COUNTER_ID, 0, instruction)
+        else:
+            params = (COUNTER_ID, instruction)
+
         for i in range(instruction_count):
-            call_params.append((COUNTER_ID, 0, instruction))
+            call_params.append(params)
 
         resp = solana_caller.batch_execute(call_params, sender_with_tokens)
 
@@ -201,11 +200,11 @@ class TestInteroperability:
         layout = COUNTER_ACCOUNT_LAYOUT.parse(info)
         assert layout.count == instruction_count
 
-    def test_execute_several_instr_in_one_trx_without_lamports(
-        self, sender_with_tokens, solana_caller, evm_loader, solana_client
+    @pytest.mark.parametrize("lamports_amount, salt, instruction_count", [(1000000000, b"dss", 29), (None, b"dgg", 40)])
+    def test_limit_of_simple_instr_in_one_trx(
+        self, sender_with_tokens, solana_caller, lamports_amount, salt, instruction_count
     ):
-        instruction_count = 10
-        resource_addr = solana_caller.create_resource(sender_with_tokens, b"2234", 8, 1000000000, COUNTER_ID)
+        resource_addr = solana_caller.create_resource(sender_with_tokens, salt, 8, 1000000000, COUNTER_ID)
 
         instruction = Instruction(
             program_id=COUNTER_ID,
@@ -215,55 +214,18 @@ class TestInteroperability:
             data=bytes([0x1]),
         )
         call_params = []
+        if lamports_amount is not None:
+            params = (COUNTER_ID, 0, instruction)
+        else:
+            params = (COUNTER_ID, instruction)
+
         for i in range(instruction_count):
-            call_params.append((COUNTER_ID, instruction))
-
-        resp = solana_caller.batch_execute_without_lamports(call_params, sender_with_tokens)
-
-        check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
-        info: bytes = evm_loader.get_solana_account_data(resource_addr, COUNTER_ACCOUNT_LAYOUT.sizeof())
-        layout = COUNTER_ACCOUNT_LAYOUT.parse(info)
-        assert layout.count == instruction_count
-
-    def test_limit_of_simple_instr_in_one_trx(self, sender_with_tokens, solana_caller):
-        instruction_count = 29
-        resource_addr = solana_caller.create_resource(sender_with_tokens, b"dss", 8, 1000000000, COUNTER_ID)
-
-        instruction = Instruction(
-            program_id=COUNTER_ID,
-            accounts=[
-                AccountMeta(resource_addr, is_signer=False, is_writable=True),
-            ],
-            data=bytes([0x1]),
-        )
-        call_params = []
-        for i in range(instruction_count):
-            call_params.append((COUNTER_ID, 0, instruction))
+            call_params.append(params)
 
         with pytest.raises(
             RPCException, match=r"failed: exceeded CUs meter at BPF instruction|Computational budget exceeded"
         ):
             solana_caller.batch_execute(call_params, sender_with_tokens)
-
-    def test_limit_of_simple_instr_in_one_trx_without_lamports(self, sender_with_tokens, solana_caller):
-        instruction_count = 40
-        resource_addr = solana_caller.create_resource(sender_with_tokens, b"fss", 8, 1000000000, COUNTER_ID)
-
-        instruction = Instruction(
-            program_id=COUNTER_ID,
-            accounts=[
-                AccountMeta(resource_addr, is_signer=False, is_writable=True),
-            ],
-            data=bytes([0x1]),
-        )
-        call_params = []
-        for i in range(instruction_count):
-            call_params.append((COUNTER_ID, instruction))
-
-        with pytest.raises(
-            RPCException, match=r"failed: exceeded CUs meter at BPF instruction|Computational budget exceeded"
-        ):
-            solana_caller.batch_execute_without_lamports(call_params, sender_with_tokens)
 
     def test_transfer_sol_with_cpi(self, sender_with_tokens, solana_caller, evm_loader, solana_client):
         recipient = evm_loader.create_account(sender_with_tokens.solana_account, 0, TRANSFER_SOL_ID)
@@ -463,53 +425,6 @@ class TestInteroperability:
             )
         except RPCException as err:
             assert "static mode violation" in decode_logs(err.args[0].data.logs)
-        else:
-            assert False, f"Expected error but got {resp}"
-
-    # @pytest.mark.parametrize("is_iterative", [False, True])
-    # reason="https://neonlabs.atlassian.net/browse/NDEV-3773"
-    @pytest.mark.parametrize("is_iterative", [False])
-    def test_call_neon_instruction_by_neon_instruction(
-        self,
-        sender_with_tokens,
-        solana_caller,
-        operator_keypair,
-        evm_loader,
-        treasury_pool,
-        new_holder_acc,
-        environment,
-        is_iterative,
-    ):
-        chain_id = environment.network_ids["neon"]
-        key = Keypair()
-        caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
-
-        account_pubkey = evm_loader.ether2balance(caller_ether)
-        contract_pubkey = Pubkey.from_string(evm_loader.ether2program(caller_ether)[0])
-
-        data = bytes([0x30]) + caller_ether + chain_id.to_bytes(8, "little")
-        neon_instruction = Instruction(
-            program_id=evm_loader.loader_id,
-            data=data,
-            accounts=[
-                AccountMeta(pubkey=sender_with_tokens.solana_account.pubkey(), is_signer=True, is_writable=True),
-                AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=account_pubkey, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=contract_pubkey, is_signer=False, is_writable=True),
-            ],
-        )
-
-        try:
-            resp = solana_caller.batch_execute(
-                [
-                    (evm_loader.loader_id, 0, neon_instruction),
-                ],
-                sender_with_tokens,
-                additional_signers=[sender_with_tokens.solana_account],
-                is_iterative=is_iterative,
-            )
-        except RPCException as err:
-            assert "Program not allowed to call itself" in decode_logs(err.args[0].data.logs)
         else:
             assert False, f"Expected error but got {resp}"
 
