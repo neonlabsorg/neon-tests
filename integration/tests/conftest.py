@@ -1,7 +1,6 @@
 import inspect
 import logging
 import os
-import pathlib
 import random
 import string
 import time
@@ -22,7 +21,7 @@ from clickfile import EnvName
 from conftest import EnvironmentConfig
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
-from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS_USDT, REMAPPING_ZEPPELIN, OPERATOR_KEYPAIR_PATH
+from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS_USDT, REMAPPING_ZEPPELIN
 
 from utils.erc20 import ERC20
 from utils.erc20wrapper import ERC20Wrapper
@@ -32,10 +31,9 @@ from utils.helpers import decode_function_signature, get_selectors, withdraw_neo
 from utils.operator import Operator
 from utils.prices import get_sol_price_with_retry
 from utils.solana_client import SolanaClient
-from utils.types import TransactionType, Caller
+from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client, Web3Client
 from .basic.helpers.chains import make_nonce_the_biggest_for_chain
-from .neon_evm.conftest import prepare_operator
 from .neon_evm.utils.neon_api_client import NeonApiClient
 
 log = logging.getLogger(__name__)
@@ -225,7 +223,7 @@ def neon_user(
 
 
 @pytest.fixture(scope="function")
-def neon_user_with_all_tokens(
+def neon_user_with_sols_inside_neon(
     evm_loader: EvmLoader,
     bank_account,
     environment: EnvironmentConfig,
@@ -892,28 +890,33 @@ def neon_api_client(environment: EnvironmentConfig) -> NeonApiClient:
     )
 
 
-@pytest.fixture(scope="session")
-def second_operator_keypair(index_of_process: int, evm_loader: EvmLoader) -> Keypair:
-    """
-    Initialized solana keypair with balance. Get private key from cli or ./ci/operator-keypairs
-    """
-    file_id = 20 + index_of_process
-    key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
-    allure.attach(
-        f"current key_file {key_file}",
-        "Operator key",
-        attachment_type=allure.attachment_type.TEXT,
-    )
-    return prepare_operator(key_file, evm_loader)
-
-
-@pytest.fixture(scope="session")
-def sender_with_wsol(evm_loader: EvmLoader, operator_keypair: Keypair) -> Caller:
-    user = evm_loader.make_new_user(operator_keypair)
-    evm_loader.deposit_wrapped_sol_from_solana_to_neon(
-        solana_account=user.solana_account,
-        neon_account="0x" + user.eth_address.hex(),
-        full_amount=100000,
-    )
-
-    return user
+# @pytest.fixture(scope="session")
+# def second_operator_keypair(index_of_process: int, evm_loader: EvmLoader) -> Keypair:
+#     """
+#     Initialized solana keypair with balance. Get private key from cli or ./ci/operator-keypairs
+#     """
+#     file_id = 20 + index_of_process
+#     key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
+#     allure.attach(
+#         f"current key_file {key_file}",
+#         "Operator key",
+#         attachment_type=allure.attachment_type.TEXT,
+#     )
+#     return prepare_operator(key_file, evm_loader)
+#
+#
+# @pytest.fixture(scope="session")
+# def sender_with_wsol(evm_loader: EvmLoader, operator_keypair: Keypair) -> Caller:
+#     user = evm_loader.make_new_user(operator_keypair)
+#     evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+#         solana_account=user.solana_account,
+#         neon_account="0x" + user.eth_address.hex(),
+#         full_amount=100000,
+#     )
+#
+#     return user
+#
+@pytest.fixture(scope="class")
+def transfers_contract(web3_client, faucet, accounts) -> Contract:
+    contract, _ = web3_client.deploy_and_get_contract("neon_evm/transfers", "0.7.6", account=accounts[1])
+    return contract
