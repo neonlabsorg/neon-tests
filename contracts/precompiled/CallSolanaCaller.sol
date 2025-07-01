@@ -2,7 +2,6 @@ pragma solidity ^0.8.28;
 
 import {Storage} from "../common/StorageSoliditySource.sol";
 import {ICallSolana} from "../external/neon-contracts/contracts/precompiles/ICallSolana.sol";
-//import {ICallSolana} from "../../contracts/precompiled/ICallSolana.sol";
 pragma abicoder v2;
 
 contract CallSolanaCaller {

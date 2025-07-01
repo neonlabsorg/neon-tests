@@ -65,39 +65,19 @@ class SolanaCaller:
         addr = self.neon_api_client.call_contract_get_function(sender, self.contract, "getExtAuthority(bytes32)", args)
         return bytes32_to_solana_pubkey(addr)
 
-    def execute(self, program_id, instruction, lamports=0, holder_acc=None, sender=None, additional_accounts=None):
+    def execute(self, program_id, instruction, lamports=None, holder_acc=None, sender=None, additional_accounts=None):
         sender = self.owner if sender is None else sender
         holder_acc = self.holder_acc if holder_acc is None else holder_acc
         serialized_instructions = serialize_instruction(program_id, instruction)
-        signed_tx = make_contract_call_trx(
-            self.evm_loader, sender, self.contract, "execute(uint64,bytes)", [lamports, serialized_instructions]
-        )
-        resp = self.evm_loader.execute_trx_from_instruction_with_solana_call(
-            self.operator_keypair,
-            holder_acc,
-            self.treasury_pool.account,
-            self.treasury_pool.buffer,
-            signed_tx,
-            [
-                sender.balance_account_address,
-                sender.solana_account_address,
-                SOLANA_CALL_PRECOMPILED_ID,
-                self.contract.balance_account_address,
-                self.contract.solana_address,
-                program_id,
-            ]
-            + (additional_accounts or [])
-            + self._get_all_pubkeys_from_instructions([instruction]),
-        )
-        return resp
 
-    def execute_overload(self, program_id, instruction, holder_acc=None, sender=None, additional_accounts=None):
-        sender = self.owner if sender is None else sender
-        holder_acc = self.holder_acc if holder_acc is None else holder_acc
-        serialized_instructions = serialize_instruction(program_id, instruction)
-        signed_tx = make_contract_call_trx(
-            self.evm_loader, sender, self.contract, "execute(bytes)", [serialized_instructions]
-        )
+        if lamports is not None:
+            signed_tx = make_contract_call_trx(
+                self.evm_loader, sender, self.contract, "execute(uint64,bytes)", [lamports, serialized_instructions]
+            )
+        else:
+            signed_tx = make_contract_call_trx(
+                self.evm_loader, sender, self.contract, "execute(bytes)", [serialized_instructions]
+            )
         resp = self.evm_loader.execute_trx_from_instruction_with_solana_call(
             self.operator_keypair,
             holder_acc,
@@ -122,7 +102,7 @@ class SolanaCaller:
         program_id,
         instruction,
         seed,
-        lamports=0,
+        lamports=None,
         holder_acc=None,
         sender=None,
         additional_accounts=None,
@@ -130,51 +110,22 @@ class SolanaCaller:
         sender = self.owner if sender is None else sender
         holder_acc = self.holder_acc if holder_acc is None else holder_acc
         serialized_instructions = serialize_instruction(program_id, instruction)
-        signed_tx = make_contract_call_trx(
-            self.evm_loader,
-            sender,
-            self.contract,
-            "executeWithSeed(uint64,bytes32,bytes)",
-            [lamports, seed, serialized_instructions],
-        )
-        resp = self.evm_loader.execute_trx_from_instruction_with_solana_call(
-            self.operator_keypair,
-            holder_acc,
-            self.treasury_pool.account,
-            self.treasury_pool.buffer,
-            signed_tx,
-            [
-                sender.balance_account_address,
-                sender.solana_account_address,
-                SOLANA_CALL_PRECOMPILED_ID,
-                self.contract.balance_account_address,
-                self.contract.solana_address,
-                program_id,
-            ]
-            + (additional_accounts or [])
-            + self._get_all_pubkeys_from_instructions([instruction]),
-        )
-        return resp
-
-    def execute_with_seed_overload(
-        self,
-        program_id,
-        instruction,
-        seed,
-        holder_acc=None,
-        sender=None,
-        additional_accounts=None,
-    ):
-        sender = self.owner if sender is None else sender
-        holder_acc = self.holder_acc if holder_acc is None else holder_acc
-        serialized_instructions = serialize_instruction(program_id, instruction)
-        signed_tx = make_contract_call_trx(
-            self.evm_loader,
-            sender,
-            self.contract,
-            "executeWithSeed(bytes32,bytes)",
-            [seed, serialized_instructions],
-        )
+        if lamports is not None:
+            signed_tx = make_contract_call_trx(
+                self.evm_loader,
+                sender,
+                self.contract,
+                "executeWithSeed(uint64,bytes32,bytes)",
+                [lamports, seed, serialized_instructions],
+            )
+        else:
+            signed_tx = make_contract_call_trx(
+                self.evm_loader,
+                sender,
+                self.contract,
+                "executeWithSeed(bytes32,bytes)",
+                [seed, serialized_instructions],
+            )
         resp = self.evm_loader.execute_trx_from_instruction_with_solana_call(
             self.operator_keypair,
             holder_acc,
@@ -241,10 +192,10 @@ class SolanaCaller:
         )
         return resp
 
-    def batch_execute_overload(
+    def batch_execute_without_lamports(
         self, call_params, sender=None, additional_accounts=None, additional_signers=None, is_iterative=False
     ):
-        # call_params = [(program_id, lamports, instruction), ...]
+        # call_params = [(program_id, instruction), ...]
         execute_params = []
         for program_id, instruction in call_params:
             serialized_instruction = serialize_instruction(program_id, instruction)

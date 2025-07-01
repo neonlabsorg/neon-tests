@@ -75,7 +75,6 @@ interface ICallSolana {
     // This method uses PDA for sender to authorize the operation (`getNeonAddress(msg.sender)`)
     // Returns the returned data of the executed instruction (if program returned the data is equal to the program_id of the instruction)
     function execute(uint64 lamports, bytes memory instruction) external returns (bytes memory);
-    function execute(bytes memory instruction) external returns (bytes memory);
 
 
     // Execute the instruction with call to the Solana program.

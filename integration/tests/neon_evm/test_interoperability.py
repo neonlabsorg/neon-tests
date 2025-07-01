@@ -107,24 +107,16 @@ class TestInteroperability:
         assert len(acc_info.value.data) == size
         assert str(acc_info.value.owner) == str(MEMO_PROGRAM_ID)
 
-    def test_execute_from_instruction_for_compute_budget(self, sender_with_tokens, solana_caller, solana_client):
-        instruction = Instruction(
-            program_id=COMPUTE_BUDGET_ID,
-            accounts=[AccountMeta(sender_with_tokens.solana_account_address, is_signer=False, is_writable=False)],
-            data=bytes.fromhex("02") + DEFAULT_UNITS.to_bytes(4, "little"),
-        )
-        resp = solana_caller.execute(COMPUTE_BUDGET_ID, instruction, sender=sender_with_tokens)
-        check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
-
-    def test_execute_from_instruction_for_compute_budget_overload(
-        self, sender_with_tokens, solana_caller, solana_client
+    @pytest.mark.parametrize("lamports_amount", [0, None])
+    def test_execute_from_instruction_for_compute_budget(
+        self, sender_with_tokens, solana_caller, solana_client, lamports_amount
     ):
         instruction = Instruction(
             program_id=COMPUTE_BUDGET_ID,
             accounts=[AccountMeta(sender_with_tokens.solana_account_address, is_signer=False, is_writable=False)],
             data=bytes.fromhex("02") + DEFAULT_UNITS.to_bytes(4, "little"),
         )
-        resp = solana_caller.execute_overload(COMPUTE_BUDGET_ID, instruction, sender=sender_with_tokens)
+        resp = solana_caller.execute(COMPUTE_BUDGET_ID, instruction, lamports_amount, sender=sender_with_tokens)
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
 
     def test_execute_from_instruction_for_call_memo(
@@ -173,14 +165,14 @@ class TestInteroperability:
         payer_info = evm_loader.get_account_info(payer, commitment=Confirmed)
         assert payer_info.value is None
 
-    def test_execute_from_account_create_acc_overload(
+    def test_execute_from_account_create_acc_without_lamports(
         self, sender_with_tokens, solana_caller, evm_loader, solana_client, environment
     ):
         payer = solana_caller.get_payer()
         instruction = make_create_associated_token_idempotent(
             payer, sender_with_tokens.solana_account_address, Pubkey.from_string(environment.spl_neon_mint)
         )
-        resp = solana_caller.batch_execute_overload(
+        resp = solana_caller.batch_execute_without_lamports(
             [(ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID, instruction)], sender_with_tokens
         )
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
@@ -209,7 +201,7 @@ class TestInteroperability:
         layout = COUNTER_ACCOUNT_LAYOUT.parse(info)
         assert layout.count == instruction_count
 
-    def test_execute_several_instr_in_one_trx_overload(
+    def test_execute_several_instr_in_one_trx_without_lamports(
         self, sender_with_tokens, solana_caller, evm_loader, solana_client
     ):
         instruction_count = 10
@@ -226,7 +218,7 @@ class TestInteroperability:
         for i in range(instruction_count):
             call_params.append((COUNTER_ID, instruction))
 
-        resp = solana_caller.batch_execute_overload(call_params, sender_with_tokens)
+        resp = solana_caller.batch_execute_without_lamports(call_params, sender_with_tokens)
 
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
         info: bytes = evm_loader.get_solana_account_data(resource_addr, COUNTER_ACCOUNT_LAYOUT.sizeof())
@@ -253,7 +245,7 @@ class TestInteroperability:
         ):
             solana_caller.batch_execute(call_params, sender_with_tokens)
 
-    def test_limit_of_simple_instr_in_one_trx_overload(self, sender_with_tokens, solana_caller):
+    def test_limit_of_simple_instr_in_one_trx_without_lamports(self, sender_with_tokens, solana_caller):
         instruction_count = 40
         resource_addr = solana_caller.create_resource(sender_with_tokens, b"fss", 8, 1000000000, COUNTER_ID)
 
@@ -271,7 +263,7 @@ class TestInteroperability:
         with pytest.raises(
             RPCException, match=r"failed: exceeded CUs meter at BPF instruction|Computational budget exceeded"
         ):
-            solana_caller.batch_execute_overload(call_params, sender_with_tokens)
+            solana_caller.batch_execute_without_lamports(call_params, sender_with_tokens)
 
     def test_transfer_sol_with_cpi(self, sender_with_tokens, solana_caller, evm_loader, solana_client):
         recipient = evm_loader.create_account(sender_with_tokens.solana_account, 0, TRANSFER_SOL_ID)
@@ -314,7 +306,8 @@ class TestInteroperability:
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
         assert balance_after == balance_before + amount
 
-    def test_transfer_with_PDA_signature(self, solana_caller, sender_with_tokens, evm_loader, solana_client):
+    @pytest.mark.parametrize("lamports", [0, None])
+    def test_transfer_with_PDA_signature(self, solana_caller, sender_with_tokens, evm_loader, solana_client, lamports):
         from_wallet = Keypair()
         to_wallet = Keypair()
         amount = 100000
@@ -346,75 +339,13 @@ class TestInteroperability:
             data=bytes([0x0]),
         )
 
-        resp = solana_caller.execute(TRANSFER_TOKENS_ID, instruction, sender=sender_with_tokens)
+        resp = solana_caller.execute(TRANSFER_TOKENS_ID, instruction, lamports=lamports, sender=sender_with_tokens)
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
         assert int(mint.get_balance(to_token_account, commitment=Confirmed).value.amount) == amount
 
-    def test_transfer_with_PDA_signature_overload(self, solana_caller, sender_with_tokens, evm_loader, solana_client):
-        from_wallet = Keypair()
-        to_wallet = Keypair()
-        amount = 100000
-        evm_loader.request_airdrop(from_wallet.pubkey(), 1000 * 10**9, commitment=Confirmed)
-        wait_condition(lambda: evm_loader.account_exists(account_address=from_wallet.pubkey()) is True, timeout_sec=10)
-        wait_condition(lambda: evm_loader.get_solana_balance(account=from_wallet.pubkey()) != 0, timeout_sec=10)
-        mint, from_token_account, to_token_account = _create_mint_and_accounts(
-            evm_loader, from_wallet, to_wallet, amount
-        )
-
-        authority_pubkey = solana_caller.get_solana_PDA(TRANSFER_TOKENS_ID, b"authority")
-        mint.set_authority(
-            from_token_account,
-            from_wallet,
-            spl.token.instructions.AuthorityType.ACCOUNT_OWNER,
-            authority_pubkey,
-            opts=TxOpts(skip_confirmation=False, skip_preflight=True),
-        )
-
-        instruction = Instruction(
-            program_id=TRANSFER_TOKENS_ID,
-            accounts=[
-                AccountMeta(from_token_account, is_signer=False, is_writable=True),
-                AccountMeta(mint.pubkey, is_signer=False, is_writable=True),
-                AccountMeta(to_token_account, is_signer=False, is_writable=True),
-                AccountMeta(authority_pubkey, is_signer=False, is_writable=True),
-                AccountMeta(TOKEN_PROGRAM_ID, is_signer=False, is_writable=True),
-            ],
-            data=bytes([0x0]),
-        )
-
-        resp = solana_caller.execute_overload(TRANSFER_TOKENS_ID, instruction, sender=sender_with_tokens)
-        check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
-        assert int(mint.get_balance(to_token_account, commitment=Confirmed).value.amount) == amount
-
-    def test_transfer_tokens_with_ext_authority(self, evm_loader, sender_with_tokens, solana_caller, solana_client):
-        from_wallet = sender_with_tokens
-        to_wallet = Keypair()
-        amount = 100000
-        mint, from_token_account, to_token_account = _create_mint_and_accounts(
-            evm_loader, from_wallet.solana_account, to_wallet, amount
-        )
-        seed = b"myseed"
-        authority = solana_caller.get_eth_ext_authority(seed, from_wallet)
-
-        mint.set_authority(
-            from_token_account,
-            from_wallet.solana_account,
-            spl.token.instructions.AuthorityType.ACCOUNT_OWNER,
-            authority,
-            opts=TxOpts(skip_confirmation=False, skip_preflight=True),
-        )
-
-        instruction = transfer(
-            TransferParams(TOKEN_PROGRAM_ID, from_token_account, to_token_account, authority, amount)
-        )
-
-        resp = solana_caller.execute_with_seed(TOKEN_PROGRAM_ID, instruction, seed, sender=from_wallet)
-        check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
-
-        assert int(mint.get_balance(to_token_account, commitment=Confirmed).value.amount) == amount
-
-    def test_transfer_tokens_with_ext_authority_overload(
-        self, evm_loader, sender_with_tokens, solana_caller, solana_client
+    @pytest.mark.parametrize("lamports", [0, None])
+    def test_transfer_tokens_with_ext_authority(
+        self, evm_loader, sender_with_tokens, solana_caller, solana_client, lamports
     ):
         from_wallet = sender_with_tokens
         to_wallet = Keypair()
@@ -437,7 +368,9 @@ class TestInteroperability:
             TransferParams(TOKEN_PROGRAM_ID, from_token_account, to_token_account, authority, amount)
         )
 
-        resp = solana_caller.execute_with_seed_overload(TOKEN_PROGRAM_ID, instruction, seed, sender=from_wallet)
+        resp = solana_caller.execute_with_seed(
+            TOKEN_PROGRAM_ID, instruction, seed, lamports=lamports, sender=from_wallet
+        )
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
 
         assert int(mint.get_balance(to_token_account, commitment=Confirmed).value.amount) == amount
@@ -580,51 +513,6 @@ class TestInteroperability:
         else:
             assert False, f"Expected error but got {resp}"
 
-    @pytest.mark.parametrize("is_iterative", [False])
-    def test_call_neon_instruction_by_neon_instruction_overload(
-        self,
-        sender_with_tokens,
-        solana_caller,
-        operator_keypair,
-        evm_loader,
-        treasury_pool,
-        new_holder_acc,
-        environment,
-        is_iterative,
-    ):
-        chain_id = environment.network_ids["neon"]
-        key = Keypair()
-        caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
-
-        account_pubkey = evm_loader.ether2balance(caller_ether)
-        contract_pubkey = Pubkey.from_string(evm_loader.ether2program(caller_ether)[0])
-
-        data = bytes([0x30]) + caller_ether + chain_id.to_bytes(8, "little")
-        neon_instruction = Instruction(
-            program_id=evm_loader.loader_id,
-            data=data,
-            accounts=[
-                AccountMeta(pubkey=sender_with_tokens.solana_account.pubkey(), is_signer=True, is_writable=True),
-                AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=account_pubkey, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=contract_pubkey, is_signer=False, is_writable=True),
-            ],
-        )
-
-        try:
-            resp = solana_caller.batch_execute_overload(
-                [
-                    (evm_loader.loader_id, neon_instruction),
-                ],
-                sender_with_tokens,
-                additional_signers=[sender_with_tokens.solana_account],
-                is_iterative=is_iterative,
-            )
-        except RPCException as err:
-            assert "Program not allowed to call itself" in decode_logs(err.args[0].data.logs)
-        else:
-            assert False, f"Expected error but got {resp}"
-
     def test_iterative_transaction_revision_2_txs_from_1_sender(
         self,
         sender_with_tokens,
@@ -681,85 +569,6 @@ class TestInteroperability:
             )
 
         resp = solana_caller.execute(
-            program_id=COUNTER_ID, instruction=instruction, sender=sender_with_tokens, holder_acc=new_holder_acc
-        )
-        check_transaction_logs_have_text(evm_loader, trx=resp, text="exit_status=0x11")
-
-        check_holder_account_tag(
-            solana_client=evm_loader,
-            storage_account=new_holder_acc_2,
-            layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
-            expected_tag=TAG_ACTIVE_STATE,
-        )
-
-        evm_loader.execute_transaction_steps_from_account(
-            operator_keypair, treasury_pool, new_holder_acc_2, accounts_from_emulation, check_invalid_revision=True
-        )
-
-        check_holder_account_tag(
-            solana_client=evm_loader,
-            storage_account=new_holder_acc_2,
-            layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
-            expected_tag=TAG_FINALIZED_STATE,
-        )
-        check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
-
-    def test_iterative_transaction_revision_2_txs_from_1_sender_over(
-        self,
-        sender_with_tokens,
-        solana_caller,
-        evm_loader,
-        new_holder_acc_2,
-        new_holder_acc,
-        neon_api_client,
-        operator_keypair,
-        treasury_pool,
-    ):
-        operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
-
-        resource_addr = solana_caller.create_resource(sender_with_tokens, b"rrww", 8, 1000000000, COUNTER_ID)
-        matrix_size = 8
-        matrix = [[random.randint(1, 100) for _ in range(matrix_size)] for _ in range(matrix_size)]
-
-        instruction = Instruction(
-            program_id=COUNTER_ID,
-            accounts=[
-                AccountMeta(resource_addr, is_signer=False, is_writable=True),
-            ],
-            data=bytes([0x1]),
-        )
-        serialized_instruction = serialize_instruction(COUNTER_ID, instruction)
-
-        signed_tx = make_contract_call_trx(
-            evm_loader,
-            sender_with_tokens,
-            solana_caller.contract,
-            "solanaCallInsideActionWithMatrix(uint256[][],uint64,bytes)",
-            [matrix, 0, serialized_instruction],
-        )
-
-        emulate_result = neon_api_client.emulate_contract_call(
-            sender_with_tokens.eth_address.hex(),
-            solana_caller.contract.eth_address.hex(),
-            "solanaCallInsideActionWithMatrix(uint256[][],uint64,bytes)",
-            [matrix, 0, serialized_instruction],
-        )
-        accounts_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
-
-        evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc_2, operator_keypair)
-
-        for _ in range(9):
-            evm_loader.send_transaction_step_from_account(
-                operator_keypair,
-                operator_balance_pubkey,
-                treasury_pool,
-                new_holder_acc_2,
-                accounts_from_emulation,
-                EVM_STEPS,
-                operator_keypair,
-            )
-
-        resp = solana_caller.execute_overload(
             program_id=COUNTER_ID, instruction=instruction, sender=sender_with_tokens, holder_acc=new_holder_acc
         )
         check_transaction_logs_have_text(evm_loader, trx=resp, text="exit_status=0x11")
