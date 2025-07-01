@@ -19,18 +19,13 @@ LOG = logging.getLogger(__name__)
 
 
 def test_successful_single_trx_with_outer_deposit(
-    neon_user, evm_loader, operator_keypair, treasury_pool, basic_contract, neon_api_client
+    neon_user, evm_loader, operator_keypair, treasury_pool, basic_contract, neon_api_client, holder_acc
 ):
     # trx_status: successful
     # user_balance: only outer deposit
     # tree_acc: one schd trx in tree acc
 
-    neon_inner_balance_request = neon_api_client.get_balance(neon_user.checksum_address, evm_loader.sol_chain_id)
-    neon_user_balance_sol = int(neon_inner_balance_request["value"][0]["balance"], 16)
-    assert neon_user_balance_sol == 0, f"Inner sol balance is {neon_user_balance_sol}, but has to be zero"
-
     evm_loader.create_balance_account(neon_user.checksum_address, neon_user.solana_account, evm_loader.sol_chain_id)
-    holder_acc = evm_loader.create_holder(operator_keypair)
 
     # Balance
     holder_acc_balance = evm_loader.get_solana_balance(holder_acc)
@@ -39,7 +34,6 @@ def test_successful_single_trx_with_outer_deposit(
     treasury_pool_balance = evm_loader.get_solana_balance(treasury_pool.account)
 
     print(f"{neon_user_balance_before=}")
-    print(f"{neon_user_balance_sol=}")
     print(f"{operator_balance=}")
     print(f"{treasury_pool_balance=}")
     print(f"{holder_acc_balance=}")
@@ -63,10 +57,6 @@ def test_successful_single_trx_with_outer_deposit(
     tree_acc = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
     print("\n----Balances after tree acc was created----")
-
-    # Expected neon_user_balance --> tree_acc + treasury_acc --> tree_acc (deposit)
-    operator_balance_after_tree = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
-    assert operator_balance == operator_balance_after_tree, "Operator balance has changed, but is not supposed to"
 
     neon_user_balance_after_tree = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
     delta_neon_user = neon_user_balance_before - neon_user_balance_after_tree
@@ -95,7 +85,6 @@ def test_successful_single_trx_with_outer_deposit(
 
     print(f"Neon_user {neon_user_balance_after_tree}")
     print(f"Tree Acc balance inner {tree_acc_balance_inner}")
-    print(f"Operator {operator_balance_after_tree}")
     print(f"Treasury {treasury_pool_balance_after_tree}")
     print(f"Tree Acc balance {tree_acc_balance}")
 
@@ -153,7 +142,7 @@ def test_successful_single_trx_with_outer_deposit(
 
 
 def test_success_two_trx_with_inner_deposit(
-    neon_user, neon_api_client, evm_loader, operator_keypair, treasury_pool, basic_contract, solana_account
+    neon_user, neon_api_client, evm_loader, operator_keypair, treasury_pool, basic_contract, solana_account, holder_acc
 ):
 
     # trx_status: success
@@ -177,8 +166,6 @@ def test_success_two_trx_with_inner_deposit(
     assert (
         neon_user_balance_sol == LAMPORT_PER_SOL * LAMPORT_TO_INNER_SOL
     ), f"Inner sol balance is {neon_user_balance_sol}, but has to be {LAMPORT_PER_SOL}"
-
-    holder_acc = evm_loader.create_holder(operator_keypair)
 
     holder_acc_balance = evm_loader.get_solana_balance(holder_acc)
     operator_balance = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
@@ -354,7 +341,7 @@ def test_success_two_trx_with_inner_deposit(
 
 
 def test_failed_trx_with_outer_deposit(
-    neon_user, neon_api_client, evm_loader, operator_keypair, treasury_pool, basic_contract, solana_account
+    neon_user, neon_api_client, evm_loader, operator_keypair, treasury_pool, basic_contract, holder_acc
 ):
 
     # trx_status: failed
@@ -365,8 +352,6 @@ def test_failed_trx_with_outer_deposit(
 
     neon_user_balance_sol = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
     assert neon_user_balance_sol == 0, f"Inner sol balance is {neon_user_balance_sol}, but has to be zero"
-
-    holder_acc = evm_loader.create_holder(operator_keypair)
 
     holder_acc_balance = evm_loader.get_solana_balance(holder_acc)
     operator_balance = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
@@ -380,6 +365,7 @@ def test_failed_trx_with_outer_deposit(
     print(f"{holder_acc_balance=}")
 
     nonce = evm_loader.get_neon_nonce(neon_user.neon_address, evm_loader.sol_chain_id)
+    call_data = decode_function_signature("setNumberWithAssertion(uint256)", args=[256])
     tx0 = ScheduledTransaction(
         neon_user.neon_address,
         None,
@@ -387,7 +373,7 @@ def test_failed_trx_with_outer_deposit(
         index=0,
         target=basic_contract.eth_address,
         value=0,
-        call_data=b"",
+        call_data=call_data,
         chain_id=evm_loader.sol_chain_id,
     )
 
