@@ -65,7 +65,7 @@ def second_operator_keypair(index_of_process: int, evm_loader: EvmLoader) -> Key
     """
     Initialized solana keypair with balance. Get private key from cli or ./ci/operator-keypairs
     """
-    file_id = 20 + index_of_process
+    file_id = 12 + index_of_process
     key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
     allure.attach(
         f"current key_file {key_file}",
