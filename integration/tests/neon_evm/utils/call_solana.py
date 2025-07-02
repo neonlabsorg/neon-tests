@@ -198,6 +198,9 @@ class SolanaCaller:
         return bytes32_to_solana_pubkey(resource_address)
 
     def create_resource(self, sender, salt, space, lamports, owner):
+        if self.evm_loader.account_exists(self.get_resource_address(salt, sender)):
+            return self.get_resource_address(salt, sender)
+
         signed_tx = make_contract_call_trx(
             self.evm_loader,
             sender,

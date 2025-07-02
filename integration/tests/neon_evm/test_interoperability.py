@@ -171,12 +171,16 @@ class TestInteroperability:
         payer_info = evm_loader.get_account_info(payer, commitment=Confirmed)
         assert payer_info.value is None
 
-    @pytest.mark.parametrize("lamports_amount, salt", [(0, b"1234"), (None, b"1235")])
+    @pytest.mark.parametrize("lamports_amount", [0, None])
     def test_execute_several_instr_in_one_trx(
-        self, sender_with_tokens, solana_caller, evm_loader, solana_client, lamports_amount, salt
+        self, sender_with_tokens, solana_caller, evm_loader, solana_client, lamports_amount
     ):
+        salt = b"1235"
         instruction_count = 10
         resource_addr = solana_caller.create_resource(sender_with_tokens, salt, 8, 1000000000, COUNTER_ID)
+
+        info1: bytes = evm_loader.get_solana_account_data(resource_addr, COUNTER_ACCOUNT_LAYOUT.sizeof())
+        counter_value_before = COUNTER_ACCOUNT_LAYOUT.parse(info1)
 
         instruction = Instruction(
             program_id=COUNTER_ID,
@@ -193,18 +197,17 @@ class TestInteroperability:
 
         for i in range(instruction_count):
             call_params.append(params)
-
         resp = solana_caller.batch_execute(call_params, sender_with_tokens)
-
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
-        info: bytes = evm_loader.get_solana_account_data(resource_addr, COUNTER_ACCOUNT_LAYOUT.sizeof())
-        layout = COUNTER_ACCOUNT_LAYOUT.parse(info)
-        assert layout.count == instruction_count
 
-    @pytest.mark.parametrize("lamports_amount, salt, instruction_count", [(1000000000, b"dss", 29), (None, b"dgg", 40)])
-    def test_limit_of_simple_instr_in_one_trx(
-        self, sender_with_tokens, solana_caller, lamports_amount, salt, instruction_count
-    ):
+        info2: bytes = evm_loader.get_solana_account_data(resource_addr, COUNTER_ACCOUNT_LAYOUT.sizeof())
+        counter_value_after = COUNTER_ACCOUNT_LAYOUT.parse(info2)
+        assert counter_value_after.count - counter_value_before.count == instruction_count
+
+    @pytest.mark.parametrize("lamports_amount", [1000000000, None])
+    def test_limit_of_simple_instr_in_one_trx(self, sender_with_tokens, solana_caller, lamports_amount):
+        salt = b"dss"
+        instruction_count = 40
         resource_addr = solana_caller.create_resource(sender_with_tokens, salt, 8, 1000000000, COUNTER_ID)
 
         instruction = Instruction(
