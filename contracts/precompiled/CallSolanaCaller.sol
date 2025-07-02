@@ -113,28 +113,6 @@ contract CallSolanaCaller {
         batchExecute(_args);
     }
 
-    function batchExecuteFixedIterativeSteps(ExecuteArgs[] memory _args) public {
-        uint x = 0;
-        uint y = 3000;
-        uint z = x;
-        while (x < y) {
-            z++;
-            x = z;
-        }
-        batchExecute(_args);
-    }
-
-    function batchExecuteFixedIterativeStepsOverload(bytes[] memory _args) public {
-        uint x = 0;
-        uint y = 3000;
-        uint z = x;
-        while (x < y) {
-            z++;
-            x = z;
-        }
-        batchExecuteOverload(_args);
-    }
-
     function sendTokensAndExecuteInIterativeMode(
         uint256 actionsNumber,
         uint64 lamports,
@@ -181,7 +159,7 @@ contract CallSolanaCaller {
         emit LogData(program, returnData);
     }
 
-    function batchExecuteOverload(bytes[] memory _args) public {
+    function batchExecuteWithoutLamports(bytes[] memory _args) public {
         for (uint i = 0; i < _args.length; i++) {
             _callSolana.execute(_args[i]);
         }
