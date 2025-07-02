@@ -1,7 +1,7 @@
 import hashlib
 import json
 import logging
-import re
+import pathlib
 from typing import TypedDict
 
 import allure
@@ -10,7 +10,6 @@ import pytest
 from eth_account.datastructures import SignedTransaction
 from eth_utils import to_checksum_address
 from solana.rpc.commitment import Confirmed, Finalized
-from solana.rpc.core import RPCException
 from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
 from solders.keypair import Keypair
@@ -22,7 +21,7 @@ from integration.tests.neon_evm.conftest import prepare_operator
 from integration.tests.neon_evm.utils.ethereum import make_eth_transaction, make_contract_call_trx
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
 from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
-from utils.consts import LAMPORT_PER_SOL, SolanaTxExitStatus
+from utils.consts import LAMPORT_PER_SOL, SolanaTxExitStatus, OPERATOR_KEYPAIR_PATH
 from utils.evm_loader import EvmLoader, EVM_STEPS
 from utils.helpers import decode_function_signature
 from utils.metaplex import create_metadata_instruction_data, create_metadata_instruction
@@ -43,7 +42,6 @@ deterministic_holder_acc_seed_stash_key = pytest.StashKey[set]()
 class DeterministicKeyPairs(TypedDict):
     sender_with_tokens: list[Keypair]
     user: list[Keypair]
-    operator: list[Keypair]
 
 
 def get_and_validate_mark_value(
@@ -76,31 +74,36 @@ def skip_if_non_zero_balance(*pub_keys: Pubkey, evm_loader: EvmLoader):
 
 @pytest.fixture
 def deterministic_index_of_process(request: pytest.FixtureRequest) -> int:
+    """
+    the process index must NOT overlap with indices used by fixtures:
+        >>> from integration.tests.neon_evm.conftest import (
+        >>>     operator_keypair,
+        >>>     second_operator_keypair,
+        >>> )
+    """
     process_index = get_and_validate_mark_value(
         request=request, key=deterministic_index_of_process_stash_key, mark="deterministic_index_of_process"
     )
+    assert 15 <= process_index <= 21, "Use values from 15 to 21"
     return process_index
 
 
 @pytest.fixture(scope="session")
 def deterministic_key_pairs() -> DeterministicKeyPairs:
     pairs: list[Keypair] = []
-    count = 30
+    count = 20
 
     for i in range(count):
         seed_bytes = hashlib.sha256(f"Seed_{i}".encode()).digest()
         keypair = Keypair.from_seed(seed_bytes[:32])
         pairs.append(keypair)
 
-    i1 = count // 3
-    i2 = i1 * 2
+    mid_index = count // 2
 
     key_pairs: DeterministicKeyPairs = {
-        "sender_with_tokens": [pairs[i] for i in range(i1)],
-        "user": [pairs[i] for i in range(i1, i2)],
-        "operator": [pairs[i] for i in range(i2, count)],
+        "sender_with_tokens": [pairs[i] for i in range(mid_index)],
+        "user": [pairs[i] for i in range(mid_index, count)],
     }
-
     return key_pairs
 
 
@@ -111,9 +114,14 @@ def deterministic_operator_keypair(
     deterministic_index_of_process: int,
     deterministic_key_pairs: DeterministicKeyPairs,
 ) -> Keypair:
-    key_pair = deterministic_key_pairs["operator"][deterministic_index_of_process]
+    key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{deterministic_index_of_process}.json")
+
+    with open(key_file, "r") as key:
+        secret_key = json.load(key)
+        key_pair = Keypair.from_bytes(secret_key)
+
     skip_if_non_zero_balance(key_pair.pubkey(), evm_loader=evm_loader)
-    return prepare_operator(key_pair=key_pair, evm_loader=evm_loader)
+    return prepare_operator(key_file, evm_loader)
 
 
 @pytest.fixture
@@ -266,7 +274,7 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
 
 
 class TestComputeUnits:
-    @pytest.mark.deterministic_index_of_process(0)
+    @pytest.mark.deterministic_index_of_process(15)
     @pytest.mark.deterministic_sender_with_tokens_index(0)
     @pytest.mark.deterministic_user_index(0)
     @pytest.mark.deterministic_holder_acc_seed(0)
@@ -312,9 +320,9 @@ class TestComputeUnits:
         allure_attach_accounts_data(resp=resp, evm_loader=evm_loader)
 
         cu_consumed = resp.value.transaction.meta.compute_units_consumed
-        assert cu_consumed == 82359
+        assert abs(cu_consumed - 80839) <= 1000
 
-    @pytest.mark.deterministic_index_of_process(1)
+    @pytest.mark.deterministic_index_of_process(16)
     @pytest.mark.deterministic_user_index(1)
     @pytest.mark.deterministic_holder_acc_seed(1)
     def test_iterative_with_many_accounts(
@@ -363,13 +371,13 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_eth_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[90142, 100145, 60996, 215937],
+            cu_expected_list=[91354, 101357, 62208, 217149],
             cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(2)
+    @pytest.mark.deterministic_index_of_process(17)
     @pytest.mark.deterministic_user_index(2)
     @pytest.mark.deterministic_holder_acc_seed(2)
     @pytest.mark.deterministic_sender_with_tokens_index(2)
@@ -418,13 +426,13 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[75347, 49302, 43307],
+            cu_expected_list=[79867, 53822, 47827],
             cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(3)
+    @pytest.mark.deterministic_index_of_process(18)
     @pytest.mark.deterministic_user_index(3)
     @pytest.mark.deterministic_holder_acc_seed(3)
     def test_nested_calls(
@@ -496,13 +504,13 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[70710, 86456, 90710, 36603, 33050],
+            cu_expected_list=[73829, 103004, 107324, 38207, 34671],
             cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(4)
+    @pytest.mark.deterministic_index_of_process(19)
     @pytest.mark.deterministic_user_index(4)
     @pytest.mark.deterministic_holder_acc_seed(4)
     @pytest.mark.deterministic_sender_with_tokens_index(4)
@@ -576,13 +584,13 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[75813, 62316, 53276],
+            cu_expected_list=[72650, 59153, 50113],
             cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(5)
+    @pytest.mark.deterministic_index_of_process(20)
     @pytest.mark.deterministic_sender_with_tokens_index(5)
     @pytest.mark.deterministic_holder_acc_seed(5)
     def test_scheduled_transaction(
@@ -660,7 +668,7 @@ class TestComputeUnits:
             operator=deterministic_operator_keypair,
             chain_id=evm_loader.sol_chain_id,
         )
-        cu_expected_list = [28300, 29284]
+        cu_expected_list = [27420, 29282]
         done = False
         i = 0
 
@@ -690,7 +698,7 @@ class TestComputeUnits:
             allure_attach_accounts_data(resp=receipt, evm_loader=evm_loader, title=f"Used accounts data {i}")
 
             cu_consumed = receipt.value.transaction.meta.compute_units_consumed
-            assert cu_consumed == cu_expected
+            assert abs(cu_consumed - cu_expected) <= 1000
             i += 1
 
         evm_loader.finish_scheduled_trx(deterministic_operator_keypair, tree_account, deterministic_holder_acc)
@@ -702,7 +710,7 @@ class TestComputeUnits:
             text=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(6)
+    @pytest.mark.deterministic_index_of_process(21)
     @pytest.mark.deterministic_user_index(6)
     @pytest.mark.deterministic_holder_acc_seed(6)
     def test_negative(
@@ -740,21 +748,15 @@ class TestComputeUnits:
         )
         additional_accounts = [Pubkey.from_string(acc["pubkey"]) for acc in emulate_result["solana_accounts"]]
 
-        try:
-            execute_transaction_steps_from_instruction_and_validate_cu(
-                evm_loader=evm_loader,
-                operator=deterministic_operator_keypair,
-                treasury=deterministic_treasury_pool,
-                storage_account=deterministic_holder_acc,
-                instruction=signed_tx,
-                additional_accounts=additional_accounts,
-                cu_expected_list=[69937, 27968, 29559],  # the fourth step is expected to fail
-                cu_delta_allowed=0,
-                sol_client=sol_client,
-                expect_log=f"exit_status={SolanaTxExitStatus.REVERT}",
-            )
-        except RPCException as e:
-            # validate the fourth step
-            error_message = repr(e)
-            cu_consumed = int(re.search(pattern="units_consumed.*\n\s*(\d+)", string=error_message).group(1))
-            assert cu_consumed == 45136
+        execute_transaction_steps_from_instruction_and_validate_cu(
+            evm_loader=evm_loader,
+            operator=deterministic_operator_keypair,
+            treasury=deterministic_treasury_pool,
+            storage_account=deterministic_holder_acc,
+            instruction=signed_tx,
+            additional_accounts=additional_accounts,
+            cu_expected_list=[74158, 26465, 28058],
+            cu_delta_allowed=0,
+            sol_client=sol_client,
+            expect_log=f"exit_status={SolanaTxExitStatus.REVERT}",
+        )

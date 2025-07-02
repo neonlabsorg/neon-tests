@@ -20,31 +20,27 @@ from .utils.ethereum import make_contract_call_trx
 from .utils.neon_api_client import NeonApiClient
 from .utils.neon_api_rpc_client import NeonApiRpcClient
 from .utils.transaction_checks import check_transaction_logs_have_text
-
 from .utils.call_solana import SolanaCaller
 
+index_of_process_increment = 1
 
-def prepare_operator(evm_loader: EvmLoader, key_file: pathlib.Path | str = None, key_pair: Keypair = None) -> Keypair:
-    assert key_file or key_pair, "Either key_file or key_pair must be passed"
-    assert key_file is None or key_pair is None, "Only one of the params can be used: key_file/key_pair"
 
+def prepare_operator(key_file: pathlib.Path | str, evm_loader: EvmLoader) -> Keypair:
     chain_ids = (evm_loader.sol_chain_id, evm_loader.chain_id)
+    with open(key_file, "r") as key:
+        secret_key = json.load(key)
+        account = Keypair.from_bytes(secret_key)
 
-    if key_pair is None:
-        with open(key_file, "r") as key:
-            secret_key = json.load(key)
-            key_pair = Keypair.from_bytes(secret_key)
+    evm_loader.request_airdrop(account.pubkey(), 1000 * 10**9, commitment=Confirmed)
 
-    evm_loader.request_airdrop(key_pair.pubkey(), 1000 * 10**9, commitment=Confirmed)
-
-    operator_ether = eth_keys.PrivateKey(key_pair.secret()[:32]).public_key.to_canonical_address()
+    operator_ether = eth_keys.PrivateKey(account.secret()[:32]).public_key.to_canonical_address()
     for chain_id in chain_ids:
-        ether_balance_pubkey = evm_loader.ether2operator_balance(key_pair, operator_ether, chain_id)
+        ether_balance_pubkey = evm_loader.ether2operator_balance(account, operator_ether, chain_id)
         acc_info = evm_loader.get_account_info(ether_balance_pubkey, commitment=Confirmed)
         if acc_info.value is None:
-            evm_loader.create_operator_balance_account(key_pair, operator_ether, chain_id)
+            evm_loader.create_operator_balance_account(account, operator_ether, chain_id)
 
-    return key_pair
+    return account
 
 
 @pytest.fixture(scope="session")
@@ -58,13 +54,13 @@ def operator_keypair(index_of_process: int, evm_loader: EvmLoader) -> Keypair:
     """
     Initialized solana keypair with balance. Get private keys from ci/operator-keypairs
     """
-    key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{index_of_process+1}.json")
+    key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{index_of_process+index_of_process_increment}.json")
     allure.attach(
         f"current key_file {key_file}",
         "Operator key",
         attachment_type=allure.attachment_type.TEXT,
     )
-    return prepare_operator(evm_loader=evm_loader, key_file=key_file)
+    return prepare_operator(key_file, evm_loader)
 
 
 @pytest.fixture(scope="session")
@@ -72,14 +68,14 @@ def second_operator_keypair(index_of_process: int, evm_loader: EvmLoader) -> Key
     """
     Initialized solana keypair with balance. Get private key from cli or ./ci/operator-keypairs
     """
-    file_id = 12 + index_of_process
+    file_id = index_of_process + index_of_process_increment + 1
     key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
     allure.attach(
         f"current key_file {key_file}",
         "Operator key",
         attachment_type=allure.attachment_type.TEXT,
     )
-    return prepare_operator(key_file=key_file, evm_loader=evm_loader)
+    return prepare_operator(key_file, evm_loader)
 
 
 @pytest.fixture(scope="function")
