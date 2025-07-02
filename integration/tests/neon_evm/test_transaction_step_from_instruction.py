@@ -15,7 +15,6 @@ from solana.rpc.core import RPCException
 
 from utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
 from utils.types import TreasuryPool
-from .conftest import neon_api_client
 from .utils.assert_messages import InstructionAsserts
 
 from .utils.constants import TAG_FINALIZED_STATE, TAG_ACTIVE_STATE
@@ -1046,12 +1045,16 @@ class TestStepFromInstructionWithChangedRLPTrx:
         evm_loader,
         string_setter_contract,
         treasury_pool,
+        neon_api_client,
         holder_acc,
     ):
         text = "".join(random.choice(string.ascii_letters) for _ in range(10))
 
         signed_tx = make_contract_call_trx(
             evm_loader, sender_with_tokens, string_setter_contract, "set(string)", [text]
+        )
+        additional_accounts = neon_api_client.get_additional_accounts_by_emulation(
+            sender_with_tokens.eth_address.hex(), string_setter_contract.eth_address.hex(), "set(string)", params=[text]
         )
         new_raw_trx = HexBytes(bytes([0]) + signed_tx.raw_transaction)
 
@@ -1061,12 +1064,6 @@ class TestStepFromInstructionWithChangedRLPTrx:
             r=signed_tx.r,
             s=signed_tx.s,
             v=signed_tx.v,
-        )
-        additional_accounts = neon_api_client.get_additional_accounts_by_emulation(
-            sender_with_tokens.eth_address.hex(),
-            string_setter_contract.eth_address.hex(),
-            "set(string)",
-            params=[text],
         )
         resp = evm_loader.execute_transaction_steps_from_instruction(
             operator_keypair,
