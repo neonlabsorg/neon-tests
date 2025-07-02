@@ -40,11 +40,6 @@ contract Common {
         totalReceived += msg.value;
         return text;
     }
-
-   function setNumberWithAssertion(uint256 _number) public {
-        assert(false);
-        number = _number;
-    }
 }
 
 contract CommonCaller {
