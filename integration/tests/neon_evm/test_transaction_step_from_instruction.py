@@ -15,6 +15,7 @@ from solana.rpc.core import RPCException
 
 from utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
 from utils.types import TreasuryPool
+from .conftest import neon_api_client
 from .utils.assert_messages import InstructionAsserts
 
 from .utils.constants import TAG_FINALIZED_STATE, TAG_ACTIVE_STATE
@@ -811,34 +812,44 @@ class TestTransactionStepFromInstructionParallelRuns:
         operator_keypair,
         treasury_pool,
         new_holder_acc,
+        holder_acc,
+        neon_api_client,
     ):
         signed_tx = make_contract_call_trx(
             evm_loader, second_session_user, rw_lock_contract, "unchange_storage(uint8,uint8)", [1, 1]
         )
+        additional_accounts_trx1 = neon_api_client.get_additional_accounts_by_emulation(
+            second_session_user.eth_address.hex(),
+            rw_lock_contract.eth_address.hex(),
+            "unchange_storage(uint8,uint8)",
+            [1, 1],
+        )
         operator_balance = evm_loader.get_operator_balance_pubkey(operator_keypair)
 
-        def send_transaction_steps(user, holder_acc, trx):
+        def send_transaction_steps(holder_address, trx, additional_accounts):
             evm_loader.send_transaction_step_from_instruction(
                 operator_keypair,
                 operator_balance,
                 treasury_pool,
-                holder_acc,
+                holder_address,
                 trx,
-                [user.solana_account_address, user.balance_account_address, rw_lock_contract.solana_address],
+                additional_accounts,
                 500,
                 operator_keypair,
             )
 
-        send_transaction_steps(second_session_user, new_holder_acc, signed_tx)
+        send_transaction_steps(new_holder_acc, signed_tx, additional_accounts_trx1)
 
         signed_tx2 = make_contract_call_trx(evm_loader, session_user, rw_lock_contract, "get_text()")
-        holder_acc2 = evm_loader.create_holder(operator_keypair)
-        send_transaction_steps(session_user, holder_acc2, signed_tx2)
-        send_transaction_steps(second_session_user, new_holder_acc, signed_tx)
-        send_transaction_steps(session_user, holder_acc2, signed_tx2)
-        send_transaction_steps(second_session_user, new_holder_acc, signed_tx)
-        send_transaction_steps(session_user, holder_acc2, signed_tx2)
-        for holder in (new_holder_acc, holder_acc2):
+        additional_accounts_trx2 = neon_api_client.get_additional_accounts_by_emulation(
+            session_user.eth_address.hex(), rw_lock_contract.eth_address.hex(), "get_text()"
+        )
+        send_transaction_steps(holder_acc, signed_tx2, additional_accounts_trx2)
+        send_transaction_steps(new_holder_acc, signed_tx, additional_accounts_trx1)
+        send_transaction_steps(holder_acc, signed_tx2, additional_accounts_trx2)
+        send_transaction_steps(new_holder_acc, signed_tx, additional_accounts_trx1)
+        send_transaction_steps(holder_acc, signed_tx2, additional_accounts_trx2)
+        for holder in (new_holder_acc, holder_acc):
             check_holder_account_tag(
                 solana_client=evm_loader,
                 storage_account=holder,
@@ -868,12 +879,12 @@ class TestTransactionStepFromInstructionParallelRuns:
 
         operator_balance = evm_loader.get_operator_balance_pubkey(operator_keypair)
 
-        def send_transaction_steps(holder, trx, additional_accounts):
+        def send_transaction_steps(holder_address, trx, additional_accounts):
             evm_loader.send_transaction_step_from_instruction(
                 operator_keypair,
                 operator_balance,
                 treasury_pool,
-                holder,
+                holder_address,
                 trx,
                 additional_accounts,
                 500,
@@ -1036,7 +1047,6 @@ class TestStepFromInstructionWithChangedRLPTrx:
         string_setter_contract,
         treasury_pool,
         holder_acc,
-        neon_api_client,
     ):
         text = "".join(random.choice(string.ascii_letters) for _ in range(10))
 
