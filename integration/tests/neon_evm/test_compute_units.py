@@ -23,7 +23,7 @@ from integration.tests.neon_evm.conftest import prepare_operator
 from integration.tests.neon_evm.utils.ethereum import make_eth_transaction, make_contract_call_trx
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
 from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
-from utils.consts import OPERATOR_KEYPAIR_PATH, LAMPORT_PER_SOL, SolanaTxWithNeonStepExitStatus
+from utils.consts import OPERATOR_KEYPAIR_PATH, LAMPORT_PER_SOL, SolanaTxExitStatus
 from utils.evm_loader import EvmLoader, EVM_STEPS
 from utils.helpers import decode_function_signature
 from utils.metaplex import create_metadata_instruction_data, create_metadata_instruction
@@ -118,11 +118,7 @@ def deterministic_treasury_pool(
     evm_loader.create_treasury_pool_address(index)
     address = evm_loader.create_treasury_pool_address(index)
     index_buf = index.to_bytes(4, "little")
-    balance = evm_loader.get_solana_balance(address)
-
-    if balance < 5 * LAMPORT_PER_SOL:
-        evm_loader.request_airdrop(address, 5 * LAMPORT_PER_SOL, commitment=Confirmed)
-
+    evm_loader.request_airdrop(address, 5 * LAMPORT_PER_SOL, commitment=Confirmed)
     return TreasuryPool(index, address, index_buf)
 
 
@@ -228,7 +224,6 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
     operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator, chain_id)
     index = 0
     done = False
-    receipt = None
 
     while not done:
         receipt = evm_loader.send_transaction_step_from_instruction(
@@ -259,8 +254,7 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
         assert (cu_consumed - cu_expected) <= cu_delta_allowed
         index += 1
 
-    if receipt:
-        check_transaction_logs_have_text(solana_client=sol_client, trx=receipt, text=expect_log)
+    check_transaction_logs_have_text(solana_client=sol_client, trx=receipt, text=expect_log)  # noqa
 
 
 class TestComputeUnits:
@@ -304,7 +298,7 @@ class TestComputeUnits:
         check_transaction_logs_have_text(
             solana_client=sol_client,
             trx=resp,
-            text=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
+            text=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
         allure_attach_accounts_data(resp=resp, evm_loader=evm_loader)
@@ -364,7 +358,7 @@ class TestComputeUnits:
             cu_expected_list=[90142, 100145, 60996, 215937],
             cu_delta_allowed=1000,
             sol_client=sol_client,
-            expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
+            expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(20)  # must be greater than max number of --numprocesses
@@ -405,10 +399,9 @@ class TestComputeUnits:
             sender=deterministic_sender_with_tokens.eth_address.hex(),
             contract=contract.eth_address.hex(),
             data=data[2:],
-            value=hex(100),
+            value=hex(value),
         )
         additional_accounts = [Pubkey.from_string(acc["pubkey"]) for acc in emulate_result["solana_accounts"]]
-        additional_accounts += [contract.balance_account_address]
 
         execute_transaction_steps_from_instruction_and_validate_cu(
             evm_loader=evm_loader,
@@ -420,7 +413,7 @@ class TestComputeUnits:
             cu_expected_list=[75347, 49302, 43307],
             cu_delta_allowed=1000,
             sol_client=sol_client,
-            expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
+            expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(21)  # must be greater than max number of --numprocesses
@@ -498,7 +491,7 @@ class TestComputeUnits:
             cu_expected_list=[70710, 86456, 90710, 36603, 33050],
             cu_delta_allowed=1000,
             sol_client=sol_client,
-            expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
+            expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(22)  # must be greater than max number of --numprocesses
@@ -578,7 +571,7 @@ class TestComputeUnits:
             cu_expected_list=[75813, 62316, 53276],
             cu_delta_allowed=1000,
             sol_client=sol_client,
-            expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
+            expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(23)  # must be greater than max number of --numprocesses
@@ -662,7 +655,6 @@ class TestComputeUnits:
         cu_expected_list = [28300, 29284]
         done = False
         i = 0
-        receipt = None
 
         while not done:
             cu_expected = cu_expected_list[i]
@@ -696,12 +688,11 @@ class TestComputeUnits:
         evm_loader.finish_scheduled_trx(deterministic_operator_keypair, tree_account, deterministic_holder_acc)
         evm_loader.destroy_tree_account(deterministic_neon_user, deterministic_treasury_pool, tree_account)
 
-        if receipt:
-            check_transaction_logs_have_text(
-                solana_client=sol_client,
-                trx=receipt,
-                text=f"exit_status={SolanaTxWithNeonStepExitStatus.SUCCESS_WITH_CHANGES}",
-            )
+        check_transaction_logs_have_text(
+            solana_client=sol_client,
+            trx=receipt,  # noqa
+            text=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
+        )
 
     @pytest.mark.deterministic_index_of_process(24)  # must be greater than max number of --numprocesses
     @pytest.mark.deterministic_user_index(6)
@@ -749,10 +740,10 @@ class TestComputeUnits:
                 storage_account=deterministic_holder_acc,
                 instruction=signed_tx,
                 additional_accounts=additional_accounts,
-                cu_expected_list=[69937, 27968, 29559, -1],  # the fourth step is expected to fail
+                cu_expected_list=[69937, 27968, 29559],  # the fourth step is expected to fail
                 cu_delta_allowed=0,
                 sol_client=sol_client,
-                expect_log=f"exit_status={SolanaTxWithNeonStepExitStatus.REVERT}",
+                expect_log=f"exit_status={SolanaTxExitStatus.REVERT}",
             )
         except RPCException as e:
             # validate the fourth step

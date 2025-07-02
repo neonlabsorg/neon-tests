@@ -121,7 +121,7 @@ class InstructionTags(bytes, Enum):
     CONFIG_GET_VERSION = b"\xA7"
 
 
-class SolanaTxWithNeonStepExitStatus(str, Enum):
+class SolanaTxExitStatus(str, Enum):
     SUCCESS_WITH_CHANGES = "0x11"
     SUCCESS_NO_CHANGES = "0x12"
     REVERT = "0xD0"
