@@ -5,6 +5,7 @@ import pytest
 
 from eth_utils import abi
 
+from eth_keys import keys as eth_keys
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solana.rpc.commitment import Confirmed
@@ -425,6 +426,49 @@ class TestInteroperability:
             )
         except RPCException as err:
             assert "static mode violation" in decode_logs(err.args[0].data.logs)
+        else:
+            assert False, f"Expected error but got {resp}"
+
+    def test_call_neon_instruction_by_neon_instruction(
+        self,
+        sender_with_tokens,
+        solana_caller,
+        operator_keypair,
+        evm_loader,
+        treasury_pool,
+        new_holder_acc,
+        environment,
+        neon_api_client,
+    ):
+        chain_id = environment.network_ids["neon"]
+        key = Keypair()
+        caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
+
+        account_pubkey = evm_loader.ether2balance(caller_ether)
+        contract_pubkey = Pubkey.from_string(evm_loader.ether2program(caller_ether)[0])
+
+        data = bytes([0x30]) + caller_ether + chain_id.to_bytes(8, "little")
+        neon_instruction = Instruction(
+            program_id=evm_loader.loader_id,
+            data=data,
+            accounts=[
+                AccountMeta(pubkey=sender_with_tokens.solana_account.pubkey(), is_signer=True, is_writable=True),
+                AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=account_pubkey, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=contract_pubkey, is_signer=False, is_writable=True),
+            ],
+        )
+
+        try:
+            resp = solana_caller.batch_execute(
+                [
+                    (evm_loader.loader_id, 0, neon_instruction),
+                ],
+                sender_with_tokens,
+                additional_signers=[sender_with_tokens.solana_account],
+            )
+        except RPCException as err:
+            assert "Program not allowed to call itself" in decode_logs(err.args[0].data.logs)
         else:
             assert False, f"Expected error but got {resp}"
 
