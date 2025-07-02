@@ -161,35 +161,9 @@ class TestSolanaInteroperability:
         event_logs = call_solana_caller.events.LogBytes().process_receipt(resp)
         assert int.from_bytes(event_logs[0].args.value, byteorder="little") == next(get_counter_value)
 
-    def test_counter_batch_execute(self, call_solana_caller, counter_resource_address: bytes, get_counter_value):
-        sender = self.accounts[0]
-        call_params = []
-        current_counter = 0
-
-        for _ in range(10):
-            instruction = Instruction(
-                program_id=COUNTER_ID,
-                accounts=[
-                    AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
-                ],
-                data=bytes([0x1]),
-            )
-            serialized = serialize_instruction(COUNTER_ID, instruction)
-            call_params.append((0, serialized))
-            current_counter = next(get_counter_value)
-
-        tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.batchExecute(call_params).build_transaction(tx)
-
-        resp = self.web3_client.send_transaction(sender, instruction_tx)
-        assert resp["status"] == 1
-
-        event_logs = call_solana_caller.events.LogData().process_receipt(resp)
-        assert int.from_bytes(event_logs[0].args.value, byteorder="little") == current_counter
-        assert bytes32_to_solana_pubkey(event_logs[0].args.program.hex()) == COUNTER_ID
-
-    def test_counter_batch_execute_without_lamports_in_params(
-        self, call_solana_caller, counter_resource_address: bytes, get_counter_value
+    @pytest.mark.parametrize("lamports", [0, None])
+    def test_counter_batch_execute(
+        self, call_solana_caller, counter_resource_address: bytes, get_counter_value, lamports
     ):
         sender = self.accounts[0]
         call_params = []
@@ -204,11 +178,17 @@ class TestSolanaInteroperability:
                 data=bytes([0x1]),
             )
             serialized = serialize_instruction(COUNTER_ID, instruction)
-            call_params.append(serialized)
+            if lamports is not None:
+                call_params.append((0, serialized))
+            else:
+                call_params.append(serialized)
             current_counter = next(get_counter_value)
 
         tx = self.web3_client.make_raw_tx(sender.address)
-        instruction_tx = call_solana_caller.functions.batchExecuteWithoutLamports(call_params).build_transaction(tx)
+        if lamports is not None:
+            instruction_tx = call_solana_caller.functions.batchExecute(call_params).build_transaction(tx)
+        else:
+            instruction_tx = call_solana_caller.functions.batchExecuteWithoutLamports(call_params).build_transaction(tx)
 
         resp = self.web3_client.send_transaction(sender, instruction_tx)
         assert resp["status"] == 1
