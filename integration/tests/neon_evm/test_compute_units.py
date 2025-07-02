@@ -1,9 +1,8 @@
 import hashlib
 import json
 import logging
-import pathlib
 import re
-from typing import Literal
+from typing import TypedDict
 
 import allure
 import eth_abi
@@ -23,7 +22,7 @@ from integration.tests.neon_evm.conftest import prepare_operator
 from integration.tests.neon_evm.utils.ethereum import make_eth_transaction, make_contract_call_trx
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
 from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
-from utils.consts import OPERATOR_KEYPAIR_PATH, LAMPORT_PER_SOL, SolanaTxExitStatus
+from utils.consts import LAMPORT_PER_SOL, SolanaTxExitStatus
 from utils.evm_loader import EvmLoader, EVM_STEPS
 from utils.helpers import decode_function_signature
 from utils.metaplex import create_metadata_instruction_data, create_metadata_instruction
@@ -39,6 +38,12 @@ deterministic_index_of_process_stash_key = pytest.StashKey[set]()
 deterministic_sender_with_tokens_index_stash_key = pytest.StashKey[set]()
 deterministic_user_index_stash_key = pytest.StashKey[set]()
 deterministic_holder_acc_seed_stash_key = pytest.StashKey[set]()
+
+
+class DeterministicKeyPairs(TypedDict):
+    sender_with_tokens: list[Keypair]
+    user: list[Keypair]
+    operator: list[Keypair]
 
 
 def get_and_validate_mark_value(
@@ -78,34 +83,37 @@ def deterministic_index_of_process(request: pytest.FixtureRequest) -> int:
 
 
 @pytest.fixture(scope="session")
-def deterministic_key_pairs() -> dict[Literal["sender_with_tokens", "user"], list[Keypair]]:
+def deterministic_key_pairs() -> DeterministicKeyPairs:
     pairs: list[Keypair] = []
-    count = 50
+    count = 30
 
     for i in range(count):
         seed_bytes = hashlib.sha256(f"Seed_{i}".encode()).digest()
         keypair = Keypair.from_seed(seed_bytes[:32])
         pairs.append(keypair)
 
-    return {
-        "sender_with_tokens": [pairs[i] for i in range(count // 2)],
-        "user": [pairs[i] for i in range(count // 2, count)],
+    i1 = count // 3
+    i2 = i1 * 2
+
+    key_pairs: DeterministicKeyPairs = {
+        "sender_with_tokens": [pairs[i] for i in range(i1)],
+        "user": [pairs[i] for i in range(i1, i2)],
+        "operator": [pairs[i] for i in range(i2, count)],
     }
+
+    return key_pairs
 
 
 @pytest.fixture
 def deterministic_operator_keypair(
-    request: pytest.FixtureRequest, evm_loader: EvmLoader, deterministic_index_of_process: int
+    request: pytest.FixtureRequest,
+    evm_loader: EvmLoader,
+    deterministic_index_of_process: int,
+    deterministic_key_pairs: DeterministicKeyPairs,
 ) -> Keypair:
-    key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{deterministic_index_of_process}.json")
-
-    with open(key_file, "r") as key:
-        secret_key = json.load(key)
-        key_pair = Keypair.from_bytes(secret_key)
-
+    key_pair = deterministic_key_pairs["operator"][deterministic_index_of_process]
     skip_if_non_zero_balance(key_pair.pubkey(), evm_loader=evm_loader)
-
-    return prepare_operator(key_file, evm_loader)
+    return prepare_operator(key_pair=key_pair, evm_loader=evm_loader)
 
 
 @pytest.fixture
@@ -127,7 +135,7 @@ def deterministic_sender_with_tokens(
     request: pytest.FixtureRequest,
     evm_loader: EvmLoader,
     deterministic_operator_keypair: Keypair,
-    deterministic_key_pairs: dict[Literal["sender_with_tokens", "user"], list[Keypair]],
+    deterministic_key_pairs: DeterministicKeyPairs,
 ) -> Caller:
     index = get_and_validate_mark_value(
         request=request,
@@ -148,7 +156,7 @@ def deterministic_user(
     request: pytest.FixtureRequest,
     evm_loader: EvmLoader,
     deterministic_operator_keypair: Keypair,
-    deterministic_key_pairs: dict[Literal["sender_with_tokens", "user"], list[Keypair]],
+    deterministic_key_pairs: DeterministicKeyPairs,
 ) -> Caller:
     index = get_and_validate_mark_value(
         request=request, key=deterministic_user_index_stash_key, mark="deterministic_user_index"
@@ -258,7 +266,7 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
 
 
 class TestComputeUnits:
-    @pytest.mark.deterministic_index_of_process(18)  # must be greater than max number of --numprocesses
+    @pytest.mark.deterministic_index_of_process(0)
     @pytest.mark.deterministic_sender_with_tokens_index(0)
     @pytest.mark.deterministic_user_index(0)
     @pytest.mark.deterministic_holder_acc_seed(0)
@@ -306,7 +314,7 @@ class TestComputeUnits:
         cu_consumed = resp.value.transaction.meta.compute_units_consumed
         assert cu_consumed == 82359
 
-    @pytest.mark.deterministic_index_of_process(19)  # must be greater than max number of --numprocesses
+    @pytest.mark.deterministic_index_of_process(1)
     @pytest.mark.deterministic_user_index(1)
     @pytest.mark.deterministic_holder_acc_seed(1)
     def test_iterative_with_many_accounts(
@@ -361,7 +369,7 @@ class TestComputeUnits:
             expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(20)  # must be greater than max number of --numprocesses
+    @pytest.mark.deterministic_index_of_process(2)
     @pytest.mark.deterministic_user_index(2)
     @pytest.mark.deterministic_holder_acc_seed(2)
     @pytest.mark.deterministic_sender_with_tokens_index(2)
@@ -416,7 +424,7 @@ class TestComputeUnits:
             expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(21)  # must be greater than max number of --numprocesses
+    @pytest.mark.deterministic_index_of_process(3)
     @pytest.mark.deterministic_user_index(3)
     @pytest.mark.deterministic_holder_acc_seed(3)
     def test_nested_calls(
@@ -494,7 +502,7 @@ class TestComputeUnits:
             expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(22)  # must be greater than max number of --numprocesses
+    @pytest.mark.deterministic_index_of_process(4)
     @pytest.mark.deterministic_user_index(4)
     @pytest.mark.deterministic_holder_acc_seed(4)
     @pytest.mark.deterministic_sender_with_tokens_index(4)
@@ -574,7 +582,7 @@ class TestComputeUnits:
             expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(23)  # must be greater than max number of --numprocesses
+    @pytest.mark.deterministic_index_of_process(5)
     @pytest.mark.deterministic_sender_with_tokens_index(5)
     @pytest.mark.deterministic_holder_acc_seed(5)
     def test_scheduled_transaction(
@@ -694,7 +702,7 @@ class TestComputeUnits:
             text=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(24)  # must be greater than max number of --numprocesses
+    @pytest.mark.deterministic_index_of_process(6)
     @pytest.mark.deterministic_user_index(6)
     @pytest.mark.deterministic_holder_acc_seed(6)
     def test_negative(
