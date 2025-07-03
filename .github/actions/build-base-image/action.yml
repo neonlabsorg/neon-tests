@@ -132,7 +132,7 @@ runs:
           docker tag ${image_name}:${{ inputs.image_tag }} ${image_name}:${{ steps.feature_branch.outputs.feature_branch_tag }}
         fi
 
-        echo "${delimiter} Pushing image to Docker registry ${delimiter}"
+        echo "${delimiter} Pushing  image to Docker registry ${delimiter}"
         docker push --all-tags ${image_name}
 
     - name: Skip build notification

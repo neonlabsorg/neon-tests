@@ -198,8 +198,9 @@ class SolanaCaller:
         return bytes32_to_solana_pubkey(resource_address)
 
     def create_resource(self, sender, salt, space, lamports, owner):
-        if self.evm_loader.account_exists(self.get_resource_address(salt, sender)):
-            return self.get_resource_address(salt, sender)
+        resource_address_pubkey = self.get_resource_address(salt, owner)
+        if self.evm_loader.account_exists(resource_address_pubkey):
+            return resource_address_pubkey
 
         signed_tx = make_contract_call_trx(
             self.evm_loader,
@@ -209,7 +210,6 @@ class SolanaCaller:
             [salt, space, lamports, bytes(owner)],
         )
         self.evm_loader.write_transaction_to_holder_account(signed_tx, self.holder_acc, self.operator_keypair)
-        resource_address_pubkey = self.get_resource_address(salt, sender)
 
         resp = self.evm_loader.execute_trx_from_account_with_solana_call(
             self.operator_keypair,
