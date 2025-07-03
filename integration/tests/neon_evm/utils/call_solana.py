@@ -198,7 +198,7 @@ class SolanaCaller:
         return bytes32_to_solana_pubkey(resource_address)
 
     def create_resource(self, sender, salt, space, lamports, owner):
-        resource_address_pubkey = self.get_resource_address(salt, owner)
+        resource_address_pubkey = self.get_resource_address(salt, sender)
         if self.evm_loader.account_exists(resource_address_pubkey):
             return resource_address_pubkey
 
