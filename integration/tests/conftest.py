@@ -230,18 +230,9 @@ def neon_user_with_sols_inside_neon(
     withdraw_contract_sol_chain,
     treasury_pool,
     solana_account: Keypair,
+    neon_user,
 ) -> tp.Generator[NeonUser, None, None]:
-    user = NeonUser(evm_loader_id=environment.evm_loader)
-    lamports = 2 * LAMPORT_PER_SOL
-
-    if environment.use_bank:
-        evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
-    else:
-        evm_loader.request_airdrop(
-            pubkey=user.solana_account.pubkey(),
-            lamports=lamports,
-            commitment=commitment.Confirmed,
-        )
+    user = neon_user
 
     if web3_client_sol:
         lamports = 2 * LAMPORT_PER_SOL
@@ -878,9 +869,3 @@ def alt_contract(accounts, web3_client):
 @pytest.fixture(scope="session")
 def default_cu_price(pytestconfig: Config) -> int | None:
     return pytestconfig.environment.default_cu_price  # must be equal to compose.proxy.environment.DEFAULT_CU_PRICE
-
-
-@pytest.fixture(scope="class")
-def transfers_contract(web3_client, faucet, accounts) -> Contract:
-    contract, _ = web3_client.deploy_and_get_contract("neon_evm/transfers", "0.7.6", account=accounts[1])
-    return contract
