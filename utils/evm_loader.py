@@ -68,7 +68,7 @@ from utils.layouts import (
     OPERATOR_BALANCE_ACCOUNT_LAYOUT,
 )
 from utils.solana_client import SolanaClient
-from utils.solana_logs_helper import decode_logs
+from utils.solana_logs_helper import decode_logs, parse_gas_used
 from utils.types import Caller, Contract, TreasuryPool
 
 EVM_STEPS = 500
@@ -1014,3 +1014,95 @@ class EvmLoader(SolanaClient):
         trx = Transaction()
         trx.add(make_delete_holder_account(acc.pubkey(), del_key, self.loader_id))
         return self.send_tx(trx, signer)
+
+    def execute_scheduled_trx_from_instruction_with_details(
+        self,
+        trx: ScheduledTransaction,
+        operator,
+        holder,
+        tree_account,
+        treasury,
+        additional_accounts,
+        neon_api_client,
+        neon_user,
+        nonce,
+        chain_id: int | str | None = "",
+    ):
+        if chain_id == "":
+            chain_id = self.sol_chain_id
+
+        trx_1 = json.loads(
+            self.start_scheduled_trx_from_instruction(
+                trx, operator, holder, tree_account, additional_accounts, chain_id
+            ).to_json()
+        )
+        logs_messages = trx_1["result"]["meta"]["logMessages"]
+        decoded_logs = parse_gas_used(logs_messages)
+        tree_inner_balance = neon_api_client.get_transaction_tree(
+            neon_user.neon_address.hex(), nonce, self.sol_chain_id
+        ).balance
+
+        print("\n----Balances after trx is started----")
+
+        print(f"Holder {self.get_solana_balance(holder)}")
+        print(f"Tree account {self.get_solana_balance(tree_account)}")
+        print(f"Treasury pool {self.get_solana_balance(treasury.account)}")
+        print(f"Inner tree_balance {tree_inner_balance}")
+        print(f"Operator {self.get_operator_neon_balance(operator, self.sol_chain_id)}")
+        print(f"LOGS {logs_messages}")
+        print(f"GAS USED {decoded_logs}")
+
+        self.execute_transaction_steps_from_instruction_with_details(
+            operator, treasury, holder, trx.encode(), additional_accounts, compute_unit_price=15, chain_id=chain_id
+        )
+
+    def execute_transaction_steps_from_instruction_with_details(
+        self,
+        operator: Keypair,
+        treasury,
+        storage_account,
+        instruction: SignedTransaction,
+        additional_accounts,
+        signer: Keypair = None,
+        compute_unit_price=None,
+        chain_id: int | None = None,
+    ) -> GetTransactionResp:
+        chain_id = chain_id or self.chain_id
+
+        signer = operator if signer is None else signer
+        operator_balance_pubkey = self.get_operator_balance_pubkey(operator, chain_id)
+        index = 0
+        receipt = None
+        done = False
+        while not done:
+            receipt = self.send_transaction_step_from_instruction(
+                operator,
+                operator_balance_pubkey,
+                treasury,
+                storage_account,
+                instruction,
+                additional_accounts,
+                EVM_STEPS,
+                signer,
+                compute_unit_price=compute_unit_price,
+                index=index,
+            )
+            index += 1
+            if receipt.value.transaction.meta.err:
+                raise AssertionError(f"Transaction failed with error: {receipt.value.transaction.meta.err}")
+            for log in receipt.value.transaction.meta.log_messages:
+                if "exit_status" in log:
+                    done = True
+                    break
+                if "ExitError" in log:
+                    raise AssertionError(f"EVM Return error in logs: {receipt}")
+            print(f"\n----Balances trx is executed index {index}----")
+            print(f"Holder {self.get_solana_balance(storage_account)}")
+            print(f"Treasury pool {self.get_solana_balance(treasury.account)}")
+            print(f"Operator {self.get_operator_neon_balance(operator, self.sol_chain_id)}")
+            trx = json.loads(receipt.to_json())
+            logs_messages = trx["result"]["meta"]["logMessages"]
+            decoded_logs = parse_gas_used(logs_messages)
+            print(f"LOGS {logs_messages}")
+            print(f"Index {index} GAS_USED {decoded_logs}")
+        return receipt

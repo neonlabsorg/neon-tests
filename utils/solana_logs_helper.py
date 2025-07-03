@@ -22,6 +22,24 @@ def decode_logs(log_messages: list) -> str:
     return decoded_logs
 
 
+def parse_gas_used(log_messages: list) -> list:
+    gas_values = []
+
+    for log in log_messages:
+        if "Program data:" in log:
+            encoded_part = log.replace("Program data: ", "")
+            for item in encoded_part.split(" "):
+                gas_values.append(base64.b64decode(item))
+
+    if b"GAS" in gas_values:
+        look_up_index = gas_values.index(b"GAS") + 1
+        gas_values = gas_values[look_up_index : look_up_index + 2]
+
+        return [int.from_bytes(value, byteorder="little") for value in gas_values]
+
+    return []
+
+
 def get_all_solana_logs_for_neon_trx(web3_client: Web3Client, solana_client, trx_hash):
     sol_trxs = web3_client.get_solana_trx_by_neon(trx_hash)["result"]
     logs = []
