@@ -261,7 +261,7 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
                 done = True
                 break
             if "ExitError" in log:
-                raise AssertionError(f"EVM Return error in logs: {receipt}")
+                raise AssertionError(f"EVM Returned error in logs: {receipt}")
 
         allure_attach_accounts_data(resp=receipt, evm_loader=evm_loader, title=f"Used accounts data {index}")
 
@@ -693,7 +693,7 @@ class TestComputeUnits:
                     done = True
                     break
                 if "ExitError" in log:
-                    raise AssertionError(f"EVM Return error in logs: {receipt}")
+                    raise AssertionError(f"EVM Returned error in logs: {receipt}")
 
             allure_attach_accounts_data(resp=receipt, evm_loader=evm_loader, title=f"Used accounts data {i}")
 

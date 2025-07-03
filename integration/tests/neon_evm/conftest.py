@@ -16,11 +16,11 @@ from utils.evm_loader import EvmLoader
 from utils.neon_user import NeonUser
 from utils.solana_client import SolanaClient
 from utils.types import Contract, Caller, TreasuryPool
+from .utils.call_solana import SolanaCaller
 from .utils.ethereum import make_contract_call_trx
 from .utils.neon_api_client import NeonApiClient
 from .utils.neon_api_rpc_client import NeonApiRpcClient
 from .utils.transaction_checks import check_transaction_logs_have_text
-from .utils.call_solana import SolanaCaller
 
 index_of_process_increment = 1
 
@@ -31,14 +31,17 @@ def prepare_operator(key_file: pathlib.Path | str, evm_loader: EvmLoader) -> Key
         secret_key = json.load(key)
         account = Keypair.from_bytes(secret_key)
 
-    evm_loader.request_airdrop(account.pubkey(), 1000 * 10**9, commitment=Confirmed)
+    operator_balance = evm_loader.get_solana_balance(account.pubkey())
 
-    operator_ether = eth_keys.PrivateKey(account.secret()[:32]).public_key.to_canonical_address()
-    for chain_id in chain_ids:
-        ether_balance_pubkey = evm_loader.ether2operator_balance(account, operator_ether, chain_id)
-        acc_info = evm_loader.get_account_info(ether_balance_pubkey, commitment=Confirmed)
-        if acc_info.value is None:
-            evm_loader.create_operator_balance_account(account, operator_ether, chain_id)
+    if operator_balance <= 0:
+        evm_loader.request_airdrop(account.pubkey(), 1000 * 10**9, commitment=Confirmed)
+
+        operator_ether = eth_keys.PrivateKey(account.secret()[:32]).public_key.to_canonical_address()
+        for chain_id in chain_ids:
+            ether_balance_pubkey = evm_loader.ether2operator_balance(account, operator_ether, chain_id)
+            acc_info = evm_loader.get_account_info(ether_balance_pubkey, commitment=Confirmed)
+            if acc_info.value is None:
+                evm_loader.create_operator_balance_account(account, operator_ether, chain_id)
 
     return account
 
