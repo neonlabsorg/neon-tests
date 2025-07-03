@@ -1023,9 +1023,6 @@ class EvmLoader(SolanaClient):
         tree_account,
         treasury,
         additional_accounts,
-        neon_api_client,
-        neon_user,
-        nonce,
         chain_id: int | str | None = "",
     ):
         if chain_id == "":
@@ -1037,24 +1034,21 @@ class EvmLoader(SolanaClient):
             ).to_json()
         )
         logs_messages = trx_1["result"]["meta"]["logMessages"]
-        decoded_logs = parse_gas_used(logs_messages)
-        tree_inner_balance = neon_api_client.get_transaction_tree(
-            neon_user.neon_address.hex(), nonce, self.sol_chain_id
-        ).balance
+        gas_used_start = parse_gas_used(logs_messages)
 
         print("\n----Balances after trx is started----")
 
         print(f"Holder {self.get_solana_balance(holder)}")
         print(f"Tree account {self.get_solana_balance(tree_account)}")
         print(f"Treasury pool {self.get_solana_balance(treasury.account)}")
-        print(f"Inner tree_balance {tree_inner_balance}")
         print(f"Operator {self.get_operator_neon_balance(operator, self.sol_chain_id)}")
         print(f"LOGS {logs_messages}")
-        print(f"GAS USED {decoded_logs}")
+        print(f"GAS USED {gas_used_start}")
 
-        self.execute_transaction_steps_from_instruction_with_details(
+        _, gas_used_exec = self.execute_transaction_steps_from_instruction_with_details(
             operator, treasury, holder, trx.encode(), additional_accounts, compute_unit_price=15, chain_id=chain_id
         )
+        return gas_used_start, gas_used_exec
 
     def execute_transaction_steps_from_instruction_with_details(
         self,
@@ -1066,7 +1060,7 @@ class EvmLoader(SolanaClient):
         signer: Keypair = None,
         compute_unit_price=None,
         chain_id: int | None = None,
-    ) -> GetTransactionResp:
+    ) -> tuple[GetTransactionResp, list]:
         chain_id = chain_id or self.chain_id
 
         signer = operator if signer is None else signer
@@ -1074,6 +1068,7 @@ class EvmLoader(SolanaClient):
         index = 0
         receipt = None
         done = False
+        result = []
         while not done:
             receipt = self.send_transaction_step_from_instruction(
                 operator,
@@ -1102,7 +1097,9 @@ class EvmLoader(SolanaClient):
             print(f"Operator {self.get_operator_neon_balance(operator, self.sol_chain_id)}")
             trx = json.loads(receipt.to_json())
             logs_messages = trx["result"]["meta"]["logMessages"]
-            decoded_logs = parse_gas_used(logs_messages)
+            parsed_gas = parse_gas_used(logs_messages)
             print(f"LOGS {logs_messages}")
-            print(f"Index {index} GAS_USED {decoded_logs}")
-        return receipt
+            for value in parsed_gas:
+                result.append(value)
+
+        return receipt, result
