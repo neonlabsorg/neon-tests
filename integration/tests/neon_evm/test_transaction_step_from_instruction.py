@@ -462,9 +462,7 @@ class TestTransactionStepFromInstruction:
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         fake_sys_program_id = Keypair().pubkey()
         operator_balance = evm_loader.get_operator_balance_pubkey(operator_keypair)
-        with pytest.raises(
-            solana.rpc.core.RPCException, match=str.format(InstructionAsserts.ACCOUNT_NOT_FOUND, sp.ID)
-        ):
+        with pytest.raises(solana.rpc.core.RPCException, match=str.format(InstructionAsserts.ACCOUNT_NOT_FOUND, sp.ID)):
             evm_loader.send_transaction_step_from_instruction(
                 operator_keypair,
                 operator_balance,

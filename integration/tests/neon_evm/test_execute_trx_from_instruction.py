@@ -356,9 +356,7 @@ class TestExecuteTrxFromInstruction:
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         fake_sys_program_id = Keypair().pubkey()
-        with pytest.raises(
-            SolanaRPCException, match=str.format(InstructionAsserts.ACCOUNT_NOT_FOUND, sp.ID)
-        ):
+        with pytest.raises(SolanaRPCException, match=str.format(InstructionAsserts.ACCOUNT_NOT_FOUND, sp.ID)):
             evm_loader.execute_trx_from_instruction(
                 operator_keypair,
                 holder_acc,

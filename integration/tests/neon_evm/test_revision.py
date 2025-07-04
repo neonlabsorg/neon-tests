@@ -1023,7 +1023,7 @@ class TestAccountRevision:
         contract_revision_caller_after = evm_loader.get_contract_account_revision(
             revision_contract_caller.solana_address
         )
-        assert contract_revision_before == contract_revision_after - (63*2)
+        assert contract_revision_before == contract_revision_after - (63 * 2)
         assert contract_revision_caller_before == contract_revision_caller_after
 
         data_accounts = set(acc_from_emulation1) - set(additional_accounts)
