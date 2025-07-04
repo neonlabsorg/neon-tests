@@ -94,10 +94,10 @@ def test_successful_single_trx_with_outer_deposit(
 
     evm_loader.finish_scheduled_trx(operator_keypair, tree_acc, holder_acc)
     operator_balance_trx_finished = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
-    gas_used = gas_used_exec[-1] * tx_0.DEFAULTS["max_fee_per_gas"]
+    exec_trx_cost = gas_used_exec[-1] * tx_0.DEFAULTS["max_fee_per_gas"]
     operator_fee = OPERATOR_FEE_TO_NEON * iter_count_per_trx
 
-    expected_operator_balance = operator_balance + operator_fee + gas_used
+    expected_operator_balance = operator_balance + operator_fee + exec_trx_cost
     assert (
         operator_balance_trx_finished == expected_operator_balance
     ), f"Operator balance failed. Diff {operator_balance_trx_finished - expected_operator_balance}"
@@ -252,10 +252,10 @@ def test_success_two_trx_with_inner_deposit(
     evm_loader.finish_scheduled_trx(operator_keypair, tree_acc, holder_acc)
     operator_balance_trx_finished_1 = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
 
-    gas_used = gas_used_exec[-1] * max_fee_per_gas
+    exec_trx_cost = gas_used_exec[-1] * max_fee_per_gas
     operator_fee = OPERATOR_FEE_TO_NEON * iter_count_per_trx
 
-    expected_operator_balance = operator_balance + operator_fee + gas_used
+    expected_operator_balance = operator_balance + operator_fee + exec_trx_cost
     assert (
         operator_balance_trx_finished_1 == expected_operator_balance
     ), f"Operator balance failed. Diff {operator_balance_trx_finished_1 - expected_operator_balance}"
@@ -267,10 +267,10 @@ def test_success_two_trx_with_inner_deposit(
 
     operator_balance_trx_finished_1 = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
 
-    gas_used_1 = gas_used_exec_1[-1] * max_fee_per_gas
+    exec_trx_cost_1 = gas_used_exec_1[-1] * max_fee_per_gas
     operator_fee_1 = OPERATOR_FEE_TO_NEON * iter_count_per_trx
 
-    expected_operator_balance = expected_operator_balance + operator_fee_1 + gas_used_1
+    expected_operator_balance = expected_operator_balance + operator_fee_1 + exec_trx_cost_1
     assert (
         operator_balance_trx_finished_1 == expected_operator_balance
     ), f"Operator balance failed. Diff {operator_balance_trx_finished_1 - expected_operator_balance}"
@@ -385,10 +385,10 @@ def test_failed_trx_with_outer_deposit(
     evm_loader.finish_scheduled_trx(operator_keypair, tree_acc, holder_acc)
     operator_balance_trx_finished = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
 
-    gas_used = gas_used_exec[-1] * tx0.DEFAULTS["max_fee_per_gas"]
+    exec_trx_cost = gas_used_exec[-1] * tx0.DEFAULTS["max_fee_per_gas"]
     operator_fee = OPERATOR_FEE_TO_NEON * iter_count_per_trx
 
-    expected_operator_balance = operator_balance + operator_fee + gas_used
+    expected_operator_balance = operator_balance + operator_fee + exec_trx_cost
     assert (
         operator_balance_trx_finished == expected_operator_balance
     ), f"Operator balance failed. Diff {operator_balance_trx_finished - expected_operator_balance}"
@@ -510,10 +510,10 @@ def test_skipped_single_trx_with_outer_deposit(
 
     operator_balance_trx_finished = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
 
-    gas_used = gas_used_exec[-1] * tx_0.DEFAULTS["max_fee_per_gas"]
+    exec_trx_cost = gas_used_exec[-1] * tx_0.DEFAULTS["max_fee_per_gas"]
     operator_fee = OPERATOR_FEE_TO_NEON * iter_count_per_trx
 
-    expected_operator_balance = operator_balance + operator_fee + gas_used
+    expected_operator_balance = operator_balance + operator_fee + exec_trx_cost
     assert (
         operator_balance_trx_finished == expected_operator_balance
     ), f"Operator balance failed. Diff {operator_balance_trx_finished - expected_operator_balance}"
@@ -525,10 +525,10 @@ def test_skipped_single_trx_with_outer_deposit(
     gas_used_skipped = parse_gas_used(logs)
 
     operator_balance_trx_after_skip = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
-    gas_used = gas_used_skipped[-1] * tx_1.DEFAULTS["max_fee_per_gas"]
+    skip_trx_cost = gas_used_skipped[-1] * tx_1.DEFAULTS["max_fee_per_gas"]
 
     # No operator fee taken since it's skipped trx
-    expected_operator_balance_after_skip = operator_balance_trx_finished + gas_used
+    expected_operator_balance_after_skip = operator_balance_trx_finished + skip_trx_cost
     assert (
         operator_balance_trx_after_skip == expected_operator_balance_after_skip
     ), f"Operator balance has been changed due to skipped trx {operator_balance_trx_finished - operator_balance_trx_after_skip}"
