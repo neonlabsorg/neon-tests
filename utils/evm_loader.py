@@ -68,7 +68,7 @@ from utils.layouts import (
     OPERATOR_BALANCE_ACCOUNT_LAYOUT,
 )
 from utils.solana_client import SolanaClient
-from utils.solana_logs_helper import decode_logs, parse_gas_used
+from utils.solana_logs_helper import decode_logs
 from utils.types import Caller, Contract, TreasuryPool
 
 EVM_STEPS = 500
@@ -858,12 +858,12 @@ class EvmLoader(SolanaClient):
         treasury,
         additional_accounts,
         chain_id: int | str | None = "",
-    ):
+    ) -> GetTransactionResp:
         if chain_id == "":
             chain_id = self.sol_chain_id
 
         self.start_scheduled_trx_from_instruction(trx, operator, holder, tree_account, additional_accounts, chain_id)
-        self.execute_transaction_steps_from_instruction(
+        return self.execute_transaction_steps_from_instruction(
             operator, treasury, holder, trx.encode(), additional_accounts, compute_unit_price=15, chain_id=chain_id
         )
 
@@ -1014,78 +1014,3 @@ class EvmLoader(SolanaClient):
         trx = Transaction()
         trx.add(make_delete_holder_account(acc.pubkey(), del_key, self.loader_id))
         return self.send_tx(trx, signer)
-
-    def execute_scheduled_trx_from_instruction_with_details(
-        self,
-        trx: ScheduledTransaction,
-        operator,
-        holder,
-        tree_account,
-        treasury,
-        additional_accounts,
-        chain_id: int | str | None = "",
-    ):
-        if chain_id == "":
-            chain_id = self.sol_chain_id
-
-        trx_1 = json.loads(
-            self.start_scheduled_trx_from_instruction(
-                trx, operator, holder, tree_account, additional_accounts, chain_id
-            ).to_json()
-        )
-        logs_messages = trx_1["result"]["meta"]["logMessages"]
-        gas_used_start = parse_gas_used(logs_messages)
-
-        _, gas_used_exec = self.execute_transaction_steps_from_instruction_with_details(
-            operator, treasury, holder, trx.encode(), additional_accounts, compute_unit_price=15, chain_id=chain_id
-        )
-        return gas_used_start, gas_used_exec
-
-    def execute_transaction_steps_from_instruction_with_details(
-        self,
-        operator: Keypair,
-        treasury,
-        storage_account,
-        instruction: SignedTransaction,
-        additional_accounts,
-        signer: Keypair = None,
-        compute_unit_price=None,
-        chain_id: int | None = None,
-    ) -> tuple[GetTransactionResp, list]:
-        chain_id = chain_id or self.chain_id
-
-        signer = operator if signer is None else signer
-        operator_balance_pubkey = self.get_operator_balance_pubkey(operator, chain_id)
-        index = 0
-        receipt = None
-        done = False
-        result = []
-        while not done:
-            receipt = self.send_transaction_step_from_instruction(
-                operator,
-                operator_balance_pubkey,
-                treasury,
-                storage_account,
-                instruction,
-                additional_accounts,
-                EVM_STEPS,
-                signer,
-                compute_unit_price=compute_unit_price,
-                index=index,
-            )
-            index += 1
-            if receipt.value.transaction.meta.err:
-                raise AssertionError(f"Transaction failed with error: {receipt.value.transaction.meta.err}")
-            for log in receipt.value.transaction.meta.log_messages:
-                if "exit_status" in log:
-                    done = True
-                    break
-                if "ExitError" in log:
-                    raise AssertionError(f"EVM Return error in logs: {receipt}")
-            trx = json.loads(receipt.to_json())
-            logs_messages = trx["result"]["meta"]["logMessages"]
-            parsed_gas = parse_gas_used(logs_messages)
-            for value in parsed_gas:
-                result.append(value)
-
-        return receipt, result
