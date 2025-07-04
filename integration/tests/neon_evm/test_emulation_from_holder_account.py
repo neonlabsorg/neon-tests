@@ -277,7 +277,7 @@ class TestEmulateFromHolderAccount:
 
         with pytest.raises(
             RPCException,
-            match="Revert after Solana Call is not supported",
+            match="Revert with Solana Call is not supported",
         ):
             resp = evm_loader.execute_transaction_steps_from_account(
                 operator_keypair, treasury_pool, new_holder_acc, accounts_from_emulation
