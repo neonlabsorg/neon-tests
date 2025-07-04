@@ -369,8 +369,14 @@ class TestScheduledTransactionEconomics:
         operator_sol_balance_before = operator.get_solana_balance()
 
         recipient = NeonUser(evm_loader.loader_id)
-        summ_tokens_before = sum_balances(web3_client_sol, operator, neon_user, recipient)
         erc20_spl_mintable.approve(erc20_spl_mintable.owner, neon_user.checksum_address, 800)
+
+        token_balance_before = operator.get_token_balance(web3_client_sol)
+        user_inner_sol_balance_before = web3_client_sol.get_balance(neon_user.checksum_address)
+        user_outer_sol_balance_before = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
+        full_volume_before = (
+            token_balance_before + user_inner_sol_balance_before + (user_outer_sol_balance_before * LAMPORTS_PER_SOL)
+        )
 
         top_up_in_trx = 400
         amount_to_recipient = 400
@@ -422,12 +428,19 @@ class TestScheduledTransactionEconomics:
         operator_inner_balance_after = operator.get_token_balance(web3_client_sol)
         operator_sol_balance_after = operator.get_solana_balance()
 
+        token_balance_after = operator.get_token_balance(web3_client_sol)
+        user_inner_sol_balance_after = web3_client_sol.get_balance(neon_user.checksum_address)
+        user_outer_sol_balance_after = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
+        full_volume_after = (
+            token_balance_after + user_inner_sol_balance_after + (user_outer_sol_balance_after * LAMPORTS_PER_SOL)
+        )
+
         trx_count = 4
         additional_expected_spending = (
             (DEPOSIT_FOR_TREE_ACC_DELETING + TREE_ACC_CREATING_FEE) * LAMPORTS_PER_SOL
         ) - DEPOSIT_FOR_TRXS_FINISHING * trx_count
-        summ_tokens_after = sum_balances(web3_client_sol, operator, neon_user, recipient)
-        diff_volume = summ_tokens_before - summ_tokens_after + additional_expected_spending
+
+        diff_volume = full_volume_before - full_volume_after - additional_expected_spending
         assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
 
         token_price = web3_client_sol.get_token_usd_gas_price()
