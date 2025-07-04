@@ -21,7 +21,7 @@ from integration.tests.neon_evm.conftest import prepare_operator
 from integration.tests.neon_evm.utils.ethereum import make_eth_transaction, make_contract_call_trx
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
 from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
-from utils.consts import LAMPORT_PER_SOL, SolanaTxExitStatus, OPERATOR_KEYPAIR_PATH
+from utils.consts import LAMPORT_PER_SOL, NeonTxExitStatus, OPERATOR_KEYPAIR_PATH
 from utils.evm_loader import EvmLoader, EVM_STEPS
 from utils.helpers import decode_function_signature
 from utils.metaplex import create_metadata_instruction_data, create_metadata_instruction
@@ -261,7 +261,7 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
                 done = True
                 break
             if "ExitError" in log:
-                raise AssertionError(f"EVM Returned error in logs: {receipt}")
+                raise AssertionError(f"EVM Returned an error in logs: {receipt}")
 
         allure_attach_accounts_data(resp=receipt, evm_loader=evm_loader, title=f"Used accounts data {index}")
 
@@ -314,7 +314,7 @@ class TestComputeUnits:
         check_transaction_logs_have_text(
             solana_client=sol_client,
             trx=resp,
-            text=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
+            text=f"exit_status={NeonTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
         allure_attach_accounts_data(resp=resp, evm_loader=evm_loader)
@@ -374,7 +374,7 @@ class TestComputeUnits:
             cu_expected_list=[91354, 101357, 62208, 217149],
             cu_delta_allowed=1000,
             sol_client=sol_client,
-            expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
+            expect_log=f"exit_status={NeonTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(17)
@@ -429,7 +429,7 @@ class TestComputeUnits:
             cu_expected_list=[79867, 53822, 47827],
             cu_delta_allowed=1000,
             sol_client=sol_client,
-            expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
+            expect_log=f"exit_status={NeonTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(18)
@@ -507,7 +507,7 @@ class TestComputeUnits:
             cu_expected_list=[73829, 103004, 107324, 38207, 34671],
             cu_delta_allowed=1000,
             sol_client=sol_client,
-            expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
+            expect_log=f"exit_status={NeonTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(19)
@@ -587,7 +587,7 @@ class TestComputeUnits:
             cu_expected_list=[72650, 59153, 50113],
             cu_delta_allowed=1000,
             sol_client=sol_client,
-            expect_log=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
+            expect_log=f"exit_status={NeonTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(20)
@@ -707,7 +707,7 @@ class TestComputeUnits:
         check_transaction_logs_have_text(
             solana_client=sol_client,
             trx=receipt,  # noqa
-            text=f"exit_status={SolanaTxExitStatus.SUCCESS_WITH_CHANGES}",
+            text=f"exit_status={NeonTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
     @pytest.mark.deterministic_index_of_process(21)
@@ -758,5 +758,5 @@ class TestComputeUnits:
             cu_expected_list=[74158, 26465, 28058],
             cu_delta_allowed=0,
             sol_client=sol_client,
-            expect_log=f"exit_status={SolanaTxExitStatus.REVERT}",
+            expect_log=f"exit_status={NeonTxExitStatus.REVERT}",
         )
