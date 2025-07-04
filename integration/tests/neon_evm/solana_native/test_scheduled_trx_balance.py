@@ -16,7 +16,7 @@ from utils.solana_logs_helper import parse_gas_used
 from utils.types import Contract
 
 
-LAMPORT_TO_NEON = 10**9
+LAMPORT_TO_INNER_SOL = 10**9
 LOG = logging.getLogger(__name__)
 
 
@@ -45,19 +45,13 @@ def test_successful_single_trx_with_outer_deposit(
         call_data=call_data,
         chain_id=evm_loader.sol_chain_id,
     )
-    neon_user_balance_start = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
-    print(f"Neon user balance start {neon_user_balance_start}")
     tree_acc_data = CreateTreeAccMultipleData(nonce=nonce)
     tree_acc_data.add_trx(tx_0, 0xFFFF, 0)
     tree_acc = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
-    print("\n----Balances after tree acc was created----")
-
     neon_user_balance_after_tree = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
-    neon_user_inner_balance = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
     delta_neon_user = neon_user_balance_before - neon_user_balance_after_tree
-    operator_balance_trx_tree = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
-    estimated_gas_fee = tx_0.DEFAULTS["gas_limit"] * tx_0.DEFAULTS["max_fee_per_gas"] / LAMPORT_TO_NEON
+    estimated_gas_fee = tx_0.DEFAULTS["gas_limit"] * tx_0.DEFAULTS["max_fee_per_gas"] / LAMPORT_TO_INNER_SOL
     deposit_to_tree_acc = 10_000  # Where it comes from?
     trx_execution_price = 5_000
 
@@ -77,22 +71,15 @@ def test_successful_single_trx_with_outer_deposit(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
     assert tree_acc_balance_inner == int(
-        estimated_gas_fee * LAMPORT_TO_NEON
+        estimated_gas_fee * LAMPORT_TO_INNER_SOL
     ), f"Tree acc inner balance failed, actual {tree_acc_balance_inner}"
-
-    print(f"Neon_user {neon_user_balance_after_tree}")
-    print(f"Neon inner {neon_user_inner_balance}")
-    print(f"Tree Acc balance inner {tree_acc_balance_inner}")
-    print(f"Treasury {treasury_pool_balance_after_tree}")
-    print(f"Tree Acc balance {tree_acc_balance}")
-    print(f"Operator balance after tree {operator_balance_trx_tree}")
 
     additional_accounts = [
         basic_contract.solana_address,
         neon_user.get_balance_account(evm_loader.sol_chain_id),
     ]
 
-    gas_used_start, gas_used_exec = evm_loader.execute_scheduled_trx_from_instruction_with_details(
+    _, gas_used_exec = evm_loader.execute_scheduled_trx_from_instruction_with_details(
         tx_0,
         operator_keypair,
         holder_acc,
@@ -101,43 +88,14 @@ def test_successful_single_trx_with_outer_deposit(
         additional_accounts,
     )
 
-    trx = json.loads(evm_loader.finish_scheduled_trx(operator_keypair, tree_acc, holder_acc).to_json())
-    logs_messages = trx["result"]["meta"]["logMessages"]
-    gas_used_finish = parse_gas_used(logs_messages)
-
-    print("\n----Balances after trx is finished----")
-
-    holder_acc_balance_trx_finished = evm_loader.get_solana_balance(holder_acc)
+    evm_loader.finish_scheduled_trx(operator_keypair, tree_acc, holder_acc)
     operator_balance_trx_finished = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
-    neon_user_balance_trx_finished = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
-    treasury_pool_balance_trx_finished = evm_loader.get_solana_balance(treasury_pool.account)
-    tree_acc_balance_trx_finished = evm_loader.get_solana_balance(tree_acc)
-
-    print(f"Delta neon_user {neon_user_balance_trx_finished}")
-    print(f"Delta operator {operator_balance_trx_finished}")
-    print(f"Delta holder {holder_acc_balance_trx_finished}")
-    print(f"Delta treasury {treasury_pool_balance_trx_finished}")
-    print(f"Tree Acc balance {tree_acc_balance_trx_finished}")
-    print(f"Logs {logs_messages}")
-    print(f"GAS_USED {gas_used_finish}")
 
     assert (
         operator_balance_trx_finished > operator_balance
     ), f"Operator balance failed. It has to be greater than {operator_balance}"
 
-    tree_acc_balance_inner_finish = neon_api_client.get_transaction_tree(
-        neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
-    ).balance
-    print(f"tree_acc_balance_inner {tree_acc_balance_inner_finish}")
-
-    print("\n----Balances after trx is destroyed----")
-    trx_1 = json.loads(evm_loader.destroy_tree_account(neon_user, treasury_pool, tree_acc).to_json())
-    logs_messages = trx_1["result"]["meta"]["logMessages"]
-    gas_used_destroyed = parse_gas_used(logs_messages)
-
-    holder_acc_balance_after_tree = evm_loader.get_solana_balance(holder_acc)
-    operator_balance_after_tree = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
-    neon_user_balance_after_tree = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
+    evm_loader.destroy_tree_account(neon_user, treasury_pool, tree_acc)
     neon_user_inner_balance_after_tree = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
     treasury_pool_balance_after_tree = evm_loader.get_solana_balance(treasury_pool.account)
     tree_acc_balance = evm_loader.get_solana_balance(tree_acc)
@@ -145,26 +103,19 @@ def test_successful_single_trx_with_outer_deposit(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
 
-    print(f"Delta neon_user {neon_user_balance_after_tree}")
-    print(f"Inner balance {neon_user_inner_balance_after_tree}")
-    print(f"Delta operator {operator_balance_after_tree}")
-    print(f"Delta holder {holder_acc_balance_after_tree}")
-    print(f"Delta treasury {treasury_pool_balance_after_tree}")
-    print(f"Tree Acc balance {tree_acc_balance}")
-    print(f"GAS_USED {gas_used_destroyed}")
-
-    print([gas_used_finish, gas_used_exec, gas_used_destroyed, gas_used_start])
-    total_gas_used = sum(sum(lst) for lst in [gas_used_finish, gas_used_exec, gas_used_destroyed, gas_used_start])
+    total_gas_used = gas_used_exec[-1]
 
     assert tree_acc_balance == 0, "Tree_acc balance's supposed to be 0"
     assert (
         treasury_pool_balance == treasury_pool_balance_after_tree - deposit_to_tree_acc
     ), f"Treasury pool balance is failed. Expected {treasury_pool_balance}, but got {treasury_pool_balance_after_tree}"
     assert tree_acc_balance_inner_after == 0, "Tree acc inner balance after destroyed failed, expected to be zero"
-    expected_neon_user_balance_remainder = int(estimated_gas_fee - total_gas_used) * LAMPORT_TO_NEON
+    expected_neon_user_balance_remainder = (
+        int(tx_0.DEFAULTS["gas_limit"] - total_gas_used) * tx_0.DEFAULTS["max_fee_per_gas"]
+    )
     assert neon_user_inner_balance_after_tree == expected_neon_user_balance_remainder, (
         f"Expected {expected_neon_user_balance_remainder}, but got {neon_user_inner_balance_after_tree},"
-        f"Delta {(neon_user_inner_balance_after_tree - expected_neon_user_balance_remainder) / LAMPORT_TO_NEON}"
+        f"Delta {(neon_user_inner_balance_after_tree - expected_neon_user_balance_remainder) / LAMPORT_TO_INNER_SOL}"
     )
 
 
@@ -179,6 +130,8 @@ def test_success_two_trx_with_inner_deposit(
     trx_count = 2
     gas_limit = 30_000_000
     max_fee_per_gas = 3_000_000_000
+    deposit_to_tree_acc = 10_000
+    trx_execution_price = 5_000
 
     evm_loader.create_balance_account(neon_user.checksum_address, neon_user.solana_account, evm_loader.sol_chain_id)
     evm_loader.deposit_wrapped_sol_from_solana_to_neon(
@@ -189,18 +142,12 @@ def test_success_two_trx_with_inner_deposit(
 
     neon_user_inner_balance = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
     assert (
-        neon_user_inner_balance == LAMPORT_PER_SOL * LAMPORT_TO_NEON
-    ), f"Inner sol balance is {neon_user_inner_balance}, but has to be {LAMPORT_PER_SOL * LAMPORT_TO_NEON}"
+        neon_user_inner_balance == LAMPORT_PER_SOL * LAMPORT_TO_INNER_SOL
+    ), f"Inner sol balance is {neon_user_inner_balance}, but has to be {LAMPORT_PER_SOL * LAMPORT_TO_INNER_SOL}"
 
-    holder_acc_balance = evm_loader.get_solana_balance(holder_acc)
     operator_balance = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
     neon_user_balance_before = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
     treasury_pool_balance = evm_loader.get_solana_balance(treasury_pool.account)
-
-    print(f"{neon_user_balance_before=}")
-    print(f"{operator_balance=}")
-    print(f"{treasury_pool_balance=}")
-    print(f"{holder_acc_balance=}")
 
     nonce = evm_loader.get_neon_nonce(neon_user.neon_address, evm_loader.sol_chain_id)
     contract_code = (
@@ -249,17 +196,12 @@ def test_success_two_trx_with_inner_deposit(
 
     tree_acc = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
-    print("\n----Balances after tree acc was created----")
-
-    # Expected neon_user_balance --> tree_acc + treasury_acc --> tree_acc (deposit)
     operator_balance_after_tree = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
     assert operator_balance == operator_balance_after_tree, "Operator balance has changed, but is not supposed to"
 
     neon_user_balance_after_tree = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
     delta_neon_user = neon_user_balance_before - neon_user_balance_after_tree
-    estimated_gas_fee = gas_limit * max_fee_per_gas / LAMPORT_TO_NEON
-    deposit_to_tree_acc = 10_000
-    trx_execution_price = 5_000
+    estimated_gas_fee = gas_limit * max_fee_per_gas / LAMPORT_TO_INNER_SOL
 
     assert (
         delta_neon_user == deposit_to_tree_acc + trx_execution_price
@@ -277,21 +219,9 @@ def test_success_two_trx_with_inner_deposit(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
     assert (
-        tree_acc_balance_inner == int(estimated_gas_fee * LAMPORT_TO_NEON) * trx_count
+        tree_acc_balance_inner == int(estimated_gas_fee * LAMPORT_TO_INNER_SOL) * trx_count
     ), f"Tree acc inner balance failed, actual {tree_acc_balance_inner}"
-
-    holder_acc_balance_after_tree = evm_loader.get_solana_balance(holder_acc)
-    operator_balance_after_tree = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
-    neon_user_balance_after_tree = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
-    treasury_pool_balance_after_tree = evm_loader.get_solana_balance(treasury_pool.account)
-    tree_acc_balance = evm_loader.get_solana_balance(tree_acc)
-
-    print(f"Delta neon_user {neon_user_balance_after_tree}")
-    print(f"Delta operator {operator_balance_after_tree}")
-    print(f"Delta holder {holder_acc_balance_after_tree}")
-    print(f"Delta treasury {treasury_pool_balance_after_tree}")
-    print(f"Tree Acc balance {tree_acc_balance}")
-    print(f"Tree Acc balance inner {tree_acc_balance_inner}")
+    neon_user_inner_balance_after_tree = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
 
     additional_accounts_call = [
         caller_contract.solana_address,
@@ -299,29 +229,22 @@ def test_success_two_trx_with_inner_deposit(
         neon_user.get_balance_account(evm_loader.sol_chain_id),
     ]
     evm_loader.write_transaction_to_holder_account(tx0.encode(), holder_acc, operator_keypair)
-    evm_loader.execute_scheduled_trx_from_instruction_with_details(
-        tx0, operator_keypair, holder_acc, tree_acc, treasury_pool, additional_accounts_deploy, neon_user
+    _, gas_used_exec = evm_loader.execute_scheduled_trx_from_instruction_with_details(
+        tx0,
+        operator_keypair,
+        holder_acc,
+        tree_acc,
+        treasury_pool,
+        additional_accounts_deploy,
     )
-
     evm_loader.finish_scheduled_trx(operator_keypair, tree_acc, holder_acc)
-
-    holder_acc_balance_trx_finished = evm_loader.get_solana_balance(holder_acc)
     operator_balance_trx_finished_1 = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
-    neon_user_balance_trx_finished = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
-    treasury_pool_balance_trx_finished = evm_loader.get_solana_balance(treasury_pool.account)
-    tree_acc_balance_trx_finished = evm_loader.get_solana_balance(tree_acc)
-
-    print(f"Delta neon_user {neon_user_balance_trx_finished}")
-    print(f"Delta operator {operator_balance_trx_finished_1}")
-    print(f"Delta holder {holder_acc_balance_trx_finished}")
-    print(f"Delta treasury {treasury_pool_balance_trx_finished}")
-    print(f"Tree Acc balance {tree_acc_balance_trx_finished}")
 
     assert (
         operator_balance_trx_finished_1 > operator_balance
     ), f"Operator balance failed. It has to be greater than {operator_balance}"
 
-    evm_loader.execute_scheduled_trx_from_instruction(
+    _, gas_used_exec_1 = evm_loader.execute_scheduled_trx_from_instruction_with_details(
         tx1, operator_keypair, holder_acc, tree_acc, treasury_pool, additional_accounts_call
     )
     evm_loader.finish_scheduled_trx(operator_keypair, tree_acc, holder_acc)
@@ -333,17 +256,25 @@ def test_success_two_trx_with_inner_deposit(
     ), f"Operator balance failed. It has to be greater than {operator_balance_trx_finished_1}"
 
     evm_loader.destroy_tree_account(neon_user, treasury_pool, tree_acc)
-    print("\n----Balances after tree_acc is destroyed----")
 
     tree_acc_balance_inner_tree_destroyed = neon_api_client.get_transaction_tree(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
 
-    holder_acc_balance_tree_destroyed = evm_loader.get_solana_balance(holder_acc)
-    operator_balance_tree_destroyed = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
-    neon_user_balance_tree_destroyed = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
+    neon_user_inner_balance_tree_destroyed = evm_loader.get_neon_balance(
+        neon_user.neon_address, evm_loader.sol_chain_id
+    )
     treasury_pool_balance_tree_destroyed = evm_loader.get_solana_balance(treasury_pool.account)
     tree_acc_balance_tree_destroyed = evm_loader.get_solana_balance(tree_acc)
+
+    total_gas_used = gas_used_exec[-1] + gas_used_exec_1[-1]
+    expected_neon_user_balance_remainder = (
+        int(gas_limit * trx_count - total_gas_used) * max_fee_per_gas + neon_user_inner_balance_after_tree
+    )
+    assert neon_user_inner_balance_tree_destroyed == expected_neon_user_balance_remainder, (
+        f"Expected {expected_neon_user_balance_remainder}, but got {neon_user_inner_balance_tree_destroyed},"
+        f"Delta {(neon_user_inner_balance_tree_destroyed - expected_neon_user_balance_remainder) / LAMPORT_TO_INNER_SOL}"
+    )
 
     assert tree_acc_balance_tree_destroyed == 0, "Tree_acc balance's supposed to be 0"
     treasury_pool_final_balance_no_fees = treasury_pool_balance_tree_destroyed - deposit_to_tree_acc * trx_count
@@ -354,12 +285,6 @@ def test_success_two_trx_with_inner_deposit(
         tree_acc_balance_inner_tree_destroyed == 0
     ), "Tree acc inner balance after destroyed failed, expected to be zero"
 
-    print(f"Delta neon_user {neon_user_balance_tree_destroyed}")
-    print(f"Delta operator {operator_balance_tree_destroyed}")
-    print(f"Delta holder {holder_acc_balance_tree_destroyed}")
-    print(f"Delta treasury {treasury_pool_balance_tree_destroyed}")
-    print(f"Tree Acc balance {tree_acc_balance_tree_destroyed}")
-
 
 def test_failed_trx_with_outer_deposit(
     neon_user, neon_api_client, evm_loader, operator_keypair, treasury_pool, revert_contract_caller, holder_acc
@@ -368,6 +293,8 @@ def test_failed_trx_with_outer_deposit(
     # trx_status: failed
     # user_balance: outer deposit non zero
     # tree_acc: two scheduled trx in tree acc
+    deposit_to_tree_acc = 10_000
+    trx_execution_price = 5_000
 
     evm_loader.create_balance_account(neon_user.checksum_address, neon_user.solana_account, evm_loader.sol_chain_id)
 
@@ -402,9 +329,7 @@ def test_failed_trx_with_outer_deposit(
 
     neon_user_balance_after_tree = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
     delta_neon_user = neon_user_balance_before - neon_user_balance_after_tree
-    estimated_gas_fee = tx0.DEFAULTS["gas_limit"] * tx0.DEFAULTS["max_fee_per_gas"] / LAMPORT_TO_NEON
-    deposit_to_tree_acc = 10_000
-    trx_execution_price = 5_000
+    estimated_gas_fee = tx0.DEFAULTS["gas_limit"] * tx0.DEFAULTS["max_fee_per_gas"] / LAMPORT_TO_INNER_SOL
     assert (
         delta_neon_user == estimated_gas_fee + deposit_to_tree_acc + trx_execution_price
     ), f"Balance has been changed more than expected. Delta {delta_neon_user}"
@@ -421,7 +346,7 @@ def test_failed_trx_with_outer_deposit(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
     assert tree_acc_balance_inner == int(
-        estimated_gas_fee * LAMPORT_TO_NEON
+        estimated_gas_fee * LAMPORT_TO_INNER_SOL
     ), f"Tree acc inner balance failed, actual {tree_acc_balance_inner}"
 
     additional_accounts = [
@@ -429,7 +354,7 @@ def test_failed_trx_with_outer_deposit(
         neon_user.get_balance_account(evm_loader.sol_chain_id),
     ]
 
-    evm_loader.execute_scheduled_trx_from_instruction(
+    _, gas_used_exec = evm_loader.execute_scheduled_trx_from_instruction_with_details(
         tx0, operator_keypair, holder_acc, tree_acc, treasury_pool, additional_accounts
     )
 
@@ -449,6 +374,18 @@ def test_failed_trx_with_outer_deposit(
 
     treasury_pool_balance_tree_destroyed = evm_loader.get_solana_balance(treasury_pool.account)
     tree_acc_balance_tree_destroyed = evm_loader.get_solana_balance(tree_acc)
+    neon_user_inner_balance_tree_destroyed = evm_loader.get_neon_balance(
+        neon_user.neon_address, evm_loader.sol_chain_id
+    )
+
+    total_gas_used = gas_used_exec[-1]
+    expected_neon_user_balance_remainder = (
+        int(tx0.DEFAULTS["gas_limit"] - total_gas_used) * tx0.DEFAULTS["max_fee_per_gas"]
+    )
+    assert neon_user_inner_balance_tree_destroyed == expected_neon_user_balance_remainder, (
+        f"Expected {expected_neon_user_balance_remainder}, but got {neon_user_inner_balance_tree_destroyed},"
+        f"Delta {(neon_user_inner_balance_tree_destroyed - expected_neon_user_balance_remainder) / LAMPORT_TO_INNER_SOL}"
+    )
 
     assert tree_acc_balance_tree_destroyed == 0, "Tree_acc balance's supposed to be 0"
     treasury_pool_final_balance_no_fees = treasury_pool_balance_tree_destroyed - deposit_to_tree_acc
@@ -469,8 +406,10 @@ def test_skipped_single_trx_with_outer_deposit(
     # tree_acc: two schd trx in tree acc
 
     trx_count = 2
+    deposit_to_tree_acc = 10_000
+    trx_execution_price = 5_000
+
     evm_loader.create_balance_account(neon_user.checksum_address, neon_user.solana_account, evm_loader.sol_chain_id)
-    neon_user_inner_balance = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
     operator_balance = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
     neon_user_balance_before = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
     treasury_pool_balance = evm_loader.get_solana_balance(treasury_pool.account)
@@ -507,9 +446,7 @@ def test_skipped_single_trx_with_outer_deposit(
 
     neon_user_balance_after_tree = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
     delta_neon_user = neon_user_balance_before - neon_user_balance_after_tree
-    estimated_gas_fee = tx_0.DEFAULTS["gas_limit"] * tx_0.DEFAULTS["max_fee_per_gas"] / LAMPORT_TO_NEON * trx_count
-    deposit_to_tree_acc = 10_000  # Where it comes from?
-    trx_execution_price = 5_000
+    estimated_gas_fee = tx_0.DEFAULTS["gas_limit"] * tx_0.DEFAULTS["max_fee_per_gas"] / LAMPORT_TO_INNER_SOL * trx_count
 
     assert (
         delta_neon_user == estimated_gas_fee + deposit_to_tree_acc + trx_execution_price
@@ -527,12 +464,12 @@ def test_skipped_single_trx_with_outer_deposit(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
     assert tree_acc_balance_inner == int(
-        estimated_gas_fee * LAMPORT_TO_NEON
+        estimated_gas_fee * LAMPORT_TO_INNER_SOL
     ), f"Tree acc inner balance failed, actual {tree_acc_balance_inner}"
 
     additional_accounts = [basic_contract.solana_address, neon_user.get_balance_account(evm_loader.sol_chain_id)]
 
-    evm_loader.execute_scheduled_trx_from_instruction(
+    _, gas_used_exec = evm_loader.execute_scheduled_trx_from_instruction_with_details(
         tx_0, operator_keypair, holder_acc, tree_acc, treasury_pool, additional_accounts
     )
 
@@ -544,20 +481,30 @@ def test_skipped_single_trx_with_outer_deposit(
         operator_balance_trx_finished > operator_balance
     ), f"Operator balance failed. It has to be greater than {operator_balance}"
 
-    evm_loader.skip_scheduled_trx_from_instruction(tx_1, operator_keypair, tree_acc, holder_acc)
+    logs = json.loads(
+        evm_loader.skip_scheduled_trx_from_instruction(tx_1, operator_keypair, tree_acc, holder_acc).to_json()
+    )
+    logs = logs["result"]["meta"]["logMessages"]
+    gas_used_skipped = parse_gas_used(logs)
 
     evm_loader.destroy_tree_account(neon_user, treasury_pool, tree_acc)
     neon_user_inner_after_tree = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
-
     treasury_pool_balance_after_tree = evm_loader.get_solana_balance(treasury_pool.account)
     tree_acc_balance = evm_loader.get_solana_balance(tree_acc)
     tree_acc_balance_inner_after = neon_api_client.get_transaction_tree(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
 
+    total_gas_used = gas_used_exec[-1] + gas_used_skipped[-1]
+    expected_neon_user_balance_remainder = (
+        int(tx_0.DEFAULTS["gas_limit"] * 2 - total_gas_used) * tx_0.DEFAULTS["max_fee_per_gas"]
+    )
+    assert neon_user_inner_after_tree == expected_neon_user_balance_remainder, (
+        f"Expected {expected_neon_user_balance_remainder}, but got {neon_user_inner_after_tree},"
+        f"Delta {(neon_user_inner_after_tree - expected_neon_user_balance_remainder) / LAMPORT_TO_INNER_SOL}"
+    )
     assert tree_acc_balance == 0, "Tree_acc balance's supposed to be 0"
     assert (
         treasury_pool_balance == treasury_pool_balance_after_tree - deposit_to_tree_acc
     ), f"Treasury pool balance is failed. Expected {treasury_pool_balance}, but got {treasury_pool_balance_after_tree}"
     assert tree_acc_balance_inner_after == 0, "Tree acc inner balance after destroyed failed, expected to be zero"
-    assert neon_user_inner_after_tree > neon_user_inner_balance, "Remaining balance wasn't returned properly"

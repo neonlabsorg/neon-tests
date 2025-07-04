@@ -1036,15 +1036,6 @@ class EvmLoader(SolanaClient):
         logs_messages = trx_1["result"]["meta"]["logMessages"]
         gas_used_start = parse_gas_used(logs_messages)
 
-        print("\n----Balances after trx is started----")
-
-        print(f"Holder {self.get_solana_balance(holder)}")
-        print(f"Tree account {self.get_solana_balance(tree_account)}")
-        print(f"Treasury pool {self.get_solana_balance(treasury.account)}")
-        print(f"Operator {self.get_operator_neon_balance(operator, self.sol_chain_id)}")
-        print(f"LOGS {logs_messages}")
-        print(f"GAS USED {gas_used_start}")
-
         _, gas_used_exec = self.execute_transaction_steps_from_instruction_with_details(
             operator, treasury, holder, trx.encode(), additional_accounts, compute_unit_price=15, chain_id=chain_id
         )
@@ -1091,14 +1082,9 @@ class EvmLoader(SolanaClient):
                     break
                 if "ExitError" in log:
                     raise AssertionError(f"EVM Return error in logs: {receipt}")
-            print(f"\n----Balances trx is executed index {index}----")
-            print(f"Holder {self.get_solana_balance(storage_account)}")
-            print(f"Treasury pool {self.get_solana_balance(treasury.account)}")
-            print(f"Operator {self.get_operator_neon_balance(operator, self.sol_chain_id)}")
             trx = json.loads(receipt.to_json())
             logs_messages = trx["result"]["meta"]["logMessages"]
             parsed_gas = parse_gas_used(logs_messages)
-            print(f"LOGS {logs_messages}")
             for value in parsed_gas:
                 result.append(value)
 
