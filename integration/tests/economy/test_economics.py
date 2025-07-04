@@ -75,7 +75,6 @@ def assert_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after)
 
 @allure.story("Operator economy")
 class TestEconomics:
-    @pytest.mark.only_stands
     def test_account_creation(self, client_and_price, operator):
         """Verify account creation spend SOL"""
         w3_client, token_price = client_and_price
