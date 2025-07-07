@@ -17,7 +17,7 @@ from utils.types import Contract
 LOG = logging.getLogger(__name__)
 
 LAMPORT_TO_INNER_SOL = 10**9
-PAYMENT_FOR_NEON_TRX_FINISHING_FEE = 10_000
+PAYMENT_FOR_TREE_ACCOUNT_DELETING = 10_000
 
 
 def test_successful_single_trx_with_outer_deposit(
@@ -57,7 +57,7 @@ def test_successful_single_trx_with_outer_deposit(
     estimated_trx_cost = tx_0.gas_limit * tx_0.max_fee_per_gas / LAMPORT_TO_INNER_SOL
 
     assert (
-        delta_neon_user == estimated_trx_cost + PAYMENT_FOR_NEON_TRX_FINISHING_FEE + TRX_EXECUTION_PRICE
+        delta_neon_user == estimated_trx_cost + PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE
     ), f"Balance has been changed more than expected. Delta {delta_neon_user}"
 
     treasury_pool_balance_after_tree = evm_loader.get_solana_balance(treasury_pool.account)
@@ -65,7 +65,7 @@ def test_successful_single_trx_with_outer_deposit(
 
     tree_acc_balance = evm_loader.get_solana_balance(tree_acc)
     assert (
-        tree_acc_balance == delta_treasury_balance + PAYMENT_FOR_NEON_TRX_FINISHING_FEE
+        tree_acc_balance == delta_treasury_balance + PAYMENT_FOR_TREE_ACCOUNT_DELETING
     ), f"Tree acc balance failed, actual {tree_acc_balance}"
 
     tree_acc_balance_inner = neon_api_client.get_transaction_tree(
@@ -94,7 +94,7 @@ def test_successful_single_trx_with_outer_deposit(
     operator_balance_trx_finished = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
     exec_trx_cost = gas_used_exec * tx_0.max_fee_per_gas
 
-    extra_payments_from_trx_sender = PAYMENT_FOR_NEON_TRX_FINISHING_FEE * trx_count
+    extra_payments_from_trx_sender = PAYMENT_FOR_TREE_ACCOUNT_DELETING * trx_count
     expected_operator_balance = operator_balance + extra_payments_from_trx_sender + exec_trx_cost
     assert (
         operator_balance_trx_finished == expected_operator_balance
@@ -105,7 +105,7 @@ def test_successful_single_trx_with_outer_deposit(
     treasury_pool_balance_tree_destroyed = evm_loader.get_solana_balance(treasury_pool.account)
 
     expected_treasury_pool_balance = (
-        treasury_pool_balance_tree_destroyed - PAYMENT_FOR_NEON_TRX_FINISHING_FEE * trx_count
+        treasury_pool_balance_tree_destroyed - PAYMENT_FOR_TREE_ACCOUNT_DELETING * trx_count
     )
     assert treasury_pool_balance == expected_treasury_pool_balance, (
         f"Treasury pool balance is failed. Expected {treasury_pool_balance}, but got {treasury_pool_balance_after_tree}"
@@ -250,7 +250,7 @@ def test_success_two_trx_with_inner_deposit(
     operator_balance_trx_finished_1 = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
 
     exec_trx_cost += gas_used_exec_1 * max_fee_per_gas
-    extra_payments_from_trx_sender = PAYMENT_FOR_NEON_TRX_FINISHING_FEE * trx_count
+    extra_payments_from_trx_sender = PAYMENT_FOR_TREE_ACCOUNT_DELETING * trx_count
 
     expected_operator_balance = operator_balance + extra_payments_from_trx_sender + exec_trx_cost
     assert (
@@ -273,7 +273,7 @@ def test_success_two_trx_with_inner_deposit(
         f"Delta {(neon_user_inner_balance_tree_destroyed - expected_neon_user_balance_remainder) / LAMPORT_TO_INNER_SOL}"
     )
     expected_treasury_pool_balance = (
-        treasury_pool_balance_tree_destroyed - PAYMENT_FOR_NEON_TRX_FINISHING_FEE * trx_count
+        treasury_pool_balance_tree_destroyed - PAYMENT_FOR_TREE_ACCOUNT_DELETING * trx_count
     )
     assert treasury_pool_balance == expected_treasury_pool_balance, (
         f"Treasury pool balance is failed. Expected {treasury_pool_balance}, but got {treasury_pool_balance_after_tree}"
@@ -352,7 +352,7 @@ def test_failed_trx_with_outer_deposit(
     operator_balance_trx_finished = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
 
     exec_trx_cost = gas_used_exec * tx0.max_fee_per_gas
-    extra_payments_from_trx_sender = PAYMENT_FOR_NEON_TRX_FINISHING_FEE * trx_count
+    extra_payments_from_trx_sender = PAYMENT_FOR_TREE_ACCOUNT_DELETING * trx_count
 
     expected_operator_balance = operator_balance + extra_payments_from_trx_sender + exec_trx_cost
     assert (
@@ -376,7 +376,7 @@ def test_failed_trx_with_outer_deposit(
     )
 
     expected_treasury_pool_balance = (
-        treasury_pool_balance_tree_destroyed - PAYMENT_FOR_NEON_TRX_FINISHING_FEE * trx_count
+        treasury_pool_balance_tree_destroyed - PAYMENT_FOR_TREE_ACCOUNT_DELETING * trx_count
     )
     assert treasury_pool_balance == expected_treasury_pool_balance, (
         f"Treasury pool balance is failed. Expected {treasury_pool_balance}, but got {treasury_pool_balance_after_tree}"
@@ -463,7 +463,7 @@ def test_skipped_trx_with_outer_deposit(
 
     exec_trx_cost = gas_used_exec * tx_0.max_fee_per_gas
     executed_trx = trx_count - 1
-    extra_payments_from_trx_sender = PAYMENT_FOR_NEON_TRX_FINISHING_FEE * executed_trx
+    extra_payments_from_trx_sender = PAYMENT_FOR_TREE_ACCOUNT_DELETING * executed_trx
 
     expected_operator_balance = operator_balance + extra_payments_from_trx_sender + exec_trx_cost
     assert (
@@ -495,7 +495,7 @@ def test_skipped_trx_with_outer_deposit(
 
     executed_trx = trx_count - 1  # minus skipped trx
     expected_treasury_pool_balance = (
-        treasury_pool_balance_tree_destroyed - PAYMENT_FOR_NEON_TRX_FINISHING_FEE * executed_trx
+        treasury_pool_balance_tree_destroyed - PAYMENT_FOR_TREE_ACCOUNT_DELETING * executed_trx
     )
     assert treasury_pool_balance == expected_treasury_pool_balance, (
         f"Treasury pool balance is failed. Expected {treasury_pool_balance}, but got {treasury_pool_balance_after_tree}"
