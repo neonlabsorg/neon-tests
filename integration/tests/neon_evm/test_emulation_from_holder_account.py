@@ -241,15 +241,15 @@ class TestEmulateFromHolderAccount:
             evm_loader,
             session_user,
             solana_caller.contract,
-            "solanaCallInsideActionWithMatrixWithRevert(uint256[][],uint64,bytes)",
-            [matrix, 0, serialized_instruction],
+            "solanaCallInsideActionWithMatrixWithRevert(uint256,uint256[][],uint64,bytes)",
+            [1, matrix, 0, serialized_instruction],
         )
 
         accounts_from_emulation = neon_api_client.get_additional_accounts_by_emulation(
             session_user.eth_address.hex(),
             solana_caller.contract.eth_address.hex(),
-            "solanaCallInsideActionWithMatrixWithRevert(uint256[][],uint64,bytes)",
-            params=[matrix, 0, serialized_instruction],
+            "solanaCallInsideActionWithMatrixWithRevert(uint256,uint256[][],uint64,bytes)",
+            params=[1, matrix, 0, serialized_instruction],
         )
 
         new_holder_acc = evm_loader.create_holder(operator_keypair)
@@ -414,15 +414,15 @@ class TestEmulateFromHolderAccount:
             evm_loader,
             sender_with_tokens,
             solana_caller.contract,
-            "solanaCallInsideActionWithMatrix(uint256[][],uint64,bytes)",
-            [matrix, 0, serialized_instruction],
+            "solanaCallInsideActionWithMatrix(uint256,uint256[][],uint64,bytes)",
+            [3, matrix, 0, serialized_instruction],
         )
 
         accounts_from_emulation = neon_api_client.get_additional_accounts_by_emulation(
             sender_with_tokens.eth_address.hex(),
             solana_caller.contract.eth_address.hex(),
-            "solanaCallInsideActionWithMatrix(uint256[][],uint64,bytes)",
-            params=[matrix, 0, serialized_instruction],
+            "solanaCallInsideActionWithMatrix(uint256,uint256[][],uint64,bytes)",
+            params=[3, matrix, 0, serialized_instruction],
         )
 
         evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc, operator_keypair)
