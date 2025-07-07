@@ -235,14 +235,9 @@ def neon_user_with_sols_inside_neon(
     user = neon_user
 
     if web3_client_sol:
-        lamports = 2 * LAMPORT_PER_SOL
-        if environment.use_bank:
-            bank_account: Keypair
-            evm_loader.send_sol(bank_account, solana_account.pubkey(), lamports)
-        else:
-            evm_loader.request_airdrop(solana_account.pubkey(), lamports)
+        lamports = 1 * LAMPORT_PER_SOL
         evm_loader.deposit_wrapped_sol_from_solana_to_neon(
-            solana_account,
+            user.solana_account,
             user.checksum_address,
             lamports,
         )
