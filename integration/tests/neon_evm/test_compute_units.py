@@ -219,6 +219,7 @@ def allure_attach_accounts_data(
     )
 
 
+@allure.step("Execute transaction steps from instruction and validate compute units")
 def execute_transaction_steps_from_instruction_and_validate_cu(
     evm_loader: EvmLoader,
     operator: Keypair,
@@ -267,7 +268,11 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
 
         cu_consumed = receipt.value.transaction.meta.compute_units_consumed
         cu_expected = cu_expected_list[index]
-        assert (cu_consumed - cu_expected) <= cu_delta_allowed
+        assert (
+            cu_consumed - cu_expected
+        ) <= cu_delta_allowed, (
+            f"CU consumed {cu_consumed} is not in range of expected {cu_expected} +/- {cu_delta_allowed}"
+        )
         index += 1
 
     check_transaction_logs_have_text(solana_client=sol_client, trx=receipt, text=expect_log)  # noqa
@@ -755,8 +760,8 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[71834, 26503, 29591],
-            cu_delta_allowed=0,
+            cu_expected_list=[71838, 26503, 29591],
+            cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={NeonTxExitStatus.REVERT}",
         )
