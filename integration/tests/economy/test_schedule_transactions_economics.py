@@ -280,9 +280,10 @@ class TestScheduledTransactionEconomics:
         operator_inner_balance_before = operator.get_token_balance(web3_client_sol)
         operator_sol_balance_before = operator.get_solana_balance()
         user_inner_sol_balance_b = web3_client_sol.get_balance(neon_user_with_sols_inside_neon.checksum_address)
-        full_volume_before = operator_inner_balance_before + user_inner_sol_balance_b
 
         recipient = NeonUser(evm_loader.loader_id)
+        recipient_balance_before = web3_client_sol.get_balance(recipient.checksum_address)
+        full_volume_before = operator_inner_balance_before + user_inner_sol_balance_b + recipient_balance_before
         erc20_spl_mintable.approve(erc20_spl_mintable.owner, neon_user_with_sols_inside_neon.checksum_address, 800)
 
         top_up_in_trx = 400
@@ -350,7 +351,8 @@ class TestScheduledTransactionEconomics:
         operator_sol_balance_after = operator.get_solana_balance()
 
         user_inner_sol_balance_after = web3_client_sol.get_balance(neon_user_with_sols_inside_neon.checksum_address)
-        full_volume_after = operator_inner_balance_after + user_inner_sol_balance_after
+        recipient_balance_after = web3_client_sol.get_balance(recipient.checksum_address)
+        full_volume_after = operator_inner_balance_after + user_inner_sol_balance_after + recipient_balance_after
         trx_count = 4
         additional_expected_spending = DEPOSIT_FOR_TRXS_FINISHING * trx_count
         diff_volume = full_volume_before - full_volume_after + additional_expected_spending
@@ -377,6 +379,7 @@ class TestScheduledTransactionEconomics:
         operator_sol_balance_before = operator.get_solana_balance()
 
         recipient = NeonUser(evm_loader.loader_id)
+        recipient_balance_before = web3_client_sol.get_balance(recipient.checksum_address)
         erc20_spl_mintable.approve(erc20_spl_mintable.owner, neon_user.checksum_address, 800)
 
         user_inner_sol_balance_before = web3_client_sol.get_balance(neon_user.checksum_address)
@@ -384,6 +387,7 @@ class TestScheduledTransactionEconomics:
         full_volume_before = (
             operator_inner_balance_before
             + user_inner_sol_balance_before
+            + recipient_balance_before
             + (user_outer_sol_balance_before * LAMPORTS_PER_SOL)
         )
 
@@ -438,11 +442,13 @@ class TestScheduledTransactionEconomics:
         operator_inner_balance_after = operator.get_token_balance(web3_client_sol)
         operator_sol_balance_after = operator.get_solana_balance()
 
+        recipient_balance_after = web3_client_sol.get_balance(recipient.checksum_address)
         user_inner_sol_balance_after = web3_client_sol.get_balance(neon_user.checksum_address)
         user_outer_sol_balance_after = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
         full_volume_after = (
             operator_inner_balance_after
             + user_inner_sol_balance_after
+            + recipient_balance_after
             + (user_outer_sol_balance_after * LAMPORTS_PER_SOL)
         )
 
@@ -453,7 +459,6 @@ class TestScheduledTransactionEconomics:
 
         diff_volume = full_volume_before - (full_volume_after + additional_expected_spending)
         assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
-        # additional_expected_spending = ((deposit_for_tree_acc_deleting + tree_acc_creating_fee) * 1000000000) - deposit_for_trxs_finishing
 
         token_price = web3_client_sol.get_token_usd_gas_price()
         sol_diff = operator_sol_balance_before - operator_sol_balance_after

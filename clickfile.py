@@ -551,7 +551,7 @@ def run(
     DST_ALLURE_CATEGORIES.parent.mkdir()
 
     commands = {
-        "economy": "py.test integration/tests/economy/test_economics.py integration/tests/economy/test_schedule_transactions_economics.py",
+        "economy": "py.test integration/tests/economy",
         "basic": "py.test integration/tests/basic --dist loadgroup",
         "tracer": "py.test -n 5 integration/tests/tracer --dist loadscope",
         "services": "py.test integration/tests/services",
