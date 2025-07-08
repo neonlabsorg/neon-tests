@@ -136,7 +136,7 @@ def pytest_configure(config: Config):
     assert network_name in environments, f"Environment {network_name} doesn't exist in envs.json"
     env = environments[network_name]
     env["name"] = EnvName(network_name)
-    if network_name in ["devnet", "tracer_ci"]:
+    if network_name in [EnvName.DEVNET, EnvName.DEVNET_2, EnvName.TRACER_CI]:
         if "DEVNET_SOLANA_URL" in os.environ and os.environ["DEVNET_SOLANA_URL"]:
             env["solana_url"] = os.environ.get("DEVNET_SOLANA_URL")
         if "DEVNET_PROXY_URL" in os.environ and os.environ["DEVNET_PROXY_URL"]:
@@ -282,7 +282,7 @@ def neon_user_no_sols(pytestconfig, bank_account, faucet, environment) -> NeonUs
 def bank_account(pytestconfig: Config) -> Generator[Keypair | None, None, None]:
     account = None
     if pytestconfig.environment.use_bank:
-        if pytestconfig.getoption("--network") == "devnet":
+        if "devnet" in pytestconfig.getoption("--network"):
             private_key = os.environ.get("BANK_PRIVATE_KEY")
         elif pytestconfig.getoption("--network") == "mainnet":
             private_key = os.environ.get("BANK_PRIVATE_KEY_MAINNET")
