@@ -17,6 +17,7 @@ from utils.types import Contract
 LOG = logging.getLogger(__name__)
 
 LAMPORT_TO_INNER_SOL = 10**9
+OPERATOR_FEE_TO_NEON = 5_000
 
 
 def test_successful_single_trx_with_outer_deposit(
@@ -27,6 +28,7 @@ def test_successful_single_trx_with_outer_deposit(
     # tree_acc: one schd trx in tree acc
 
     trx_count = 1
+    iter_per_trx = 2
 
     evm_loader.create_balance_account(neon_user.checksum_address, neon_user.solana_account, evm_loader.sol_chain_id)
 
@@ -104,7 +106,7 @@ def test_successful_single_trx_with_outer_deposit(
     treasury_pool_balance_tree_destroyed = evm_loader.get_solana_balance(treasury_pool.account)
 
     expected_treasury_pool_balance = (
-        treasury_pool_balance_tree_destroyed - PAYMENT_FOR_TREE_ACCOUNT_DELETING * trx_count
+        treasury_pool_balance_tree_destroyed - OPERATOR_FEE_TO_NEON * iter_per_trx * trx_count
     )
     assert treasury_pool_balance == expected_treasury_pool_balance, (
         f"Treasury pool balance is failed. Expected {treasury_pool_balance}, but got {treasury_pool_balance_after_tree}"
@@ -126,6 +128,7 @@ def test_success_two_trx_with_inner_deposit(
     # tree_acc: two scheduled trx in tree acc
 
     trx_count = 2
+    iter_per_trx = 2
     gas_limit = 30_000_000
     max_fee_per_gas = 3_000_000_000
 
@@ -272,7 +275,7 @@ def test_success_two_trx_with_inner_deposit(
         f"Delta {(neon_user_inner_balance_tree_destroyed - expected_neon_user_balance_remainder) / LAMPORT_TO_INNER_SOL}"
     )
     expected_treasury_pool_balance = (
-        treasury_pool_balance_tree_destroyed - PAYMENT_FOR_TREE_ACCOUNT_DELETING * trx_count
+        treasury_pool_balance_tree_destroyed - OPERATOR_FEE_TO_NEON * iter_per_trx * trx_count
     )
     assert treasury_pool_balance == expected_treasury_pool_balance, (
         f"Treasury pool balance is failed. Expected {treasury_pool_balance}, but got {treasury_pool_balance_after_tree}"
@@ -288,6 +291,7 @@ def test_failed_trx_with_outer_deposit(
     # user_balance: outer deposit non zero
     # tree_acc: two scheduled trx in tree acc
     trx_count = 1
+    iter_per_trx = 2
 
     evm_loader.create_balance_account(neon_user.checksum_address, neon_user.solana_account, evm_loader.sol_chain_id)
 
@@ -375,7 +379,7 @@ def test_failed_trx_with_outer_deposit(
     )
 
     expected_treasury_pool_balance = (
-        treasury_pool_balance_tree_destroyed - PAYMENT_FOR_TREE_ACCOUNT_DELETING * trx_count
+        treasury_pool_balance_tree_destroyed - OPERATOR_FEE_TO_NEON * iter_per_trx * trx_count
     )
     assert treasury_pool_balance == expected_treasury_pool_balance, (
         f"Treasury pool balance is failed. Expected {treasury_pool_balance}, but got {treasury_pool_balance_after_tree}"
@@ -391,6 +395,7 @@ def test_skipped_trx_with_outer_deposit(
     # tree_acc: two schd trx in tree acc
 
     trx_count = 2
+    iter_per_trx = 2
 
     evm_loader.create_balance_account(neon_user.checksum_address, neon_user.solana_account, evm_loader.sol_chain_id)
     operator_balance = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
@@ -494,7 +499,7 @@ def test_skipped_trx_with_outer_deposit(
 
     executed_trx = trx_count - 1  # minus skipped trx
     expected_treasury_pool_balance = (
-        treasury_pool_balance_tree_destroyed - PAYMENT_FOR_TREE_ACCOUNT_DELETING * executed_trx
+        treasury_pool_balance_tree_destroyed - OPERATOR_FEE_TO_NEON * iter_per_trx * executed_trx
     )
     assert treasury_pool_balance == expected_treasury_pool_balance, (
         f"Treasury pool balance is failed. Expected {treasury_pool_balance}, but got {treasury_pool_balance_after_tree}"
