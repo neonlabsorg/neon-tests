@@ -233,22 +233,13 @@ def neon_user_with_sols_inside_neon(
     neon_user,
 ) -> tp.Generator[NeonUser, None, None]:
     user = neon_user
-
-    if web3_client_sol:
-        lamports = 1 * LAMPORT_PER_SOL
-        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
-            user.solana_account,
-            user.checksum_address,
-            lamports,
-        )
+    lamports = 1 * LAMPORT_PER_SOL
+    evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+        user.solana_account,
+        user.checksum_address,
+        lamports,
+    )
     yield user
-    if environment.use_bank:
-        # TODO: enable after fix NDEV-3795
-        # if web3_client_sol.get_balance(user.checksum_address) != 0:
-        #     withdraw_neon_to_solana_sol_sign(
-        #         user, bank_account, withdraw_contract_sol_chain, evm_loader, web3_client_sol, treasury_pool
-        #     )
-        evm_loader.drain_sol(from_=user.solana_account, to=bank_account.pubkey())
 
 
 @pytest.fixture(scope="session")
