@@ -1,4 +1,6 @@
+import eth_abi
 import requests
+from eth_utils import abi
 from requests import Response
 from solders.pubkey import Pubkey
 
@@ -32,7 +34,15 @@ class NeonApiRpcClient:
         return self.post("balance", params)
 
     def emulate(
-        self, sender, contract, data=bytes(), chain_id: str | None = None, value="0x0", max_steps_to_execute=500000
+        self,
+        sender,
+        contract,
+        data=bytes(),
+        chain_id: str | None = None,
+        value="0x0",
+        max_steps_to_execute=500000,
+        provide_account_info=None,
+        trace_config=None,
     ) -> Response:
         if not chain_id:
             chain_id = self.chain_id
@@ -43,8 +53,22 @@ class NeonApiRpcClient:
             "step_limit": max_steps_to_execute,
             "tx": {"from": sender, "to": contract, "data": data, "chain_id": chain_id, "value": value},
             "accounts": [],
+            "provide_account_info": provide_account_info,
+            "trace_config": trace_config,
         }
         return self.post("emulate", params)
+
+    def emulate_contract_call(
+        self, sender, contract, function_signature, params=None, value=0, trace_config=None
+    ) -> Response:
+
+        data = abi.function_signature_to_4byte_selector(function_signature)
+        if isinstance(value, int):
+            value = hex(value)
+        if params is not None:
+            types = function_signature.split("(")[1].split(")")[0].split(",")
+            data += eth_abi.encode(types, params)
+        return self.emulate(sender, contract, data, value=value, trace_config=trace_config)
 
     def get_contract(self, address) -> Response:
         params = {"contract": address}

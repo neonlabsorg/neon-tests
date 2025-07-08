@@ -179,9 +179,9 @@ def hello_world_contract(
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
 ) -> Contract:
-    return evm_loader.deploy_contract(operator_keypair, session_user, "hello_world", neon_api_client, treasury_pool)
+    return evm_loader.deploy_contract(operator_keypair, session_user, "hello_world", neon_rpc_client, treasury_pool)
 
 
 @pytest.fixture(scope="session")
