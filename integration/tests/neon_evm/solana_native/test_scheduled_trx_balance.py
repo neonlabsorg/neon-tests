@@ -7,7 +7,13 @@ from solders.pubkey import Pubkey
 
 from integration.tests.neon_evm.utils.contract import get_contract_bin
 from integration.tests.neon_evm.utils.ethereum import create_contract_address
-from utils.consts import LAMPORT_PER_SOL, TRX_EXECUTION_PRICE, PAYMENT_FOR_TREE_ACCOUNT_DELETING
+from utils.consts import (
+    LAMPORT_PER_SOL,
+    TRX_EXECUTION_PRICE,
+    PAYMENT_FOR_TREE_ACCOUNT_DELETING,
+    LAMPORT_TO_INNER_SOL,
+    OPERATOR_FEE_TO_NEON,
+)
 from utils.helpers import decode_function_signature
 from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData
 from utils.solana_logs_helper import get_total_gas_used
@@ -15,9 +21,6 @@ from utils.solana_logs_helper import get_total_gas_used
 from utils.types import Contract
 
 LOG = logging.getLogger(__name__)
-
-LAMPORT_TO_INNER_SOL = 10**9
-OPERATOR_FEE_TO_NEON = 5_000
 
 
 def test_successful_single_trx_with_outer_deposit(
@@ -95,7 +98,7 @@ def test_successful_single_trx_with_outer_deposit(
     operator_balance_trx_finished = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
     exec_trx_cost = gas_used_exec * tx_0.max_fee_per_gas
 
-    extra_payments_from_trx_sender = PAYMENT_FOR_TREE_ACCOUNT_DELETING * trx_count
+    extra_payments_from_trx_sender = OPERATOR_FEE_TO_NEON * iter_per_trx * trx_count
     expected_operator_balance = operator_balance + extra_payments_from_trx_sender + exec_trx_cost
     assert (
         operator_balance_trx_finished == expected_operator_balance
@@ -252,7 +255,7 @@ def test_success_two_trx_with_inner_deposit(
     operator_balance_trx_finished_1 = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
 
     exec_trx_cost += gas_used_exec_1 * max_fee_per_gas
-    extra_payments_from_trx_sender = PAYMENT_FOR_TREE_ACCOUNT_DELETING * trx_count
+    extra_payments_from_trx_sender = OPERATOR_FEE_TO_NEON * iter_per_trx * trx_count
 
     expected_operator_balance = operator_balance + extra_payments_from_trx_sender + exec_trx_cost
     assert (
@@ -355,7 +358,7 @@ def test_failed_trx_with_outer_deposit(
     operator_balance_trx_finished = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
 
     exec_trx_cost = gas_used_exec * tx0.max_fee_per_gas
-    extra_payments_from_trx_sender = PAYMENT_FOR_TREE_ACCOUNT_DELETING * trx_count
+    extra_payments_from_trx_sender = OPERATOR_FEE_TO_NEON * iter_per_trx * trx_count
 
     expected_operator_balance = operator_balance + extra_payments_from_trx_sender + exec_trx_cost
     assert (
@@ -467,7 +470,7 @@ def test_skipped_trx_with_outer_deposit(
 
     exec_trx_cost = gas_used_exec * tx_0.max_fee_per_gas
     executed_trx = trx_count - 1
-    extra_payments_from_trx_sender = PAYMENT_FOR_TREE_ACCOUNT_DELETING * executed_trx
+    extra_payments_from_trx_sender = OPERATOR_FEE_TO_NEON * iter_per_trx * executed_trx
 
     expected_operator_balance = operator_balance + extra_payments_from_trx_sender + exec_trx_cost
     assert (
@@ -480,7 +483,6 @@ def test_skipped_trx_with_outer_deposit(
     operator_balance_trx_after_skip = evm_loader.get_operator_neon_balance(operator_keypair, evm_loader.sol_chain_id)
     skip_trx_cost = gas_used_skipped * tx_1.max_fee_per_gas
 
-    # No operator fee taken since it's skipped trx
     expected_operator_balance_after_skip = operator_balance_trx_finished + skip_trx_cost
     assert (
         operator_balance_trx_after_skip == expected_operator_balance_after_skip
