@@ -545,3 +545,79 @@ class TestInteroperability:
             expected_tag=TAG_FINALIZED_STATE,
         )
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
+
+    def test_iterative_transaction_executing_by_2_operators(
+        self,
+        sender_with_tokens,
+        solana_caller,
+        evm_loader,
+        new_holder_acc,
+        new_holder_acc_2,
+        neon_api_client,
+        operator_keypair,
+        second_operator_keypair,
+        treasury_pool,
+        web3_client,
+    ):
+        operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
+        evm_loader.request_airdrop(operator_keypair.pubkey(), 1000 * 10**9, commitment=Confirmed)
+
+        salt = b"1235"
+        instruction_count = 20
+        resource_addr = solana_caller.create_resource(sender_with_tokens, salt, 8, 1000000000, COUNTER_ID)
+
+        instruction = Instruction(
+            program_id=COUNTER_ID,
+            accounts=[
+                AccountMeta(resource_addr, is_signer=False, is_writable=True),
+            ],
+            data=bytes([0x1]),
+        )
+
+        call_params = []
+        params = (COUNTER_ID, instruction)
+        for i in range(instruction_count):
+            call_params.append(params)
+        execute_params = [serialize_instruction(program_id, instruction) for program_id, instruction in call_params]
+
+        signed_tx = make_contract_call_trx(
+            evm_loader,
+            sender_with_tokens,
+            solana_caller.contract,
+            "batchExecuteWithoutLamports(bytes[])",
+            [execute_params],
+        )
+
+        emulate_result = neon_api_client.emulate_contract_call(
+            sender_with_tokens.eth_address.hex(),
+            solana_caller.contract.eth_address.hex(),
+            "batchExecuteWithoutLamports(bytes[])",
+            [execute_params],
+        )
+
+        accounts_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
+
+        evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc, operator_keypair)
+
+        for _ in range(5):
+            evm_loader.send_transaction_step_from_account(
+                operator_keypair,
+                operator_balance_pubkey,
+                treasury_pool,
+                new_holder_acc,
+                accounts_from_emulation,
+                EVM_STEPS,
+                operator_keypair,
+            )
+
+        resp = evm_loader.execute_transaction_steps_from_account(
+            second_operator_keypair, treasury_pool, new_holder_acc, accounts_from_emulation
+        )
+
+        check_holder_account_tag(
+            solana_client=evm_loader,
+            storage_account=new_holder_acc,
+            layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
+            expected_tag=TAG_FINALIZED_STATE,
+        )
+        check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
