@@ -174,18 +174,7 @@ def string_setter_contract(
 
 
 @pytest.fixture(scope="session")
-def hello_world_contract_rpc(
-    evm_loader: EvmLoader,
-    operator_keypair: Keypair,
-    session_user: Caller,
-    treasury_pool: TreasuryPool,
-    neon_rpc_client: NeonApiRpcClient,
-) -> Contract:
-    return evm_loader.deploy_contract(operator_keypair, session_user, "hello_world", neon_rpc_client, treasury_pool)
-
-
-@pytest.fixture(scope="session")
-def hello_world_contract_rest(
+def hello_world_contract(
     evm_loader: EvmLoader,
     operator_keypair: Keypair,
     session_user: Caller,

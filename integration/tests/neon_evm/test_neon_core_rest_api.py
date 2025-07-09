@@ -9,12 +9,12 @@ def decode_pubkey(pubkey):
     return base58.b58encode(bytes(pubkey)).decode("utf-8")
 
 
-def test_get_storage_at(neon_api_client, hello_world_contract_rest):
-    storage = neon_api_client.get_storage_at(hello_world_contract_rest.eth_address.hex())["value"]
+def test_get_storage_at(neon_api_client, hello_world_contract):
+    storage = neon_api_client.get_storage_at(hello_world_contract.eth_address.hex())["value"]
     zero_array = [0 for _ in range(31)]
     assert storage == zero_array + [5]
 
-    storage = neon_api_client.get_storage_at(hello_world_contract_rest.eth_address.hex(), index="0x2")["value"]
+    storage = neon_api_client.get_storage_at(hello_world_contract.eth_address.hex(), index="0x2")["value"]
     assert storage == zero_array + [0]
 
 
@@ -62,11 +62,11 @@ def test_emulate_contract_deploy(neon_api_client, session_user):
     assert result["used_gas"] > 0, f"Used gas is less than 0. Result: {result}"
 
 
-def test_emulate_call_contract_function(neon_api_client, session_user, hello_world_contract_rest):
+def test_emulate_call_contract_function(neon_api_client, session_user, hello_world_contract):
     data = abi.function_signature_to_4byte_selector("call_hello_world()")
 
     result = neon_api_client.emulate(
-        session_user.eth_address.hex(), contract=hello_world_contract_rest.eth_address.hex(), data=data
+        session_user.eth_address.hex(), contract=hello_world_contract.eth_address.hex(), data=data
     )
 
     assert result["exit_status"] == "succeed", f"The 'exit_status' field is not succeed. Result: {result}"
