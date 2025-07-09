@@ -13,6 +13,7 @@ from utils.consts import (
     PAYMENT_FOR_TREE_ACCOUNT_DELETING,
     LAMPORT_TO_INNER_SOL,
     OPERATOR_FEE_TO_NEON,
+    TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST,
 )
 from utils.helpers import decode_function_signature
 from utils.scheduled_trx import ScheduledTransaction, CreateTreeAccMultipleData
@@ -57,20 +58,27 @@ def test_successful_single_trx_with_outer_deposit(
     tree_acc = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
     neon_user_balance_after_tree = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
-    delta_neon_user = neon_user_balance_before - neon_user_balance_after_tree
+    neon_user_balance_diff = neon_user_balance_before - neon_user_balance_after_tree
     estimated_trx_cost = tx_0.gas_limit * tx_0.max_fee_per_gas / LAMPORT_TO_INNER_SOL
+    expected_neon_user_balance_diff = (
+        estimated_trx_cost
+        + PAYMENT_FOR_TREE_ACCOUNT_DELETING
+        + TRX_EXECUTION_PRICE
+        + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
+    )
 
     assert (
-        delta_neon_user == estimated_trx_cost + PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE
-    ), f"Balance has been changed more than expected. Delta {delta_neon_user}"
+        neon_user_balance_diff == expected_neon_user_balance_diff
+    ), f"Balance has been changed more than expected. Delta {expected_neon_user_balance_diff - neon_user_balance_diff}"
 
     treasury_pool_balance_after_tree = evm_loader.get_solana_balance(treasury_pool.account)
     delta_treasury_balance = treasury_pool_balance - treasury_pool_balance_after_tree
 
     tree_acc_balance = evm_loader.get_solana_balance(tree_acc)
+    expected_tree_acc_balance = delta_treasury_balance + PAYMENT_FOR_TREE_ACCOUNT_DELETING
     assert (
-        tree_acc_balance == delta_treasury_balance + PAYMENT_FOR_TREE_ACCOUNT_DELETING
-    ), f"Tree acc balance failed, actual {tree_acc_balance}"
+        tree_acc_balance == expected_tree_acc_balance
+    ), f"Tree acc balance failed, delta {expected_tree_acc_balance - tree_acc_balance}"
 
     tree_acc_balance_inner = neon_api_client.get_transaction_tree(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
@@ -199,18 +207,21 @@ def test_success_two_trx_with_inner_deposit(
 
     neon_user_balance_after_tree = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
     neon_user_balance_after_inner = evm_loader.get_neon_balance(neon_user.neon_address, evm_loader.sol_chain_id)
-    delta_neon_user = neon_user_balance_before - neon_user_balance_after_tree
-    delta_neon_user_inner = neon_user_balance_before_inner - neon_user_balance_after_inner
+    neon_user_balance_diff = neon_user_balance_before - neon_user_balance_after_tree
+    neon_user_balance_diff_inner = neon_user_balance_before_inner - neon_user_balance_after_inner
     estimated_trx_cost = gas_limit * max_fee_per_gas / LAMPORT_TO_INNER_SOL
+    expected_neon_user_balance_diff = (
+        PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
+    )
 
     assert (
-        delta_neon_user == PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE
-    ), f"Balance has been changed more than expected. Delta {delta_neon_user}"
+        neon_user_balance_diff == expected_neon_user_balance_diff
+    ), f"Balance has been changed more than expected. Delta {neon_user_balance_diff}"
 
     expected_inner_delta = gas_limit * max_fee_per_gas * trx_count
     assert (
-        delta_neon_user_inner == expected_inner_delta
-    ), f"Inner balance is failed. Delta before/after tree acc creatiom {delta_neon_user}"
+        neon_user_balance_diff_inner == expected_inner_delta
+    ), f"Inner balance is failed. Delta before/after tree acc creatiom {neon_user_balance_diff}"
     treasury_pool_balance_after_tree = evm_loader.get_solana_balance(treasury_pool.account)
     delta_treasury_balance = treasury_pool_balance - treasury_pool_balance_after_tree
 
@@ -324,11 +335,18 @@ def test_failed_trx_with_outer_deposit(
     assert operator_balance == operator_balance_after_tree, "Operator balance has changed, but is not supposed to"
 
     neon_user_balance_after_tree = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
-    delta_neon_user = neon_user_balance_before - neon_user_balance_after_tree
+    neon_user_balance_diff = neon_user_balance_before - neon_user_balance_after_tree
     estimated_trx_cost = tx0.gas_limit * tx0.max_fee_per_gas / LAMPORT_TO_INNER_SOL
+    expected_neon_user_balance_diff = (
+        estimated_trx_cost
+        + PAYMENT_FOR_TREE_ACCOUNT_DELETING
+        + TRX_EXECUTION_PRICE
+        + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
+    )
+
     assert (
-        delta_neon_user == estimated_trx_cost + PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE
-    ), f"Balance has been changed more than expected. Delta {delta_neon_user}"
+        neon_user_balance_diff == expected_neon_user_balance_diff
+    ), f"Balance has been changed more than expected. Delta {expected_neon_user_balance_diff - neon_user_balance_diff}"
 
     treasury_pool_balance_after_tree = evm_loader.get_solana_balance(treasury_pool.account)
     delta_treasury_balance = treasury_pool_balance - treasury_pool_balance_after_tree
@@ -436,12 +454,18 @@ def test_skipped_trx_with_outer_deposit(
     tree_acc = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
     neon_user_balance_after_tree = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
-    delta_neon_user = neon_user_balance_before - neon_user_balance_after_tree
+    neon_user_balance_diff = neon_user_balance_before - neon_user_balance_after_tree
     estimated_trx_cost = tx_0.gas_limit * tx_0.max_fee_per_gas / LAMPORT_TO_INNER_SOL * trx_count
+    expected_neon_user_balance_diff = (
+        estimated_trx_cost
+        + PAYMENT_FOR_TREE_ACCOUNT_DELETING
+        + TRX_EXECUTION_PRICE
+        + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
+    )
 
     assert (
-        delta_neon_user == estimated_trx_cost + PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE
-    ), f"Balance has been changed more than expected. Delta {delta_neon_user}"
+        neon_user_balance_diff == expected_neon_user_balance_diff
+    ), f"Balance has been changed more than expected. Delta {expected_neon_user_balance_diff - neon_user_balance_diff}"
 
     treasury_pool_balance_after_tree = evm_loader.get_solana_balance(treasury_pool.account)
     delta_treasury_balance = treasury_pool_balance - treasury_pool_balance_after_tree
