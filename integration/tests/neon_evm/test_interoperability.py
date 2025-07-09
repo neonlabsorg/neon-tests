@@ -563,9 +563,7 @@ class TestInteroperability:
         evm_loader.request_airdrop(operator_keypair.pubkey(), 1000 * 10**9, commitment=Confirmed)
 
         salt = b"1235"
-        instruction_count = 20
         resource_addr = solana_caller.create_resource(sender_with_tokens, salt, 8, 1000000000, COUNTER_ID)
-
         instruction = Instruction(
             program_id=COUNTER_ID,
             accounts=[
@@ -574,32 +572,26 @@ class TestInteroperability:
             data=bytes([0x1]),
         )
 
-        call_params = []
-        params = (COUNTER_ID, instruction)
-        for i in range(instruction_count):
-            call_params.append(params)
-        execute_params = [serialize_instruction(program_id, instruction) for program_id, instruction in call_params]
-
+        iterations = 20
         signed_tx = make_contract_call_trx(
             evm_loader,
             sender_with_tokens,
             solana_caller.contract,
-            "batchExecuteWithoutLamports(bytes[])",
-            [execute_params],
+            "batchExecuteInIterativeModeWithoutLamport(uint256,bytes[])",
+            [iterations, [serialize_instruction(COUNTER_ID, instruction)]],
         )
 
         emulate_result = neon_api_client.emulate_contract_call(
             sender_with_tokens.eth_address.hex(),
             solana_caller.contract.eth_address.hex(),
-            "batchExecuteWithoutLamports(bytes[])",
-            [execute_params],
+            "batchExecuteInIterativeModeWithoutLamport(uint256,bytes[])",
+            [iterations, [serialize_instruction(COUNTER_ID, instruction)]],
         )
 
         accounts_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
-
         evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc, operator_keypair)
 
-        for _ in range(5):
+        for _ in range(4):
             evm_loader.send_transaction_step_from_account(
                 operator_keypair,
                 operator_balance_pubkey,
