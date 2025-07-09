@@ -941,7 +941,7 @@ class EvmLoader(SolanaClient):
         operator: Keypair,
         user: Caller,
         contract_file_name: tp.Union[pathlib.Path, str],
-        neon_rpc_client: NeonApiRpcClient | NeonApiClient,
+        neon_api_client: NeonApiRpcClient | NeonApiClient,
         treasury_pool: TreasuryPool,
         chain_id: int | str | None = "",
         value: int = 0,
@@ -960,7 +960,7 @@ class EvmLoader(SolanaClient):
         if encoded_args is None:
             encoded_args = b""
 
-        emulate_result = neon_rpc_client.emulate(
+        emulate_result = neon_api_client.emulate(
             user.eth_address.hex(),
             contract=None,
             data=contract_code + encoded_args.hex(),
