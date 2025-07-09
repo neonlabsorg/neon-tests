@@ -363,8 +363,9 @@ def multiple_actions_erc20(
 
 
 @pytest.fixture(scope="session")
-def neon_rpc_client(environment: EnvironmentConfig) -> NeonApiRpcClient:
-    return NeonApiRpcClient(url=environment.neon_core_api_rpc_url, chain_id=environment.network_ids["neon"])
+def neon_rpc_client(environment: EnvironmentConfig) -> Generator[NeonApiRpcClient, Any, Any]:
+    with NeonApiRpcClient(url=environment.neon_core_api_rpc_url, chain_id=environment.network_ids["neon"]) as client:
+        yield client
 
 
 @pytest.fixture(scope="session")

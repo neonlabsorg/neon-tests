@@ -1,37 +1,47 @@
 import eth_abi
-import requests
 from eth_utils import abi
-from requests import Response
+from requests import Response, Session
 from solders.pubkey import Pubkey
 
 
 class NeonApiRpcClient:
     def __init__(self, url: str, chain_id: int) -> None:
         self.url = url
-        self.headers = {"Content-Type": "application/json"}
         self.chain_id = chain_id
+        self.session = Session()
+        self.session.headers.update({"Content-Type": "application/json"})
 
-    def post(self, method, params):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.session.close()
+
+    def _make_request(self, method, params):
         body = {
             "jsonrpc": "2.0",
             "id": 1,
             "method": method,
-            "params": [params],
+            "params": params if isinstance(params, list) else [params],
         }
-        resp = requests.post(url=f"{self.url}", json=body, headers=self.headers).json()
-        if "result" in resp:
-            return resp["result"]
-        return resp["error"]
+        response = self.session.post(url=self.url, json=body)
+        response.raise_for_status()  # Raise exception for HTTP errors
+
+        resp_data = response.json()
+        if "result" in resp_data:
+            return resp_data["result"]
+
+        return resp_data["error"]
 
     def get_storage_at(self, contract, index="0x0"):
         params = {"contract": contract, "index": index}
-        return self.post("get_storage_at", params)
+        return self._make_request("get_storage_at", params)
 
     def get_balance(self, ether: str, chain_id: str | None = None) -> Response:
         if not chain_id:
             chain_id = self.chain_id
         params = {"account": [{"address": ether, "chain_id": chain_id}]}
-        return self.post("balance", params)
+        return self._make_request("balance", params)
 
     def emulate(
         self,
@@ -56,7 +66,7 @@ class NeonApiRpcClient:
             "provide_account_info": provide_account_info,
             "trace_config": trace_config,
         }
-        return self.post("emulate", params)
+        return self._make_request("emulate", params)
 
     def emulate_contract_call(
         self, sender, contract, function_signature, params=None, value=0, trace_config=None
@@ -72,12 +82,12 @@ class NeonApiRpcClient:
 
     def get_contract(self, address) -> Response:
         params = {"contract": address}
-        return self.post("contract", params)
+        return self._make_request("contract", params)
 
     def get_holder(self, pubkey: Pubkey) -> Response:
         params = {"pubkey": str(pubkey)}
-        return self.post("holder", params)
+        return self._make_request("holder", params)
 
     def get_config(self) -> Response:
         params = {}
-        return self.post("config", params)
+        return self._make_request("config", params)
