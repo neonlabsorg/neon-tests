@@ -21,15 +21,22 @@ from .test_economics import sum_balances
 from ..basic.helpers.rpc_checks import check_trx_is_success
 
 
+# todo use after fix https://neonlabs.atlassian.net/browse/NDEV-3838
+@allure.step("calculate additional token expenses")
+def calculate_additional_expenses_new():
+    return (
+        PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
+    ) * LAMPORT_TO_INNER_SOL
+
+
 @allure.step("calculate additional token expenses")
 def calculate_additional_expenses(trx_count, is_outer_balance_involved: False):
-    base_expenses = DEPOSIT_FOR_TRXS_FINISHING * trx_count
     if is_outer_balance_involved:
         return (
-            PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
-        ) * LAMPORT_TO_INNER_SOL - base_expenses
+            PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + DEPOSIT_FOR_TRXS_FINISHING * trx_count
+        ) * LAMPORT_TO_INNER_SOL
     else:
-        return base_expenses
+        return 0
 
 
 @allure.story("Operator economy")
@@ -267,8 +274,8 @@ class TestScheduledTransactionEconomics:
         full_volume_after = (
             token_balance_after + user_inner_sol_balance_after + (user_outer_sol_balance_after * LAMPORT_TO_INNER_SOL)
         )
-        trx_count = 1  # todo why not 2 ?
 
+        trx_count = 2
         additional_expected_spending = calculate_additional_expenses(trx_count, is_outer_balance_involved=True)
         diff_volume = full_volume_before - full_volume_after - additional_expected_spending
         assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
