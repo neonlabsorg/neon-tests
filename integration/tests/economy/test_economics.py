@@ -52,6 +52,7 @@ def heat_stand(web3_client, faucet):
         web3_client.send_neon(acc, web3_client.eth.account.create(), 1)
 
 
+@allure.step("summarize operator, sender and receiver account balances inside neon")
 def sum_balances(w3_client, operator, sender_account, receiver_account=None):
     token_balance = operator.get_token_balance(w3_client)
     if isinstance(sender_account, NeonUser):
@@ -65,6 +66,7 @@ def sum_balances(w3_client, operator, sender_account, receiver_account=None):
         return balance_sender + token_balance
 
 
+@allure.step("check full Volume of tokens inside neon stayed same after transaction")
 def assert_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after):
     if sum_of_tokens_before > sum_of_tokens_after:
         pytest.fail(f"Tokens volume become LOWER than before, {sum_of_tokens_after - sum_of_tokens_before}")

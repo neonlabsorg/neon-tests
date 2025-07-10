@@ -224,12 +224,6 @@ def neon_user(
 @pytest.fixture(scope="function")
 def neon_user_with_sols_inside_neon(
     evm_loader: EvmLoader,
-    bank_account,
-    environment: EnvironmentConfig,
-    web3_client_sol: NeonChainWeb3Client,
-    withdraw_contract_sol_chain,
-    treasury_pool,
-    solana_account: Keypair,
     neon_user,
 ) -> tp.Generator[NeonUser, None, None]:
     user = neon_user

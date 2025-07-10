@@ -1,42 +1,35 @@
 import allure
 import pytest
-from solana.constants import LAMPORTS_PER_SOL
 
+from utils.consts import (
+    TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST,
+    DEPOSIT_FOR_TRXS_FINISHING,
+    PAYMENT_FOR_TREE_ACCOUNT_DELETING,
+    TRX_EXECUTION_PRICE,
+    LAMPORT_TO_INNER_SOL,
+)
 from utils.helpers import wait_condition, decode_function_signature
 from utils.neon_user import NeonUser
 from utils.scheduled_trx import CreateTreeAccMultipleData, ScheduledTrxEstimateRequest
 from utils.scheduled_trx import ScheduledTransaction
 from utils.web3client import BASE_MAX_PRIORITY_FEE
-from .const import DEPOSIT_FOR_TREE_ACC_DELETING, TREE_ACC_CREATING_FEE, DEPOSIT_FOR_TRXS_FINISHING
 from .steps import (
     assert_profit,
 )
+from .test_economics import sum_balances
 
 from ..basic.helpers.rpc_checks import check_trx_is_success
 
 
-def sum_balances(w3_client, operator, sender_account, receiver_account=None):
-    token_balance = operator.get_token_balance(w3_client)
-    if isinstance(sender_account, NeonUser):
-        balance_sender = w3_client.get_balance(sender_account.checksum_address)
+@allure.step("calculate additional token expenses")
+def calculate_additional_expenses(trx_count, is_outer_balance_involved: False):
+    base_expenses = DEPOSIT_FOR_TRXS_FINISHING * trx_count
+    if is_outer_balance_involved:
+        return (
+            PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
+        ) * LAMPORT_TO_INNER_SOL - base_expenses
     else:
-        balance_sender = w3_client.get_balance(sender_account)
-
-    if receiver_account is not None:
-        if isinstance(receiver_account, NeonUser):
-            return balance_sender + token_balance + w3_client.get_balance(receiver_account.checksum_address)
-        else:
-            return balance_sender + token_balance + w3_client.get_balance(receiver_account)
-    else:
-        return balance_sender + token_balance
-
-
-def assert_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after):
-    if sum_of_tokens_before > sum_of_tokens_after:
-        pytest.fail(f"Tokens volume become LOWER than before, {sum_of_tokens_after - sum_of_tokens_before}")
-    elif sum_of_tokens_before < sum_of_tokens_after:
-        pytest.fail(f"Tokens volume become MORE than before, {sum_of_tokens_after - sum_of_tokens_before}")
-    pass
+        return base_expenses
 
 
 @allure.story("Operator economy")
@@ -67,7 +60,9 @@ class TestScheduledTransactionEconomics:
         user_outer_sol_balance_before = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
 
         full_volume_before = (
-            token_balance_before + user_inner_sol_balance_before + (user_outer_sol_balance_before * LAMPORTS_PER_SOL)
+            token_balance_before
+            + user_inner_sol_balance_before
+            + (user_outer_sol_balance_before * LAMPORT_TO_INNER_SOL)
         )
 
         trx_estimate_obj_list = []
@@ -115,13 +110,10 @@ class TestScheduledTransactionEconomics:
         user_outer_sol_balance_after = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
 
         full_volume_after = (
-            token_balance_after + user_inner_sol_balance_after + (user_outer_sol_balance_after * LAMPORTS_PER_SOL)
+            token_balance_after + user_inner_sol_balance_after + (user_outer_sol_balance_after * LAMPORT_TO_INNER_SOL)
         )
 
-        additional_expected_spending = (
-            DEPOSIT_FOR_TREE_ACC_DELETING + TREE_ACC_CREATING_FEE
-        ) * LAMPORTS_PER_SOL - DEPOSIT_FOR_TRXS_FINISHING * trx_count
-
+        additional_expected_spending = calculate_additional_expenses(trx_count, is_outer_balance_involved=True)
         diff_volume = full_volume_before - full_volume_after - additional_expected_spending
         assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
 
@@ -149,6 +141,7 @@ class TestScheduledTransactionEconomics:
 
         trx_count = 4
         data = decode_function_signature("incWithoutALT()")
+
         sol_balance_before = operator.get_solana_balance()
         token_balance_before = operator.get_token_balance(web3_client_sol)
         summ_before = sum_balances(web3_client_sol, operator, neon_user_with_sols_inside_neon)
@@ -193,7 +186,7 @@ class TestScheduledTransactionEconomics:
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client_sol)
 
-        additional_expected_spending = DEPOSIT_FOR_TRXS_FINISHING * trx_count
+        additional_expected_spending = calculate_additional_expenses(trx_count, is_outer_balance_involved=False)
         summ_after = sum_balances(web3_client_sol, operator, neon_user_with_sols_inside_neon)
         diff_volume = summ_before - summ_after + additional_expected_spending
         assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
@@ -214,6 +207,19 @@ class TestScheduledTransactionEconomics:
         operator,
         sol_price,
     ):
+        evm_loader.create_balance_account(neon_user.neon_address, neon_user.solana_account, evm_loader.sol_chain_id)
+
+        sol_balance_before = operator.get_solana_balance()
+        token_balance_before = operator.get_token_balance(web3_client_sol)
+        user_inner_sol_balance_before = web3_client_sol.get_balance(neon_user.checksum_address)
+        user_outer_sol_balance_before = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
+
+        full_volume_before = (
+            token_balance_before
+            + user_inner_sol_balance_before
+            + (user_outer_sol_balance_before * LAMPORT_TO_INNER_SOL)
+        )
+
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
 
         max_priority_fee_per_gas = BASE_MAX_PRIORITY_FEE
@@ -246,16 +252,26 @@ class TestScheduledTransactionEconomics:
         tree_acc_data.add_trx(trxs[0], 1, 0)
         tree_acc_data.add_trx(trxs[1], 0xFFFF, 1)
 
-        sol_balance_before = operator.get_solana_balance()
-        token_balance_before = operator.get_token_balance(web3_client_sol)
-        evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
+        tree_acc = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
         web3_client_sol.send_all_scheduled_transactions(trxs)
-        resp2 = web3_client_sol.wait_for_transaction_receipt(trxs[1].hash(), timeout=180)
-        assert resp2["status"] == 0
+        resp = web3_client_sol.wait_for_transaction_receipt(trxs[1].hash(), timeout=180)
+        assert resp["status"] == 0
+        wait_condition(lambda: not evm_loader.account_exists(tree_acc), timeout_sec=120, delay=2)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client_sol)
+        user_inner_sol_balance_after = web3_client_sol.get_balance(neon_user.checksum_address)
+        user_outer_sol_balance_after = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
+
+        full_volume_after = (
+            token_balance_after + user_inner_sol_balance_after + (user_outer_sol_balance_after * LAMPORT_TO_INNER_SOL)
+        )
+        trx_count = 1  # todo why not 2 ?
+
+        additional_expected_spending = calculate_additional_expenses(trx_count, is_outer_balance_involved=True)
+        diff_volume = full_volume_before - full_volume_after - additional_expected_spending
+        assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
 
         token_price = web3_client_sol.get_token_usd_gas_price()
         sol_diff = sol_balance_before - sol_balance_after
@@ -354,7 +370,7 @@ class TestScheduledTransactionEconomics:
         recipient_balance_after = web3_client_sol.get_balance(recipient.checksum_address)
         full_volume_after = operator_inner_balance_after + user_inner_sol_balance_after + recipient_balance_after
         trx_count = 4
-        additional_expected_spending = DEPOSIT_FOR_TRXS_FINISHING * trx_count
+        additional_expected_spending = calculate_additional_expenses(trx_count, is_outer_balance_involved=False)
         diff_volume = full_volume_before - full_volume_after + additional_expected_spending
         assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
 
@@ -388,7 +404,7 @@ class TestScheduledTransactionEconomics:
             operator_inner_balance_before
             + user_inner_sol_balance_before
             + recipient_balance_before
-            + (user_outer_sol_balance_before * LAMPORTS_PER_SOL)
+            + (user_outer_sol_balance_before * LAMPORT_TO_INNER_SOL)
         )
 
         top_up_in_trx = 400
@@ -449,13 +465,11 @@ class TestScheduledTransactionEconomics:
             operator_inner_balance_after
             + user_inner_sol_balance_after
             + recipient_balance_after
-            + (user_outer_sol_balance_after * LAMPORTS_PER_SOL)
+            + (user_outer_sol_balance_after * LAMPORT_TO_INNER_SOL)
         )
 
         trx_count = 4
-        additional_expected_spending = (
-            DEPOSIT_FOR_TREE_ACC_DELETING + TREE_ACC_CREATING_FEE
-        ) * LAMPORTS_PER_SOL - DEPOSIT_FOR_TRXS_FINISHING * trx_count
+        additional_expected_spending = calculate_additional_expenses(trx_count, is_outer_balance_involved=True)
 
         diff_volume = full_volume_before - (full_volume_after + additional_expected_spending)
         assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
@@ -480,6 +494,8 @@ class TestScheduledTransactionEconomics:
             neon_user_with_sols_inside_neon.solana_account,
             evm_loader.sol_chain_id,
         )
+        operator_inner_balance_before = operator.get_token_balance(web3_client_sol)
+        operator_sol_balance_before = operator.get_solana_balance()
 
         sum_of_tokens_before = sum_balances(
             web3_client_sol, operator, neon_user_with_sols_inside_neon, event_caller_sol_chain
@@ -510,10 +526,18 @@ class TestScheduledTransactionEconomics:
         check_trx_is_success(web3_client_sol, evm_loader, tx.hash().hex(), timeout=180)
         evm_loader.destroy_tree_account(neon_user_with_sols_inside_neon, treasury_pool, tree_account)
 
+        operator_inner_balance_after = operator.get_token_balance(web3_client_sol)
+        operator_sol_balance_after = operator.get_solana_balance()
+
         sum_of_tokens_after = sum_balances(
             web3_client_sol, operator, neon_user_with_sols_inside_neon, event_caller_sol_chain
         )
         trx_count = 1
-        additional_expected_spending = DEPOSIT_FOR_TRXS_FINISHING * trx_count
+        additional_expected_spending = calculate_additional_expenses(trx_count, is_outer_balance_involved=False)
         diff = sum_of_tokens_before - sum_of_tokens_after + additional_expected_spending
         assert diff == 0, f"tokens volume not same, diff={diff}"
+
+        token_price = web3_client_sol.get_token_usd_gas_price()
+        sol_diff = operator_sol_balance_before - operator_sol_balance_after
+        token_diff = web3_client_sol.to_main_currency(operator_inner_balance_after - operator_inner_balance_before)
+        assert_profit(sol_diff, sol_price, token_diff, token_price, web3_client_sol.native_token_name)

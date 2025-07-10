@@ -28,7 +28,3 @@ BIG_STRING = (
     " some great pleasure. To take a trivial example, which of us ever undertakes laborious"
     " physical exercise, except to obtain some advantage from it? But who has any right to"
 )
-
-DEPOSIT_FOR_TREE_ACC_DELETING = 10_000
-DEPOSIT_FOR_TRXS_FINISHING = 10_000
-TREE_ACC_CREATING_FEE = 5_000
