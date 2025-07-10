@@ -25,7 +25,7 @@ class NeonApiRpcClient:
             "params": params if isinstance(params, list) else [params],
         }
         response = self.session.post(url=self.url, json=body)
-        response.raise_for_status()  # Raise exception for HTTP errors
+        response.raise_for_status()
 
         resp_data = response.json()
         if "result" in resp_data:
@@ -33,7 +33,7 @@ class NeonApiRpcClient:
 
         return resp_data["error"]
 
-    def get_storage_at(self, contract, index="0x0"):
+    def get_storage_at(self, contract, index="0x0") -> Response:
         params = {"contract": contract, "index": index}
         return self._make_request("get_storage_at", params)
 
