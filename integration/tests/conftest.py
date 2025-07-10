@@ -22,12 +22,11 @@ from conftest import EnvironmentConfig
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
 from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS_USDT, REMAPPING_ZEPPELIN
-
 from utils.erc20 import ERC20
 from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
-from utils.neon_user import NeonUser
 from utils.helpers import decode_function_signature, get_selectors, withdraw_neon_to_solana_eth_sign
+from utils.neon_user import NeonUser
 from utils.operator import Operator
 from utils.prices import get_sol_price_with_retry
 from utils.solana_client import SolanaClient
@@ -49,7 +48,7 @@ def json_rpc_client(environment: EnvironmentConfig) -> JsonRPCSession:
 
 
 @pytest.fixture(scope="session")
-def json_sol_rpc_client(environment: EnvironmentConfig) -> JsonRPCSession:
+def json_sol_rpc_client(environment: EnvironmentConfig) -> JsonRPCSession | None:
     if "sol" in environment.network_ids:
         return JsonRPCSession(f"{environment.proxy_url}/sol")
 
@@ -647,7 +646,7 @@ def multiple_actions_erc721(web3_client, accounts):
 
 
 @pytest.fixture(scope="class")
-def call_solana_caller(accounts, web3_client):
+def call_solana_caller(accounts, web3_client) -> Contract:
     contract, _ = web3_client.deploy_and_get_contract("precompiled/CallSolanaCaller.sol", "0.8.28", accounts[0])
     return contract
 

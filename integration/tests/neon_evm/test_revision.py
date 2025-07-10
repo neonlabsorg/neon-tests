@@ -87,9 +87,9 @@ class TestAccountRevision:
             "neon_evm/flash_loan/lender.sol",
             neon_api_client,
             treasury_pool,
+            value=100000,
             contract_name="LoanLender",
             version="0.8.12",
-            value=100000,
         )
 
     @pytest.fixture(scope="session")
@@ -267,6 +267,7 @@ class TestAccountRevision:
         holder2 = new_holder_acc
         text1 = "a" * storage_data_len
         text2 = "b" * storage_data_len
+        cell_count = (storage_data_len + 31) // 32
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
 
         def send_transaction_steps(holder_account, accounts):
@@ -313,7 +314,7 @@ class TestAccountRevision:
             ]
             data_account = list(set(acc_from_emulation1) - set(additional_accounts))[0]
             data_acc_revision_after_user1_finished = evm_loader.get_data_account_revision(data_account)
-            assert data_acc_revision_after_user1_finished == 1
+            assert data_acc_revision_after_user1_finished == (cell_count * 1)
 
         # repeat steps for second user because revision for data accounts is changed
         resp2 = send_transaction_steps(holder2, acc_from_emulation2)
@@ -321,7 +322,7 @@ class TestAccountRevision:
 
         if expected_count_data_acc > 0:
             data_acc_revision_after_user2_finished = evm_loader.get_data_account_revision(data_account)
-            assert data_acc_revision_after_user2_finished == 2
+            assert data_acc_revision_after_user2_finished == (cell_count * 2)
 
     def test_2_users_sent_neons_to_the_same_recipients(
         self,
@@ -673,12 +674,7 @@ class TestAccountRevision:
     ):
         holder_acc = evm_loader.create_holder(operator_keypair)
         contract = evm_loader.deploy_contract(
-            operator_keypair,
-            sender_with_tokens,
-            "transfers",
-            neon_api_client,
-            treasury_pool,
-            value=1000,
+            operator_keypair, sender_with_tokens, "transfers", neon_api_client, treasury_pool, value=1000
         )
         sender_balance_before = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
 
@@ -1022,7 +1018,7 @@ class TestAccountRevision:
         contract_revision_caller_after = evm_loader.get_contract_account_revision(
             revision_contract_caller.solana_address
         )
-        assert contract_revision_before == contract_revision_after - 2
+        assert contract_revision_before == contract_revision_after - (63 * 2)
         assert contract_revision_caller_before == contract_revision_caller_after
 
         data_accounts = set(acc_from_emulation1) - set(additional_accounts)

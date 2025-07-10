@@ -31,11 +31,20 @@ TRANSFER_SOL_ID: Pubkey = Pubkey.from_string("6x9dAYQehxXLh16EHAKXevnQADTZPKP6ZT
 TRANSFER_TOKENS_ID: Pubkey = Pubkey.from_string("BFsGPJUwgE1rz4eoL322HaKZYNZ5wDLafwYtKwomv2XF")
 TEST_INVOKE_ID: Pubkey = Pubkey.from_string("A4HqdWTdJku9MB4FZfzv5YjsPmGCxX8NfKcrQJh2spqu")
 QUERY_ACCOUNT_ID: Pubkey = Pubkey.from_string("Fbc3Hf6FK7wCQjQHq9qS2phvhujfkfMQQWLsyA5s4oSu")
+ALT_UPDATER_ID: Pubkey = Pubkey.from_string("2opr1VoyXxpNePA4gcLBGPMPgrzgpyixuqDrE7EzKFWv")
 
 SPL_TOKEN_ADDRESS = "0xFf00000000000000000000000000000000000004"
 METAPLEX_ADDRESS = "0xff00000000000000000000000000000000000005"
 CALL_SOLANA_ADDRESS = "0xFF00000000000000000000000000000000000006"
 SOLANA_NATIVE_ADDRESS = "0xfF00000000000000000000000000000000000007"
+
+PAYMENT_FOR_TREE_ACCOUNT_DELETING = 10_000  # Paid by neon_user for tree_acc deleting. Do not depend on trx_count
+TRX_EXECUTION_PRICE = 5_000  # Standard fee for trx execution in solana. Paid by neon_user fox tree_acc creation
+LAMPORT_TO_INNER_SOL = 10**9  # Exchange coefficient from outer sol to inner sol
+OPERATOR_FEE_TO_NEON = 5_000  # Paid by operator to treasury account per iteration. Fee for trx execution inside Neon
+TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST = (
+    222_720  # Cost of enlarging balance account struct during tree_acc creation +32 bytes
+)
 
 
 class Time:
@@ -119,3 +128,9 @@ class InstructionTags(bytes, Enum):
     CONFIG_GET_PROPERTY_BY_NAME = b"\xA5"
     CONFIG_GET_STATUS = b"\xA6"
     CONFIG_GET_VERSION = b"\xA7"
+
+
+class NeonTxExitStatus(str, Enum):
+    SUCCESS_WITH_CHANGES = "0x11"
+    SUCCESS_NO_CHANGES = "0x12"
+    REVERT = "0xD0"

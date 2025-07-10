@@ -1,41 +1,38 @@
 import json
 import pathlib
 import typing
+import typing as tp
 from hashlib import sha256
 from random import randrange
 from typing import Union
 
 import allure
+import solders.system_program as sp
 import spl
-import typing as tp
-
+from eth_account.datastructures import SignedTransaction
 from eth_account.signers.local import LocalAccount
 from eth_keys import keys as eth_keys
-from eth_account.datastructures import SignedTransaction
 from eth_utils import keccak
-from solders.keypair import Keypair
-from solders.pubkey import Pubkey
-import solders.system_program as sp
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
 from solders.rpc.responses import GetTransactionResp
+from spl.token.constants import TOKEN_PROGRAM_ID, WRAPPED_SOL_MINT
 from spl.token.instructions import (
     get_associated_token_address,
     MintToParams,
     ApproveParams,
     approve,
 )
-from spl.token.constants import TOKEN_PROGRAM_ID, WRAPPED_SOL_MINT
 
+from integration.tests.neon_evm.utils.constants import TREASURY_POOL_SEED
 from integration.tests.neon_evm.utils.contract import get_contract_bin
 from integration.tests.neon_evm.utils.ethereum import create_contract_address, make_deployment_transaction
 from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
+from integration.tests.neon_evm.utils.neon_api_rpc_client import NeonApiRpcClient
 from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
-from utils.logger import log_text_to_allure_and_stdout
-from utils.scheduled_trx import ScheduledTransaction
-from utils.neon_user import NeonUser
-from integration.tests.neon_evm.utils.constants import TREASURY_POOL_SEED
 from utils.consts import LAMPORT_PER_SOL, InstructionTags
 from utils.helpers import ether2bytes
 from utils.instructions import (
@@ -67,6 +64,9 @@ from utils.layouts import (
     STORAGE_CELL_LAYOUT,
     OPERATOR_BALANCE_ACCOUNT_LAYOUT,
 )
+from utils.logger import log_text_to_allure_and_stdout
+from utils.neon_user import NeonUser
+from utils.scheduled_trx import ScheduledTransaction
 from utils.solana_client import SolanaClient
 from utils.solana_logs_helper import decode_logs
 from utils.types import Caller, Contract, TreasuryPool
@@ -469,6 +469,7 @@ class EvmLoader(SolanaClient):
         signer: Keypair,
         system_program=sp.ID,
         compute_unit_price=None,
+        additional_signers: typing.List[Keypair] = None,
         tag=InstructionTags.TRANSACTION_STEP_FROM_ACCOUNT,
     ) -> GetTransactionResp:
         trx = TransactionWithComputeBudget(operator, compute_unit_price=compute_unit_price)
@@ -481,11 +482,13 @@ class EvmLoader(SolanaClient):
                 holder_address=storage_account,
                 treasury=treasury,
                 additional_accounts=additional_accounts,
+                additional_signers=additional_signers,
                 sys_program_id=system_program,
                 tag=tag,
             )
         )
-        return self.send_tx(trx, signer)
+        signers = [signer, *additional_signers] if additional_signers else [signer]
+        return self.send_tx(trx, *signers)
 
     @allure.step("Execute transaction steps from account")
     def execute_transaction_steps_from_account(
@@ -498,6 +501,7 @@ class EvmLoader(SolanaClient):
         compute_unit_price=None,
         chain_id: int | None = None,
         check_invalid_revision=False,
+        additional_signers: typing.List[Keypair] = None,
     ) -> GetTransactionResp:
         chain_id = chain_id or self.chain_id
 
@@ -518,6 +522,7 @@ class EvmLoader(SolanaClient):
                 EVM_STEPS,
                 signer,
                 compute_unit_price=compute_unit_price,
+                additional_signers=additional_signers,
             )
 
             if receipt.value.transaction.meta.err:
@@ -626,18 +631,25 @@ class EvmLoader(SolanaClient):
         return receipt
 
     @allure.step("Create new user")
-    def make_new_user(self, sender: Keypair) -> Caller:
-        key = Keypair()
-        if self.get_solana_balance(key.pubkey()) == 0:
-            self.request_airdrop(key.pubkey(), 1000 * 10**9, commitment=Confirmed)
-        caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
-        caller_solana = self.ether2program(caller_ether)[0]
-        caller_balance = self.ether2balance(caller_ether)
-        caller_token = get_associated_token_address(caller_balance, self.neon_token_mint_id)
+    def make_new_user(self, sender: Keypair, key_pair: Keypair | None = None) -> Caller:
+        key_pair = key_pair or Keypair()
+        if self.get_solana_balance(key_pair.pubkey()) == 0:
+            self.request_airdrop(key_pair.pubkey(), 1000 * 10**9, commitment=Confirmed)
+        caller_ether = eth_keys.PrivateKey(key_pair.secret()[:32]).public_key.to_canonical_address()
+        solana_account_address = self.ether2program(caller_ether)[0]
+        balance_account_address = self.ether2balance(caller_ether)
+        ata = get_associated_token_address(balance_account_address, self.neon_token_mint_id)
 
-        if self.get_solana_balance(caller_balance) == 0:
+        if self.get_solana_balance(balance_account_address) == 0:
             self.create_balance_account(caller_ether, sender)
-        user = Caller(key, Pubkey.from_string(caller_solana), caller_balance, caller_ether, caller_token)
+
+        user = Caller(
+            solana_account=key_pair,
+            solana_account_address=Pubkey.from_string(solana_account_address),
+            balance_account_address=balance_account_address,
+            eth_address=caller_ether,
+            token_address=ata,
+        )
         log_text_to_allure_and_stdout("Created user", str(user))
         return user
 
@@ -845,7 +857,12 @@ class EvmLoader(SolanaClient):
 
         self.start_scheduled_trx_from_account(index, operator, holder, tree_account, additional_accounts, chain_id)
         return self.execute_transaction_steps_from_account(
-            operator, treasury, holder, additional_accounts, chain_id=chain_id, compute_unit_price=compute_unit_price
+            operator=operator,
+            treasury=treasury,
+            storage_account=holder,
+            additional_accounts=additional_accounts,
+            chain_id=chain_id,
+            compute_unit_price=compute_unit_price,
         )
 
     @allure.step("Execute scheduled transaction from instruction")
@@ -858,12 +875,12 @@ class EvmLoader(SolanaClient):
         treasury,
         additional_accounts,
         chain_id: int | str | None = "",
-    ):
+    ) -> GetTransactionResp:
         if chain_id == "":
             chain_id = self.sol_chain_id
 
         self.start_scheduled_trx_from_instruction(trx, operator, holder, tree_account, additional_accounts, chain_id)
-        self.execute_transaction_steps_from_instruction(
+        return self.execute_transaction_steps_from_instruction(
             operator, treasury, holder, trx.encode(), additional_accounts, compute_unit_price=15, chain_id=chain_id
         )
 
@@ -929,7 +946,7 @@ class EvmLoader(SolanaClient):
         operator: Keypair,
         user: Caller,
         contract_file_name: tp.Union[pathlib.Path, str],
-        neon_api_client: NeonApiClient,
+        neon_api_client: NeonApiRpcClient | NeonApiClient,
         treasury_pool: TreasuryPool,
         chain_id: int | str | None = "",
         value: int = 0,
@@ -1005,9 +1022,8 @@ class EvmLoader(SolanaClient):
                 make_account_create_holder(storage, signer.pubkey(), bytes(seed, "utf8"), self.loader_id),
             )
             self.send_tx(trx, signer)
-            return storage
-        else:
-            self.create_holder(signer, seed, size, fund, storage)
+
+        return storage
 
     @allure.step("Delete holder account")
     def delete_holder(self, del_key: Pubkey, acc: Keypair, signer: Keypair):
