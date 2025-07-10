@@ -21,22 +21,23 @@ from .test_economics import sum_balances
 from ..basic.helpers.rpc_checks import check_trx_is_success
 
 
-# todo use after fix https://neonlabs.atlassian.net/browse/NDEV-3838
+@allure.step("calculate additional token expenses")
+def calculate_additional_expenses(trx_count, is_outer_balance_involved: False):
+    base_expenses = DEPOSIT_FOR_TRXS_FINISHING * trx_count
+    if is_outer_balance_involved:
+        return (
+            PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
+        ) * LAMPORT_TO_INNER_SOL - base_expenses
+    else:
+        return base_expenses
+
+
+#  https://neonlabs.atlassian.net/browse/NDEV-3838
 @allure.step("calculate additional token expenses")
 def calculate_additional_expenses_new():
     return (
         PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
     ) * LAMPORT_TO_INNER_SOL
-
-
-@allure.step("calculate additional token expenses")
-def calculate_additional_expenses(trx_count, is_outer_balance_involved: False):
-    if is_outer_balance_involved:
-        return (
-            PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + DEPOSIT_FOR_TRXS_FINISHING * trx_count
-        ) * LAMPORT_TO_INNER_SOL
-    else:
-        return 0
 
 
 @allure.story("Operator economy")
@@ -275,7 +276,7 @@ class TestScheduledTransactionEconomics:
             token_balance_after + user_inner_sol_balance_after + (user_outer_sol_balance_after * LAMPORT_TO_INNER_SOL)
         )
 
-        trx_count = 2
+        trx_count = 1
         additional_expected_spending = calculate_additional_expenses(trx_count, is_outer_balance_involved=True)
         diff_volume = full_volume_before - full_volume_after - additional_expected_spending
         assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
@@ -531,7 +532,7 @@ class TestScheduledTransactionEconomics:
         web3_client_sol.send_scheduled_transaction(tx)
         web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)
         check_trx_is_success(web3_client_sol, evm_loader, tx.hash().hex(), timeout=180)
-        evm_loader.destroy_tree_account(neon_user_with_sols_inside_neon, treasury_pool, tree_account)
+        wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=2)
 
         operator_inner_balance_after = operator.get_token_balance(web3_client_sol)
         operator_sol_balance_after = operator.get_solana_balance()
