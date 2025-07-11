@@ -167,30 +167,30 @@ def assert_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after)
 def is_token_value_become_same(
     web_client,
     evm_loader,
-    operator_inner_balance_after,
-    volume_before,
+    operator_inner_balance,
+    tokens_volume_before,
     sender,
     trx_count,
     recipient=None,
     is_outer_balance_involved=False,
 ):
     if recipient is None:
-        recipient_balance_after = 0
+        recipient_balance = 0
     else:
-        recipient_balance_after = web_client.get_balance(recipient.checksum_address)
+        recipient_balance = web_client.get_balance(recipient.checksum_address)
 
-    user_inner_sol_balance_after = web_client.get_balance(sender.checksum_address)
-    user_outer_sol_balance_after = evm_loader.get_solana_balance(sender.solana_account.pubkey())
-    volume_after = (
-        operator_inner_balance_after
-        + user_inner_sol_balance_after
-        + recipient_balance_after
-        + (user_outer_sol_balance_after * LAMPORT_TO_INNER_SOL)
+    user_inner_sol_balance = web_client.get_balance(sender.checksum_address)
+    user_outer_sol_balance = evm_loader.get_solana_balance(sender.solana_account.pubkey())
+    new_token_volume = (
+        operator_inner_balance
+        + user_inner_sol_balance
+        + recipient_balance
+        + (user_outer_sol_balance * LAMPORT_TO_INNER_SOL)
     )
 
     additional_expected_spending = calculate_additional_expenses(
         trx_count, is_outer_balance_involved=is_outer_balance_involved
     )
 
-    diff_volume = volume_before - (volume_after + additional_expected_spending)
+    diff_volume = tokens_volume_before - (new_token_volume + additional_expected_spending)
     return diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
