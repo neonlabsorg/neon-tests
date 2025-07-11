@@ -45,7 +45,7 @@ OPERATOR_FEE_TO_NEON = 5_000  # Paid by operator to treasury account per iterati
 TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST = (
     222_720  # Cost of enlarging balance account struct during tree_acc creation +32 bytes
 )
-DEPOSIT_FOR_TRXS_FINISHING = 10_000  # Standart deposit, will back to user account after finishing transaction
+DEPOSIT_FOR_TRXS_FINISHING = 10_000  # Paid by neon_user for finishing transaction by operator. On each transaction
 
 
 class Time:

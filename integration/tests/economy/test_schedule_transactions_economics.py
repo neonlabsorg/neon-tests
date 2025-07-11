@@ -1,13 +1,7 @@
 import allure
 import pytest
 
-from utils.consts import (
-    TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST,
-    DEPOSIT_FOR_TRXS_FINISHING,
-    PAYMENT_FOR_TREE_ACCOUNT_DELETING,
-    TRX_EXECUTION_PRICE,
-    LAMPORT_TO_INNER_SOL,
-)
+from utils.consts import LAMPORT_TO_INNER_SOL
 from utils.helpers import wait_condition, decode_function_signature
 from utils.neon_user import NeonUser
 from utils.scheduled_trx import CreateTreeAccMultipleData, ScheduledTrxEstimateRequest
@@ -15,29 +9,11 @@ from utils.scheduled_trx import ScheduledTransaction
 from utils.web3client import BASE_MAX_PRIORITY_FEE
 from .steps import (
     assert_profit,
+    calculate_additional_expenses,
 )
 from .test_economics import sum_balances
 
 from ..basic.helpers.rpc_checks import check_trx_is_success
-
-
-@allure.step("calculate additional token expenses")
-def calculate_additional_expenses(trx_count, is_outer_balance_involved: False):
-    base_expenses = DEPOSIT_FOR_TRXS_FINISHING * trx_count
-    if is_outer_balance_involved:
-        return (
-            PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
-        ) * LAMPORT_TO_INNER_SOL - base_expenses
-    else:
-        return base_expenses
-
-
-#  https://neonlabs.atlassian.net/browse/NDEV-3838
-@allure.step("calculate additional token expenses")
-def calculate_additional_expenses_new():
-    return (
-        PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
-    ) * LAMPORT_TO_INNER_SOL
 
 
 @allure.story("Operator economy")
@@ -53,7 +29,6 @@ class TestScheduledTransactionEconomics:
         evm_loader,
         treasury_pool,
         sol_price,
-        sol_client,
         is_dependent,
     ):
         evm_loader.create_balance_account(neon_user.neon_address, neon_user.solana_account, evm_loader.sol_chain_id)
@@ -138,7 +113,6 @@ class TestScheduledTransactionEconomics:
         evm_loader,
         treasury_pool,
         sol_price,
-        sol_client,
         neon_user_with_sols_inside_neon,
     ):
         evm_loader.create_balance_account(
@@ -210,7 +184,6 @@ class TestScheduledTransactionEconomics:
         neon_user,
         treasury_pool,
         revert_contract_caller,
-        event_caller_contract,
         evm_loader,
         operator,
         sol_price,

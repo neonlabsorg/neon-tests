@@ -24,7 +24,6 @@ from utils.accounts import EthAccounts
 from utils.consts import LAMPORT_PER_SOL, Time, COUNTER_ID
 from utils.erc20 import ERC20
 from utils.helpers import wait_condition, gen_hash_of_block, serialize_instruction
-from utils.neon_user import NeonUser
 from utils.operator import Operator
 from utils.solana_client import SolanaClient
 from utils.types import TransactionType
@@ -36,6 +35,8 @@ from .steps import (
     check_alt_off,
     check_alt_on,
     wait_until_alt_deleted,
+    sum_balances,
+    assert_tokens_volumes_stayed_same,
 )
 
 from ..basic.helpers.chains import make_nonce_the_biggest_for_chain
@@ -50,29 +51,6 @@ def heat_stand(web3_client, faucet):
     faucet.request_neon(acc.address, 100)
     for _ in range(20):
         web3_client.send_neon(acc, web3_client.eth.account.create(), 1)
-
-
-@allure.step("summarize operator, sender and receiver account balances inside neon")
-def sum_balances(w3_client, operator, sender_account, receiver_account=None):
-    token_balance = operator.get_token_balance(w3_client)
-    if isinstance(sender_account, NeonUser):
-        balance_sender = w3_client.get_balance(sender_account.checksum_address)
-    else:
-        balance_sender = w3_client.get_balance(sender_account)
-
-    if receiver_account is not None:
-        return balance_sender + token_balance + w3_client.get_balance(receiver_account)
-    else:
-        return balance_sender + token_balance
-
-
-@allure.step("check full Volume of tokens inside neon stayed same after transaction")
-def assert_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after):
-    if sum_of_tokens_before > sum_of_tokens_after:
-        pytest.fail(f"Tokens volume become LOWER than before, {sum_of_tokens_after - sum_of_tokens_before}")
-    elif sum_of_tokens_before < sum_of_tokens_after:
-        pytest.fail(f"Tokens volume become MORE than before, {sum_of_tokens_after - sum_of_tokens_before}")
-    pass
 
 
 @allure.story("Operator economy")
