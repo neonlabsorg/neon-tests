@@ -134,11 +134,11 @@ def new_holder_acc_2(operator_keypair: Keypair, evm_loader: EvmLoader) -> Pubkey
 def rw_lock_contract(
     evm_loader: EvmLoader,
     operator_keypair: Keypair,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     session_user: Caller,
     treasury_pool: TreasuryPool,
 ) -> Contract:
-    return evm_loader.deploy_contract(operator_keypair, session_user, "rw_lock", neon_api_client, treasury_pool)
+    return evm_loader.deploy_contract(operator_keypair, session_user, "rw_lock", neon_rpc_client, treasury_pool)
 
 
 @pytest.fixture(scope="session")
@@ -148,14 +148,14 @@ def rw_lock_caller(
     session_user: Caller,
     treasury_pool: TreasuryPool,
     rw_lock_contract: Contract,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
 ) -> Contract:
     constructor_args = eth_abi.encode(["address"], [rw_lock_contract.eth_address.hex()])
     return evm_loader.deploy_contract(
         operator_keypair,
         session_user,
         "rw_lock",
-        neon_api_client,
+        neon_rpc_client,
         treasury_pool,
         encoded_args=constructor_args,
         contract_name="rw_lock_caller",
@@ -168,9 +168,9 @@ def string_setter_contract(
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
 ) -> Contract:
-    return evm_loader.deploy_contract(operator_keypair, session_user, "string_setter", neon_api_client, treasury_pool)
+    return evm_loader.deploy_contract(operator_keypair, session_user, "string_setter", neon_rpc_client, treasury_pool)
 
 
 @pytest.fixture(scope="session")
@@ -179,9 +179,9 @@ def hello_world_contract(
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
 ) -> Contract:
-    return evm_loader.deploy_contract(operator_keypair, session_user, "hello_world", neon_api_client, treasury_pool)
+    return evm_loader.deploy_contract(operator_keypair, session_user, "hello_world", neon_rpc_client, treasury_pool)
 
 
 @pytest.fixture(scope="session")
@@ -190,17 +190,17 @@ def basic_contract(
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
 ) -> Contract:
     return evm_loader.deploy_contract(
-        operator_keypair, session_user, "common/Common", neon_api_client, treasury_pool, version="0.8.12"
+        operator_keypair, session_user, "common/Common", neon_rpc_client, treasury_pool, version="0.8.12"
     )
 
 
 @pytest.fixture(scope="session")
 def revert_contract(
     evm_loader: EvmLoader,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
@@ -209,10 +209,10 @@ def revert_contract(
         operator_keypair,
         session_user,
         "common/Revert",
-        neon_api_client,
+        neon_rpc_client,
         treasury_pool,
-        version="0.8.28",
         contract_name="TrivialRevert",
+        version="0.8.28",
     )
 
 
@@ -222,7 +222,7 @@ def revert_contract_caller(
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     revert_contract,
 ) -> Contract:
     contraction_args = eth_abi.encode(["address"], [revert_contract.eth_address.hex()])
@@ -230,53 +230,53 @@ def revert_contract_caller(
         operator_keypair,
         session_user,
         "common/Revert",
-        neon_api_client,
+        neon_rpc_client,
         treasury_pool,
-        version="0.8.28",
         encoded_args=contraction_args,
         contract_name="Caller",
+        version="0.8.28",
     )
 
 
 @pytest.fixture(scope="function")
-def spl_token_caller(operator_keypair, evm_loader, session_user, treasury_pool, neon_api_client) -> Contract:
+def spl_token_caller(operator_keypair, evm_loader, session_user, treasury_pool, neon_rpc_client) -> Contract:
     return evm_loader.deploy_contract(
-        operator_keypair, session_user, "precompiled/SplTokenCaller", neon_api_client, treasury_pool, version="0.8.28"
+        operator_keypair, session_user, "precompiled/SplTokenCaller", neon_rpc_client, treasury_pool, version="0.8.28"
     )
 
 
 @pytest.fixture(scope="session")
 def calculator_contract(
     evm_loader: EvmLoader,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
 ) -> Contract:
-    return evm_loader.deploy_contract(operator_keypair, session_user, "calculator", neon_api_client, treasury_pool)
+    return evm_loader.deploy_contract(operator_keypair, session_user, "calculator", neon_rpc_client, treasury_pool)
 
 
 @pytest.fixture(scope="session")
 def transfers_contract(
     evm_loader: EvmLoader,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
 ) -> Contract:
-    return evm_loader.deploy_contract(operator_keypair, session_user, "transfers", neon_api_client, treasury_pool)
+    return evm_loader.deploy_contract(operator_keypair, session_user, "transfers", neon_rpc_client, treasury_pool)
 
 
 @pytest.fixture(scope="session")
 def solana_caller(
     evm_loader: EvmLoader,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
     holder_acc: Pubkey,
 ) -> SolanaCaller:
-    return SolanaCaller(operator_keypair, session_user, evm_loader, treasury_pool, holder_acc, neon_api_client)
+    return SolanaCaller(operator_keypair, session_user, evm_loader, treasury_pool, holder_acc, neon_rpc_client)
 
 
 @pytest.fixture(scope="session")
@@ -286,7 +286,7 @@ def calculator_caller_contract(
     session_user: Caller,
     treasury_pool,
     calculator_contract,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
 ) -> Contract:
     constructor_args = eth_abi.encode(["address"], [calculator_contract.eth_address.hex()])
 
@@ -294,7 +294,7 @@ def calculator_caller_contract(
         operator_keypair,
         session_user,
         "calculator",
-        neon_api_client,
+        neon_rpc_client,
         treasury_pool,
         encoded_args=constructor_args,
         contract_name="calculatorCaller",
@@ -304,23 +304,23 @@ def calculator_caller_contract(
 @pytest.fixture(scope="session")
 def solana_overrides_contract(
     evm_loader: EvmLoader,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
 ) -> Contract:
-    return evm_loader.deploy_contract(operator_keypair, session_user, "solana_override", neon_api_client, treasury_pool)
+    return evm_loader.deploy_contract(operator_keypair, session_user, "solana_override", neon_rpc_client, treasury_pool)
 
 
 @pytest.fixture(scope="session")
 def erc20_for_spl_factory_contract(
-    operator_keypair, evm_loader, sender_with_tokens, treasury_pool, neon_api_client, holder_acc
+    operator_keypair, evm_loader, sender_with_tokens, treasury_pool, neon_rpc_client, holder_acc
 ):
     return evm_loader.deploy_contract(
         operator_keypair,
         sender_with_tokens,
         "external/neon-contracts/contracts/token/ERC20ForSpl/erc20_for_spl_factory",
-        neon_api_client,
+        neon_rpc_client,
         treasury_pool,
         contract_name="ERC20ForSplFactory",
         version="0.8.28",
@@ -334,7 +334,7 @@ def multiple_actions_erc20(
     evm_loader: EvmLoader,
     sender_with_tokens: Caller,
     treasury_pool: TreasuryPool,
-    neon_api_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     holder_acc: Pubkey,
 ) -> Contract:
     encoded_args = eth_abi.encode(["string", "string", "uint256"], ["Test TTT", "TTT", 9])
@@ -342,7 +342,7 @@ def multiple_actions_erc20(
         operator=operator_keypair,
         user=sender_with_tokens,
         contract_file_name="EIPs/ERC20/MultipleActions",
-        neon_api_client=neon_api_client,
+        neon_rpc_client=neon_rpc_client,
         treasury_pool=treasury_pool,
         encoded_args=encoded_args,
         contract_name="MultipleActionsERC20",
@@ -353,8 +353,12 @@ def multiple_actions_erc20(
 
 @pytest.fixture(scope="session")
 def neon_rpc_client(environment: EnvironmentConfig) -> Generator[NeonApiRpcClient, Any, Any]:
-    with NeonApiRpcClient(url=environment.neon_core_api_rpc_url, chain_id=environment.network_ids["neon"]) as client:
-        yield client
+    with NeonApiRpcClient(
+        url=environment.neon_core_api_rpc_url,
+        chain_id=environment.network_ids["neon"],
+        sol_chain_id=environment.network_ids["sol"],
+    ) as neon_rpc_client:
+        yield neon_rpc_client
 
 
 @pytest.fixture(scope="session")
@@ -368,13 +372,13 @@ def neon_api_client(environment: EnvironmentConfig) -> NeonApiClient:
 
 @pytest.fixture(scope="session")
 def query_account_caller_contract(
-    operator_keypair, evm_loader, sender_with_tokens, treasury_pool, neon_api_client, holder_acc
+    operator_keypair, evm_loader, sender_with_tokens, treasury_pool, neon_rpc_client, holder_acc
 ):
     return evm_loader.deploy_contract(
         operator=operator_keypair,
         user=sender_with_tokens,
         contract_file_name="precompiled/QueryAccountCaller.sol",
-        neon_api_client=neon_api_client,
+        neon_rpc_client=neon_rpc_client,
         treasury_pool=treasury_pool,
         contract_name="QueryAccountCaller",
         version="0.8.10",
@@ -387,12 +391,12 @@ def erc20_for_spl(
     operator_keypair,
     sender_with_tokens,
     treasury_pool,
-    neon_api_client,
+    neon_rpc_client,
     holder_acc,
     proxy_contract,
     sol_client,
 ) -> Tuple[Any, Any]:
-    emulate_result = neon_api_client.emulate_contract_call(
+    emulate_result = neon_rpc_client.emulate_contract_call(
         sender_with_tokens.eth_address.hex(),
         proxy_contract.eth_address.hex(),
         "deploy(string,string,string,uint8)",

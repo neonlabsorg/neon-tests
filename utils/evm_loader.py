@@ -30,7 +30,6 @@ from spl.token.instructions import (
 from integration.tests.neon_evm.utils.constants import TREASURY_POOL_SEED
 from integration.tests.neon_evm.utils.contract import get_contract_bin
 from integration.tests.neon_evm.utils.ethereum import create_contract_address, make_deployment_transaction
-from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
 from integration.tests.neon_evm.utils.neon_api_rpc_client import NeonApiRpcClient
 from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
 from utils.consts import LAMPORT_PER_SOL, InstructionTags
@@ -946,7 +945,7 @@ class EvmLoader(SolanaClient):
         operator: Keypair,
         user: Caller,
         contract_file_name: tp.Union[pathlib.Path, str],
-        neon_api_client: NeonApiRpcClient | NeonApiClient,
+        neon_rpc_client: NeonApiRpcClient,
         treasury_pool: TreasuryPool,
         chain_id: int | str | None = "",
         value: int = 0,
@@ -965,7 +964,7 @@ class EvmLoader(SolanaClient):
         if encoded_args is None:
             encoded_args = b""
 
-        emulate_result = neon_api_client.emulate(
+        emulate_result = neon_rpc_client.emulate(
             user.eth_address.hex(),
             contract=None,
             data=contract_code + encoded_args.hex(),

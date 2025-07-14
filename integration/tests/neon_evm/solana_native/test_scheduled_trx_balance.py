@@ -25,7 +25,7 @@ LOG = logging.getLogger(__name__)
 
 
 def test_successful_single_trx_with_outer_deposit(
-    neon_user, evm_loader, operator_keypair, treasury_pool, basic_contract, neon_api_client, holder_acc
+    neon_user, evm_loader, operator_keypair, treasury_pool, basic_contract, neon_rpc_client, holder_acc
 ):
     # trx_status: successful
     # user_balance: only outer deposit
@@ -80,7 +80,7 @@ def test_successful_single_trx_with_outer_deposit(
         tree_acc_balance == expected_tree_acc_balance
     ), f"Tree acc balance failed, delta {expected_tree_acc_balance - tree_acc_balance}"
 
-    tree_acc_balance_inner = neon_api_client.get_transaction_tree(
+    tree_acc_balance_inner = neon_rpc_client.get_transaction_tree(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
     assert tree_acc_balance_inner == int(
@@ -131,7 +131,7 @@ def test_successful_single_trx_with_outer_deposit(
 
 
 def test_success_two_trx_with_inner_deposit(
-    neon_user, neon_api_client, evm_loader, operator_keypair, treasury_pool, basic_contract, solana_account, holder_acc
+    neon_user, neon_rpc_client, evm_loader, operator_keypair, treasury_pool, basic_contract, solana_account, holder_acc
 ):
 
     # trx_status: success
@@ -162,7 +162,7 @@ def test_success_two_trx_with_inner_deposit(
     )
     caller_contract: Contract = create_contract_address(neon_user.neon_address, evm_loader)
 
-    emulate_deploy = neon_api_client.emulate(
+    emulate_deploy = neon_rpc_client.emulate(
         neon_user.neon_address.hex(),
         contract=None,
         data=contract_code,
@@ -230,7 +230,7 @@ def test_success_two_trx_with_inner_deposit(
         tree_acc_balance == delta_treasury_balance + PAYMENT_FOR_TREE_ACCOUNT_DELETING
     ), f"Tree acc balance failed, actual {tree_acc_balance}"
 
-    tree_acc_balance_inner = neon_api_client.get_transaction_tree(
+    tree_acc_balance_inner = neon_rpc_client.get_transaction_tree(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
     assert (
@@ -298,7 +298,7 @@ def test_success_two_trx_with_inner_deposit(
 
 
 def test_failed_trx_with_outer_deposit(
-    neon_user, neon_api_client, evm_loader, operator_keypair, treasury_pool, revert_contract_caller, holder_acc
+    neon_user, neon_rpc_client, evm_loader, operator_keypair, treasury_pool, revert_contract_caller, holder_acc
 ):
 
     # trx_status: failed
@@ -356,7 +356,7 @@ def test_failed_trx_with_outer_deposit(
         tree_acc_balance == delta_treasury_balance + PAYMENT_FOR_TREE_ACCOUNT_DELETING
     ), f"Tree acc balance failed, actual {tree_acc_balance}"
 
-    tree_acc_balance_inner = neon_api_client.get_transaction_tree(
+    tree_acc_balance_inner = neon_rpc_client.get_transaction_tree(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
     assert tree_acc_balance_inner == int(
@@ -409,7 +409,7 @@ def test_failed_trx_with_outer_deposit(
 
 
 def test_skipped_trx_with_outer_deposit(
-    neon_user, evm_loader, operator_keypair, treasury_pool, basic_contract, neon_api_client, holder_acc
+    neon_user, evm_loader, operator_keypair, treasury_pool, basic_contract, neon_rpc_client, holder_acc
 ):
     # trx_status: skipped
     # user_balance: only outer deposit
@@ -475,7 +475,7 @@ def test_skipped_trx_with_outer_deposit(
         tree_acc_balance == delta_treasury_balance + PAYMENT_FOR_TREE_ACCOUNT_DELETING
     ), f"Tree acc balance failed, actual {tree_acc_balance}"
 
-    tree_acc_balance_inner = neon_api_client.get_transaction_tree(
+    tree_acc_balance_inner = neon_rpc_client.get_transaction_tree(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
     assert tree_acc_balance_inner == int(
