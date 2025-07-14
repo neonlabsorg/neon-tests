@@ -54,7 +54,6 @@ class TestScheduledTrx:
         evm_loader.finish_scheduled_trx(operator_keypair, tree_account, holder_acc)
         evm_loader.destroy_tree_account(operator_keypair, neon_user, treasury_pool, tree_account)
 
-
     def test_execute_scheduled_trx_from_instruction(
         self,
         evm_loader,
@@ -100,8 +99,7 @@ class TestScheduledTrx:
 
         evm_loader.finish_scheduled_trx(operator_keypair, tree_account, holder_acc)
         evm_loader.destroy_tree_account(operator_keypair, neon_user, treasury_pool, tree_account)
-        assert neon_api_client.get_transaction_tree(neon_user.neon_address.hex(), nonce).get_transaction_count() == 0
-
+        assert neon_rpc_client.get_transaction_tree(neon_user.neon_address.hex(), nonce).get_transaction_count() == 0
 
     def test_scheduled_trx_wrong_index(
         self, evm_loader, neon_user: NeonUser, treasury_pool, basic_contract, operator_keypair, holder_acc
@@ -200,7 +198,7 @@ class TestScheduledTrx:
         evm_loader,
         neon_user: NeonUser,
         treasury_pool,
-        neon_api_client,
+        neon_rpc_client,
         operator_keypair,
         sender_with_wsol,
     ):
@@ -208,7 +206,7 @@ class TestScheduledTrx:
             operator_keypair,
             sender_with_wsol,
             "transfers",
-            neon_api_client,
+            neon_rpc_client,
             treasury_pool,
             chain_id=evm_loader.sol_chain_id,
         )

@@ -1057,7 +1057,6 @@ class TestAccountRevision:
             value=10 * amount,
         )
 
-
         accounts_from_emulation1 = neon_rpc_client.get_additional_accounts_by_emulation(
             sender_with_tokens.eth_address.hex(),
             revision_with_solana_call_contract.eth_address.hex(),
@@ -1106,9 +1105,7 @@ class TestAccountRevision:
             value=2 * amount,
         )
 
-
         accounts_from_emulation2 = neon_rpc_client.get_additional_accounts_by_emulation(
-
             sender_with_tokens.eth_address.hex(),
             revision_with_solana_call_contract.eth_address.hex(),
             "transferNeonAndCallSolana(uint64,bytes,uint256,address)",
