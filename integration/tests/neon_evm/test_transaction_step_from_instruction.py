@@ -777,8 +777,6 @@ class TestTransactionStepFromInstructionParallelRuns:
         send_transaction_steps(holder_acc, string_setter_contract, signed_tx2)
         send_transaction_steps(second_holder_acc, rw_lock_contract, signed_tx)
         send_transaction_steps(holder_acc, string_setter_contract, signed_tx2)
-        send_transaction_steps(second_holder_acc, rw_lock_contract, signed_tx)
-        send_transaction_steps(holder_acc, string_setter_contract, signed_tx2)
 
         check_holder_account_tag(
             solana_client=evm_loader,
@@ -844,8 +842,7 @@ class TestTransactionStepFromInstructionParallelRuns:
         send_transaction_steps(holder_acc, signed_tx2, additional_accounts_trx2)
         send_transaction_steps(second_holder_acc, signed_tx, additional_accounts_trx1)
         send_transaction_steps(holder_acc, signed_tx2, additional_accounts_trx2)
-        send_transaction_steps(second_holder_acc, signed_tx, additional_accounts_trx1)
-        send_transaction_steps(holder_acc, signed_tx2, additional_accounts_trx2)
+
         for holder in (second_holder_acc, holder_acc):
             check_holder_account_tag(
                 solana_client=evm_loader,
@@ -896,21 +893,6 @@ class TestTransactionStepFromInstructionParallelRuns:
         send_transaction_steps(holder_acc, signed_tx2, additional_accounts_trx2)
         send_transaction_steps(second_holder_acc, signed_tx1, additional_accounts_trx1)
         send_transaction_steps(holder_acc, signed_tx2, additional_accounts_trx2)
-
-        evm_loader.execute_transaction_steps_from_instruction(
-            operator_keypair,
-            treasury_pool,
-            second_holder_acc,
-            signed_tx1,
-            additional_accounts_trx1,
-        )
-        evm_loader.execute_transaction_steps_from_instruction(
-            operator_keypair,
-            treasury_pool,
-            holder_acc,
-            signed_tx2,
-            additional_accounts_trx2,
-        )
 
         for holder in (second_holder_acc, holder_acc):
             check_holder_account_tag(

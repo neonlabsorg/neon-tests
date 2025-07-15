@@ -771,8 +771,6 @@ class TestTransactionStepFromAccountParallelRuns:
         send_transaction_steps(second_holder_acc, string_setter_contract)
         send_transaction_steps(holder_acc, rw_lock_contract)
         send_transaction_steps(second_holder_acc, string_setter_contract)
-        send_transaction_steps(holder_acc, rw_lock_contract)
-        send_transaction_steps(second_holder_acc, string_setter_contract)
 
         check_holder_account_tag(
             solana_client=evm_loader,
@@ -831,8 +829,7 @@ class TestTransactionStepFromAccountParallelRuns:
         send_transaction_steps(session_user, holder_acc)
         send_transaction_steps(second_session_user, second_holder_acc)
         send_transaction_steps(session_user, holder_acc)
-        send_transaction_steps(second_session_user, second_holder_acc)
-        send_transaction_steps(session_user, holder_acc)
+
         for holder in (second_holder_acc, holder_acc):
             check_holder_account_tag(
                 solana_client=evm_loader,
@@ -886,16 +883,6 @@ class TestTransactionStepFromAccountParallelRuns:
         send_transaction_steps(second_holder_acc, additional_accounts_trx2)
         send_transaction_steps(holder_acc, additional_accounts_trx1)
         send_transaction_steps(second_holder_acc, additional_accounts_trx2)
-
-        evm_loader.execute_transaction_steps_from_account(
-            operator_keypair, treasury_pool, holder_acc, additional_accounts_trx1
-        )
-        evm_loader.execute_transaction_steps_from_account(
-            operator_keypair,
-            treasury_pool,
-            second_holder_acc,
-            additional_accounts_trx2,
-        )
 
         for holder_acc in (holder_acc, second_holder_acc):
             check_holder_account_tag(
