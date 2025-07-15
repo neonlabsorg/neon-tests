@@ -163,7 +163,15 @@ def assert_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after)
     pass
 
 
-@allure.step("wait that full volume after become same as before")
+@allure.step("check full Volume of tokens inside neon stayed same after transaction")
+def check_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after):
+    if sum_of_tokens_before != sum_of_tokens_after:
+        return False
+    else:
+        return True
+
+
+@allure.step("check that full volume after become same as before")
 def is_token_value_become_same(
     web_client,
     evm_loader,

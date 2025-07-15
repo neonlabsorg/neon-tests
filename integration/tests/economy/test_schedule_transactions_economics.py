@@ -10,6 +10,8 @@ from utils.web3client import BASE_MAX_PRIORITY_FEE
 from .steps import (
     assert_profit,
     is_token_value_become_same,
+    check_alt_off,
+    wait_until_alt_deleted,
 )
 from .test_economics import sum_balances
 
@@ -31,6 +33,7 @@ class TestScheduledTransactionEconomics:
         treasury_pool,
         sol_price,
         is_dependent,
+        sol_client,
     ):
         evm_loader.create_balance_account(neon_user.neon_address, neon_user.solana_account, evm_loader.sol_chain_id)
 
@@ -85,25 +88,25 @@ class TestScheduledTransactionEconomics:
         web3_client_sol.send_all_scheduled_transactions(trxs)
         for trx in trxs:
             check_trx_is_success(web3_client_sol, evm_loader, trx.hash().hex(), timeout=180)
+            web3_client_sol.wait_for_transaction_receipt(trx.hash().hex(), timeout=120)
         wait_condition(lambda: not evm_loader.account_exists(tree_acc), timeout_sec=120, delay=2)
+        receipt = web3_client_sol.wait_for_transaction_receipt(trxs[-1].hash().hex(), timeout=120)
+
+        check_alt_off(web3_client_sol, sol_client, receipt)
+        wait_until_alt_deleted(web3_client_sol, sol_client, receipt)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client_sol)
 
-        wait_condition(
-            lambda: is_token_value_become_same(
-                web3_client_sol,
-                evm_loader,
-                token_balance_after,
-                full_volume_before,
-                neon_user,
-                trx_count,
-                is_outer_balance_involved=True,
-            ),
-            timeout_sec=120,
-            delay=2,
+        is_token_value_become_same(
+            web3_client_sol,
+            evm_loader,
+            token_balance_after,
+            full_volume_before,
+            neon_user,
+            trx_count,
+            is_outer_balance_involved=True,
         )
-
         token_price = web3_client_sol.get_token_usd_gas_price()
         sol_diff = sol_balance_before - sol_balance_after
         token_diff = web3_client_sol.to_main_currency(token_balance_after - token_balance_before)
@@ -118,6 +121,7 @@ class TestScheduledTransactionEconomics:
         treasury_pool,
         sol_price,
         neon_user_with_sols_inside_neon,
+        sol_client,
     ):
         evm_loader.create_balance_account(
             neon_user_with_sols_inside_neon.neon_address,
@@ -167,25 +171,25 @@ class TestScheduledTransactionEconomics:
         web3_client_sol.send_all_scheduled_transactions(trxs)
         for trx in trxs:
             check_trx_is_success(web3_client_sol, evm_loader, trx.hash().hex(), timeout=180)
+            web3_client_sol.wait_for_transaction_receipt(trx.hash().hex(), timeout=120)
         wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=2)
+        receipt = web3_client_sol.wait_for_transaction_receipt(trxs[-1].hash().hex(), timeout=120)
+
+        check_alt_off(web3_client_sol, sol_client, receipt)
+        wait_until_alt_deleted(web3_client_sol, sol_client, receipt)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client_sol)
 
-        wait_condition(
-            lambda: is_token_value_become_same(
-                web3_client_sol,
-                evm_loader,
-                token_balance_after,
-                summ_before,
-                neon_user_with_sols_inside_neon,
-                trx_count,
-                is_outer_balance_involved=False,
-            ),
-            timeout_sec=120,
-            delay=2,
+        is_token_value_become_same(
+            web3_client_sol,
+            evm_loader,
+            token_balance_after,
+            summ_before,
+            neon_user_with_sols_inside_neon,
+            trx_count,
+            is_outer_balance_involved=False,
         )
-
         token_price = web3_client_sol.get_token_usd_gas_price()
         sol_diff = sol_balance_before - sol_balance_after
         token_diff = web3_client_sol.to_main_currency(token_balance_after - token_balance_before)
@@ -200,6 +204,7 @@ class TestScheduledTransactionEconomics:
         evm_loader,
         operator,
         sol_price,
+        sol_client,
     ):
         evm_loader.create_balance_account(neon_user.neon_address, neon_user.solana_account, evm_loader.sol_chain_id)
 
@@ -249,28 +254,27 @@ class TestScheduledTransactionEconomics:
         tree_acc = evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
         web3_client_sol.send_all_scheduled_transactions(trxs)
-        resp = web3_client_sol.wait_for_transaction_receipt(trxs[1].hash(), timeout=180)
-        assert resp["status"] == 0
+        receipt = web3_client_sol.wait_for_transaction_receipt(trxs[1].hash(), timeout=180)
+        assert receipt["status"] == 0
         wait_condition(lambda: not evm_loader.account_exists(tree_acc), timeout_sec=120, delay=2)
+        receipt = web3_client_sol.wait_for_transaction_receipt(trxs[-1].hash().hex(), timeout=120)
+
+        check_alt_off(web3_client_sol, sol_client, receipt)
+        wait_until_alt_deleted(web3_client_sol, sol_client, receipt)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client_sol)
 
         trx_count = 1
-        wait_condition(
-            lambda: is_token_value_become_same(
-                web3_client_sol,
-                evm_loader,
-                token_balance_after,
-                full_volume_before,
-                neon_user,
-                trx_count,
-                is_outer_balance_involved=True,
-            ),
-            timeout_sec=120,
-            delay=2,
+        is_token_value_become_same(
+            web3_client_sol,
+            evm_loader,
+            token_balance_after,
+            full_volume_before,
+            neon_user,
+            trx_count,
+            is_outer_balance_involved=True,
         )
-
         token_price = web3_client_sol.get_token_usd_gas_price()
         sol_diff = sol_balance_before - sol_balance_after
         token_diff = web3_client_sol.to_main_currency(token_balance_after - token_balance_before)
@@ -285,6 +289,7 @@ class TestScheduledTransactionEconomics:
         treasury_pool,
         operator,
         sol_price,
+        sol_client,
     ):
         evm_loader.create_balance_account(
             neon_user_with_sols_inside_neon.neon_address,
@@ -361,23 +366,23 @@ class TestScheduledTransactionEconomics:
         for trx in trxs:
             check_trx_is_success(web3_client_sol, evm_loader, trx.hash().hex(), timeout=180)
 
+        receipt = web3_client_sol.wait_for_transaction_receipt(trxs[-1].hash().hex(), timeout=120)
+        check_alt_off(web3_client_sol, sol_client, receipt)
+        wait_until_alt_deleted(web3_client_sol, sol_client, receipt)
+
         operator_inner_balance_after = operator.get_token_balance(web3_client_sol)
         operator_sol_balance_after = operator.get_solana_balance()
 
         trx_count = 4
-        wait_condition(
-            lambda: is_token_value_become_same(
-                web3_client_sol,
-                evm_loader,
-                operator_inner_balance_after,
-                full_volume_before,
-                neon_user_with_sols_inside_neon,
-                trx_count,
-                recipient,
-                is_outer_balance_involved=False,
-            ),
-            timeout_sec=120,
-            delay=2,
+        is_token_value_become_same(
+            web3_client_sol,
+            evm_loader,
+            operator_inner_balance_after,
+            full_volume_before,
+            neon_user_with_sols_inside_neon,
+            trx_count,
+            recipient,
+            is_outer_balance_involved=False,
         )
 
         token_price = web3_client_sol.get_token_usd_gas_price()
@@ -386,14 +391,7 @@ class TestScheduledTransactionEconomics:
         assert_profit(sol_diff, sol_price, token_diff, token_price, web3_client_sol.native_token_name)
 
     def test_scheduled_trx_for_erc20_for_spl_outside_sols(
-        self,
-        web3_client_sol,
-        neon_user,
-        erc20_spl_mintable,
-        evm_loader,
-        treasury_pool,
-        operator,
-        sol_price,
+        self, web3_client_sol, neon_user, erc20_spl_mintable, evm_loader, treasury_pool, operator, sol_price, sol_client
     ):
         evm_loader.create_balance_account(neon_user.neon_address, neon_user.solana_account, evm_loader.sol_chain_id)
 
@@ -460,26 +458,24 @@ class TestScheduledTransactionEconomics:
         for trx in trxs:
             check_trx_is_success(web3_client_sol, evm_loader, trx.hash().hex(), timeout=180)
         wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=2)
+        receipt = web3_client_sol.wait_for_transaction_receipt(trxs[-1].hash().hex(), timeout=120)
+        check_alt_off(web3_client_sol, sol_client, receipt)
+        wait_until_alt_deleted(web3_client_sol, sol_client, receipt)
 
         operator_inner_balance_after = operator.get_token_balance(web3_client_sol)
         operator_sol_balance_after = operator.get_solana_balance()
 
         trx_count = 4
-        wait_condition(
-            lambda: is_token_value_become_same(
-                web3_client_sol,
-                evm_loader,
-                operator_inner_balance_after,
-                full_volume_before,
-                neon_user,
-                trx_count,
-                recipient,
-                is_outer_balance_involved=True,
-            ),
-            timeout_sec=120,
-            delay=2,
+        is_token_value_become_same(
+            web3_client_sol,
+            evm_loader,
+            operator_inner_balance_after,
+            full_volume_before,
+            neon_user,
+            trx_count,
+            recipient,
+            is_outer_balance_involved=True,
         )
-
         token_price = web3_client_sol.get_token_usd_gas_price()
         sol_diff = operator_sol_balance_before - operator_sol_balance_after
         token_diff = web3_client_sol.to_main_currency(operator_inner_balance_after - operator_inner_balance_before)
@@ -536,20 +532,15 @@ class TestScheduledTransactionEconomics:
         operator_sol_balance_after = operator.get_solana_balance()
 
         trx_count = 1
-        wait_condition(
-            lambda: is_token_value_become_same(
-                web3_client_sol,
-                evm_loader,
-                operator_inner_balance_after,
-                full_volume_before,
-                neon_user_with_sols_inside_neon,
-                trx_count,
-                is_outer_balance_involved=False,
-            ),
-            timeout_sec=120,
-            delay=2,
+        is_token_value_become_same(
+            web3_client_sol,
+            evm_loader,
+            operator_inner_balance_after,
+            full_volume_before,
+            neon_user_with_sols_inside_neon,
+            trx_count,
+            is_outer_balance_involved=False,
         )
-
         token_price = web3_client_sol.get_token_usd_gas_price()
         sol_diff = operator_sol_balance_before - operator_sol_balance_after
         token_diff = web3_client_sol.to_main_currency(operator_inner_balance_after - operator_inner_balance_before)
