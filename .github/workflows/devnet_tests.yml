@@ -91,7 +91,11 @@ jobs:
       - name: Set test version
         id: test_image_tag
         run: |
-          test_image_tag=`python ./clickfile.py get-stand-proxy-version -n ${{ env.NETWORK }}`
+          if [ ${{ env.NETWORK }} = "devnet-2" ]; then
+            test_image_tag="latest"
+          else
+            test_image_tag=`python ./clickfile.py get-stand-proxy-version -n ${{ env.NETWORK }}`
+          fi
           echo "Test image tag: $test_image_tag"
           echo "value=$test_image_tag" >> $GITHUB_OUTPUT
       - name: Run docker container
