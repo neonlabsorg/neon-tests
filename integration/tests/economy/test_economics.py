@@ -77,7 +77,6 @@ class TestEconomics:
         sol_price: float,
         operator: Operator,
         tx_type: TransactionType,
-        web3_client,
         sol_client,
     ):
         """Verify how many cost transfer of native chain token to new user"""
@@ -90,18 +89,15 @@ class TestEconomics:
         receipt = w3_client.send_tokens(account_with_all_tokens, acc2, transfer_value, tx_type=tx_type)
         assert w3_client.get_balance(acc2) == transfer_value
 
-        check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
+        check_alt_off(w3_client, sol_client, receipt)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(w3_client)
         sol_diff = sol_balance_before - sol_balance_after
 
-        def check_token_volume():
-            sum_of_tokens_after = sum_balances(w3_client, operator, account_with_all_tokens, acc2)
-            return check_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after)
+        sum_of_tokens_after = sum_balances(w3_client, operator, account_with_all_tokens, acc2)
+        check_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after)
 
-        wait_condition(lambda: check_token_volume(), timeout_sec=120, delay=2)
         assert sol_balance_before > sol_balance_after, "Operator SOL balance incorrect"
         token_diff = w3_client.to_main_currency(token_balance_after - token_balance_before)
         assert_profit(sol_diff, sol_price, token_diff, token_price, w3_client.native_token_name)
@@ -116,7 +112,6 @@ class TestEconomics:
         sol_price: float,
         operator: Operator,
         tx_type: TransactionType,
-        web3_client,
         sol_client,
     ):
         """Verify how many cost token send to use who was already initialized"""
@@ -126,8 +121,7 @@ class TestEconomics:
         receipt = w3_client.send_tokens(account_with_all_tokens, acc2, transfer_value // 2, tx_type=tx_type)
         assert w3_client.get_balance(acc2) == transfer_value // 2
 
-        check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
+        check_alt_off(w3_client, sol_client, receipt)
 
         sol_balance_before = operator.get_solana_balance()
         token_balance_before = operator.get_token_balance(w3_client)
@@ -163,7 +157,6 @@ class TestEconomics:
         )
         receipt = web3_client.send_transaction(account_with_all_tokens, instruction_tx)
         check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client)
@@ -183,7 +176,6 @@ class TestEconomics:
         account_with_all_tokens: LocalAccount,
         operator: Operator,
         tx_type: TransactionType,
-        web3_client,
         sol_client,
     ):
         w3_client, token_price = client_and_price
@@ -192,8 +184,8 @@ class TestEconomics:
         assert w3_client.get_balance(acc2) == 0
         transfer_amount = 5000
         receipt = w3_client.send_tokens(account_with_all_tokens, acc2, transfer_amount, tx_type=tx_type)
-        check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
+        check_alt_off(w3_client, sol_client, receipt)
+
         sol_balance_before = operator.get_solana_balance()
         token_balance_before = operator.get_token_balance(w3_client)
         sum_of_tokens_before = sum_balances(w3_client, operator, account_with_all_tokens, acc2)
@@ -211,9 +203,7 @@ class TestEconomics:
         assert sol_balance_before == sol_balance_after
         assert token_balance_before == token_balance_after
 
-    def test_erc20_for_spl_transfer(
-        self, erc20_wrapper, client_and_price, sol_price, operator, accounts, web3_client, sol_client
-    ):
+    def test_erc20_for_spl_transfer(self, erc20_wrapper, client_and_price, sol_price, operator, accounts, sol_client):
         sender_account = accounts[0]
         w3_client, token_price = client_and_price
         sol_balance_before = operator.get_solana_balance()
@@ -226,8 +216,7 @@ class TestEconomics:
         assert erc20_wrapper.contract.functions.balanceOf(sender_account.address).call() == 25
         wait_condition(lambda: sol_balance_before > operator.get_solana_balance())
 
-        check_alt_off(web3_client, sol_client, transfer_tx)
-        wait_until_alt_deleted(web3_client, sol_client, transfer_tx)
+        check_alt_off(w3_client, sol_client, transfer_tx)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(w3_client)
@@ -307,7 +296,6 @@ class TestEconomics:
         assert int(balance.value.lamports) == int(move_amount / LAMPORTS_PER_SOL)
 
         check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
 
         sol_balance_after = operator.get_solana_balance()
         neon_balance_after = operator.get_token_balance(web3_client)
@@ -366,7 +354,6 @@ class TestEconomics:
         assert (user_neon_balance_before - web3_client.get_balance(sender_account)) > 5
 
         check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
 
         balances = json.loads(sol_client.get_token_account_balance(ata, Commitment("confirmed")).to_json())
         balance_before = int(balances_before["result"]["value"]["amount"])
@@ -374,9 +361,7 @@ class TestEconomics:
         assert balance_after - balance_before == int(move_amount / LAMPORTS_PER_SOL)
 
         sum_of_tokens_after = sum_balances(web3_client, operator, sender_account.address)
-        assert (
-            sum_of_tokens_before == sum_of_tokens_after + move_amount
-        ), f"{sum_of_tokens_before} - {sum_of_tokens_after} = {sum_of_tokens_before - sum_of_tokens_after}"
+        assert_tokens_volumes_stayed_same(sum_of_tokens_before, (sum_of_tokens_after + move_amount))
 
         sol_balance_after = operator.get_solana_balance()
         neon_balance_after = operator.get_token_balance(web3_client)
@@ -417,8 +402,7 @@ class TestEconomics:
         sum_of_tokens_before = sum_balances(w3_client, operator, account_with_all_tokens, acc2)
         transfer_tx = contract.transfer(account_with_all_tokens, acc2, 25)
 
-        check_alt_off(web3_client, sol_client, transfer_tx)
-        wait_until_alt_deleted(web3_client, sol_client, transfer_tx)
+        check_alt_off(w3_client, sol_client, transfer_tx)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(w3_client)
@@ -471,8 +455,7 @@ class TestEconomics:
         receipt = w3_client.send_transaction(account_with_all_tokens, inc_tx)
         assert contract.functions.get().call() == 1
 
-        check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
+        check_alt_off(w3_client, sol_client, receipt)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(w3_client)
@@ -497,7 +480,6 @@ class TestEconomics:
         sol_price: float,
         operator: Operator,
         tx_type: TransactionType,
-        web3_client,
         sol_client,
     ):
         w3_client, token_price = client_and_price
@@ -544,8 +526,7 @@ class TestEconomics:
         receipt = w3_client.send_transaction(acc2, transaction)
         assert receipt["status"] == 1
 
-        check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
+        check_alt_off(w3_client, sol_client, receipt)
 
         # validate results
         sol_balance_after = operator.get_solana_balance()
@@ -606,6 +587,8 @@ class TestEconomics:
             account=sender_account,
             tx_type=tx_type,
         )
+        check_alt_on(web3_client, sol_client, contract_deploy_tx)
+        wait_until_alt_deleted(web3_client, sol_client, contract_deploy_tx)
 
         sol_balance_before_increase = operator.get_solana_balance()
         neon_balance_before_increase = operator.get_token_balance(web3_client)
@@ -642,7 +625,6 @@ class TestEconomics:
         account_with_all_tokens: LocalAccount,
         sol_price: float,
         operator: Operator,
-        web3_client,
         sol_client,
     ):
         """Interact with a contract with more 500 instructions"""
@@ -657,8 +639,7 @@ class TestEconomics:
             tx
         )  # 1086 steps in evm
         receipt = w3_client.send_transaction(account_with_all_tokens, instruction_tx)
-        check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
+        check_alt_off(w3_client, sol_client, receipt)
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(w3_client)
 
@@ -714,7 +695,6 @@ class TestEconomics:
         sol_price: float,
         operator: Operator,
         tx_type: TransactionType,
-        web3_client,
         sol_client,
     ):
         """Deploy a contract with more 500000 bpf"""
@@ -728,8 +708,7 @@ class TestEconomics:
         instruction_tx = counter_contract_two_chain.functions.moreInstruction(0, 3000).build_transaction(tx)
 
         receipt = w3_client.send_transaction(account_with_all_tokens, instruction_tx)
-        check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
+        check_alt_off(w3_client, sol_client, receipt)
         wait_condition(lambda: sol_balance_before > operator.get_solana_balance())
 
         sol_balance_after = operator.get_solana_balance()
@@ -823,7 +802,6 @@ class TestEconomics:
         sol_price: float,
         operator: Operator,
         tx_type: TransactionType,
-        web3_client,
         sol_client,
     ):
         """Send to contract a big text (tx more than 1 kb)"""
@@ -833,13 +811,10 @@ class TestEconomics:
         sum_of_tokens_before = sum_balances(w3_client, operator, account_with_all_tokens)
 
         tx = w3_client.make_raw_tx(from_=account_with_all_tokens.address, tx_type=tx_type)
-
         instruction_tx = counter_contract_two_chain.functions.bigString(BIG_STRING).build_transaction(tx)
-
         receipt = w3_client.send_transaction(account_with_all_tokens, instruction_tx)
 
-        check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
+        check_alt_off(w3_client, sol_client, receipt)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(w3_client)
@@ -882,7 +857,7 @@ class TestEconomics:
             account=account_with_all_tokens,
             tx_type=tx_type,
         )
-        check_alt_off(web3_client, sol_client, contract_deploy_tx)
+        check_alt_off(w3_client, sol_client, contract_deploy_tx)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(w3_client)
@@ -925,8 +900,7 @@ class TestEconomics:
             value=5000,
             tx_type=tx_type,
         )
-        check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
+        check_alt_off(w3_client, sol_client, receipt)
 
         sol_balance_before = operator.get_solana_balance()
         token_balance_before = operator.get_token_balance(w3_client)
@@ -939,7 +913,6 @@ class TestEconomics:
             tx_type=tx_type,
         )
         check_alt_off(web3_client, sol_client, contract_deploy_tx)
-        wait_until_alt_deleted(web3_client, sol_client, contract_deploy_tx)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(w3_client)
@@ -1196,7 +1169,6 @@ class TestEconomics:
         else:
             check_alt_off(web3_client, sol_client, receipt)
 
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client)
 
@@ -1215,7 +1187,6 @@ class TestEconomics:
         operator: Operator,
         account_with_all_tokens: LocalAccount,
         sol_price: float,
-        web3_client,
         sol_client,
     ):
         w3_client, token_price = client_and_price
@@ -1240,8 +1211,7 @@ class TestEconomics:
         assert receipt["status"] == 1, "Transaction failed"
         wait_condition(lambda: sol_balance_before != operator.get_solana_balance())
 
-        check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
+        check_alt_off(w3_client, sol_client, receipt)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(w3_client)
@@ -1273,7 +1243,6 @@ class TestEconomics:
         assert receipt["status"] == 1
 
         check_alt_off(web3_client, sol_client, receipt)
-        wait_until_alt_deleted(web3_client, sol_client, receipt)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client)
@@ -1307,7 +1276,6 @@ class TestEconomics:
         time.sleep(60 * 2)  # wait for transaction to be processed
 
         check_alt_off(web3_client, sol_client, transaction_hash)
-        wait_until_alt_deleted(web3_client, sol_client, transaction_hash)
 
         sol_balance_after = operator.get_solana_balance()
         token_balance_after = operator.get_token_balance(web3_client)
@@ -1346,7 +1314,6 @@ class TestEconomics:
             instruction_tx = counter_contract.functions.moreInstruction(0, 3000).build_transaction(tx)
             receipt = web3_client.send_transaction(accounts[0], instruction_tx)
             check_alt_off(web3_client, sol_client, receipt)
-            wait_until_alt_deleted(web3_client, sol_client, receipt)
 
             sol_balance_after = operator.get_solana_balance()
             token_balance_after = operator.get_token_balance(web3_client)
