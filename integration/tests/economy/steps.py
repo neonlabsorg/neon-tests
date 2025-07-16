@@ -12,7 +12,7 @@ from integration.tests.economy.const import DECIMAL_CONTEXT
 from utils.consts import (
     LAMPORT_PER_SOL,
     Time,
-    DEPOSIT_FOR_TRXS_FINISHING,
+    PAYMENT_FOR_TRX_FINISHING,
     PAYMENT_FOR_TREE_ACCOUNT_DELETING,
     TRX_EXECUTION_PRICE,
     TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST,
@@ -122,8 +122,8 @@ def get_sol_trx_with_alt(web3_client, sol_client, web3_transaction_receipt):
 
 
 @allure.step("calculate additional token expenses")
-def calculate_additional_expenses(trx_count, is_outer_balance_involved: False):
-    base_expenses = DEPOSIT_FOR_TRXS_FINISHING * trx_count
+def calculate_additional_expenses_n(trx_count, is_outer_balance_involved: False):
+    base_expenses = PAYMENT_FOR_TRX_FINISHING * trx_count
     if is_outer_balance_involved:
         return (
             PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
@@ -134,9 +134,9 @@ def calculate_additional_expenses(trx_count, is_outer_balance_involved: False):
 
 #  https://neonlabs.atlassian.net/browse/NDEV-3838
 @allure.step("calculate additional token expenses")
-def calculate_additional_expenses_new():
+def calculate_additional_expenses(trx_count):
     return (
-        PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
+        PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + PAYMENT_FOR_TRX_FINISHING * trx_count
     ) * LAMPORT_TO_INNER_SOL
 
 
@@ -169,36 +169,3 @@ def check_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after):
         return False
     else:
         return True
-
-
-@allure.step("check that full volume after become same as before")
-def is_token_value_become_same(
-    web_client,
-    evm_loader,
-    operator_inner_balance,
-    tokens_volume_before,
-    sender,
-    trx_count,
-    recipient=None,
-    is_outer_balance_involved=False,
-):
-    if recipient is None:
-        recipient_balance = 0
-    else:
-        recipient_balance = web_client.get_balance(recipient.checksum_address)
-
-    user_inner_sol_balance = web_client.get_balance(sender.checksum_address)
-    user_outer_sol_balance = evm_loader.get_solana_balance(sender.solana_account.pubkey())
-    new_token_volume = (
-        operator_inner_balance
-        + user_inner_sol_balance
-        + recipient_balance
-        + (user_outer_sol_balance * LAMPORT_TO_INNER_SOL)
-    )
-
-    additional_expected_spending = calculate_additional_expenses(
-        trx_count, is_outer_balance_involved=is_outer_balance_involved
-    )
-
-    diff_volume = tokens_volume_before - (new_token_volume + additional_expected_spending)
-    return diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
