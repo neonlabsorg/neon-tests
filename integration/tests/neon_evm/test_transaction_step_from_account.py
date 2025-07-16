@@ -770,7 +770,6 @@ class TestTransactionStepFromAccountParallelRuns:
 
         send_transaction_steps(second_holder_acc, string_setter_contract)
         send_transaction_steps(holder_acc, rw_lock_contract)
-        send_transaction_steps(second_holder_acc, string_setter_contract)
 
         check_holder_account_tag(
             solana_client=evm_loader,
