@@ -840,6 +840,7 @@ class TestTransactionStepFromInstructionParallelRuns:
         )
         send_transaction_steps(holder_acc, signed_tx2, additional_accounts_trx2)
         send_transaction_steps(second_holder_acc, signed_tx, additional_accounts_trx1)
+        send_transaction_steps(holder_acc, signed_tx2, additional_accounts_trx2)
 
         for holder in (second_holder_acc, holder_acc):
             check_holder_account_tag(
