@@ -225,11 +225,11 @@ def neon_user_with_sols_inside_neon(
     neon_user,
 ) -> tp.Generator[NeonUser, None, None]:
     user = neon_user
-    lamports = 1 * LAMPORT_PER_SOL
+    lamports = 0.1 * LAMPORT_PER_SOL
     evm_loader.deposit_wrapped_sol_from_solana_to_neon(
         user.solana_account,
         user.checksum_address,
-        lamports,
+        int(lamports),
     )
     yield user
 
