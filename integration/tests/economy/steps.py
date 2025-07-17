@@ -122,21 +122,12 @@ def get_sol_trx_with_alt(web3_client, sol_client, web3_transaction_receipt):
 
 
 @allure.step("calculate additional token expenses")
-def calculate_additional_expenses_n(trx_count, is_outer_balance_involved: False):
-    base_expenses = PAYMENT_FOR_TRX_FINISHING * trx_count
-    if is_outer_balance_involved:
-        return (
-            PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
-        ) * LAMPORT_TO_INNER_SOL - base_expenses
-    else:
-        return base_expenses
-
-
-#  https://neonlabs.atlassian.net/browse/NDEV-3838
-@allure.step("calculate additional token expenses")
 def calculate_additional_expenses(trx_count):
     return (
-        PAYMENT_FOR_TREE_ACCOUNT_DELETING + TRX_EXECUTION_PRICE + PAYMENT_FOR_TRX_FINISHING * trx_count
+        PAYMENT_FOR_TREE_ACCOUNT_DELETING
+        + TRX_EXECUTION_PRICE
+        + PAYMENT_FOR_TRX_FINISHING * trx_count
+        + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
     ) * LAMPORT_TO_INNER_SOL
 
 

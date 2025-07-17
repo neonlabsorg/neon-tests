@@ -26,7 +26,7 @@ class TestScheduledTransactionEconomics:
         self,
         operator,
         web3_client_sol,
-        neon_user,
+        neon_user_func_scope,
         increase_storage_contract,
         evm_loader,
         treasury_pool,
@@ -34,6 +34,7 @@ class TestScheduledTransactionEconomics:
         is_dependent,
         sol_client,
     ):
+        neon_user = neon_user_func_scope
         evm_loader.create_balance_account(neon_user.neon_address, neon_user.solana_account, evm_loader.sol_chain_id)
 
         trx_count = 4
@@ -102,7 +103,6 @@ class TestScheduledTransactionEconomics:
         )
 
         additional_expected_spending = calculate_additional_expenses(trx_count)
-
         diff_volume = tokens_volume_before - (new_token_volume + additional_expected_spending)
         assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
 
@@ -178,7 +178,6 @@ class TestScheduledTransactionEconomics:
         token_balance_after = operator.get_token_balance(web3_client_sol)
 
         tokens_volume_after = sum_balances(web3_client_sol, operator, neon_user_with_sols_inside_neon)
-
         diff_volume = tokens_volume_before - tokens_volume_after
         assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
 
@@ -190,7 +189,7 @@ class TestScheduledTransactionEconomics:
     def test_multiple_scheduled_trx_with_failed_trx(
         self,
         web3_client_sol,
-        neon_user,
+        neon_user_func_scope,
         treasury_pool,
         revert_contract_caller,
         evm_loader,
@@ -198,6 +197,7 @@ class TestScheduledTransactionEconomics:
         sol_price,
         sol_client,
     ):
+        neon_user = neon_user_func_scope
         evm_loader.create_balance_account(neon_user.neon_address, neon_user.solana_account, evm_loader.sol_chain_id)
 
         sol_balance_before = operator.get_solana_balance()
@@ -378,8 +378,17 @@ class TestScheduledTransactionEconomics:
         assert_profit(sol_diff, sol_price, token_diff, token_price, web3_client_sol.native_token_name)
 
     def test_scheduled_trx_for_erc20_for_spl_outside_sols(
-        self, web3_client_sol, neon_user, erc20_spl_mintable, evm_loader, treasury_pool, operator, sol_price, sol_client
+        self,
+        web3_client_sol,
+        neon_user_func_scope,
+        erc20_spl_mintable,
+        evm_loader,
+        treasury_pool,
+        operator,
+        sol_price,
+        sol_client,
     ):
+        neon_user = neon_user_func_scope
         evm_loader.create_balance_account(neon_user.neon_address, neon_user.solana_account, evm_loader.sol_chain_id)
         erc20_spl_mintable.approve(erc20_spl_mintable.owner, neon_user.checksum_address, 800)
 

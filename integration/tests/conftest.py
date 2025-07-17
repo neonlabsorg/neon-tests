@@ -222,9 +222,9 @@ def neon_user_func_scope(
 @pytest.fixture(scope="function")
 def neon_user_with_sols_inside_neon(
     evm_loader: EvmLoader,
-    neon_user,
+    neon_user_func_scope,
 ) -> tp.Generator[NeonUser, None, None]:
-    user = neon_user
+    user = neon_user_func_scope
     lamports = 0.1 * LAMPORT_PER_SOL
     evm_loader.deposit_wrapped_sol_from_solana_to_neon(
         user.solana_account,
