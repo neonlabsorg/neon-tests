@@ -1,7 +1,7 @@
 import allure
 import pytest
 
-from utils.consts import LAMPORT_TO_INNER_SOL
+from utils.consts import LAMPORT_TO_INNER_SOL, LAMPORT_PER_SOL
 from utils.helpers import wait_condition, decode_function_signature
 from utils.neon_user import NeonUser
 from utils.scheduled_trx import CreateTreeAccMultipleData, ScheduledTrxEstimateRequest
@@ -536,6 +536,67 @@ class TestScheduledTransactionEconomics:
         )
 
         diff_volume = tokens_volume_before - tokens_volume_after
+        assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
+
+        token_price = web3_client_sol.get_token_usd_gas_price()
+        sol_diff = operator_sol_balance_before - operator_sol_balance_after
+        token_diff = web3_client_sol.to_main_currency(operator_inner_balance_after - operator_inner_balance_before)
+        assert_profit(sol_diff, sol_price, token_diff, token_price, web3_client_sol.native_token_name)
+
+    def test_user_has_not_enough_sol_for_trx_inside_neon(
+        self, evm_loader, neon_user, web3_client_sol, common_contract, treasury_pool, operator, sol_price
+    ):
+        user = neon_user
+        evm_loader.create_balance_account(
+            user.neon_address,
+            user.solana_account,
+            evm_loader.sol_chain_id,
+        )
+        lamports = 0.00000001 * LAMPORT_PER_SOL
+        evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+            user.solana_account,
+            user.checksum_address,
+            int(lamports),
+        )
+        operator_inner_balance_before = operator.get_token_balance(web3_client_sol)
+        operator_sol_balance_before = operator.get_solana_balance()
+
+        user_inner_sol_balance_before = web3_client_sol.get_balance(neon_user.checksum_address)
+        user_outer_sol_balance_before = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
+
+        tokens_volume_before = (
+            operator_inner_balance_before
+            + user_inner_sol_balance_before
+            + (user_outer_sol_balance_before * LAMPORT_TO_INNER_SOL)
+        )
+
+        contract_data = 18
+        data = decode_function_signature("setNumber(uint256)", [contract_data])
+        trx_estimate_obj = ScheduledTrxEstimateRequest(neon_user.checksum_address, common_contract.address, data)
+        estimate_result = web3_client_sol.estimate_scheduled(neon_user.solana_account.pubkey(), [trx_estimate_obj])
+        tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
+
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
+        check_trx_is_success(web3_client_sol, evm_loader, tx.hash().hex())
+        wait_condition(
+            lambda: hex(tx.nonce) in web3_client_sol.get_pending_transactions(neon_user.checksum_address),
+            timeout_sec=60,
+        )
+        wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=2)
+
+        operator_inner_balance_after = operator.get_token_balance(web3_client_sol)
+        operator_sol_balance_after = operator.get_solana_balance()
+        user_inner_sol_balance_after = web3_client_sol.get_balance(neon_user.checksum_address)
+        user_outer_sol_balance_after = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
+
+        tokens_volume_after = (
+            operator_inner_balance_after
+            + user_inner_sol_balance_after
+            + (user_outer_sol_balance_after * LAMPORT_TO_INNER_SOL)
+        )
+
+        additional_expenses = calculate_additional_expenses(trx_count=1)
+        diff_volume = tokens_volume_before - tokens_volume_after - additional_expenses
         assert diff_volume == 0, f"tokens volume not same, diff={diff_volume}"
 
         token_price = web3_client_sol.get_token_usd_gas_price()
