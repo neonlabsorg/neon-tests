@@ -58,6 +58,8 @@ from utils.instructions import (
     make_operator_create_balance,
     make_transaction_step_from_account,
     make_cancel,
+    make_container_allocate,
+    make_container_assemble,
 )
 from utils.layouts import (
     BALANCE_ACCOUNT_LAYOUT,
@@ -1054,3 +1056,15 @@ class EvmLoader(SolanaClient):
             )
         )
         return self.send_tx_and_check_status_ok(trx, operator_keypair)
+
+    @allure.step("Allocate container")
+    def allocate_container(self, operator, treasury, container_address, size):
+        trx = Transaction()
+        trx.add(make_container_allocate(operator, treasury, container_address, size, self.loader_id))
+        return self.send_tx_and_check_status_ok(trx, operator)
+
+    @allure.step("Assemble container")
+    def assemble_container(self, operator, treasury, container_address, accounts):
+        trx = Transaction()
+        trx.add(make_container_assemble(operator, treasury, container_address, accounts, self.loader_id))
+        return self.send_tx_and_check_status_ok(trx, operator)

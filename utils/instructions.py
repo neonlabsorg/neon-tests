@@ -551,3 +551,38 @@ def make_delete_holder_account(signer: Pubkey, holder_account: Pubkey, evm_loade
             AccountMeta(pubkey=signer, is_signer=True, is_writable=True),
         ],
     )
+
+
+@log_instruction_fields("make_container_assemble")
+def make_container_assemble(
+    operator: Keypair, treasury: TreasuryPool, container_address: Pubkey, contract_accounts: list, evm_loader_id: Pubkey
+):
+    data = InstructionTags.CONTAINER_ASSEMBLE + treasury.buffer
+    accounts = [
+        AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
+        AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
+        AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
+        AccountMeta(pubkey=container_address, is_signer=False, is_writable=True),
+    ]
+    for acc in contract_accounts:
+        accounts.append(
+            AccountMeta(acc, is_signer=False, is_writable=True),
+        )
+    return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
+
+
+@log_instruction_fields("make_container_allocate")
+def make_container_allocate(
+    operator: Keypair, treasury: TreasuryPool, container_address: Pubkey, allocate_bytes: int, evm_loader_id: Pubkey
+):
+    data = InstructionTags.CONTAINER_ALLOCATE + treasury.buffer + allocate_bytes.to_bytes(4, "little")
+    return Instruction(
+        program_id=evm_loader_id,
+        data=data,
+        accounts=[
+            AccountMeta(pubkey=operator.pubkey(), is_signer=True, is_writable=True),
+            AccountMeta(pubkey=treasury.account, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
+            AccountMeta(pubkey=container_address, is_signer=False, is_writable=True),
+        ],
+    )
