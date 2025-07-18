@@ -83,7 +83,7 @@ runs:
         # Check if there are changes in the requirements folder or Dockerfile-base
         if git diff --name-only HEAD origin/$parent_branch | \
           grep -E "^requirements/|^Dockerfile-base$|^.github/actions/build-base-image/"; then
-          echo "Requirements folder | Dockerfile-base | Build-base-image action have changed"
+          echo "Requirements folder | Dockerfile-base | Build-base-image action have changed "
           echo "changed=true" >> $GITHUB_OUTPUT
         else
           echo "Requirements folder | Dockerfile-base | Build-base-image action have not changed"
