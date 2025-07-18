@@ -22,8 +22,6 @@ from .utils.neon_api_client import NeonApiClient
 from .utils.neon_api_rpc_client import NeonApiRpcClient
 from .utils.transaction_checks import check_transaction_logs_have_text
 
-index_of_process_increment = 1
-
 
 def prepare_operator(key_file: pathlib.Path | str, evm_loader: EvmLoader) -> Keypair:
     chain_ids = (evm_loader.sol_chain_id, evm_loader.chain_id)
@@ -57,7 +55,7 @@ def operator_keypair(index_of_process: int, evm_loader: EvmLoader) -> Keypair:
     """
     Initialized solana keypair with balance. Get private keys from ci/operator-keypairs
     """
-    key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{index_of_process + index_of_process_increment}.json")
+    key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{index_of_process}.json")
     allure.attach(
         f"current key_file {key_file}",
         "Operator key",
@@ -71,7 +69,7 @@ def second_operator_keypair(index_of_process: int, evm_loader: EvmLoader) -> Key
     """
     Initialized solana keypair with balance. Get private key from cli or ./ci/operator-keypairs
     """
-    file_id = index_of_process + index_of_process_increment + 12
+    file_id = index_of_process + 12
     key_file = pathlib.Path(f"{OPERATOR_KEYPAIR_PATH}/id{file_id}.json")
     allure.attach(
         f"current key_file {key_file}",

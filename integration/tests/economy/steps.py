@@ -121,7 +121,7 @@ def get_sol_trx_with_alt(web3_client, sol_client, web3_transaction_receipt):
     return sol_trx_with_alt
 
 
-@allure.step("calculate additional token expenses")
+@allure.step("Calculate additional sol expenses")
 def calculate_additional_expenses(trx_count):
     return (
         PAYMENT_FOR_TREE_ACCOUNT_DELETING
@@ -131,27 +131,30 @@ def calculate_additional_expenses(trx_count):
     ) * LAMPORT_TO_INNER_SOL
 
 
-@allure.step("summarize operator, sender and receiver account balances inside neon")
+@allure.step("Summarize operator, sender and receiver account balances inside neon")
 def sum_balances(w3_client, operator, sender_account, receiver_account=None):
-    token_balance = operator.get_token_balance(w3_client)
+    balance_operator = operator.get_token_balance(w3_client)
     if isinstance(sender_account, NeonUser):
         balance_sender = w3_client.get_balance(sender_account.checksum_address)
     else:
         balance_sender = w3_client.get_balance(sender_account)
-
     if receiver_account is not None:
-        return balance_sender + token_balance + w3_client.get_balance(receiver_account)
+        return balance_sender + balance_operator + w3_client.get_balance(receiver_account)
     else:
-        return balance_sender + token_balance
+        return balance_sender + balance_operator
 
 
-@allure.step("check full Volume of tokens inside neon stayed same after transaction")
-def assert_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after):
-    if sum_of_tokens_before > sum_of_tokens_after:
-        pytest.fail(f"Tokens volume become LOWER than before, {sum_of_tokens_after - sum_of_tokens_before}")
-    elif sum_of_tokens_before < sum_of_tokens_after:
-        pytest.fail(f"Tokens volume become MORE than before, {sum_of_tokens_after - sum_of_tokens_before}")
-    pass
+@allure.step("Check total volume of tokens inside neon remains unchanged after transaction")
+def assert_tokens_volumes_stayed_same(sum_of_tokens_before: int, sum_of_tokens_after: int):
+    if sum_of_tokens_before != sum_of_tokens_after:
+        diff = sum_of_tokens_after - sum_of_tokens_before
+        direction = "LOWER" if diff < 0 else "MORE"
+        pytest.fail(
+            f"Token volume became {direction} than before. "
+            f"sum_of_tokens_before={sum_of_tokens_before}, "
+            f"sum_of_tokens_after={sum_of_tokens_after}, "
+            f"Diff={diff}"
+        )
 
 
 @allure.step("check full Volume of tokens inside neon stayed same after transaction")

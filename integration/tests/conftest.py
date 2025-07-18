@@ -85,14 +85,8 @@ def web3_client_usdt(environment: EnvironmentConfig) -> tp.Union[Web3Client, Non
 
 
 @pytest.fixture(scope="session")
-def operator(environment: EnvironmentConfig, web3_client_session: NeonChainWeb3Client) -> Operator:
-    return Operator(
-        environment.proxy_url,
-        environment.solana_url,
-        environment.spl_neon_mint,
-        web3_client_session,
-        environment.evm_loader,
-    )
+def operator(evm_loader: EvmLoader) -> Operator:
+    return Operator(evm_loader)
 
 
 @pytest.fixture(scope="session")
