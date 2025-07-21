@@ -200,9 +200,10 @@ class EvmLoader(SolanaClient):
     def get_data_accounts(self, accounts: tp.List[Pubkey]) -> tp.List[Pubkey]:
         data_accounts = []
         for account in accounts:
-            account_data = self.get_solana_account_data(account, STORAGE_CELL_LAYOUT.sizeof())
-            if STORAGE_CELL_LAYOUT.parse(account_data).type == 43:
-                data_accounts.append(account)
+            if self.account_exists(account):
+                account_data = self.get_solana_account_data(account, STORAGE_CELL_LAYOUT.sizeof())
+                if STORAGE_CELL_LAYOUT.parse(account_data).type == 43:
+                    data_accounts.append(account)
         return data_accounts
 
     @allure.step("Write transaction to holder account {holder_account}")
