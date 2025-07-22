@@ -1,5 +1,4 @@
 import random
-import re
 import string
 import solana
 
@@ -7,6 +6,7 @@ import pytest
 from eth_utils import to_text
 
 from utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
+from .utils.assert_messages import InstructionAsserts
 from .utils.constants import TAG_FINALIZED_STATE
 from .utils.ethereum import (
     make_eth_transaction,
@@ -175,8 +175,7 @@ class TestTransactionStepFromAccountNoChainId:
         )
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
 
-        error = re.escape("invalid chainId")
-        with pytest.raises(solana.rpc.core.RPCException, match=error):
+        with pytest.raises(solana.rpc.core.RPCException, match=InstructionAsserts.INVALID_CHAIN_ID):
             evm_loader.execute_transaction_steps_from_account_no_chain_id(
                 operator_keypair,
                 treasury_pool,

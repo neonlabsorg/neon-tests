@@ -111,7 +111,7 @@ class TestBlockNumberAndTimestamp:
         operator_keypair,
         evm_loader,
         sender_with_tokens,
-        neon_api_client,
+        neon_rpc_client,
         treasury_pool,
         holder_acc,
         second_holder_acc,
@@ -121,7 +121,7 @@ class TestBlockNumberAndTimestamp:
         """
         func_signature = "accrueInterest()"
 
-        emulate_result = neon_api_client.emulate_contract_call(
+        emulate_result = neon_rpc_client.emulate_contract_call(
             sender_with_tokens.eth_address.hex(), block_contract.eth_address.hex(), func_signature
         )
         emulated_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]

@@ -22,7 +22,6 @@ from utils.solana_logs_helper import get_total_gas_used
 from utils.types import Contract
 
 
-# Test should be fixed after NDEV-3838
 def test_successful_single_trx_with_outer_deposit(
     neon_user_func_scope, evm_loader, operator_keypair, treasury_pool, basic_contract, neon_rpc_client, holder_acc
 ):
@@ -63,9 +62,7 @@ def test_successful_single_trx_with_outer_deposit(
     )
     neon_user_balance_diff = neon_user_balance_initial_outer - neon_user_balance_after_tree_created_outer
     estimated_trx_cost = tx_0.gas_limit * tx_0.max_fee_per_gas
-    neon_user_additional_payments = (
-        PAYMENT_FOR_TREE_ACCOUNT_DELETING  # + PAYMENT_FOR_TRX_FINISHING * trx_count  # uncomment after fix NDEV-3838
-    )
+    neon_user_additional_payments = PAYMENT_FOR_TREE_ACCOUNT_DELETING + PAYMENT_FOR_TRX_FINISHING * trx_count
 
     expected_neon_user_balance_diff = (
         estimated_trx_cost / LAMPORT_TO_INNER_SOL

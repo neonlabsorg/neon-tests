@@ -107,13 +107,13 @@ class TestInteroperability:
         check_transaction_logs_have_text(solana_client, trx=resp, text="exit_status=0x11")
 
     def test_execute_from_instruction_for_call_memo(
-        self, sender_with_tokens, neon_api_client, operator_keypair, evm_loader, treasury_pool, holder_acc
+        self, sender_with_tokens, neon_rpc_client, operator_keypair, evm_loader, treasury_pool, holder_acc
     ):
         contract = evm_loader.deploy_contract(
             operator_keypair,
             sender_with_tokens,
             "precompiled/call_solana_test",
-            neon_api_client,
+            neon_rpc_client,
             treasury_pool,
             contract_name="Test",
             version="0.8.28",
@@ -361,14 +361,14 @@ class TestInteroperability:
         evm_loader,
         treasury_pool,
         holder_acc,
-        neon_api_client,
+        neon_rpc_client,
         counter_resource_address,
     ):
         precompiled_caller = evm_loader.deploy_contract(
             operator_keypair,
             sender_with_tokens,
             "precompiled/CommonCaller",
-            neon_api_client,
+            neon_rpc_client,
             treasury_pool,
             contract_name="CommonCaller",
             version="0.8.3",
@@ -461,7 +461,7 @@ class TestInteroperability:
         evm_loader,
         second_holder_acc,
         holder_acc,
-        neon_api_client,
+        neon_rpc_client,
         operator_keypair,
         treasury_pool,
         counter_resource_address,
@@ -488,7 +488,7 @@ class TestInteroperability:
             [600000, matrix, 0, serialized_instruction],
         )
 
-        accounts_from_emulation = neon_api_client.get_additional_accounts_by_emulation(
+        accounts_from_emulation = neon_rpc_client.get_additional_accounts_by_emulation(
             sender_with_tokens.eth_address.hex(),
             solana_caller.contract.eth_address.hex(),
             "solanaCallInsideActionWithMatrix(uint256,uint256[][],uint64,bytes)",
@@ -550,7 +550,7 @@ class TestInteroperability:
         solana_caller,
         evm_loader,
         holder_acc,
-        neon_api_client,
+        neon_rpc_client,
         operator_keypair,
         second_operator_keypair,
         treasury_pool,
@@ -580,7 +580,7 @@ class TestInteroperability:
             [iterations, [serialize_instruction(COUNTER_ID, instruction)]],
         )
 
-        accounts_from_emulation = neon_api_client.get_additional_accounts_by_emulation(
+        accounts_from_emulation = neon_rpc_client.get_additional_accounts_by_emulation(
             sender_with_tokens.eth_address.hex(),
             solana_caller.contract.eth_address.hex(),
             "batchExecuteInIterativeModeWithoutLamport(uint256,bytes[])",
