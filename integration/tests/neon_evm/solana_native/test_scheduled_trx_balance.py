@@ -499,7 +499,7 @@ def test_skipped_trx_with_outer_deposit(
 
     neon_user_balance_after_tree_created_outer = evm_loader.get_solana_balance(neon_user.solana_account.pubkey())
     neon_user_balance_diff = neon_user_balance_initial_outer - neon_user_balance_after_tree_created_outer
-    estimated_trx_cost = (tx_0.gas_limit * tx_0.max_fee_per_gas) + (tx_1.gas_limit * tx_1.max_fee_per_gas)
+    estimated_trx_cost = tx_0.gas_limit * tx_0.max_fee_per_gas + tx_1.gas_limit * tx_1.max_fee_per_gas
     neon_user_additional_payments = PAYMENT_FOR_TREE_ACCOUNT_DELETING + PAYMENT_FOR_TRX_FINISHING * trx_count
     expected_neon_user_balance_diff = (
         estimated_trx_cost / LAMPORT_TO_INNER_SOL

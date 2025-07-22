@@ -19,7 +19,6 @@ from solders.rpc.responses import GetTransactionResp
 from integration.tests.basic.evm.test_spl_token import DECIMALS, NAME, SYMBOL
 from integration.tests.neon_evm.conftest import prepare_operator
 from integration.tests.neon_evm.utils.ethereum import make_eth_transaction, make_contract_call_trx
-from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
 from integration.tests.neon_evm.utils.neon_api_rpc_client import NeonApiRpcClient
 from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
 from utils.consts import LAMPORT_PER_SOL, NeonTxExitStatus, OPERATOR_KEYPAIR_PATH
@@ -338,7 +337,7 @@ class TestComputeUnits:
         deterministic_operator_keypair: Keypair,
         deterministic_treasury_pool: TreasuryPool,
         deterministic_holder_acc: Pubkey,
-        neon_rpc_client: NeonApiClient,
+        neon_rpc_client: NeonApiRpcClient,
         sol_client: SolanaClient,
     ):
         rw_lock = evm_loader.deploy_contract(
