@@ -147,7 +147,7 @@ def rw_lock_caller(
     session_user: Caller,
     treasury_pool: TreasuryPool,
     rw_lock_contract: Contract,
-    neon_rpc_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
 ) -> Contract:
     constructor_args = eth_abi.encode(["address"], [rw_lock_contract.eth_address.hex()])
     return evm_loader.deploy_contract(
@@ -167,7 +167,7 @@ def string_setter_contract(
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
-    neon_rpc_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
 ) -> Contract:
     return evm_loader.deploy_contract(operator_keypair, session_user, "string_setter", neon_rpc_client, treasury_pool)
 
@@ -178,7 +178,7 @@ def hello_world_contract(
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
-    neon_rpc_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
 ) -> Contract:
     return evm_loader.deploy_contract(operator_keypair, session_user, "hello_world", neon_rpc_client, treasury_pool)
 
@@ -189,7 +189,7 @@ def basic_contract(
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
-    neon_rpc_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
 ) -> Contract:
     return evm_loader.deploy_contract(
         operator_keypair, session_user, "common/Common", neon_rpc_client, treasury_pool, version="0.8.12"
@@ -199,7 +199,7 @@ def basic_contract(
 @pytest.fixture(scope="session")
 def revert_contract(
     evm_loader: EvmLoader,
-    neon_rpc_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
@@ -221,7 +221,7 @@ def revert_contract_caller(
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
-    neon_rpc_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     revert_contract,
 ) -> Contract:
     contraction_args = eth_abi.encode(["address"], [revert_contract.eth_address.hex()])
@@ -247,7 +247,7 @@ def spl_token_caller(operator_keypair, evm_loader, session_user, treasury_pool, 
 @pytest.fixture(scope="session")
 def calculator_contract(
     evm_loader: EvmLoader,
-    neon_rpc_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
@@ -258,7 +258,7 @@ def calculator_contract(
 @pytest.fixture(scope="session")
 def transfers_contract(
     evm_loader: EvmLoader,
-    neon_rpc_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
@@ -269,7 +269,7 @@ def transfers_contract(
 @pytest.fixture(scope="session")
 def solana_caller(
     evm_loader: EvmLoader,
-    neon_rpc_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
@@ -285,7 +285,7 @@ def calculator_caller_contract(
     session_user: Caller,
     treasury_pool,
     calculator_contract,
-    neon_rpc_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
 ) -> Contract:
     constructor_args = eth_abi.encode(["address"], [calculator_contract.eth_address.hex()])
 
@@ -303,7 +303,7 @@ def calculator_caller_contract(
 @pytest.fixture(scope="session")
 def solana_overrides_contract(
     evm_loader: EvmLoader,
-    neon_rpc_client: NeonApiClient,
+    neon_rpc_client: NeonApiRpcClient,
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
