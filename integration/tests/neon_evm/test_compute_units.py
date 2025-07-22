@@ -19,7 +19,7 @@ from solders.rpc.responses import GetTransactionResp
 from integration.tests.basic.evm.test_spl_token import DECIMALS, NAME, SYMBOL
 from integration.tests.neon_evm.conftest import prepare_operator
 from integration.tests.neon_evm.utils.ethereum import make_eth_transaction, make_contract_call_trx
-from integration.tests.neon_evm.utils.neon_api_client import NeonApiClient
+from integration.tests.neon_evm.utils.neon_api_rpc_client import NeonApiRpcClient
 from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
 from utils.consts import LAMPORT_PER_SOL, NeonTxExitStatus, OPERATOR_KEYPAIR_PATH
 from utils.evm_loader import EvmLoader, EVM_STEPS
@@ -84,7 +84,7 @@ def deterministic_index_of_process(request: pytest.FixtureRequest) -> int:
     process_index = get_and_validate_mark_value(
         request=request, key=deterministic_index_of_process_stash_key, mark="deterministic_index_of_process"
     )
-    assert 15 <= process_index <= 21, "Use values from 15 to 21"
+    assert 34 <= process_index <= 40, "Use values from 34 to 40"
     return process_index
 
 
@@ -279,7 +279,7 @@ def execute_transaction_steps_from_instruction_and_validate_cu(
 
 
 class TestComputeUnits:
-    @pytest.mark.deterministic_index_of_process(15)
+    @pytest.mark.deterministic_index_of_process(34)
     @pytest.mark.deterministic_sender_with_tokens_index(0)
     @pytest.mark.deterministic_user_index(0)
     @pytest.mark.deterministic_holder_acc_seed(0)
@@ -325,9 +325,9 @@ class TestComputeUnits:
         allure_attach_accounts_data(resp=resp, evm_loader=evm_loader)
 
         cu_consumed = resp.value.transaction.meta.compute_units_consumed
-        assert abs(cu_consumed - 79302) <= 1000
+        assert abs(cu_consumed - 76872) <= 1000
 
-    @pytest.mark.deterministic_index_of_process(16)
+    @pytest.mark.deterministic_index_of_process(35)
     @pytest.mark.deterministic_user_index(1)
     @pytest.mark.deterministic_holder_acc_seed(1)
     def test_iterative_with_many_accounts(
@@ -337,15 +337,11 @@ class TestComputeUnits:
         deterministic_operator_keypair: Keypair,
         deterministic_treasury_pool: TreasuryPool,
         deterministic_holder_acc: Pubkey,
-        neon_api_client: NeonApiClient,
+        neon_rpc_client: NeonApiRpcClient,
         sol_client: SolanaClient,
     ):
         rw_lock = evm_loader.deploy_contract(
-            deterministic_operator_keypair,
-            deterministic_user,
-            "rw_lock",
-            neon_api_client,
-            deterministic_treasury_pool,
+            deterministic_operator_keypair, deterministic_user, "rw_lock", neon_rpc_client, deterministic_treasury_pool
         )
 
         constructor_args = eth_abi.encode(["address"], [rw_lock.eth_address.hex()])
@@ -353,7 +349,7 @@ class TestComputeUnits:
             deterministic_operator_keypair,
             deterministic_user,
             "rw_lock",
-            neon_api_client,
+            neon_rpc_client,
             deterministic_treasury_pool,
             encoded_args=constructor_args,
             contract_name="rw_lock_caller",
@@ -364,7 +360,7 @@ class TestComputeUnits:
         )
 
         data = decode_function_signature("update_storage_map(uint256)", [15])
-        emulate_result = neon_api_client.emulate(
+        emulate_result = neon_rpc_client.emulate(
             deterministic_user.eth_address.hex(), rw_lock_caller_contract.eth_address.hex(), data[2:]
         )
         additional_accounts = [Pubkey.from_string(acc["pubkey"]) for acc in emulate_result["solana_accounts"]]
@@ -376,13 +372,13 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_eth_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[85726, 97192, 61008, 180406],
+            cu_expected_list=[101998, 111277, 75095, 194746],
             cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={NeonTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(17)
+    @pytest.mark.deterministic_index_of_process(36)
     @pytest.mark.deterministic_user_index(2)
     @pytest.mark.deterministic_holder_acc_seed(2)
     @pytest.mark.deterministic_sender_with_tokens_index(2)
@@ -393,14 +389,14 @@ class TestComputeUnits:
         deterministic_treasury_pool: TreasuryPool,
         deterministic_sender_with_tokens: Caller,
         deterministic_holder_acc: Pubkey,
-        neon_api_client: NeonApiClient,
+        neon_rpc_client: NeonApiRpcClient,
         sol_client: SolanaClient,
     ):
         contract = evm_loader.deploy_contract(
             operator=deterministic_operator_keypair,
             user=deterministic_sender_with_tokens,
             contract_file_name="string_setter",
-            neon_api_client=neon_api_client,
+            neon_rpc_client=neon_rpc_client,
             treasury_pool=deterministic_treasury_pool,
         )
         function_signature = "set(string)"
@@ -416,7 +412,7 @@ class TestComputeUnits:
         )
 
         data = decode_function_signature(function_signature, params)
-        emulate_result = neon_api_client.emulate(
+        emulate_result = neon_rpc_client.emulate(
             sender=deterministic_sender_with_tokens.eth_address.hex(),
             contract=contract.eth_address.hex(),
             data=data[2:],
@@ -431,13 +427,13 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[77761, 52641, 50370],
+            cu_expected_list=[76298, 49604, 47633],
             cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={NeonTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(18)
+    @pytest.mark.deterministic_index_of_process(37)
     @pytest.mark.deterministic_user_index(3)
     @pytest.mark.deterministic_holder_acc_seed(3)
     def test_nested_calls(
@@ -447,35 +443,35 @@ class TestComputeUnits:
         deterministic_operator_keypair: Keypair,
         deterministic_treasury_pool: TreasuryPool,
         deterministic_holder_acc: Pubkey,
-        neon_api_client: NeonApiClient,
+        neon_rpc_client: NeonApiRpcClient,
         sol_client: SolanaClient,
     ):
         contract_a = evm_loader.deploy_contract(
+            operator=deterministic_operator_keypair,
+            user=deterministic_user,
             contract_file_name="common/NestedCallsChecker",
+            neon_rpc_client=neon_rpc_client,
+            treasury_pool=deterministic_treasury_pool,
             contract_name="A",
             version="0.8.12",
-            operator=deterministic_operator_keypair,
-            user=deterministic_user,
-            neon_api_client=neon_api_client,
-            treasury_pool=deterministic_treasury_pool,
         )
         contract_b = evm_loader.deploy_contract(
+            operator=deterministic_operator_keypair,
+            user=deterministic_user,
             contract_file_name="common/NestedCallsChecker",
+            neon_rpc_client=neon_rpc_client,
+            treasury_pool=deterministic_treasury_pool,
             contract_name="B",
             version="0.8.12",
-            operator=deterministic_operator_keypair,
-            user=deterministic_user,
-            neon_api_client=neon_api_client,
-            treasury_pool=deterministic_treasury_pool,
         )
         contract_c = evm_loader.deploy_contract(
-            contract_file_name="common/NestedCallsChecker",
-            contract_name="C",
-            version="0.8.12",
             operator=deterministic_operator_keypair,
             user=deterministic_user,
-            neon_api_client=neon_api_client,
+            contract_file_name="common/NestedCallsChecker",
+            neon_rpc_client=neon_rpc_client,
             treasury_pool=deterministic_treasury_pool,
+            contract_name="C",
+            version="0.8.12",
         )
 
         contract_b_checksum_address = to_checksum_address("0x" + contract_b.eth_address.hex())
@@ -496,7 +492,7 @@ class TestComputeUnits:
             "method1(address,address)", [contract_b_checksum_address, contract_c_checksum_address]
         )
 
-        emulate_result = neon_api_client.emulate(
+        emulate_result = neon_rpc_client.emulate(
             deterministic_user.eth_address.hex(), contract_a.eth_address.hex(), data[2:]
         )
 
@@ -509,13 +505,13 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[73829, 98581, 102339, 37365, 36346],
+            cu_expected_list=[76334, 98384, 102143, 43520, 36457],
             cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={NeonTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(19)
+    @pytest.mark.deterministic_index_of_process(38)
     @pytest.mark.deterministic_user_index(4)
     @pytest.mark.deterministic_holder_acc_seed(4)
     @pytest.mark.deterministic_sender_with_tokens_index(4)
@@ -527,7 +523,7 @@ class TestComputeUnits:
         deterministic_treasury_pool: TreasuryPool,
         deterministic_holder_acc: Pubkey,
         deterministic_sender_with_tokens: Caller,
-        neon_api_client: NeonApiClient,
+        neon_rpc_client: NeonApiRpcClient,
         sol_client: SolanaClient,
         web3_client,
         accounts,
@@ -556,7 +552,7 @@ class TestComputeUnits:
             operator=deterministic_operator_keypair,
             user=deterministic_user,
             contract_file_name="precompiled/SplTokenCaller",
-            neon_api_client=neon_api_client,
+            neon_rpc_client=neon_rpc_client,
             treasury_pool=deterministic_treasury_pool,
             contract_name="SplTokenCaller",
             version="0.8.28",
@@ -574,7 +570,7 @@ class TestComputeUnits:
 
         data = decode_function_signature(function_signature, params)
 
-        emulate_result = neon_api_client.emulate(
+        emulate_result = neon_rpc_client.emulate(
             sender=deterministic_sender_with_tokens.eth_address.hex(),
             contract=contract.eth_address.hex(),
             data=data[2:],
@@ -589,13 +585,13 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[71559, 57737, 48904],
+            cu_expected_list=[74088, 57543, 50095],
             cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={NeonTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(20)
+    @pytest.mark.deterministic_index_of_process(39)
     @pytest.mark.deterministic_sender_with_tokens_index(5)
     @pytest.mark.deterministic_holder_acc_seed(5)
     def test_scheduled_transaction(
@@ -605,7 +601,7 @@ class TestComputeUnits:
         deterministic_operator_keypair: Keypair,
         deterministic_treasury_pool: TreasuryPool,
         deterministic_holder_acc: Pubkey,
-        neon_api_client: NeonApiClient,
+        neon_rpc_client: NeonApiRpcClient,
         sol_client: SolanaClient,
     ):
         deterministic_neon_user = NeonUser(
@@ -617,7 +613,7 @@ class TestComputeUnits:
             operator=deterministic_operator_keypair,
             user=deterministic_sender_with_tokens,
             contract_file_name="common/Common",
-            neon_api_client=neon_api_client,
+            neon_rpc_client=neon_rpc_client,
             treasury_pool=deterministic_treasury_pool,
             version="0.8.12",
         )
@@ -646,7 +642,7 @@ class TestComputeUnits:
             treasury=deterministic_treasury_pool,
             transaction=tx.encode(),
         )
-        transaction_tree_data = neon_api_client.get_transaction_tree(
+        transaction_tree_data = neon_rpc_client.get_transaction_tree(
             address=deterministic_neon_user.neon_address.hex(),
             nonce=nonce,
         )
@@ -673,7 +669,7 @@ class TestComputeUnits:
             operator=deterministic_operator_keypair,
             chain_id=evm_loader.sol_chain_id,
         )
-        cu_expected_list = [27420, 29282]
+        cu_expected_list = [29729, 29579]
         done = False
         i = 0
 
@@ -703,11 +699,15 @@ class TestComputeUnits:
             allure_attach_accounts_data(resp=receipt, evm_loader=evm_loader, title=f"Used accounts data {i}")
 
             cu_consumed = receipt.value.transaction.meta.compute_units_consumed
-            assert abs(cu_consumed - cu_expected) <= 1000
+            assert (
+                abs(cu_consumed - cu_expected) <= 1000
+            ), f"CU consumed {cu_consumed} is not in range of expected {cu_expected} +/- 1000"
             i += 1
 
         evm_loader.finish_scheduled_trx(deterministic_operator_keypair, tree_account, deterministic_holder_acc)
-        evm_loader.destroy_tree_account(deterministic_neon_user, deterministic_treasury_pool, tree_account)
+        evm_loader.destroy_tree_account(
+            deterministic_operator_keypair, deterministic_neon_user, deterministic_treasury_pool, tree_account
+        )
 
         check_transaction_logs_have_text(
             solana_client=sol_client,
@@ -715,7 +715,7 @@ class TestComputeUnits:
             text=f"exit_status={NeonTxExitStatus.SUCCESS_WITH_CHANGES}",
         )
 
-    @pytest.mark.deterministic_index_of_process(21)
+    @pytest.mark.deterministic_index_of_process(40)
     @pytest.mark.deterministic_user_index(6)
     @pytest.mark.deterministic_holder_acc_seed(6)
     def test_negative(
@@ -725,16 +725,16 @@ class TestComputeUnits:
         deterministic_operator_keypair: Keypair,
         deterministic_treasury_pool: TreasuryPool,
         deterministic_holder_acc: Pubkey,
-        neon_api_client: NeonApiClient,
+        neon_rpc_client: NeonApiRpcClient,
         sol_client: SolanaClient,
     ):
         contract = evm_loader.deploy_contract(
             operator=deterministic_operator_keypair,
             user=deterministic_user,
             contract_file_name="common/ExpectedErrorsChecker",
-            contract_name="A",
-            neon_api_client=neon_api_client,
+            neon_rpc_client=neon_rpc_client,
             treasury_pool=deterministic_treasury_pool,
+            contract_name="A",
             version="0.8.12",
         )
         function_signature = "method1"
@@ -746,7 +746,7 @@ class TestComputeUnits:
         )
 
         data = decode_function_signature(function_signature)
-        emulate_result = neon_api_client.emulate(
+        emulate_result = neon_rpc_client.emulate(
             sender=deterministic_user.eth_address.hex(),
             contract=contract.eth_address.hex(),
             data=data[2:],
@@ -760,7 +760,7 @@ class TestComputeUnits:
             storage_account=deterministic_holder_acc,
             instruction=signed_tx,
             additional_accounts=additional_accounts,
-            cu_expected_list=[71838, 26503, 29591],
+            cu_expected_list=[72246, 31454, 28429],
             cu_delta_allowed=1000,
             sol_client=sol_client,
             expect_log=f"exit_status={NeonTxExitStatus.REVERT}",

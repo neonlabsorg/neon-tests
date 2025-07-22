@@ -22,12 +22,11 @@ from conftest import EnvironmentConfig
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
 from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS_USDT, REMAPPING_ZEPPELIN
-
 from utils.erc20 import ERC20
 from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
-from utils.neon_user import NeonUser
 from utils.helpers import decode_function_signature, get_selectors, withdraw_neon_to_solana_eth_sign
+from utils.neon_user import NeonUser
 from utils.operator import Operator
 from utils.prices import get_sol_price_with_retry
 from utils.solana_client import SolanaClient
@@ -86,18 +85,12 @@ def web3_client_usdt(environment: EnvironmentConfig) -> tp.Union[Web3Client, Non
 
 
 @pytest.fixture(scope="session")
-def operator(environment: EnvironmentConfig, web3_client_session: NeonChainWeb3Client) -> Operator:
-    return Operator(
-        environment.proxy_url,
-        environment.solana_url,
-        environment.spl_neon_mint,
-        web3_client_session,
-        environment.evm_loader,
-    )
+def operator(evm_loader: EvmLoader) -> Operator:
+    return Operator(evm_loader)
 
 
 @pytest.fixture(scope="session")
-def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Generator[Keypair | None, None, None]:
+def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Generator[LocalAccount | None, None, None]:
     account = None
     if pytestconfig.environment.eth_bank_account != "":
         account = web3_client_session.eth.account.from_key(pytestconfig.environment.eth_bank_account)
@@ -153,7 +146,7 @@ def accounts(request, accounts_session, web3_client_session, pytestconfig: Confi
 
 
 @pytest.fixture(scope="session")
-def neon_user_for_session(
+def neon_user(
     evm_loader: EvmLoader,
     bank_account,
     environment: EnvironmentConfig,
@@ -162,7 +155,7 @@ def neon_user_for_session(
     treasury_pool,
 ) -> tp.Generator[NeonUser, None, None]:
     user = NeonUser(evm_loader_id=environment.evm_loader)
-    lamports = 2 * LAMPORT_PER_SOL
+    lamports = 3 * LAMPORT_PER_SOL
 
     if environment.use_bank:
         evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
@@ -191,12 +184,11 @@ def neon_user_no_sols(pytestconfig, bank_account, faucet, environment) -> NeonUs
 
 
 @pytest.fixture(scope="function")
-def neon_user(
+def neon_user_func_scope(
     evm_loader: EvmLoader,
     bank_account,
     environment: EnvironmentConfig,
     web3_client_sol: NeonChainWeb3Client,
-    withdraw_contract_sol_chain,
     treasury_pool,
 ) -> tp.Generator[NeonUser, None, None]:
     user = NeonUser(evm_loader_id=environment.evm_loader)
@@ -210,7 +202,6 @@ def neon_user(
             lamports=lamports,
             commitment=commitment.Confirmed,
         )
-
     yield user
 
     if environment.use_bank:
@@ -220,6 +211,21 @@ def neon_user(
         #         user, bank_account, withdraw_contract_sol_chain, evm_loader, web3_client_sol, treasury_pool
         #     )
         evm_loader.drain_sol(from_=user.solana_account, to=bank_account.pubkey())
+
+
+@pytest.fixture(scope="function")
+def neon_user_with_sols_inside_neon(
+    evm_loader: EvmLoader,
+    neon_user_func_scope,
+) -> tp.Generator[NeonUser, None, None]:
+    user = neon_user_func_scope
+    lamports = 0.1 * LAMPORT_PER_SOL
+    evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+        user.solana_account,
+        user.checksum_address,
+        int(lamports),
+    )
+    yield user
 
 
 @pytest.fixture(scope="session")
@@ -345,7 +351,7 @@ def account_with_all_tokens(
     eth_bank_account,
     withdraw_contract_sol_chain,
     neon_mint,
-    operator_keypair,
+    token_owner_keypair,
     bank_account: Keypair | None,
 ) -> tp.Generator[LocalAccount, None, None]:
     neon_account = web3_client_session.create_account_with_balance(faucet, bank_account=eth_bank_account)
@@ -363,11 +369,7 @@ def account_with_all_tokens(
         )
     token_mint = Pubkey.from_string(MULTITOKEN_MINTS_USDT)
 
-    evm_loader.mint_spl_to(
-        token_mint,
-        solana_account,
-        1000000000000000,
-    )
+    evm_loader.mint_spl_to(token_mint, solana_account, 1000000000000000, token_owner_keypair)
 
     evm_loader.send_token_from_solana_to_neon(
         solana_account,

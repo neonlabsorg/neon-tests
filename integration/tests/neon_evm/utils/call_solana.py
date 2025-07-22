@@ -5,6 +5,7 @@ from solders.pubkey import Pubkey
 from integration.tests.neon_evm.utils.ethereum import make_eth_transaction, make_contract_call_trx
 from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
 from utils.consts import SOLANA_CALL_PRECOMPILED_ID
+from utils.evm_loader import EvmLoader
 from utils.helpers import bytes32_to_solana_pubkey, serialize_instruction
 from utils.metaplex import SYSTEM_PROGRAM_ID
 
@@ -14,58 +15,58 @@ class SolanaCaller:
         self,
         operator_keypair,
         owner,
-        evm_loader,
+        evm_loader: EvmLoader,
         treasury_pool,
         holder_acc,
-        neon_api_client,
+        neon_rpc_client,
     ) -> None:
         self.operator_keypair = operator_keypair
         self.owner = owner
         self.evm_loader = evm_loader
         self.treasury_pool = treasury_pool
         self.holder_acc = holder_acc
-        self.neon_api_client = neon_api_client
+        self.neon_rpc_client = neon_rpc_client
         self.contract = evm_loader.deploy_contract(
             operator=operator_keypair,
             user=owner,
             contract_file_name="precompiled/CallSolanaCaller",
-            contract_name="CallSolanaCaller",
-            neon_api_client=neon_api_client,
+            neon_rpc_client=neon_rpc_client,
             treasury_pool=treasury_pool,
+            contract_name="CallSolanaCaller",
             version="0.8.28",
         )
 
     def get_neon_address(self, eth_address):
         args = eth_abi.encode(["address"], [eth_address])
-        addr = self.neon_api_client.call_contract_get_function(
+        addr = self.neon_rpc_client.call_contract_get_function(
             self.owner, self.contract, "getNeonAddress(address)", args
         )
         return addr
 
     def get_payer(self):
-        payer_bytes32 = self.neon_api_client.call_contract_get_function(self.owner, self.contract, "getPayer()")
+        payer_bytes32 = self.neon_rpc_client.call_contract_get_function(self.owner, self.contract, "getPayer()")
         return bytes32_to_solana_pubkey(payer_bytes32)
 
     def get_solana_address_by_neon_address(self, neon_address):
         args = eth_abi.encode(["address"], [neon_address])
-        sol_addr = self.neon_api_client.call_contract_get_function(
+        sol_addr = self.neon_rpc_client.call_contract_get_function(
             self.owner, self.contract, "getNeonAddress(address)", args
         )
         return bytes32_to_solana_pubkey(sol_addr)
 
     def get_solana_PDA(self, program_id, seeds) -> Pubkey:
         args = eth_abi.encode(["bytes32", "bytes"], [bytes(program_id), seeds])
-        addr = self.neon_api_client.call_contract_get_function(
+        addr = self.neon_rpc_client.call_contract_get_function(
             self.owner, self.contract, "getSolanaPDA(bytes32,bytes)", args
         )
         return bytes32_to_solana_pubkey(addr)
 
     def get_eth_ext_authority(self, salt, sender) -> Pubkey:
         args = eth_abi.encode(["bytes32"], [salt])
-        addr = self.neon_api_client.call_contract_get_function(sender, self.contract, "getExtAuthority(bytes32)", args)
+        addr = self.neon_rpc_client.call_contract_get_function(sender, self.contract, "getExtAuthority(bytes32)", args)
         return bytes32_to_solana_pubkey(addr)
 
-    def execute(self, program_id, instruction, lamports=None, holder_acc=None, sender=None, additional_accounts=None):
+    def execute(self, program_id, instruction, lamports=None, holder_acc=None, sender=None):
         sender = self.owner if sender is None else sender
         holder_acc = self.holder_acc if holder_acc is None else holder_acc
         serialized_instructions = serialize_instruction(program_id, instruction)
@@ -92,7 +93,6 @@ class SolanaCaller:
                 self.contract.solana_address,
                 program_id,
             ]
-            + (additional_accounts or [])
             + self._get_all_pubkeys_from_instructions([instruction]),
         )
         return resp
@@ -105,7 +105,6 @@ class SolanaCaller:
         lamports=None,
         holder_acc=None,
         sender=None,
-        additional_accounts=None,
     ):
         sender = self.owner if sender is None else sender
         holder_acc = self.holder_acc if holder_acc is None else holder_acc
@@ -140,13 +139,13 @@ class SolanaCaller:
                 self.contract.solana_address,
                 program_id,
             ]
-            + (additional_accounts or [])
             + self._get_all_pubkeys_from_instructions([instruction]),
         )
         return resp
 
-    def batch_execute(self, call_params, sender=None, additional_accounts=None, additional_signers=None):
-        execute_params = []
+    def batch_execute(
+        self, call_params, sender=None, additional_signers=None, is_iterative=False, skip_preflight=False
+    ):
         # call_params = [(program_id, lamports, instruction), ...]
         if len(call_params[0]) == 2:  # check lamport
             method_signature = "batchExecuteWithoutLamports(bytes[])"
@@ -175,24 +174,33 @@ class SolanaCaller:
             ]
             + [item[0] for item in call_params]
             + self._get_all_pubkeys_from_instructions([item[-1] for item in call_params])
-            + (additional_accounts or [])
         )
-
-        resp = self.evm_loader.execute_trx_from_account_with_solana_call(
-            self.operator_keypair,
-            self.holder_acc,
-            self.treasury_pool.account,
-            self.treasury_pool.buffer,
-            accounts,
-            self.operator_keypair,
-            additional_signers,
-        )
+        if is_iterative:
+            resp = self.evm_loader.execute_transaction_steps_from_account(
+                self.operator_keypair,
+                self.treasury_pool,
+                self.holder_acc,
+                accounts,
+                self.operator_keypair,
+                additional_signers=additional_signers,
+            )
+        else:
+            resp = self.evm_loader.execute_trx_from_account_with_solana_call(
+                self.operator_keypair,
+                self.holder_acc,
+                self.treasury_pool.account,
+                self.treasury_pool.buffer,
+                accounts,
+                self.operator_keypair,
+                additional_signers=additional_signers,
+                skip_preflight=skip_preflight,
+            )
         return resp
 
     def get_resource_address(self, salt, sender):
         encoded_args = eth_abi.encode(["bytes32"], [salt])
 
-        resource_address = self.neon_api_client.call_contract_get_function(
+        resource_address = self.neon_rpc_client.call_contract_get_function(
             sender, self.contract, "getResourceAddress(bytes32)", encoded_args
         )
         return bytes32_to_solana_pubkey(resource_address)

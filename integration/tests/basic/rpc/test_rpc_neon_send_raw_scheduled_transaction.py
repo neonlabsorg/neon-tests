@@ -2,8 +2,7 @@ import allure
 import pytest
 
 from integration.tests.basic.helpers.errors import Error32602, Error32000
-from utils.helpers import decode_function_signature
-
+from utils.helpers import decode_function_signature, wait_condition
 from utils.scheduled_trx import ScheduledTransaction, ScheduledTrxEstimateRequest
 
 
@@ -20,7 +19,7 @@ class TestNeonRPCSendRAWTransaction:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
         resp = json_sol_rpc_client.send_rpc(
             method="neon_sendRawScheduledTransaction", params=[tx.encode().hex(), tx.encode().hex()]
@@ -33,7 +32,8 @@ class TestNeonRPCSendRAWTransaction:
             resp["error"]["data"]["errors"][0] == "Method neon_sendRawScheduledTransaction expect 1 parameters, got 2."
         )
 
-    @pytest.mark.xfail(reason="NDEV-3609")
+        wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=2)
+
     def test_repeat_call_with_same_trx_hash(
         self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool
     ):
@@ -43,18 +43,19 @@ class TestNeonRPCSendRAWTransaction:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
         web3_client_sol.send_scheduled_transaction(tx, check_result=False)
         resp_for_second_sent_no_waiting = web3_client_sol.send_scheduled_transaction(tx, check_result=False)
-        assert "error" in resp_for_second_sent_no_waiting, "must be error for second sending the same transaction"
+        assert (
+            "error" not in resp_for_second_sent_no_waiting
+        ), "must not be error for second sending the same transaction without waiting"
 
         web3_client_sol.wait_for_transaction_receipt(tx.hash(), timeout=180)  # wait until first tx finished
         resp_after_waiting = web3_client_sol.send_scheduled_transaction(tx, check_result=False)
+        assert "error" not in resp_after_waiting
 
-        assert "error" in resp_after_waiting
-        assert Error32000.CODE == resp_after_waiting["error"]["code"]
-        assert Error32000.UNKNOWN_TRANSACTION_HASH == resp_after_waiting["error"]["message"]
+        wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=2)
 
     def test_no_tree_account_for_trx(self, web3_client_sol, neon_user, common_contract, evm_loader, treasury_pool):
         data = decode_function_signature("setNumber(uint256)", [18])
@@ -77,12 +78,14 @@ class TestNeonRPCSendRAWTransaction:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
 
         resp = json_rpc_client.send_rpc(method="neon_sendRawScheduledTransaction", params=[tx.encode().hex()])
         assert "error" in resp
         assert Error32000.CODE == resp["error"]["code"]
         assert Error32000.WRONG_CHAIN_ID == resp["error"]["message"]
+
+        wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=2)
 
     def test_bad_empty_hash_of_trx(self, json_sol_rpc_client):
         resp = json_sol_rpc_client.send_rpc(method="neon_sendRawScheduledTransaction", params=[""])
@@ -100,7 +103,7 @@ class TestNeonRPCSendRAWTransaction:
 
         tx = ScheduledTransaction.from_estimate_result(0, trx_estimate_obj, estimate_result)
 
-        evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
+        tree_account = evm_loader.create_tree_account(neon_user, treasury_pool, tx.encode())
         params = None
         if case == "empty_param":
             params = [""]
@@ -111,3 +114,5 @@ class TestNeonRPCSendRAWTransaction:
         assert "error" in resp
         assert Error32602.CODE == resp["error"]["code"]
         assert Error32602.WRONG_TRANSACTION_FORMAT == resp["error"]["message"]
+
+        wait_condition(lambda: not evm_loader.account_exists(tree_account), timeout_sec=120, delay=2)
