@@ -24,7 +24,7 @@ from utils.types import Contract
 
 # Test should be fixed after NDEV-3838
 def test_successful_single_trx_with_outer_deposit(
-    neon_user_func_scope, evm_loader, operator_keypair, treasury_pool, basic_contract, neon_api_client, holder_acc
+    neon_user_func_scope, evm_loader, operator_keypair, treasury_pool, basic_contract, neon_rpc_client, holder_acc
 ):
     # trx_status: successful
     # user_balance: only outer deposit
@@ -87,7 +87,7 @@ def test_successful_single_trx_with_outer_deposit(
         tree_acc_balance == expected_tree_acc_balance
     ), f"Tree acc balance failed, delta {expected_tree_acc_balance - tree_acc_balance}"
 
-    tree_acc_balance_inner = neon_api_client.get_transaction_tree(
+    tree_acc_balance_inner = neon_rpc_client.get_transaction_tree(
         neon_user_func_scope.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
     assert (
@@ -155,7 +155,7 @@ def test_successful_single_trx_with_outer_deposit(
 @pytest.mark.skip(reason="NDEV-3838")
 def test_success_two_trx_with_inner_deposit(
     neon_user_func_scope,
-    neon_api_client,
+    neon_rpc_client,
     evm_loader,
     operator_keypair,
     treasury_pool,
@@ -196,7 +196,7 @@ def test_success_two_trx_with_inner_deposit(
     )
     caller_contract: Contract = create_contract_address(neon_user_func_scope.neon_address, evm_loader)
 
-    emulate_deploy = neon_api_client.emulate(
+    emulate_deploy = neon_rpc_client.emulate(
         neon_user_func_scope.neon_address.hex(),
         contract=None,
         data=contract_code,
@@ -273,7 +273,7 @@ def test_success_two_trx_with_inner_deposit(
         tree_acc_balance == delta_treasury_balance + neon_user_additional_payments
     ), f"Tree acc balance failed, actual {tree_acc_balance}"
 
-    tree_acc_balance_inner = neon_api_client.get_transaction_tree(
+    tree_acc_balance_inner = neon_rpc_client.get_transaction_tree(
         neon_user_func_scope.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
     assert (
@@ -341,7 +341,7 @@ def test_success_two_trx_with_inner_deposit(
 @pytest.mark.skip(reason="NDEV-3838")
 def test_failed_trx_with_outer_deposit(
     neon_user_func_scope,
-    neon_api_client,
+    neon_rpc_client,
     evm_loader,
     operator_keypair,
     treasury_pool,
@@ -407,7 +407,7 @@ def test_failed_trx_with_outer_deposit(
         tree_acc_balance_initial_outer == delta_treasury_balance + neon_user_additional_payments
     ), f"Tree acc balance failed, actual {tree_acc_balance_initial_outer}"
 
-    tree_acc_balance_initial_inner = neon_api_client.get_transaction_tree(
+    tree_acc_balance_initial_inner = neon_rpc_client.get_transaction_tree(
         neon_user_func_scope.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
     assert (
@@ -459,7 +459,7 @@ def test_failed_trx_with_outer_deposit(
 
 @pytest.mark.skip(reason="NDEV-3838")
 def test_skipped_trx_with_outer_deposit(
-    neon_user, evm_loader, operator_keypair, treasury_pool, basic_contract, neon_api_client, holder_acc
+    neon_user, evm_loader, operator_keypair, treasury_pool, basic_contract, neon_rpc_client, holder_acc
 ):
     # trx_status: skipped
     # user_balance: only outer deposit
@@ -527,7 +527,7 @@ def test_skipped_trx_with_outer_deposit(
         tree_acc_balance_initial_outer == delta_treasury_balance + neon_user_additional_payments
     ), f"Tree acc balance failed, actual {tree_acc_balance_initial_outer}"
 
-    tree_acc_balance_initial_inner = neon_api_client.get_transaction_tree(
+    tree_acc_balance_initial_inner = neon_rpc_client.get_transaction_tree(
         neon_user.neon_address.hex(), nonce, evm_loader.sol_chain_id
     ).balance
     assert (
