@@ -68,24 +68,6 @@ class TreeAccount:
             transactions=transactions,
         )
 
-    @classmethod
-    def from_dict_1(cls, data: Dict[str, Any]):
-        transactions = [TreeAccountTransaction.from_dict(tx) for tx in data["value"]["transactions"]]
-        value = data["value"]
-        return cls(
-            result=data["result"],
-            status=value["status"],
-            pubkey=value["pubkey"],
-            payer=value["payer"],
-            last_slot=value["last_slot"],
-            chain_id=value["chain_id"],
-            max_fee_per_gas=value["max_fee_per_gas"],
-            max_priority_fee_per_gas=value["max_priority_fee_per_gas"],
-            balance=int(value["balance"], 16),
-            last_index=value["last_index"],
-            transactions=transactions,
-        )
-
     def all_transactions_successful(self) -> bool:
         return all(tx.status == "Success" for tx in self.transactions)
 
