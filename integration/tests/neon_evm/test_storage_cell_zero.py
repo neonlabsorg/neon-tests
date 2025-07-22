@@ -32,7 +32,7 @@ class TestStorageCells:
             operator=operator_keypair,
             user=session_user,
             contract_file_name="neon_evm/store_zeros.sol",
-            neon_api_client=neon_rpc_client,
+            neon_rpc_client=neon_rpc_client,
             treasury_pool=treasury_pool,
             contract_name="saveZeros",
             version="0.8.12",

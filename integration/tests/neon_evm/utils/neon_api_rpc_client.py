@@ -90,9 +90,7 @@ class NeonApiRpcClient:
     @allure.step("Emulate transaction from holder account")
     def emulate_from_holder(self, holder_pubkey: Pubkey, max_steps_to_execute=500000):
         params = {"step_limit": max_steps_to_execute, "holder_pubkey": str(holder_pubkey)}
-        resp = self._make_request("emulate_from_holder", params)
-        print(f"\n{resp=}")
-        return resp
+        return self._make_request("emulate_from_holder", params)
 
     def get_additional_accounts_by_emulation(
         self, sender, contract, function_signature, params=None, value=0, trace_config=None

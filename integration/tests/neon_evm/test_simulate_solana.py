@@ -1066,7 +1066,6 @@ class TestSimulateSolana:
             transactions=[serialized_transaction.hex()],
             solana_overrides_params={str(data_account): account_info_override},
         )
-        print(simulate_response)
         assert "Invalid params" == simulate_response["message"]
         assert 'Error("missing field ' in simulate_response["data"]
 
