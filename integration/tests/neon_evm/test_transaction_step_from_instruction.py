@@ -14,7 +14,7 @@ from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solana.rpc.core import RPCException
 
-from utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
+from utils.neon_layouts.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
 from utils.types import TreasuryPool
 from .utils.assert_messages import InstructionAsserts
 

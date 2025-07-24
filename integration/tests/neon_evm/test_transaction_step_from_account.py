@@ -16,7 +16,7 @@ from utils.instructions import (
     TransactionWithComputeBudget,
     make_transaction_step_from_account,
 )
-from utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
+from utils.neon_layouts.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
 from utils.types import TreasuryPool
 
 from .utils.assert_messages import InstructionAsserts
