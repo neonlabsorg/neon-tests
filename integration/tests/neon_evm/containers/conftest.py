@@ -167,3 +167,14 @@ def revision_contract_containerized(
     )
 
     return contract
+
+
+@pytest.fixture(scope="function")
+def storage_checker_containerized(
+    evm_loader,
+    neon_rpc_client,
+    operator_keypair,
+    session_user,
+    treasury_pool,
+) -> Contract:
+    return evm_loader.deploy_contract(operator_keypair, session_user, "storage_checker", neon_rpc_client, treasury_pool)

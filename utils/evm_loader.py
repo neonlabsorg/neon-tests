@@ -65,7 +65,6 @@ from utils.logger import log_text_to_allure_and_stdout
 from utils.neon_layouts.contract_account import ContractAccount
 from utils.neon_layouts.operator_balance_account import OperatorBalanceAccount
 from utils.neon_layouts.storage_account import StorageAccount
-from utils.neon_layouts.typed_neon_account import TypedNeonAccount
 from utils.neon_user import NeonUser
 from utils.scheduled_trx import ScheduledTransaction
 from utils.solana_client import SolanaClient
@@ -188,19 +187,9 @@ class EvmLoader(SolanaClient):
     def get_data_accounts(self, accounts: tp.List[Pubkey]) -> tp.List[Pubkey]:
         data_accounts = []
         for account in accounts:
-
             if self.account_exists(account):
                 account_data = self.get_solana_account_data(account)
-                if StorageAccount(account_data).type == 43:
-                    data_accounts.append(account)
-        return data_accounts
-
-    def filter_account_list_by_type(self, accounts: tp.List[Pubkey], acc_type: AccountType) -> tp.List[Pubkey]:
-        data_accounts = []
-        for account in accounts:
-            if self.account_exists(account):
-                account_data = self.get_solana_account_data(account)
-                if TypedNeonAccount(account_data).type == acc_type:
+                if StorageAccount(account_data).type == AccountType.STORAGE:
                     data_accounts.append(account)
         return data_accounts
 
@@ -1119,6 +1108,14 @@ class EvmLoader(SolanaClient):
                 treasury_buffer=treasury.buffer,
                 additional_accounts=additional_accounts,
                 signer=operator,
+            )
+        elif instruction_type == ExecuteTrxTypes.ITERATIVE_FROM_ACCOUNT_NO_CHAIN_ID:
+            self.write_transaction_to_holder_account(signed_trx, holder_acc, operator)
+            return self.execute_transaction_steps_from_account_no_chain_id(
+                operator=operator,
+                treasury=treasury,
+                storage_account=holder_acc,
+                additional_accounts=additional_accounts,
             )
         else:
             raise ValueError(f"Unsupported instruction type: {instruction_type}")

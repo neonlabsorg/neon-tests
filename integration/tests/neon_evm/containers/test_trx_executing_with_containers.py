@@ -1,9 +1,14 @@
 import pytest
 
+from integration.tests.neon_evm.utils.constants import TAG_FINALIZED_STATE
 from integration.tests.neon_evm.utils.ethereum import make_contract_call_trx
-from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
+from integration.tests.neon_evm.utils.transaction_checks import (
+    check_transaction_logs_have_text,
+    check_holder_account_tag,
+)
 from utils.consts import ExecuteTrxTypes
 from utils.neon_layouts.balance_account import BalanceAccount
+from utils.neon_layouts.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
 
 
 def test_assemble_and_allocate_container(
@@ -68,50 +73,6 @@ def test_assemble_and_allocate_container(
     check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
 
 
-def test_execute_trx_step_from_instruction_for_container(
-    evm_loader,
-    operator_keypair,
-    treasury_pool,
-    sender_with_tokens,
-    neon_rpc_client,
-    distributor_caller_containerized,
-    holder_acc,
-    recipients,
-):
-    function_signature = "distribute_value()"
-    value = len(recipients) * 10
-    container_address = distributor_caller_containerized.solana_address
-    recipient_balance_acc_data = neon_rpc_client.get_account_data_from_container(
-        container_address, recipients[0].balance_account_address
-    )
-    recipient_balance_before = BalanceAccount(recipient_balance_acc_data).balance
-
-    accounts_for_execution_with_container = [
-        container_address,
-        sender_with_tokens.solana_account_address,
-        sender_with_tokens.balance_account_address,
-    ] + [recipient.solana_account_address for recipient in recipients]
-
-    signed_tx = make_contract_call_trx(
-        evm_loader, sender_with_tokens, distributor_caller_containerized, function_signature, value=value
-    )
-    resp = evm_loader.execute_transaction_steps_from_instruction(
-        operator_keypair,
-        treasury_pool,
-        holder_acc,
-        signed_tx,
-        accounts_for_execution_with_container,
-    )
-    check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
-
-    recipient_balance_acc_data = neon_rpc_client.get_account_data_from_container(
-        container_address, recipients[0].balance_account_address
-    )
-    recipient_balance_after = BalanceAccount(recipient_balance_acc_data).balance
-
-    assert recipient_balance_after == recipient_balance_before + value / len(recipients)
-
-
 @pytest.mark.parametrize("execution_type", list(ExecuteTrxTypes))
 def test_execute_trx_with_containerized_contract(
     evm_loader,
@@ -138,8 +99,14 @@ def test_execute_trx_with_containerized_contract(
         sender_with_tokens.balance_account_address,
     ] + [recipient.solana_account_address for recipient in recipients]
 
+    chain_id = None if execution_type == ExecuteTrxTypes.ITERATIVE_FROM_ACCOUNT_NO_CHAIN_ID else evm_loader.chain_id
     signed_tx = make_contract_call_trx(
-        evm_loader, sender_with_tokens, distributor_caller_containerized, function_signature, value=value
+        evm_loader,
+        sender_with_tokens,
+        distributor_caller_containerized,
+        function_signature,
+        value=value,
+        chain_id=chain_id,
     )
 
     resp = evm_loader.execute_neon_trx(
@@ -236,8 +203,7 @@ def test_2_parallel_trx_with_container(
         operator=operator_keypair,
         treasury=treasury_pool,
         container_address=rw_lock_contract_containerized.solana_address,
-        accounts=data_accounts
-        + [rw_lock_contract_containerized.balance_account_address],  # , sender_with_tokens.balance_account_address],
+        accounts=data_accounts + [rw_lock_contract_containerized.balance_account_address],
     )
     signed_tx = make_contract_call_trx(
         evm_loader, sender_with_tokens, rw_lock_contract_containerized, function_signature, [acc_count]
@@ -295,3 +261,98 @@ def test_2_parallel_trx_with_container(
     )
     check_transaction_logs_have_text(solana_client=evm_loader, trx=resp1, text="exit_status=0x11")
     check_transaction_logs_have_text(solana_client=evm_loader, trx=resp2, text="exit_status=0x11")
+
+
+def test_cancel_trx_with_container(
+    evm_loader,
+    operator_keypair,
+    treasury_pool,
+    holder_acc,
+    erc20_for_spl,
+    sender_with_tokens,
+    user_account,
+    neon_rpc_client,
+):
+    function_signature = "transfer(address,uint256)"
+    evm_loader.assemble_container(
+        operator=operator_keypair,
+        treasury=treasury_pool,
+        container_address=erc20_for_spl.solana_address,
+        accounts=[erc20_for_spl.balance_account_address, user_account.balance_account_address],
+    )
+    additional_accounts = neon_rpc_client.get_additional_accounts_by_emulation(
+        sender_with_tokens.eth_address.hex(),
+        erc20_for_spl.eth_address.hex(),
+        function_signature,
+        [user_account.eth_address.hex(), 10],
+    )
+    signed_trx = make_contract_call_trx(
+        evm_loader, sender_with_tokens, erc20_for_spl, function_signature, [user_account.eth_address.hex(), 10]
+    )
+    operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
+    for _ in range(3):
+        evm_loader.send_transaction_step_from_instruction(
+            operator_keypair,
+            operator_balance_pubkey,
+            treasury_pool,
+            holder_acc,
+            signed_trx,
+            additional_accounts,
+            500,
+            operator_keypair,
+        )
+
+    evm_loader.send_cancel_transaction(operator_keypair, holder_acc, additional_accounts, signed_trx.hash)
+
+    check_holder_account_tag(
+        evm_loader,
+        storage_account=holder_acc,
+        layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
+        expected_tag=TAG_FINALIZED_STATE,
+    )
+
+
+def test_resize_storage_sell_in_container(
+    evm_loader,
+    operator_keypair,
+    treasury_pool,
+    holder_acc,
+    storage_checker_containerized,
+    sender_with_tokens,
+    neon_rpc_client,
+):
+    function_signature = "update_b(uint256)"
+    additional_accounts = neon_rpc_client.get_additional_accounts_by_emulation(
+        sender_with_tokens.eth_address.hex(),
+        storage_checker_containerized.eth_address.hex(),
+        function_signature,
+        [10],
+    )
+    signed_trx = make_contract_call_trx(
+        evm_loader, sender_with_tokens, storage_checker_containerized, function_signature, [10]
+    )
+    evm_loader.execute_transaction_steps_from_instruction(
+        operator_keypair, treasury_pool, holder_acc, signed_trx, additional_accounts
+    )
+    data_accounts = evm_loader.get_data_accounts(additional_accounts)
+    assert len(data_accounts) == 1, "There should be only one data account"
+
+    evm_loader.assemble_container(
+        operator=operator_keypair,
+        treasury=treasury_pool,
+        container_address=storage_checker_containerized.solana_address,
+        accounts=data_accounts + [storage_checker_containerized.balance_account_address],
+    )
+
+    function_signature = "update_c(uint256)"
+    accounts_to_execute_trx_with_container = [
+        storage_checker_containerized.solana_address,
+        sender_with_tokens.balance_account_address,
+    ]
+    signed_trx = make_contract_call_trx(
+        evm_loader, sender_with_tokens, storage_checker_containerized, function_signature, [20]
+    )
+    resp = evm_loader.execute_transaction_steps_from_instruction(
+        operator_keypair, treasury_pool, holder_acc, signed_trx, accounts_to_execute_trx_with_container
+    )
+    check_transaction_logs_have_text(evm_loader, resp, "exit_status=0x11")

@@ -301,14 +301,14 @@ def calculator_caller_contract(
 
 
 @pytest.fixture(scope="session")
-def solana_overrides_contract(
+def storage_checker_contract(
     evm_loader: EvmLoader,
     neon_rpc_client: NeonApiRpcClient,
     operator_keypair: Keypair,
     session_user: Caller,
     treasury_pool: TreasuryPool,
 ) -> Contract:
-    return evm_loader.deploy_contract(operator_keypair, session_user, "solana_override", neon_rpc_client, treasury_pool)
+    return evm_loader.deploy_contract(operator_keypair, session_user, "storage_checker", neon_rpc_client, treasury_pool)
 
 
 @pytest.fixture(scope="session")
