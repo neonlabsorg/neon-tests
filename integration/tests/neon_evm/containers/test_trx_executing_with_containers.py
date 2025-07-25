@@ -343,7 +343,7 @@ def test_resize_storage_sell_in_container(
         container_address=storage_checker_containerized.solana_address,
         accounts=data_accounts + [storage_checker_containerized.balance_account_address],
     )
-
+    container_size_before = len(evm_loader.get_solana_account_data(storage_checker_containerized.solana_address))
     function_signature = "update_c(uint256)"
     accounts_to_execute_trx_with_container = [
         storage_checker_containerized.solana_address,
@@ -356,3 +356,5 @@ def test_resize_storage_sell_in_container(
         operator_keypair, treasury_pool, holder_acc, signed_trx, accounts_to_execute_trx_with_container
     )
     check_transaction_logs_have_text(evm_loader, resp, "exit_status=0x11")
+    container_size_after = len(evm_loader.get_solana_account_data(storage_checker_containerized.solana_address))
+    assert container_size_after > container_size_before, "Container size did not increase after executing transaction"
