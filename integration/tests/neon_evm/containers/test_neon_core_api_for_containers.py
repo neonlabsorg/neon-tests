@@ -3,7 +3,7 @@ from integration.tests.basic.helpers.rpc_checks import is_hex
 
 def test_get_contract(neon_rpc_client, rw_lock_contract_containerized, rw_lock_contract_new):
     resp_container = neon_rpc_client.get_contract(rw_lock_contract_containerized.eth_address.hex())
-    resp_contract = neon_rpc_client.get_contract(rw_lock_contract_containerized.eth_address.hex())
+    resp_contract = neon_rpc_client.get_contract(rw_lock_contract_new.eth_address.hex())
     assert resp_container["solana_address"] == str(rw_lock_contract_containerized.solana_address)
 
     assert resp_container["code"] == resp_contract["code"]
