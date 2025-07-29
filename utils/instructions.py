@@ -6,7 +6,6 @@ import solders.system_program as sp
 from solana.transaction import AccountMeta, Instruction, Transaction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
-from solders.system_program import ID as SYS_PROGRAM_ID
 from spl.token.constants import ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address
 
@@ -273,6 +272,7 @@ def make_deposit(
     token_program: Pubkey,
     operator_pubkey: Pubkey,
     evm_loader_id: Pubkey,
+    container_address: Pubkey = None,
 ) -> Instruction:
     data = InstructionTags.DEPOSIT + ether_address + chain_id.to_bytes(8, "little")
 
@@ -286,7 +286,8 @@ def make_deposit(
         AccountMeta(pubkey=operator_pubkey, is_signer=True, is_writable=True),
         AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
     ]
-
+    if container_address:
+        accounts.append(AccountMeta(pubkey=container_address, is_signer=False, is_writable=True))
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
 
@@ -305,7 +306,7 @@ def make_create_associated_token_idempotent(payer: Pubkey, owner: Pubkey, mint: 
             AccountMeta(pubkey=associated_token_address, is_signer=False, is_writable=True),
             AccountMeta(pubkey=owner, is_signer=False, is_writable=False),
             AccountMeta(pubkey=mint, is_signer=False, is_writable=False),
-            AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
+            AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
             AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
             AccountMeta(pubkey=SYSVAR_RENT_PUBKEY, is_signer=False, is_writable=False),
         ],

@@ -358,3 +358,30 @@ def test_resize_storage_sell_in_container(
     check_transaction_logs_have_text(evm_loader, resp, "exit_status=0x11")
     container_size_after = len(evm_loader.get_solana_account_data(storage_checker_containerized.solana_address))
     assert container_size_after > container_size_before, "Container size did not increase after executing transaction"
+
+
+def test_deposit_neons_to_account_in_container(
+    evm_loader,
+    operator_keypair,
+    treasury_pool,
+    neon_rpc_client,
+    rw_lock_contract_containerized,
+    user_account,
+):
+    evm_loader.assemble_container(
+        operator_keypair,
+        treasury_pool,
+        rw_lock_contract_containerized.solana_address,
+        [user_account.balance_account_address],
+    )
+    deposit_amount = 5000
+    evm_loader.deposit_neon(
+        operator_keypair, user_account.eth_address.hex(), deposit_amount, rw_lock_contract_containerized.solana_address
+    )
+
+    balance_data = neon_rpc_client.get_account_data_from_container(
+        rw_lock_contract_containerized.solana_address, user_account.balance_account_address
+    )
+    balance_account = BalanceAccount(balance_data)
+
+    assert balance_account.balance == deposit_amount * 10**9, "Balance after deposit is incorrect"

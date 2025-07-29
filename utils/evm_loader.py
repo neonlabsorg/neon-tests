@@ -65,6 +65,7 @@ from utils.logger import log_text_to_allure_and_stdout
 from utils.neon_layouts.contract_account import ContractAccount
 from utils.neon_layouts.operator_balance_account import OperatorBalanceAccount
 from utils.neon_layouts.storage_account import StorageAccount
+from utils.neon_layouts.typed_neon_account import TypedNeonAccount
 from utils.neon_user import NeonUser
 from utils.scheduled_trx import ScheduledTransaction
 from utils.solana_client import SolanaClient
@@ -157,6 +158,15 @@ class EvmLoader(SolanaClient):
             raise Exception("Can't get information about {}".format(account))
         return info.data
 
+    def filter_neon_accounts_by_type(self, accounts: tp.List[Pubkey], account_type: AccountType) -> tp.List[Pubkey]:
+        filtered_accounts = []
+        for account in accounts:
+            if self.account_exists(account):
+                account_data = self.get_solana_account_data(account)
+                if TypedNeonAccount(account_data).type == account_type:
+                    filtered_accounts.append(account)
+        return filtered_accounts
+
     @allure.step("Get Neon balance for account {account} in chain {chain_id}")
     def get_neon_balance(self, account: Union[str, bytes], chain_id: int | None = None) -> int:
         chain_id = chain_id or self.chain_id
@@ -187,6 +197,7 @@ class EvmLoader(SolanaClient):
     def get_data_accounts(self, accounts: tp.List[Pubkey]) -> tp.List[Pubkey]:
         data_accounts = []
         for account in accounts:
+            print(account)
             if self.account_exists(account):
                 account_data = self.get_solana_account_data(account)
                 if StorageAccount(account_data).type == AccountType.STORAGE:
@@ -575,7 +586,11 @@ class EvmLoader(SolanaClient):
 
     @allure.step("Deposit NEON tokens to Solana")
     def deposit_neon(
-        self, operator_keypair: Keypair, ether_address: Union[str, bytes], amount: int
+        self,
+        operator_keypair: Keypair,
+        ether_address: Union[str, bytes],
+        amount: int,
+        container_address: Pubkey | None = None,
     ) -> GetTransactionResp:
         balance_pubkey = self.ether2balance(ether_address)
         contract_pubkey = Pubkey.from_string(self.ether2program(ether_address)[0])
@@ -623,6 +638,7 @@ class EvmLoader(SolanaClient):
                 spl.token.constants.TOKEN_PROGRAM_ID,
                 operator_keypair.pubkey(),
                 self.loader_id,
+                container_address,
             ),
         )
 

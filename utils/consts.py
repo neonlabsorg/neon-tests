@@ -141,10 +141,15 @@ class NeonTxExitStatus(str, Enum):
 
 
 class AccountType(int, Enum):
+    EMPTY = 0
+    HOLDER = 52
     STORAGE = 43
     USER_BALANCE = 60
     CONTRACT = 70
-    PRECOMPILED = 127
+    OPERATOR_BALANCE = 80
+    TREE_ACCOUNT = 90
+    CONTAINER = 100
+    REFERENCE = 110
 
 
 class ExecuteTrxTypes(str, Enum):
