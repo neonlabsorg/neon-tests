@@ -127,7 +127,7 @@ def solana_account(
     sol_client_session: SolanaClient,
 ) -> Keypair:
     account = Keypair()
-    lamports = 1 * LAMPORT_PER_SOL
+    lamports = 3 * LAMPORT_PER_SOL
 
     if environment.use_bank:
         sol_client_session.send_sol(bank_account, account.pubkey(), lamports)
