@@ -380,8 +380,7 @@ jobs:
   send-notification:
     name: Send notification on failure
     if: |
-      always() &&
-      github.ref_name == 'develop' && (
+      always() && (
         contains(needs.*.result, 'failure') ||
         contains(needs.*.result, 'cancelled')
       )
