@@ -1,12 +1,16 @@
 import allure
 import pytest
+from solana.rpc.commitment import Confirmed
+from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 
 from integration.tests.basic.helpers.rpc_checks import check_trx_is_success
 from utils.accounts import EthAccounts
 from utils.consts import AccountType
-from utils.helpers import decode_function_signature, wait_condition
+from utils.helpers import decode_function_signature, wait_condition, gen_hash_of_block
 from utils.scheduled_trx import ScheduledTrxEstimateRequest, CreateTreeAccMultipleData, ScheduledTransaction
+from utils.solana_data_for_neon_trx_helper import get_sol_account_list_by_neon_trx
+from utils.solana_interoperability_helper import prepare_transfer_spl_data
 from utils.web3client import NeonChainWeb3Client
 
 
@@ -16,6 +20,16 @@ from utils.web3client import NeonChainWeb3Client
 class TestContainers:
     web3_client: NeonChainWeb3Client
     accounts: EthAccounts
+
+    def _get_accounts_for_container_by_emulation(self, instruction_tx, sender, evm_loader, container_address):
+        signed_tx = self.web3_client.eth.account.sign_transaction(instruction_tx, sender.key)
+        result = self.web3_client.get_neon_emulate(str(signed_tx.raw_transaction.hex()))
+        sol_accounts = [Pubkey.from_string(item["pubkey"]) for item in result["result"]["solanaAccounts"]]
+        data_accounts = evm_loader.filter_neon_accounts_by_type(sol_accounts, AccountType.STORAGE)
+        balance_acc = evm_loader.filter_neon_accounts_by_type(sol_accounts, AccountType.USER_BALANCE)
+        contract_accounts = evm_loader.filter_neon_accounts_by_type(sol_accounts, AccountType.CONTRACT)
+        all_accounts = set(data_accounts + balance_acc + contract_accounts)
+        return list(all_accounts - {container_address})
 
     def test_change_data_accounts_in_container(self, rw_lock_contract_containerized):
         sender = self.accounts[0]
@@ -38,7 +52,7 @@ class TestContainers:
         receipt = self.web3_client.send_transaction(sender, instruction_tx)
         assert receipt["status"] == 1, "Transaction should be successful"
 
-        container_address = Pubkey.from_string(evm_loader.ether2program(distributor_contract.address[2:])[0])
+        container_address = evm_loader.ether2program(distributor_contract.address[2:])
         evm_loader.assemble_container(
             operator=operator.operator_keypairs[0],
             treasury=treasury_pool,
@@ -64,7 +78,7 @@ class TestContainers:
     def test_big_count_of_accounts_in_container(
         self, accounts, alt_contract_containerized, evm_loader, treasury_pool, operator
     ):
-        container_address = Pubkey.from_string(evm_loader.ether2program(alt_contract_containerized.address[2:])[0])
+        container_address = evm_loader.ether2program(alt_contract_containerized.address[2:])
 
         for n in [50, 75, 100, 125, 150]:
             tx = self.web3_client.make_raw_tx(accounts[0].address)
@@ -127,7 +141,7 @@ class TestContainers:
         # evm_loader.assemble_container(
         #     operator.operator_keypairs[0],
         #     treasury_pool,
-        #     Pubkey.from_string(evm_loader.ether2program(alt_contract_containerized.address[2:])[0]),
+        #     evm_loader.ether2program(alt_contract_containerized.address[2:]),
         #     [evm_loader.ether2balance(neon_user.neon_address, web3_client_sol.chain_id)],
         # )
 
@@ -145,11 +159,9 @@ class TestContainers:
         transfer_amount_1 = 300
         transfer_amount_2 = 200
 
-        container_address = Pubkey.from_string(evm_loader.ether2program(contract.address[2:])[0])
+        container_address = evm_loader.ether2program(contract.address[2:])
         erc20_address = contract.functions.getErc20Address().call()
-        erc20_sol_address = Pubkey.from_string(evm_loader.ether2program(erc20_address[2:])[0])
-        print("multiple_actions_erc20 address:", container_address)
-        print("erc20 address:", erc20_sol_address)
+        erc20_sol_address = evm_loader.ether2program(erc20_address[2:])
 
         tx = self.web3_client.make_raw_tx(acc_1)
         instruction_tx = contract.functions.mintTransferTransfer(
@@ -163,12 +175,11 @@ class TestContainers:
         signed_tx = self.web3_client.eth.account.sign_transaction(instruction_tx, acc_1.key)
         result = self.web3_client.get_neon_emulate(str(signed_tx.raw_transaction.hex()))
         sol_accounts = [Pubkey.from_string(item["pubkey"]) for item in result["result"]["solanaAccounts"]]
-        data_accounts = evm_loader.filter_neon_accounts_by_type(sol_accounts, AccountType.STORAGE)
-        balance_acc = evm_loader.filter_neon_accounts_by_type(sol_accounts, AccountType.USER_BALANCE)
-        contract_accounts = evm_loader.filter_neon_accounts_by_type(sol_accounts, AccountType.CONTRACT)
-        print("data accounts:", len(data_accounts))
-        print("balance accounts:", len(balance_acc))
-        print("contract accounts:", len(contract_accounts))
+        balance_accounts = evm_loader.filter_neon_accounts_by_type(sol_accounts, AccountType.USER_BALANCE)
+
+        evm_loader.assemble_container(operator.operator_keypairs[0], treasury_pool, container_address, balance_accounts)
+        evm_loader.allocate_container(operator.operator_keypairs[0], treasury_pool, container_address, 5000)
+        evm_loader.allocate_container(operator.operator_keypairs[0], treasury_pool, container_address, 5000)
 
         evm_loader.assemble_container(
             operator.operator_keypairs[0],
@@ -179,3 +190,93 @@ class TestContainers:
 
         receipt = self.web3_client.send_transaction(acc_1, instruction_tx)
         assert receipt["status"] == 1, "Transaction should be successful"
+
+    def test_resize_and_change_data_in_container(
+        self, evm_loader, operator, treasury_pool, accounts, storage_resize_checker
+    ):
+
+        caller_sol_address = evm_loader.ether2program(storage_resize_checker.address[2:])
+
+        tx = self.web3_client.make_raw_tx(accounts[0], amount=1000)
+        instruction_tx = storage_resize_checker.functions.callAndChange(gen_hash_of_block(1000)).build_transaction(tx)
+        resp = self.web3_client.send_transaction(accounts[0], instruction_tx)
+        assert resp["status"] == 1
+
+        acc_for_container = self._get_accounts_for_container_by_emulation(
+            instruction_tx, accounts[0], evm_loader, caller_sol_address
+        )
+
+        evm_loader.assemble_container(
+            operator=operator.operator_keypairs[0],
+            treasury=treasury_pool,
+            container_address=caller_sol_address,
+        )
+        evm_loader.allocate_container(
+            operator.operator_keypairs[0],
+            treasury_pool,
+            caller_sol_address,
+            5000,
+        )
+        evm_loader.assemble_container(
+            operator=operator.operator_keypairs[0],
+            treasury=treasury_pool,
+            container_address=caller_sol_address,
+            accounts=acc_for_container,
+        )
+        container_size_before = len(evm_loader.get_solana_account_data(caller_sol_address))
+
+        for _ in range(3):
+            tx = self.web3_client.make_raw_tx(accounts[0], amount=1000)
+            instruction_tx = storage_resize_checker.functions.callAndChange(gen_hash_of_block(1000)).build_transaction(
+                tx
+            )
+            resp = self.web3_client.send_transaction(accounts[0], instruction_tx)
+            assert resp["status"] == 1
+
+            container_size = len(evm_loader.get_solana_account_data(caller_sol_address))
+            assert container_size > container_size_before, "Container size should be increased"
+            container_size_before = container_size
+
+    def test_container_with_solana_composability_calls(
+        self, evm_loader, call_solana_caller, solana_account, operator, treasury_pool
+    ):
+        loops = 20
+        sender = self.accounts[0]
+        from_wallet = solana_account
+        to_wallet = Keypair()
+        amount = 100000
+
+        serialized, mint, accounts_list = prepare_transfer_spl_data(
+            evm_loader, from_wallet, to_wallet, amount, call_solana_caller
+        )
+        tx = self.web3_client.make_raw_tx(from_=sender)
+        instruction_tx = call_solana_caller.functions.executeInIterativeMode(loops, 0, serialized).build_transaction(tx)
+        resp = self.web3_client.send_transaction(sender, instruction_tx)
+        assert resp["status"] == 1
+        sol_accounts_for_trx_without_container = get_sol_account_list_by_neon_trx(
+            self.web3_client, evm_loader, resp["transactionHash"].hex()
+        )
+
+        assert int(mint.get_balance(accounts_list[1], commitment=Confirmed).value.amount) == amount
+        container_address = evm_loader.ether2program(call_solana_caller.address[2:])
+        account_for_container = self._get_accounts_for_container_by_emulation(
+            instruction_tx, sender, evm_loader, container_address
+        )
+
+        evm_loader.assemble_container(
+            operator=operator.operator_keypairs[0],
+            treasury=treasury_pool,
+            container_address=evm_loader.ether2program(call_solana_caller.address[2:]),
+            accounts=account_for_container,
+        )
+
+        tx = self.web3_client.make_raw_tx(from_=sender)
+        instruction_tx = call_solana_caller.functions.executeInIterativeMode(loops, 0, serialized).build_transaction(tx)
+        resp = self.web3_client.send_transaction(sender, instruction_tx)
+        assert resp["status"] == 1
+        sol_accounts_for_trx_with_container = get_sol_account_list_by_neon_trx(
+            self.web3_client, evm_loader, resp["transactionHash"].hex()
+        )
+        assert len(sol_accounts_for_trx_with_container) < len(
+            sol_accounts_for_trx_without_container
+        ), "Transaction with container should use less accounts than without it"

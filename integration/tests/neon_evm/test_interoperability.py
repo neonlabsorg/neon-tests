@@ -437,7 +437,7 @@ class TestInteroperability:
         caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
 
         account_pubkey = evm_loader.ether2balance(caller_ether)
-        contract_pubkey = Pubkey.from_string(evm_loader.ether2program(caller_ether)[0])
+        contract_pubkey = evm_loader.ether2program(caller_ether)
 
         neon_instruction = make_account_create_balance(
             evm_loader.loader_id,

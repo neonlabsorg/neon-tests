@@ -21,7 +21,7 @@ def rw_lock_contract_containerized(evm_loader, solana_account, treasury_pool, we
 
     web3_client.send_transaction(sender, instruction_tx)
 
-    container_address = Pubkey.from_string(evm_loader.ether2program(contract.address[2:])[0])
+    container_address = evm_loader.ether2program(contract.address[2:])
     data_accounts = evm_loader.get_data_accounts(accounts)
     evm_loader.assemble_container(
         operator=operator.operator_keypairs[0],
@@ -48,7 +48,7 @@ def alt_contract_containerized(accounts, web3_client, evm_loader, operator, trea
         "common/ALT", "0.8.10", account=accounts[0], constructor_args=[50]
     )
 
-    container_address = Pubkey.from_string(evm_loader.ether2program(contract.address[2:])[0])
+    container_address = evm_loader.ether2program(contract.address[2:])
     tx = web3_client.make_raw_tx(accounts[0].address)
     instruction_tx = contract.functions.fill(30).build_transaction(tx)
     signed_tx = web3_client.eth.account.sign_transaction(instruction_tx, accounts[0].key)
@@ -58,3 +58,11 @@ def alt_contract_containerized(accounts, web3_client, evm_loader, operator, trea
     evm_loader.assemble_container(operator.operator_keypairs[0], treasury_pool, container_address, sol_accounts)
 
     return contract
+
+
+@pytest.fixture(scope="class")
+def storage_resize_checker(web3_client, accounts):
+    caller_contract, _ = web3_client.deploy_and_get_contract(
+        "common/StorageResizeChecker", "0.8.20", contract_name="Caller", account=accounts[0]
+    )
+    return caller_contract

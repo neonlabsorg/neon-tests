@@ -420,12 +420,10 @@ def erc20_for_spl(
     byte_data = bytes.fromhex(emulate_result["result"])
     contract_eth_address = eth_abi.decode(["address"], byte_data)[0]
 
-    contract_solana_address, _ = evm_loader.ether2program(contract_eth_address)
+    contract_solana_address = evm_loader.ether2program(contract_eth_address)
     contract_balance_address = evm_loader.ether2balance(contract_eth_address, evm_loader.chain_id)
 
-    contract = Contract(
-        bytes.fromhex(contract_eth_address[2:]), Pubkey.from_string(contract_solana_address), contract_balance_address
-    )
+    contract = Contract(bytes.fromhex(contract_eth_address[2:]), contract_solana_address, contract_balance_address)
     function_signature = "mint(address,uint256)"
     emulate_accounts = neon_rpc_client.get_additional_accounts_by_emulation(
         sender=sender_with_tokens.eth_address.hex(),

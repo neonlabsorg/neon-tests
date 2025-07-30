@@ -556,7 +556,11 @@ def make_delete_holder_account(signer: Pubkey, holder_account: Pubkey, evm_loade
 
 @log_instruction_fields("make_container_assemble")
 def make_container_assemble(
-    operator: Keypair, treasury: TreasuryPool, container_address: Pubkey, contract_accounts: list, evm_loader_id: Pubkey
+    operator: Keypair,
+    treasury: TreasuryPool,
+    container_address: Pubkey,
+    evm_loader_id: Pubkey,
+    contract_accounts: list = None,
 ):
     data = InstructionTags.CONTAINER_ASSEMBLE + treasury.buffer
     accounts = [
@@ -565,10 +569,11 @@ def make_container_assemble(
         AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
         AccountMeta(pubkey=container_address, is_signer=False, is_writable=True),
     ]
-    for acc in contract_accounts:
-        accounts.append(
-            AccountMeta(acc, is_signer=False, is_writable=True),
-        )
+    if contract_accounts is not None:
+        for acc in contract_accounts:
+            accounts.append(
+                AccountMeta(acc, is_signer=False, is_writable=True),
+            )
     return Instruction(program_id=evm_loader_id, data=data, accounts=accounts)
 
 
