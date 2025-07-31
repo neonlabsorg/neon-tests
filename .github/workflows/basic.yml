@@ -84,7 +84,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install python requirements
         if: ${{ env.NETWORK != 'devnet' }}
-        uses: ./.github/actions/python-requirements
+        uses: ./.github/actions/infra-requirements
       - name: Set evm image tag
         if: ${{ env.NETWORK != 'devnet' }}
         id: share
