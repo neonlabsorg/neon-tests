@@ -360,7 +360,7 @@ def test_failed_trx_with_outer_deposit(
     treasury_pool_balance_initial_outer = evm_loader.get_solana_balance(treasury_pool.account)
 
     nonce = evm_loader.get_neon_nonce(neon_user_func_scope.neon_address, evm_loader.sol_chain_id)
-    call_data = decode_function_signature("doTrivialRevertAferIterativeActions();")
+    call_data = decode_function_signature("doTrivialRevertAfterIterativeActions();")
     tx0 = ScheduledTransaction(
         neon_user_func_scope.neon_address,
         None,

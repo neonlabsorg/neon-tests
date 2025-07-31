@@ -158,15 +158,6 @@ class EvmLoader(SolanaClient):
             raise Exception("Can't get information about {}".format(account))
         return info.data
 
-    def filter_neon_accounts_by_type(self, accounts: tp.List[Pubkey], account_type: AccountType) -> tp.List[Pubkey]:
-        filtered_accounts = []
-        for account in accounts:
-            if self.account_exists(account):
-                account_data = self.get_solana_account_data(account)
-                if TypedNeonAccount(account_data).type == account_type:
-                    filtered_accounts.append(account)
-        return filtered_accounts
-
     @allure.step("Get Neon balance for account {account} in chain {chain_id}")
     def get_neon_balance(self, account: Union[str, bytes], chain_id: int | None = None) -> int:
         chain_id = chain_id or self.chain_id
@@ -194,15 +185,16 @@ class EvmLoader(SolanaClient):
         account_data = self.get_solana_account_data(address)
         return StorageAccount(account_data).revision
 
-    def get_data_accounts(self, accounts: tp.List[Pubkey]) -> tp.List[Pubkey]:
-        data_accounts = []
+    @allure.step("Filter Neon accounts by type {account_type}")
+    def filter_neon_accounts_by_type(self, accounts: tp.List[Pubkey], account_type: AccountType) -> tp.List[Pubkey]:
+        filtered_accounts = []
         for account in accounts:
-            print(account)
             if self.account_exists(account):
                 account_data = self.get_solana_account_data(account)
-                if StorageAccount(account_data).type == AccountType.STORAGE:
-                    data_accounts.append(account)
-        return data_accounts
+                if TypedNeonAccount(account_data).type == account_type:
+                    filtered_accounts.append(account)
+        log_text_to_allure_and_stdout("Filtered accounts by type", str(filtered_accounts))
+        return filtered_accounts
 
     @allure.step("Write transaction to holder account {holder_account}")
     def write_transaction_to_holder_account(

@@ -2,6 +2,7 @@ import eth_abi
 import pytest
 
 from integration.tests.neon_evm.utils.ethereum import make_contract_call_trx
+from utils.consts import AccountType
 from utils.types import Contract
 
 
@@ -64,7 +65,7 @@ def distributor_caller_containerized(
         value=value,
     )
 
-    data_accounts = evm_loader.get_data_accounts(emulate_accounts)
+    data_accounts = evm_loader.filter_neon_accounts_by_type(emulate_accounts, AccountType.STORAGE)
     balance_accounts = [
         contract.balance_account_address,
         distributor_contract.balance_account_address,
@@ -119,7 +120,7 @@ def rw_lock_contract_containerized(
         operator_keypair, treasury_pool, holder_acc, signed_tx, emulate_accounts
     )
 
-    data_accounts = evm_loader.get_data_accounts(emulate_accounts)
+    data_accounts = evm_loader.filter_neon_accounts_by_type(emulate_accounts, AccountType.STORAGE)
     evm_loader.assemble_container(
         operator=operator_keypair,
         treasury=treasury_pool,
@@ -158,7 +159,7 @@ def revision_contract_containerized(
         operator_keypair, treasury_pool, holder_acc, signed_tx, emulate_accounts
     )
 
-    data_accounts = evm_loader.get_data_accounts(emulate_accounts)
+    data_accounts = evm_loader.filter_neon_accounts_by_type(emulate_accounts, AccountType.STORAGE)
     evm_loader.assemble_container(
         operator=operator_keypair,
         treasury=treasury_pool,

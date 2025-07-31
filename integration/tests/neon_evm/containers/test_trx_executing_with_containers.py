@@ -1,4 +1,5 @@
 import pytest
+from solders.keypair import Keypair
 
 from integration.tests.neon_evm.utils.constants import TAG_FINALIZED_STATE
 from integration.tests.neon_evm.utils.ethereum import make_contract_call_trx
@@ -6,7 +7,7 @@ from integration.tests.neon_evm.utils.transaction_checks import (
     check_transaction_logs_have_text,
     check_holder_account_tag,
 )
-from utils.consts import ExecuteTrxTypes
+from utils.consts import ExecuteTrxTypes, AccountType
 from utils.neon_layouts.balance_account import BalanceAccount
 from utils.neon_layouts.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
 
@@ -33,7 +34,7 @@ def test_assemble_and_allocate_container(
     evm_loader.execute_transaction_steps_from_instruction(
         operator_keypair, treasury_pool, holder_acc, signed_tx, emulate_accounts
     )
-    data_accounts = evm_loader.get_data_accounts(emulate_accounts)
+    data_accounts = evm_loader.filter_neon_accounts_by_type(emulate_accounts, AccountType.STORAGE)
     # assemble container and execute transaction with it
     evm_loader.assemble_container(
         operator=operator_keypair,
@@ -147,7 +148,7 @@ def test_assemble_new_additional_accounts_from_emulation_many_times(
             operator_keypair, treasury_pool, holder_acc, signed_tx, emulate_accounts
         )
 
-        data_accounts = evm_loader.get_data_accounts(emulate_accounts)
+        data_accounts = evm_loader.filter_neon_accounts_by_type(emulate_accounts, AccountType.STORAGE)
         evm_loader.assemble_container(
             operator=operator_keypair,
             treasury=treasury_pool,
@@ -198,7 +199,7 @@ def test_2_parallel_trx_with_container(
     evm_loader.execute_transaction_steps_from_instruction(
         operator_keypair, treasury_pool, holder_acc, signed_tx, emulate_accounts
     )
-    data_accounts = evm_loader.get_data_accounts(emulate_accounts)
+    data_accounts = evm_loader.filter_neon_accounts_by_type(emulate_accounts, AccountType.STORAGE)
     evm_loader.assemble_container(
         operator=operator_keypair,
         treasury=treasury_pool,
@@ -334,7 +335,7 @@ def test_resize_storage_sell_in_container(
     evm_loader.execute_transaction_steps_from_instruction(
         operator_keypair, treasury_pool, holder_acc, signed_trx, additional_accounts
     )
-    data_accounts = evm_loader.get_data_accounts(additional_accounts)
+    data_accounts = evm_loader.filter_neon_accounts_by_type(additional_accounts, AccountType.STORAGE)
     assert len(data_accounts) == 1, "There should be only one data account"
 
     evm_loader.assemble_container(
@@ -385,3 +386,49 @@ def test_deposit_neons_to_account_in_container(
     balance_account = BalanceAccount(balance_data)
 
     assert balance_account.balance == deposit_amount * 10**9, "Balance after deposit is incorrect"
+
+
+def test_limits_of_container_allocation(
+    evm_loader,
+    operator_keypair,
+    treasury_pool,
+    rw_lock_contract_containerized,
+):
+    size = 1024 * 10
+    evm_loader.allocate_container(
+        operator=operator_keypair,
+        treasury=treasury_pool,
+        container_address=rw_lock_contract_containerized.solana_address,
+        size=size,
+    )
+    size = size + 1
+    with pytest.raises(AssertionError, match="Account data reallocation was invalid"):
+        evm_loader.allocate_container(
+            operator=operator_keypair,
+            treasury=treasury_pool,
+            container_address=rw_lock_contract_containerized.solana_address,
+            size=size,
+        )
+
+
+def test_add_wrong_accounts_to_container(
+    evm_loader, operator_keypair, treasury_pool, rw_lock_contract_containerized, sender_with_tokens, holder_acc
+):
+    not_suitable_accounts = [
+        rw_lock_contract_containerized.solana_address,
+        operator_keypair.pubkey(),
+        sender_with_tokens.solana_account_address,
+        holder_acc,
+        treasury_pool.account,
+        evm_loader.loader_id,
+        Keypair().pubkey(),
+    ]
+
+    for account in not_suitable_accounts:
+        with pytest.raises(AssertionError, match=r"not suitable for container|invalid owner"):
+            evm_loader.assemble_container(
+                operator=operator_keypair,
+                treasury=treasury_pool,
+                container_address=rw_lock_contract_containerized.solana_address,
+                accounts=[account],
+            )
