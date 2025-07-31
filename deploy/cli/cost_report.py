@@ -14,6 +14,7 @@ from solana.transaction import Signature
 from deploy.cli.network_manager import NetworkManager
 from deploy.test_results_db.db_handler import PostgresTestResultsHandler
 from deploy.test_results_db.test_results_handler import TestResultsHandler
+from utils.consts import GITHUB_TAG_PATTERN
 from utils.solana_client import SolanaClient
 from utils.types import RepoType
 from utils.web3client import NeonChainWeb3Client
@@ -122,7 +123,6 @@ def get_service_tags_for_cost_reports(
     :param version_branch:
     :return:
     """
-    from clickfile import GITHUB_TAG_PATTERN
 
     compared_service_tag = evm_tag if repo == "evm" else proxy_tag
     other_service_tag = evm_tag if repo == "proxy" else proxy_tag
