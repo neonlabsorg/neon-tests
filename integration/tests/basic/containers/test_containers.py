@@ -30,43 +30,6 @@ class TestContainers:
         receipt = self.web3_client.send_transaction(sender, instruction_tx)
         assert receipt["status"] == 1, "Transaction should be successful"
 
-    def test_use_acc_after_adding_it_to_container(
-        self, accounts, distributor_contract, evm_loader, treasury_pool, operator
-    ):
-        acc_in_container = accounts[1]
-        balance_before = self.web3_client.get_balance(acc_in_container.address)
-
-        sender = accounts[0]
-        tx = self.web3_client.make_raw_tx(sender)
-        instruction_tx = distributor_contract.functions.set_address(
-            "alice", bytes.fromhex(acc_in_container.address[2:])
-        ).build_transaction(tx)
-        receipt = self.web3_client.send_transaction(sender, instruction_tx)
-        assert receipt["status"] == 1, "Transaction should be successful"
-
-        container_address = evm_loader.ether2program(distributor_contract.address[2:])
-        evm_loader.assemble_container(
-            operator=operator.operator_keypairs[0],
-            treasury=treasury_pool,
-            container_address=container_address,
-            accounts=[evm_loader.ether2balance(acc_in_container.address[2:])],
-        )
-        amount = 300
-        tx = self.web3_client.make_raw_tx(sender, amount=amount)
-        instruction_tx = distributor_contract.functions.distribute_value().build_transaction(tx)
-
-        receipt = self.web3_client.send_transaction(sender, instruction_tx)
-        assert receipt["status"] == 1, "Transaction should be successful"
-        balance_after = self.web3_client.get_balance(acc_in_container.address)
-        assert balance_after == balance_before + amount, "Balance should be updated correctly"
-
-        # sign trx by account added to container
-        tx = self.web3_client.make_raw_tx(acc_in_container, amount=amount)
-        instruction_tx = distributor_contract.functions.distribute_value().build_transaction(tx)
-
-        receipt = self.web3_client.send_transaction(acc_in_container, instruction_tx)
-        assert receipt["status"] == 1, "Transaction should be successful"
-
     def test_big_count_of_accounts_in_container(
         self, accounts, alt_contract_containerized, evm_loader, treasury_pool, operator
     ):

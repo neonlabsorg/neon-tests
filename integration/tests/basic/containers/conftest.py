@@ -59,3 +59,8 @@ def alt_contract_containerized(accounts, web3_client, evm_loader, operator, trea
     evm_loader.assemble_container(operator.operator_keypairs[0], treasury_pool, container_address, sol_accounts)
 
     return contract
+
+
+@pytest.fixture(scope="class")
+def account_in_container(alt_contract_containerized, accounts):
+    return accounts[1]  # Assuming the account is the one in the container in alt_contract_containerized
