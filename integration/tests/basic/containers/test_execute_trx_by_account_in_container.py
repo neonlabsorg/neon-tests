@@ -62,15 +62,15 @@ class TestContainerizedAccounts:
         self.web3_client.send_neon(sender_account, to=None, amount=1)
         assert sender_balance > self.web3_client.get_balance(sender_account)
 
-    def test_solana_call_before_iterative_actions_negative_by_acc_in_container(
+    def test_solana_call_before_iterative_actions_by_acc_in_container(
         self,
         counter_resource_address: bytes,
         call_solana_caller,
         account_in_container,
     ):
         sender = account_in_container
-        matrix_lenght = 15
-        matrix = [[random.randint(1, 100) for _ in range(matrix_lenght)] for _ in range(matrix_lenght)]
+        matrix_length = 15
+        matrix = [[random.randint(1, 100) for _ in range(matrix_length)] for _ in range(matrix_length)]
 
         instruction = Instruction(
             program_id=COUNTER_ID,

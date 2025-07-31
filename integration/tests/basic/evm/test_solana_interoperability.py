@@ -595,8 +595,8 @@ class TestSolanaInteroperability:
     ):
         sender = self.accounts[0]
         lamports = 0
-        matrix_lenght = 6
-        matrix = [[random.randint(1, 100) for _ in range(matrix_lenght)] for _ in range(matrix_lenght)]
+        matrix_length = 6
+        matrix = [[random.randint(1, 100) for _ in range(matrix_length)] for _ in range(matrix_length)]
 
         instruction = Instruction(
             program_id=COUNTER_ID,
@@ -631,8 +631,8 @@ class TestSolanaInteroperability:
         """
         sender = self.accounts[0]
         lamports = 0
-        matrix_lenght = 15
-        matrix = [[random.randint(1, 100) for _ in range(matrix_lenght)] for _ in range(matrix_lenght)]
+        matrix_length = 15
+        matrix = [[random.randint(1, 100) for _ in range(matrix_length)] for _ in range(matrix_length)]
 
         instruction = Instruction(
             program_id=COUNTER_ID,
