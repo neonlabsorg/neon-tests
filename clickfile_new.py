@@ -8,35 +8,64 @@ def cli():
     pass
 
 
+class LazyCommand(click.Command):
+    def __init__(self, module_name, attr_name, cmd_name=None):
+        self.module_name = module_name
+        self.attr_name = attr_name
+        self._resolved = None
+        name = cmd_name or attr_name
+        super().__init__(name)
+
+    def _load(self):
+        if self._resolved is None:
+            mod = importlib.import_module(self.module_name)
+            self._resolved = getattr(mod, self.attr_name)
+        return self._resolved
+
+    def invoke(self, ctx):
+        return self._load().invoke(ctx)
+
+    def get_help(self, ctx):
+        return self._load().get_help(ctx)
+
+    def get_params(self, ctx):
+        return self._load().get_params(ctx)
+
+
+class LazyGroup(click.Group):
+    def __init__(self, module_name, attr_name, cmd_name=None):
+        self.module_name = module_name
+        self.attr_name = attr_name
+        self._resolved = None
+        name = cmd_name or attr_name
+        super().__init__(name)
+
+    def _load(self):
+        if self._resolved is None:
+            mod = importlib.import_module(self.module_name)
+            self._resolved = getattr(mod, self.attr_name)
+        return self._resolved
+
+    def get_command(self, ctx, cmd_name):
+        return self._load().get_command(ctx, cmd_name)
+
+    def list_commands(self, ctx):
+        return self._load().list_commands(ctx)
+
+    def invoke(self, ctx):
+        return self._load().invoke(ctx)
+
+    def get_help(self, ctx):
+        return self._load().get_help(ctx)
+
+    def get_params(self, ctx):
+        return self._load().get_params(ctx)
+
+
 def lazy_command(module_name: str, attr_name: str, cmd_name: str = None):
-    """Ленивая регистрация click команды или группы (не импортирует модуль до вызова)"""  # todo
+    """Выбирает, что возвращать: LazyGroup или LazyCommand"""
 
-    def load():
-        mod = importlib.import_module(module_name)
-        return getattr(mod, attr_name)
-
-    class LazyGroup(click.Group):
-        def get_command(self, ctx, cmd_name_):
-            return load().get_command(ctx, cmd_name_)
-
-        def list_commands(self, ctx):
-            return load().list_commands(ctx)
-
-        def invoke(self, ctx):
-            return load().invoke(ctx)
-
-        def get_help(self, ctx):
-            return load().get_help(ctx)
-
-    class LazyCommand(click.Command):
-        def invoke(self, ctx):
-            return load().invoke(ctx)
-
-        def get_help(self, ctx):
-            return load().get_help(ctx)
-
-    # 💡 Make a wrap instead import
-    def resolve_type():
+    def load_type():
         try:
             mod = importlib.import_module(module_name)
             obj = getattr(mod, attr_name)
@@ -44,14 +73,14 @@ def lazy_command(module_name: str, attr_name: str, cmd_name: str = None):
         except Exception:
             return False
 
-    if resolve_type():
-        return LazyGroup(name=cmd_name or attr_name)
+    if load_type():
+        return LazyGroup(module_name, attr_name, cmd_name)
     else:
-        return LazyCommand(name=cmd_name or attr_name)
+        return LazyCommand(module_name, attr_name, cmd_name)
 
 
 cli.add_command(lazy_command("cli.commands.allure", "allure_cli"), name="allure")
-cli.add_command(lazy_command("cli.commands.slack", "send_notification"), name="send_notification")
+cli.add_command(lazy_command("cli.commands.slack", "send_notification"), name="send-notification")
 cli.add_command(lazy_command("cli.commands.infra", "infra"), name="infra")
 cli.add_command(lazy_command("cli.commands.dapps", "dapps"), name="dapps")
 
