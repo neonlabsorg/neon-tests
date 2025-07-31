@@ -89,25 +89,25 @@ jobs:
         if: ${{ env.NETWORK != 'devnet' }}
         id: share
         run: |
-          env_tag=$(python3 ./clickfile.py infra get-stand-param \
+          env_tag=$(python3 ./clickfile_new.py infra get-stand-param \
             --current_branch "${{ github.ref_name }}" \
             --head_branch "${{ github.head_ref }}" \
             --base_branch "${{ github.base_ref }}" \
             --param "evm_tag")
 
-          evm_branch=$(python3 ./clickfile.py infra get-stand-param \
+          evm_branch=$(python3 ./clickfile_new.py infra get-stand-param \
             --current_branch "${{ github.ref_name }}" \
             --head_branch "${{ github.head_ref }}" \
             --base_branch "${{ github.base_ref }}" \
             --param "evm_branch")
 
-          proxy_tag=$(python3 ./clickfile.py infra get-stand-param \
+          proxy_tag=$(python3 ./clickfile_new.py infra get-stand-param \
             --current_branch "${{ github.ref_name }}" \
             --head_branch "${{ github.head_ref }}" \
             --base_branch "${{ github.base_ref }}" \
             --param "proxy_tag")
 
-          proxy_branch=$(python3 ./clickfile.py infra get-stand-param \
+          proxy_branch=$(python3 ./clickfile_new.py infra get-stand-param \
             --current_branch "${{ github.ref_name }}" \
             --head_branch "${{ github.head_ref }}" \
             --base_branch "${{ github.base_ref }}" \
@@ -211,7 +211,7 @@ jobs:
           curl -O https://raw.githubusercontent.com/${{ github.repository_owner }}/neon-evm/${{ needs.share-tags.outputs.evm_branch }}/ci/docker-compose-ci.yml
           docker compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml pull
           docker compose -p ${{env.DOCKER_PROJECT_NAME}} -f docker-compose-ci.yml up -d
-          docker exec -i ${{env.DOCKER_PROJECT_NAME}}-tests-1 bash -c "python3 clickfile.py run evm --numprocesses 12 --network docker_net --case \"${{ github.event.inputs.pytest_k}}\" --marker \"${{ github.event.inputs.pytest_m}}\""
+          docker exec -i ${{env.DOCKER_PROJECT_NAME}}-tests-1 bash -c "python3 clickfile_new.py run evm --numprocesses 12 --network docker_net --case \"${{ github.event.inputs.pytest_k}}\" --marker \"${{ github.event.inputs.pytest_m}}\""
       - name: Set failed test group to evm
         id: step_fail
         if: failure()
@@ -296,7 +296,7 @@ jobs:
       - name: Run basic proxy tests
         timeout-minutes: 120
         run: |
-          CMD="python3 ./clickfile.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }} --case \"${{ github.event.inputs.pytest_k}}\" --marker \"${{ github.event.inputs.pytest_m}}\""
+          CMD="python3 ./clickfile_new.py run basic --network ${{ env.NETWORK }} --numprocesses ${{ env.NUMPROCESSES }} --case \"${{ github.event.inputs.pytest_k}}\" --marker \"${{ github.event.inputs.pytest_m}}\""
 
           if [[ "${{ env.GENERATE_COST_REPORT }}" == "true" ]]; then
             CMD="$CMD --cost_reports_dir reports/cost_reports"
@@ -321,7 +321,7 @@ jobs:
         if: ${{ env.GENERATE_COST_REPORT == 'true' }}
         run: |
           docker exec -i -e NETWORK=${{ env.NETWORK }} ${{ env.CONTAINER }} \
-            python3 ./clickfile.py dapps save_dapps_cost_report_to_md \
+            python3 ./clickfile_new.py dapps save_dapps_cost_report_to_md \
             --directory reports/cost_reports && \
           docker exec -i ${{ env.CONTAINER }} cat cost_reports.md >> $GITHUB_STEP_SUMMARY
       - name: "Generate allure report"
@@ -430,7 +430,7 @@ jobs:
           proxy_tests="${{ needs.run-proxy-tests.outputs.test-group }}"
           evm_tests="${{ needs.run-evm-tests.outputs.test-group }}"
           FAILED_TEST_GROUP="${proxy_tests:-evm_tests}"
-          python3 ./reports_cli.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
+          python3 ./clickfile_new.py send-notification -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
           -b ${{ env.BUILD_URL }} \
           --network ${{ env.NETWORK }} \
           --test-group $FAILED_TEST_GROUP \
