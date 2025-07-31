@@ -131,7 +131,7 @@ jobs:
       - name: Notify on failure
         id: notification
         run: |
-          python3 ./reports_cli.py send-notification \
+          python3 ./clickfile.py send-notification \
           --network ${{ env.NETWORK }} \
           -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
           -b ${{ env.BUILD_URL }} \
