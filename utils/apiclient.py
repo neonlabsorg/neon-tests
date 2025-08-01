@@ -70,10 +70,9 @@ class JsonRPCSession(Session):
     def send_neon_scheduled_transaction(self, trx_hash) -> tp.Dict:
         return self.send_rpc("neon_sendRawScheduledTransaction", params=[trx_hash])
 
-
-def wait_finalized_block(rpc_client: JsonRPCSession, block_num: int):
-    fin_block_num = block_num - 32
-    while block_num > fin_block_num:
-        time.sleep(1)
-        response = rpc_client.send_rpc("neon_finalizedBlockNumber", [])
-        fin_block_num = int(response["result"], 16)
+    def wait_finalized_block(self, block_num: int):
+        fin_block_num = block_num - 32
+        while block_num > fin_block_num:
+            time.sleep(1)
+            response = self.send_rpc("neon_finalizedBlockNumber", [])
+            fin_block_num = int(response["result"], 16)

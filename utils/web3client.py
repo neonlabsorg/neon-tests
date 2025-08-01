@@ -12,6 +12,7 @@ import requests
 import web3.types
 from eth_abi import abi
 from eth_typing import BlockIdentifier
+from hexbytes import HexBytes
 from solders.instruction import Instruction
 from solders.pubkey import Pubkey
 from web3.contract import Contract
@@ -568,6 +569,11 @@ class Web3Client:
         max_priority_fee_per_gas = max_fee_per_gas - base_fee_per_gas
         return max_priority_fee_per_gas, max_fee_per_gas
 
+    def get_neon_trx_receipt(self, trx_hash: str | HexBytes) -> dict:
+        if isinstance(trx_hash, HexBytes):
+            trx_hash = trx_hash.hex()
+        return self.json_rpc_client.get_neon_trx_receipt(trx_hash)
+
     @allure.step("Check if transaction is iterative")
     def is_trx_iterative(self, trx_hash: str) -> bool:
         response = self.json_rpc_client.get_neon_trx_receipt(trx_hash)
@@ -657,8 +663,11 @@ class Web3Client:
         if preparatory_solana_instructions:
             instructions = self._pack_preparatory_solana_instructions(preparatory_solana_instructions)
             params["preparatorySolanaTransactions"] = [{"instructions": instructions}]
-
-        return self.json_rpc_client.get_neon_estimate_gas(raw_tx, params)["result"]
+        response = self.json_rpc_client.get_neon_estimate_gas(raw_tx, params)
+        if "result" in response:
+            return response["result"]
+        else:
+            return response["error"]
 
 
 class NeonChainWeb3Client(Web3Client):
