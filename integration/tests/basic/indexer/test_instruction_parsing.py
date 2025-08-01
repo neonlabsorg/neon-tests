@@ -1,6 +1,4 @@
 import pytest
-from solana.transaction import AccountMeta, Instruction
-
 import allure
 from solders.pubkey import Pubkey
 
@@ -13,6 +11,7 @@ from integration.tests.economy.const import BIG_STRING
 from utils.accounts import EthAccounts
 from utils.consts import COUNTER_ID
 from utils.helpers import gen_hash_of_block, generate_text, serialize_instruction
+from utils.instructions import make_increment_counter
 from utils.models.result import NeonGetTransactionResult
 from utils.solana_client import SolanaClient
 from utils.web3client import NeonChainWeb3Client
@@ -52,17 +51,11 @@ class TestInstruction:
         assert "CancelWithHash" in count_instructions(validated_response).keys()
         assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
-    def test_tx_exec_from_data_solana_call(self, call_solana_caller, counter_resource_address: bytes, json_rpc_client):
+    def test_tx_exec_from_data_solana_call(self, call_solana_caller, counter_resource_address: Pubkey, json_rpc_client):
         sender = self.accounts[0]
         lamports = 0
 
-        instruction = Instruction(
-            program_id=COUNTER_ID,
-            accounts=[
-                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
-            ],
-            data=bytes([0x1]),
-        )
+        instruction = make_increment_counter(counter_resource_address)
         serialized = serialize_instruction(COUNTER_ID, instruction)
 
         tx = self.web3_client.make_raw_tx(sender.address)
@@ -131,27 +124,20 @@ class TestInstruction:
         instruction_tx = counter_contract.functions.bigStringIterative(BIG_STRING).build_transaction(tx)
 
         resp = self.web3_client.send_transaction(sender_account, instruction_tx)
-        response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"])
+        response = json_rpc_client.get_neon_trx_receipt(resp["transactionHash"].hex())
         validated_response = NeonGetTransactionResult(**response)
         assert_instructions(validated_response)
         assert "TxStepFromAccount" in count_instructions(validated_response).keys()
         assert_solana_trxs_in_neon_receipt(json_rpc_client, resp["transactionHash"], validated_response)
 
     def test_tx_exec_from_account_solana_call(
-        self, call_solana_caller, counter_resource_address: bytes, json_rpc_client
+        self, call_solana_caller, counter_resource_address: Pubkey, json_rpc_client
     ):
         sender = self.accounts[0]
         call_params = []
-
+        instruction = make_increment_counter(counter_resource_address)
+        serialized = serialize_instruction(COUNTER_ID, instruction)
         for _ in range(10):
-            instruction = Instruction(
-                program_id=COUNTER_ID,
-                accounts=[
-                    AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
-                ],
-                data=bytes([0x1]),
-            )
-            serialized = serialize_instruction(COUNTER_ID, instruction)
             call_params.append((0, serialized))
 
         tx = self.web3_client.make_raw_tx(sender.address)

@@ -273,7 +273,6 @@ class TestScheduledTrx:
         neon_user,
         treasury_pool,
         evm_loader,
-        json_rpc_client,
     ):
         contract, _ = block_timestamp_contract
         trx_count = 4
@@ -347,7 +346,7 @@ class TestScheduledTrx:
             evm_loader.create_tree_account_multiple(neon_user, treasury_pool, tree_acc_data.data)
 
     def test_long_chain_iterative_scheduled_trx(
-        self, web3_client_sol, neon_user, treasury_pool, evm_loader, json_rpc_client, counter_contract
+        self, web3_client_sol, neon_user, treasury_pool, evm_loader, counter_contract
     ):
         total_trx_count = 8
 
