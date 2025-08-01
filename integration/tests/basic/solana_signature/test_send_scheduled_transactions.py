@@ -319,7 +319,7 @@ class TestScheduledTrx:
         contract, _ = block_timestamp_contract
 
         nonce = web3_client_sol.get_nonce(neon_user.checksum_address)
-        call_data = decode_function_signature("addDataToMapping(uint256,uint256)", [1, 2])
+        call_data = decode_function_signature("addDataToMapping(uint256,uint256,uint256)", [1, 2, 20])
         gas_limit = 3000
         max_priority_fee_per_gas = BASE_MAX_PRIORITY_FEE
         max_fee_per_gas = web3_client_sol.get_max_fee_per_gas()
