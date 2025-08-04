@@ -9,7 +9,7 @@ from solders.pubkey import Pubkey
 from spl.token.constants import ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address
 
-from utils.consts import COMPUTE_BUDGET_ID, InstructionTags
+from utils.consts import COMPUTE_BUDGET_ID, InstructionTags, COUNTER_ID
 from utils.types import TreasuryPool
 from .logger import log_text_to_allure_and_stdout
 from .metaplex import SYSVAR_RENT_PUBKEY
@@ -591,4 +591,14 @@ def make_container_allocate(
             AccountMeta(pubkey=sp.ID, is_signer=False, is_writable=False),
             AccountMeta(pubkey=container_address, is_signer=False, is_writable=True),
         ],
+    )
+
+
+def make_increment_counter(counter_resource_address: Pubkey) -> Instruction:
+    return Instruction(
+        program_id=COUNTER_ID,
+        accounts=[
+            AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
+        ],
+        data=bytes([0x1]),
     )
