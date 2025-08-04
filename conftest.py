@@ -303,10 +303,8 @@ def bank_account(pytestconfig: Config) -> Generator[Keypair | None, None, None]:
 
 @pytest.fixture(scope="session")
 def faucet_refund_account(pytestconfig: Config):
-    account = None
     if "devnet" in pytestconfig.getoption("--network"):
-        account = os.environ.get("FAUCET_REFUND_ADDRESS")
-    return account
+        return os.environ.get("FAUCET_REFUND_ADDRESS")
 
 
 @pytest.fixture(scope="session")
