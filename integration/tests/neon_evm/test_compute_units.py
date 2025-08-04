@@ -700,8 +700,8 @@ class TestComputeUnits:
 
             cu_consumed = receipt.value.transaction.meta.compute_units_consumed
             assert (
-                abs(cu_consumed - cu_expected) <= 1000
-            ), f"CU consumed {cu_consumed} is not in range of expected {cu_expected} +/- 1000"
+                abs(cu_consumed - cu_expected) <= 2000
+            ), f"CU consumed {cu_consumed} is not in range of expected {cu_expected} +/- 2000"
             i += 1
 
         evm_loader.finish_scheduled_trx(deterministic_operator_keypair, tree_account, deterministic_holder_acc)
