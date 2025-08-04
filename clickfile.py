@@ -86,6 +86,7 @@ cli.add_command(command("cli.commands.dapps", "dapps"), name="dapps")
 cli.add_command(command("cli.commands.common", "oz"), name="oz")
 cli.add_command(command("cli.commands.common", "run"), name="run")
 cli.add_command(command("cli.commands.common", "requirements"), name="requirements")
+cli.add_command(command("cli.commands.common", "update_contracts"), name="update-contracts")
 
 cli.add_command(command("cli.commands.load", "locust"), name="locust")
 cli.add_command(command("cli.commands.load", "k6"), name="k6")
