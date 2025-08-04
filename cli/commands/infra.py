@@ -6,7 +6,6 @@ import click
 import requests
 from deploy.cli import infrastructure
 from deploy.cli.network_manager import NetworkManager
-from utils import web3client
 from utils.consts import EnvName
 
 DOCKER_HUB_ORG_NAME = os.environ.get("DOCKER_HUB_ORG_NAME")
@@ -125,17 +124,17 @@ def print_network_param(network, param):
     print(network_manager.get_network_param(network, param))
 
 
-infra.add_command(prepare_accounts, "gen-accounts")
-infra.add_command(print_network_param, "print-network-param")
-
-
 @click.command(help="Get proxy version for the specified network")
 @click.option("-n", "--network", type=click.Choice(EnvName), help="Network name")
 def get_stand_proxy_version(network: EnvName):
     network_manager = NetworkManager()
     settings = network_manager.get_network_object(network.value)
-    web3_client = web3client.NeonChainWeb3Client(settings["proxy_url"])
-    response = web3_client.get_proxy_version()
-
+    body = {"jsonrpc": "2.0", "method": "neon_proxyVersion", "id": 1}
+    response = requests.post(settings["proxy_url"], json=body).json()
     match = re.search(r"v\d+\.\d+\.\d+", response["result"])
     print(match.group(0))
+
+
+infra.add_command(prepare_accounts, "gen-accounts")
+infra.add_command(print_network_param, "print-network-param")
+infra.add_command(get_stand_proxy_version, "get-stand-proxy-version")

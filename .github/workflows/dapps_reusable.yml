@@ -110,7 +110,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Install python requirements
         id: requirements
-        uses: ./.github/actions/dapps-requirements
+        uses: ./.github/actions/python-requirements
 
       - name: Prepare accounts
         id: accounts
@@ -167,7 +167,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Install python requirements
         id: requirements
-        uses: ./.github/actions/dapps-requirements
+        uses: ./.github/actions/python-requirements
 
       - name: Prepare accounts
         id: accounts
@@ -223,7 +223,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Install python requirements
         id: requirements
-        uses: ./.github/actions/dapps-requirements
+        uses: ./.github/actions/python-requirements
 
       - name: Prepare accounts
         id: accounts
@@ -280,7 +280,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Install python requirements
         id: requirements
-        uses: ./.github/actions/dapps-requirements
+        uses: ./.github/actions/python-requirements
 
       - name: Prepare accounts
         id: accounts
@@ -331,7 +331,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Install python requirements
         id: requirements
-        uses: ./.github/actions/dapps-requirements
+        uses: ./.github/actions/python-requirements
 
       - name: Prepare accounts
         id: accounts
@@ -382,7 +382,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Install python requirements
         id: requirements
-        uses: ./.github/actions/dapps-requirements
+        uses: ./.github/actions/python-requirements
 
       - name: Prepare accounts
         id: accounts
@@ -433,7 +433,7 @@ jobs:
           ref: develop
       - name: Install python requirements
         id: requirements
-        uses: ./.github/actions/dapps-requirements
+        uses: ./.github/actions/python-requirements
 
       - name: Run deployment
         timeout-minutes: 10
@@ -470,7 +470,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Install python requirements
         id: requirements
-        uses: ./.github/actions/dapps-requirements
+        uses: ./.github/actions/python-requirements
 
       - name: Prepare accounts
         id: accounts
@@ -527,7 +527,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Install python requirements
         id: requirements
-        uses: ./.github/actions/dapps-requirements
+        uses: ./.github/actions/python-requirements
 
       - name: Prepare accounts
         id: accounts
@@ -581,7 +581,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Install python requirements
         id: requirements
-        uses: ./.github/actions/dapps-requirements
+        uses: ./.github/actions/python-requirements
 
       - name: Prepare accounts
         id: accounts
@@ -638,7 +638,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Install python requirements
         id: requirements
-        uses: ./.github/actions/dapps-requirements
+        uses: ./.github/actions/python-requirements
 
       - name: Prepare accounts
         id: accounts
@@ -695,7 +695,9 @@ jobs:
         uses: ksivamuthu/actions-setup-gh-cli@v3
       - name: Install python requirements
         id: requirements
-        uses: ./.github/actions/dapps-requirements
+        uses: ./.github/actions/python-requirements
+        with:
+          scope: cost-report
       - uses: actions/download-artifact@v4
         continue-on-error: true
         with:

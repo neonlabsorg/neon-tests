@@ -10,8 +10,6 @@ from utils.error_log import error_log
 from utils.slack_notification import SlackNotification
 from utils.types import TestGroup
 
-ALLURE_REPORT_URL = "allure_report.url"
-
 
 @click.command(help="Send notification to slack")
 @click.option("-u", "--url", help="slack app endpoint url.")

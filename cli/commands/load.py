@@ -63,7 +63,7 @@ locust_credentials = click.option(
 locust_host = click.option(
     "-h",
     "--host",
-    default=EnvName.LOCAL,
+    default=EnvName.LOCAL.value,
     type=str,
     help="In which stand run tests.",
     show_default=True,
@@ -207,7 +207,8 @@ def run_load(credentials, host, users, spawn_rate, run_time, tag, web_ui, locust
 
     path it's sub-folder and file name  `loadtesting/locustfile.py`.
     """
-    base_path = Path(__file__).parent
+    base_path = Path(__file__).parent.parent.parent
+
     path = base_path / f"loadtesting/{locustfile}/locustfile.py"
     if not (path.exists() and path.is_file()):
         raise FileNotFoundError(f"path doe's not exists. {path.resolve()}")
@@ -240,7 +241,7 @@ def run_load(credentials, host, users, spawn_rate, run_time, tag, web_ui, locust
 @locust_tags
 def prepare(credentials, host, users, spawn_rate, run_time, tag):
     """Run `Preparation stage` for trace api performance test"""
-    base_path = Path(__file__).parent
+    base_path = Path(__file__).parent.parent.parent
     path = base_path / "loadtesting/tracerapi/prepare_data/locustfile.py"
     if not (path.exists() and path.is_file()):
         raise FileNotFoundError(f"path doe's not exists. {path.resolve()}")

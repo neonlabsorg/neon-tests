@@ -8,7 +8,7 @@ def cli():
     pass
 
 
-class LazyCommand(click.Command):
+class Command(click.Command):
     def __init__(self, module_name, attr_name, cmd_name=None):
         self.module_name = module_name
         self.attr_name = attr_name
@@ -32,7 +32,7 @@ class LazyCommand(click.Command):
         return self._load().get_params(ctx)
 
 
-class LazyGroup(click.Group):
+class Group(click.Group):
     def __init__(self, module_name, attr_name, cmd_name=None):
         self.module_name = module_name
         self.attr_name = attr_name
@@ -62,8 +62,7 @@ class LazyGroup(click.Group):
         return self._load().get_params(ctx)
 
 
-def lazy_command(module_name: str, attr_name: str, cmd_name: str = None):
-    """Выбирает, что возвращать: LazyGroup или LazyCommand"""
+def command(module_name: str, attr_name: str, cmd_name: str = None):
 
     def load_type():
         try:
@@ -74,22 +73,22 @@ def lazy_command(module_name: str, attr_name: str, cmd_name: str = None):
             return False
 
     if load_type():
-        return LazyGroup(module_name, attr_name, cmd_name)
+        return Group(module_name, attr_name, cmd_name)
     else:
-        return LazyCommand(module_name, attr_name, cmd_name)
+        return Command(module_name, attr_name, cmd_name)
 
 
-cli.add_command(lazy_command("cli.commands.allure", "allure_cli"), name="allure")
-cli.add_command(lazy_command("cli.commands.slack", "send_notification"), name="send-notification")
-cli.add_command(lazy_command("cli.commands.infra", "infra"), name="infra")
-cli.add_command(lazy_command("cli.commands.dapps", "dapps"), name="dapps")
+cli.add_command(command("cli.commands.allure", "allure_cli"), name="allure")
+cli.add_command(command("cli.commands.slack", "send_notification"), name="send-notification")
+cli.add_command(command("cli.commands.infra", "infra"), name="infra")
+cli.add_command(command("cli.commands.dapps", "dapps"), name="dapps")
 
-cli.add_command(lazy_command("cli.commands.common", "oz"), name="oz")
-cli.add_command(lazy_command("cli.commands.common", "run"), name="run")
-cli.add_command(lazy_command("cli.commands.common", "requirements"), name="requirements")
+cli.add_command(command("cli.commands.common", "oz"), name="oz")
+cli.add_command(command("cli.commands.common", "run"), name="run")
+cli.add_command(command("cli.commands.common", "requirements"), name="requirements")
 
-cli.add_command(lazy_command("cli.commands.load", "locust"), name="locust")
-cli.add_command(lazy_command("cli.commands.load", "k6"), name="k6")
+cli.add_command(command("cli.commands.load", "locust"), name="locust")
+cli.add_command(command("cli.commands.load", "k6"), name="k6")
 
 if __name__ == "__main__":
     cli()

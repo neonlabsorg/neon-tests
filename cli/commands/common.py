@@ -10,31 +10,28 @@ import subprocess
 import sys
 import time
 import typing as tp
-from multiprocessing.dummy import Pool
 from pathlib import Path
-
-import pytest
-
+import click
 from utils.consts import EnvName, TEST_GROUPS, EXTERNAL_CONTRACT_PATH
-from utils.evm_loader import EvmLoader
+from utils.error_log import error_log
 from utils.types import TestGroup
 
-import click
-import requests
-import tabulate
-import yaml
+try:
+    import pytest
+    import tabulate
 
-from deploy.cli.network_manager import NetworkManager
-from utils.error_log import error_log
-from utils import create_allure_environment_opts, time_measure
-from deploy.cli import infrastructure
-from utils import web3client
-from utils.operator import Operator
-from utils.prices import get_sol_price_with_retry
-from utils.helpers import wait_condition
-from utils.apiclient import JsonRPCSession
-
-ALLURE_REPORT_URL = "allure_report.url"
+    from multiprocessing.dummy import Pool
+    from utils.evm_loader import EvmLoader
+    from deploy.cli.network_manager import NetworkManager
+    from utils import create_allure_environment_opts, time_measure
+    from deploy.cli import infrastructure
+    from utils import web3client
+    from utils.operator import Operator
+    from utils.prices import get_sol_price_with_retry
+    from utils.helpers import wait_condition
+    from utils.apiclient import JsonRPCSession
+except ImportError:
+    print("Please run ./clickfile.py requirements to install all requirements")
 
 ERR_MESSAGES = {
     "run": "Unsuccessful tests executing",
@@ -54,11 +51,7 @@ HOME_DIR = Path(__file__).absolute().parent
 
 OZ_BALANCES = "./compatibility/results/oz_balance.json"
 DOCKER_HUB_ORG_NAME = os.environ.get("DOCKER_HUB_ORG_NAME")
-NEON_EVM_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-evm"
 HOODIES_CHAINLINK_GITHUB_URL = "https://github.com/hoodieshq/chainlink-neon"
-PROXY_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-proxy.py"
-FAUCET_GITHUB_URL = f"https://api.github.com/repos/{DOCKER_HUB_ORG_NAME}/neon-faucet"
-VERSION_BRANCH_TEMPLATE = r"[vt]{1}\d{1,2}\.\d{1,2}\.x.*"
 
 
 def green(s):
@@ -342,12 +335,7 @@ def wait_for_tracer_service(network: str):
 
 
 def install_python_requirements():
-    command = (
-        "uv pip install --upgrade "
-        "-r deploy/requirements/click.txt "
-        "-r deploy/requirements/prod.txt  "
-        "-r deploy/requirements/devel.txt"
-    )
+    command = "uv pip install --upgrade " "-r deploy/requirements/tests.txt "
     subprocess.check_call(command, shell=True)
 
 
@@ -393,39 +381,6 @@ def requirements(dep):
         install_ui_requirements()
 
 
-def is_image_exist(image, tag):
-    response = requests.get(
-        url=f"https://registry.hub.docker.com/v2/repositories/{DOCKER_HUB_ORG_NAME}/{image}/tags/{tag}"
-    )
-    return response.status_code == 200
-
-
-def is_branch_exist(endpoint, branch):
-    if branch:
-        response = requests.get(f"{endpoint}/branches/{branch}")
-        if response.status_code == 200:
-            return True
-    else:
-        return False
-
-
-def get_evm_pinned_version(branch):
-    click.echo(f"Get pinned version for proxy branch {branch}")
-    resp = requests.get(f"{PROXY_GITHUB_URL}/contents/.github/workflows/pipeline.yml?ref={branch}")
-
-    if resp.status_code != 200:
-        click.echo(f"Can't get pipeline file for {PROXY_GITHUB_URL}: {resp.text}")
-        raise click.ClickException(f"Can't get pipeline file for branch {branch}")
-    info = resp.json()
-    pipeline_file = yaml.safe_load(requests.get(info["download_url"]).text)
-    tag = pipeline_file["env"]["DEFAULT_NEON_EVM_TAG"]
-    if tag == "latest":
-        return "develop"
-    if re.match(r"[vt]{1}\d{1,2}\.\d{1,2}.*", tag) is not None:
-        tag = re.sub(r"\.\d+$", ".x", tag)
-    return tag
-
-
 def update_contracts_from_git(git_url: str, local_dir_name: str, branch="develop", update_npm: bool = True):
     download_path = EXTERNAL_CONTRACT_PATH / local_dir_name
     click.echo(f"Downloading contracts from {git_url} {branch}")
@@ -462,7 +417,7 @@ def update_contracts(branch, with_uniswap):
         update_contracts_from_git("https://github.com/neonlabsorg/Uniswap-V3-NEON.git", "uniswap-v3", branch="main")
 
         # we replace init_code_hash of a contracts/external/uniswap-v3/contracts/UniswapV3Pool.sol
-        # it is calculated for python solc compiler and it is different from uniswap-v3 repository
+        # it is calculated for python solc compiler, and it is different from uniswap-v3 repository
         # to calculate this hash you can use the method:
         #     function getPoolInitCodeHash() public returns (bytes32) {
         #       return keccak256(type(UniswapV3Pool).creationCode);
@@ -657,15 +612,3 @@ def analyze_openzeppelin_results():
             )
         else:
             print("OpenZeppelin tests passed")
-
-
-@click.command(help="Get proxy version for the specified network")
-@click.option("-n", "--network", type=click.Choice(EnvName), help="Network name")
-def get_stand_proxy_version(network: EnvName):
-    network_manager = NetworkManager()
-    settings = network_manager.get_network_object(network.value)
-    web3_client = web3client.NeonChainWeb3Client(settings["proxy_url"])
-    response = web3_client.get_proxy_version()
-
-    match = re.search(r"v\d+\.\d+\.\d+", response["result"])
-    print(match.group(0))
