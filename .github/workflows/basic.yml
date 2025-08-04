@@ -153,7 +153,6 @@ jobs:
     runs-on: ["gha-runner-scale-set"]
     needs:
       - share-tags
-    if: always()
     steps:
       - uses: actions/checkout@v4
       - name: "Prepare terraform stand"
