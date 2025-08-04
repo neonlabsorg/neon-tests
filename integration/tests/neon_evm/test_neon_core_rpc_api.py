@@ -101,7 +101,7 @@ def test_emulate_call_contract_with_block_timestamp_number(
     result = neon_rpc_client.emulate_contract_call(
         session_user.eth_address.hex(),
         contract=contract.eth_address.hex(),
-        function_signature="addDataToMapping(uint256,uint256,uint256",
+        function_signature="addDataToMapping(uint256,uint256,uint256)",
         params=[1, 2, 20],
     )
 
