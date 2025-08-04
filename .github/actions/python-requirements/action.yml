@@ -6,10 +6,10 @@ inputs:
     description: 'Working directory for the commands'
     required: false
     default: '.'
-    scope:
-        description: 'Name of a file that contains the requirements'
-        required: false
-        default: 'click'
+  scope:
+      description: 'Name of a file that contains the requirements'
+      required: false
+      default: 'click'
 
 runs:
   using: composite
