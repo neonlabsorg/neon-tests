@@ -16,22 +16,20 @@ from utils.consts import EnvName, TEST_GROUPS, EXTERNAL_CONTRACT_PATH
 from utils.error_log import error_log
 from utils.types import TestGroup
 
-try:
-    import pytest
-    import tabulate
 
-    from multiprocessing.dummy import Pool
-    from utils.evm_loader import EvmLoader
-    from deploy.cli.network_manager import NetworkManager
-    from utils import create_allure_environment_opts, time_measure
-    from deploy.cli import infrastructure
-    from utils import web3client
-    from utils.operator import Operator
-    from utils.prices import get_sol_price_with_retry
-    from utils.helpers import wait_condition
-    from utils.apiclient import JsonRPCSession
-except ImportError:
-    print("Please run ./clickfile.py requirements to install all requirements")
+import pytest
+import tabulate
+
+from multiprocessing.dummy import Pool
+from utils.evm_loader import EvmLoader
+from deploy.cli.network_manager import NetworkManager
+from utils import create_allure_environment_opts, time_measure
+from deploy.cli import infrastructure
+from utils import web3client
+from utils.operator import Operator
+from utils.prices import get_sol_price_with_retry
+from utils.helpers import wait_condition
+from utils.apiclient import JsonRPCSession
 
 ERR_MESSAGES = {
     "run": "Unsuccessful tests executing",
