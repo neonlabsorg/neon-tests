@@ -64,7 +64,7 @@ class TestContainerizedAccounts:
 
     def test_solana_call_before_iterative_actions_by_acc_in_container(
         self,
-        counter_resource_address: bytes,
+        counter_resource_address: Pubkey,
         call_solana_caller,
         account_in_container,
     ):
@@ -75,7 +75,7 @@ class TestContainerizedAccounts:
         instruction = Instruction(
             program_id=COUNTER_ID,
             accounts=[
-                AccountMeta(Pubkey(counter_resource_address), is_signer=False, is_writable=True),
+                AccountMeta(counter_resource_address, is_signer=False, is_writable=True),
             ],
             data=bytes([0x1]),
         )
