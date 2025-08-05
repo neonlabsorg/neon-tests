@@ -360,25 +360,6 @@ def install_ui_requirements():
     subprocess.check_call("playwright install chromium", shell=True)
 
 
-@click.command(help="Install neon-tests dependencies")
-@click.option(
-    "-d",
-    "--dep",
-    default="devel",
-    type=click.Choice(["devel", "python", "ui", "all"]),
-    help="Which deps install",
-)
-@catch_traceback
-def requirements(dep):
-    if dep in ["devel", "python"]:
-        install_python_requirements()
-    if dep == "ui":
-        install_ui_requirements()
-    if dep == "all":
-        install_python_requirements()
-        install_ui_requirements()
-
-
 def update_contracts_from_git(git_url: str, local_dir_name: str, branch="develop", update_npm: bool = True):
     download_path = EXTERNAL_CONTRACT_PATH / local_dir_name
     click.echo(f"Downloading contracts from {git_url} {branch}")
