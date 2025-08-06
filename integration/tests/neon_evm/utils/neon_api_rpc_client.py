@@ -1,7 +1,10 @@
+from typing import Tuple
+
 import allure
 import eth_abi
 from eth_utils import abi
 from requests import Response, Session
+from solders.instruction import Instruction
 from solders.pubkey import Pubkey
 
 from utils.models.tree_account import TreeAccount
@@ -78,7 +81,6 @@ class NeonApiRpcClient:
     def emulate_contract_call(
         self, sender, contract, function_signature, params=None, value=0, trace_config=None
     ) -> Response:
-
         data = abi.function_signature_to_4byte_selector(function_signature)
         if isinstance(value, int):
             value = hex(value)
@@ -114,10 +116,24 @@ class NeonApiRpcClient:
         return self._make_request("config", params)
 
     @allure.step("Simulate Solana transaction")
-    def simulate_solana(self, blockhash: str, transactions: list[str], solana_overrides_params=None) -> Response:
+    def simulate_solana(self, instructions: Tuple[Instruction, ...], solana_overrides_params=None) -> dict:
+        instruction_list = []
+        for instr in instructions:
+            instruction_list.append(
+                {
+                    "program_id": str(instr.program_id),
+                    "accounts": [
+                        {"pubkey": str(acc.pubkey), "is_signer": acc.is_signer, "is_writable": acc.is_writable}
+                        for acc in instr.accounts
+                    ],
+                    "data": instr.data.hex().upper(),
+                }
+            )
+
         params = {
-            "blockhash": blockhash,
-            "transactions": transactions,
+            # "compute_units": 1400000,
+            # "heap_size": 262144,
+            "instructions": instruction_list,
             "solana_overrides": solana_overrides_params,
         }
         return self._make_request("simulate_solana", params)
