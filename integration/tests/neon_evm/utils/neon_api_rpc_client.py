@@ -62,7 +62,7 @@ class NeonApiRpcClient:
         max_steps_to_execute=500000,
         provide_account_info=None,
         trace_config=None,
-    ) -> Response:
+    ) -> dict:
         if not chain_id:
             chain_id = self.chain_id
 
@@ -80,7 +80,7 @@ class NeonApiRpcClient:
     @allure.step("Emulate contract call")
     def emulate_contract_call(
         self, sender, contract, function_signature, params=None, value=0, trace_config=None
-    ) -> Response:
+    ) -> dict:
         data = abi.function_signature_to_4byte_selector(function_signature)
         if isinstance(value, int):
             value = hex(value)
