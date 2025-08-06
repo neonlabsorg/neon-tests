@@ -1,9 +1,10 @@
+import json
 from typing import Tuple
 
 import allure
 import eth_abi
 from eth_utils import abi
-from requests import Response, Session
+from requests import Session
 from solders.instruction import Instruction
 from solders.pubkey import Pubkey
 
@@ -33,24 +34,26 @@ class NeonApiRpcClient:
             "method": method,
             "params": params if isinstance(params, list) else [params],
         }
+        log_text_to_allure_and_stdout("Making request to Neon API", str(body))
         response = self.session.post(url=self.url, json=body)
         response.raise_for_status()
 
         resp_data = response.json()
+        log_text_to_allure_and_stdout("Response from Neon API", str(resp_data))
         if "result" in resp_data:
             return resp_data["result"]
 
         return resp_data["error"]
 
-    def get_storage_at(self, contract, index="0x0") -> Response:
+    def get_storage_at(self, contract, index="0x0") -> json:
         params = {"contract": contract, "index": index}
         return self._make_request("get_storage_at", params)
 
-    def get_balance(self, ether: str, chain_id: str | None = None) -> Response:
+    def get_balance(self, ether: str, chain_id: str | None = None) -> json:
         if not chain_id:
             chain_id = self.chain_id
         params = {"account": [{"address": ether, "chain_id": chain_id}]}
-        return self._make_request("balance", params)
+        return self._make_request("balance", params)[0]
 
     @allure.step("Emulate transaction")
     def emulate(
@@ -63,7 +66,7 @@ class NeonApiRpcClient:
         max_steps_to_execute=500000,
         provide_account_info=None,
         trace_config=None,
-    ) -> dict:
+    ) -> json:
         if not chain_id:
             chain_id = self.chain_id
 
@@ -81,7 +84,7 @@ class NeonApiRpcClient:
     @allure.step("Emulate contract call")
     def emulate_contract_call(
         self, sender, contract, function_signature, params=None, value=0, trace_config=None
-    ) -> dict:
+    ) -> json:
         data = abi.function_signature_to_4byte_selector(function_signature)
         if isinstance(value, int):
             value = hex(value)
@@ -104,20 +107,20 @@ class NeonApiRpcClient:
         else:
             raise ValueError(f"Emulation failed: {result}")
 
-    def get_contract(self, address) -> Response:
+    def get_contract(self, address) -> json:
         params = {"contract": address}
         return self._make_request("contract", params)
 
-    def get_holder(self, pubkey: Pubkey) -> Response:
+    def get_holder(self, pubkey: Pubkey) -> json:
         params = {"pubkey": str(pubkey)}
         return self._make_request("holder", params)
 
-    def get_config(self) -> Response:
+    def get_config(self) -> json:
         params = {}
         return self._make_request("config", params)
 
     @allure.step("Simulate Solana transaction")
-    def simulate_solana(self, instructions: Tuple[Instruction, ...], accounts_overrides=None) -> dict:
+    def simulate_solana(self, instructions: Tuple[Instruction, ...], accounts_overrides=None) -> json:
         instruction_list = []
         for instr in instructions:
             instruction_list.append(
@@ -137,9 +140,7 @@ class NeonApiRpcClient:
             "instructions": instruction_list,
             "accounts_overrides": accounts_overrides,
         }
-        resp = self._make_request("simulate_solana", params)
-        log_text_to_allure_and_stdout("Simulate Solana response", str(resp))
-        return resp
+        return self._make_request("simulate_solana", params)
 
     def call_contract_get_function(self, sender, contract, function_signature: str, args=None):
         data = abi.function_signature_to_4byte_selector(function_signature)
@@ -165,3 +166,14 @@ class NeonApiRpcClient:
         body = {"jsonrpc": "2.0", "id": 1, "method": "transaction_tree", "params": [params]}
         response = self.session.post(url=self.url, json=body).json()
         return TreeAccount.from_dict(response)
+
+    def get_container_accounts(self, pubkey: Pubkey) -> json:
+        params = {"pubkey": str(pubkey)}
+        return self._make_request("container", params)["accounts"]
+
+    def get_account_data_from_container(self, container_pubkey: Pubkey, account_pubkey: Pubkey) -> bytes | None:
+        all_accounts = self.get_container_accounts(container_pubkey)
+        for account in all_accounts:
+            if account["pubkey"] == str(account_pubkey):
+                return bytes.fromhex(account["data"])
+        return None
