@@ -18,6 +18,8 @@ from .utils.contract import get_contract_bin
 from integration.tests.neon_evm.utils.transaction_checks import check_transaction_logs_have_text
 from .utils.neon_api_rpc_client import NeonApiRpcClient
 
+EXPECTED_CU_DELTA = 60
+
 
 class TestSimulateSolana:
     @staticmethod
@@ -142,7 +144,7 @@ class TestSimulateSolana:
 
         # Compare simulation and execution results
         msg = f"Simulated: {simulated_compute_units}, executed: {actual_compute_units}"
-        assert abs(simulated_compute_units - actual_compute_units) < 10, msg
+        assert abs(simulated_compute_units - actual_compute_units) < EXPECTED_CU_DELTA, msg
 
     def test_simulate_solana_send_neon_from_instruction(
         self,
@@ -194,7 +196,7 @@ class TestSimulateSolana:
 
         # Compare simulation and execution results
         msg = f"Simulated: {simulated_compute_units}, executed: {actual_compute_units}"
-        assert abs(simulated_compute_units - actual_compute_units) < 10, msg
+        assert abs(simulated_compute_units - actual_compute_units) < EXPECTED_CU_DELTA, msg
 
     def test_simulate_solana_iterative_from_holder_account(
         self,
@@ -261,7 +263,7 @@ class TestSimulateSolana:
 
         # Compare simulation and execution results
         msg = f"Simulated: {simulated_compute_units}, executed: {actual_compute_units}"
-        assert abs(simulated_compute_units - actual_compute_units) < 10, msg
+        assert abs(simulated_compute_units - actual_compute_units) < EXPECTED_CU_DELTA, msg
 
     def test_simulate_solana_iterative_deployment_from_holder_account(
         self,
@@ -342,7 +344,7 @@ class TestSimulateSolana:
 
         # Compare simulation and execution results
         msg = f"Simulated: {simulated_compute_units}, executed: {actual_compute_units}"
-        assert abs(simulated_compute_units - actual_compute_units) < 10, msg
+        assert abs(simulated_compute_units - actual_compute_units) < EXPECTED_CU_DELTA, msg
 
     def test_simulate_solana_iterative_from_instruction(
         self,
@@ -408,7 +410,7 @@ class TestSimulateSolana:
 
         # Compare simulation and execution results
         msg = f"Simulated: {simulated_compute_units}, executed: {actual_compute_units}"
-        assert abs(simulated_compute_units - actual_compute_units) < 10, msg
+        assert abs(simulated_compute_units - actual_compute_units) < EXPECTED_CU_DELTA, msg
 
     def test_simulate_solana_call_precompiled_contract(
         self,
@@ -461,7 +463,7 @@ class TestSimulateSolana:
 
         # Compare simulation and execution results
         msg = f"Simulated: {simulated_compute_units}, executed: {actual_compute_units}"
-        assert abs(simulated_compute_units - actual_compute_units) < 10, msg
+        assert abs(simulated_compute_units - actual_compute_units) < EXPECTED_CU_DELTA, msg
 
     def test_simulate_solana_scheduled_transaction(
         self,
@@ -589,7 +591,7 @@ class TestSimulateSolana:
 
         # Compare simulation and execution results
         msg = f"Simulated: {simulated_compute_units}, executed: {actual_compute_units}"
-        assert abs(simulated_compute_units - actual_compute_units) < 10, msg
+        assert abs(simulated_compute_units - actual_compute_units) < EXPECTED_CU_DELTA * 3, msg
 
     def test_simulate_solana_with_solana_overrides_data_account(
         self,

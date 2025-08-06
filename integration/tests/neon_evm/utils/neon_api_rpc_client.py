@@ -116,7 +116,7 @@ class NeonApiRpcClient:
         return self._make_request("config", params)
 
     @allure.step("Simulate Solana transaction")
-    def simulate_solana(self, instructions: Tuple[Instruction, ...], solana_overrides_params=None) -> dict:
+    def simulate_solana(self, instructions: Tuple[Instruction, ...], accounts_overrides=None) -> dict:
         instruction_list = []
         for instr in instructions:
             instruction_list.append(
@@ -134,7 +134,7 @@ class NeonApiRpcClient:
             "compute_units": 1400000,
             "heap_size": 256 * 1024,
             "instructions": instruction_list,
-            "accounts_overrides": solana_overrides_params,
+            "accounts_overrides": accounts_overrides,
         }
         return self._make_request("simulate_solana", params)
 
