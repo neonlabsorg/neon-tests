@@ -1,4 +1,6 @@
 import random
+from copy import copy
+
 import allure
 import eth_abi
 from eth_utils import abi
@@ -34,12 +36,15 @@ class TestSimulateSolana:
         simulated_compute_units: int,
         actual_compute_units: int,
     ) -> tuple[bool, bool]:
+        sol_trx_with_compute_budget = copy(sol_tx)
+        sol_trx_with_compute_budget = sol_trx_with_compute_budget.add(
+            instructions.TransactionWithComputeBudget(operator_keypair)
+        )
         # Simulate the transaction
         if not done_simulation:
             assert not done_execution, "Execution completed but simulation is still going"
-            simulate_response = neon_rpc_client.simulate_solana(
-                instructions=sol_tx.instructions,
-            )
+            simulate_response = neon_rpc_client.simulate_solana(sol_tx.instructions)
+
             simulated_instructions = simulate_response["instructions"]
 
             simulated_compute_units += sum(
@@ -60,17 +65,11 @@ class TestSimulateSolana:
 
         # Execute the transaction
         if not done_execution:
-            executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
+            executed_sol_tx = evm_loader.send_tx_and_check_status_ok(sol_trx_with_compute_budget, operator_keypair)
             actual_compute_units += executed_sol_tx.value.transaction.meta.compute_units_consumed
 
-            if executed_sol_tx.value.transaction.meta.err:
-                raise AssertionError(f"Error in sol trx: {executed_sol_tx}")
-
             for log in executed_sol_tx.value.transaction.meta.log_messages:
-                if "ExitError" in log:
-                    raise AssertionError(f"EVM Return error in logs: {executed_sol_tx}")
-
-                elif "exit_status" in log:
+                if "exit_status" in log:
                     done_execution = True
                     assert done_simulation, "Execution completed but simulation is still going"
                     break
@@ -137,7 +136,7 @@ class TestSimulateSolana:
         simulated_compute_units = self._get_compute_units_from_simulation(neon_rpc_client, sol_tx)
 
         # Execute the transaction
-        executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
+        executed_sol_tx = evm_loader.send_tx_and_check_status_ok(sol_tx, operator_keypair)
         actual_compute_units = executed_sol_tx.value.transaction.meta.compute_units_consumed
 
         # Compare simulation and execution results
@@ -187,7 +186,7 @@ class TestSimulateSolana:
         # Simulate the transaction
         simulated_compute_units = self._get_compute_units_from_simulation(neon_rpc_client, sol_tx)
         # Execute the transaction
-        executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
+        executed_sol_tx = evm_loader.send_tx_and_check_status_ok(sol_tx, operator_keypair)
         actual_compute_units = executed_sol_tx.value.transaction.meta.compute_units_consumed
 
         # Compare simulation and execution results
@@ -303,23 +302,21 @@ class TestSimulateSolana:
 
         simulated_compute_units = actual_compute_units = 0
         done = done_simulation = done_execution = False
-
+        sol_tx = Transaction()
+        operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
+        sol_tx.add(
+            instructions.make_transaction_step_from_account(
+                step_count=500,
+                operator=operator_keypair,
+                operator_balance=operator_balance_pubkey,
+                evm_loader_id=evm_loader.loader_id,
+                holder_address=holder_acc,
+                treasury=treasury_pool,
+                additional_accounts=additional_accounts,
+            )
+        )
         while not done:
             # Create a Solana transaction
-            sol_tx = Transaction()
-            operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
-            sol_tx.add(
-                instructions.make_transaction_step_from_account(
-                    step_count=500,
-                    operator=operator_keypair,
-                    operator_balance=operator_balance_pubkey,
-                    evm_loader_id=evm_loader.loader_id,
-                    holder_address=holder_acc,
-                    treasury=treasury_pool,
-                    additional_accounts=additional_accounts,
-                )
-            )
-
             done_simulation, done_execution = self._simulate_and_execute_tx(
                 sol_tx=sol_tx,
                 neon_rpc_client=neon_rpc_client,
@@ -448,7 +445,7 @@ class TestSimulateSolana:
         simulated_compute_units = self._get_compute_units_from_simulation(neon_rpc_client, sol_tx)
 
         # Execute the transaction
-        executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
+        executed_sol_tx = evm_loader.send_tx_and_check_status_ok(sol_tx, operator_keypair)
         actual_compute_units = executed_sol_tx.value.transaction.meta.compute_units_consumed
 
         # Compare simulation and execution results
@@ -514,22 +511,21 @@ class TestSimulateSolana:
         actual_compute_units += start_scheduled_transaction_tx_receipt.value.transaction.meta.compute_units_consumed
 
         # Execute scheduled transaction steps (simulation and execution)
-        done = done_simulation = done_execution = False
 
-        while not done:
-            # Create a Solana transaction
-            sol_tx = Transaction()
-            sol_tx.add(
-                instructions.make_transaction_step_from_account(
-                    step_count=500,
-                    operator=operator_keypair,
-                    operator_balance=operator_balance_pubkey,
-                    evm_loader_id=evm_loader.loader_id,
-                    holder_address=holder_acc,
-                    treasury=treasury_pool,
-                    additional_accounts=additional_accounts,
-                )
+        sol_tx = Transaction()
+        sol_tx.add(
+            instructions.make_transaction_step_from_account(
+                step_count=500,
+                operator=operator_keypair,
+                operator_balance=operator_balance_pubkey,
+                evm_loader_id=evm_loader.loader_id,
+                holder_address=holder_acc,
+                treasury=treasury_pool,
+                additional_accounts=additional_accounts,
             )
+        )
+        done = done_simulation = done_execution = False
+        while not done:
             done_simulation, done_execution = self._simulate_and_execute_tx(
                 sol_tx=sol_tx,
                 neon_rpc_client=neon_rpc_client,
@@ -665,7 +661,7 @@ class TestSimulateSolana:
 
         simulate_response = neon_rpc_client.simulate_solana(
             instructions=sol_tx.instructions,
-            solana_overrides_params={str(data_account): account_info_override},
+            accounts_overrides={str(data_account): account_info_override},
         )
 
         self._check_simulation_is_successful(simulate_response)
@@ -773,7 +769,7 @@ class TestSimulateSolana:
 
         simulate_response = neon_rpc_client.simulate_solana(
             instructions=sol_tx.instructions,
-            solana_overrides_params=solana_overrides_params,
+            accounts_overrides=solana_overrides_params,
         )
 
         self._check_simulation_is_successful(simulate_response)
@@ -865,7 +861,7 @@ class TestSimulateSolana:
 
         simulate_response = neon_rpc_client.simulate_solana(
             instructions=sol_tx.instructions,
-            solana_overrides_params={str(balance_account): account_info_override},
+            accounts_overrides={str(balance_account): account_info_override},
         )
         self._check_simulation_is_successful(simulate_response)
 
@@ -949,7 +945,7 @@ class TestSimulateSolana:
 
         simulate_response = neon_rpc_client.simulate_solana(
             instructions=sol_tx.instructions,
-            solana_overrides_params={str(data_account): account_info_override},
+            accounts_overrides={str(data_account): account_info_override},
         )
         assert "Invalid params" == simulate_response["message"]
         assert 'Error("missing field ' in simulate_response["data"]
@@ -1036,12 +1032,10 @@ class TestSimulateSolana:
 
         simulate_response_with_override = neon_rpc_client.simulate_solana(
             instructions=sol_tx.instructions,
-            solana_overrides_params={str(data_account): account_info_override},
+            accounts_overrides={str(data_account): account_info_override},
         )
 
-        simulate_response = neon_rpc_client.simulate_solana(
-            instructions=sol_tx.instructions,
-        )
+        simulate_response = neon_rpc_client.simulate_solana(sol_tx.instructions)
         self._check_simulation_is_successful(simulate_response)
         self._check_simulation_is_successful(simulate_response_with_override)
         executed_units_without_override = self._get_compute_units_from_simulation(neon_rpc_client, sol_tx)
@@ -1056,5 +1050,5 @@ class TestSimulateSolana:
 
     def test_unsupported_program_id(self, neon_rpc_client, operator_keypair):
         trx = instructions.TransactionWithComputeBudget(operator_keypair)
-        resp = neon_rpc_client.simulate_solana(instructions=trx.instructions)
+        resp = neon_rpc_client.simulate_solana(trx.instructions)
         assert "Solana Simulator error UnsupportedAccount" in resp["message"]

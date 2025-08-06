@@ -7,6 +7,7 @@ from requests import Response, Session
 from solders.instruction import Instruction
 from solders.pubkey import Pubkey
 
+from utils.logger import log_text_to_allure_and_stdout
 from utils.models.tree_account import TreeAccount
 from utils.types import Caller, Contract
 
@@ -136,13 +137,16 @@ class NeonApiRpcClient:
             "instructions": instruction_list,
             "accounts_overrides": accounts_overrides,
         }
-        return self._make_request("simulate_solana", params)
+        resp = self._make_request("simulate_solana", params)
+        log_text_to_allure_and_stdout("Simulate Solana response", str(resp))
+        return resp
 
     def call_contract_get_function(self, sender, contract, function_signature: str, args=None):
         data = abi.function_signature_to_4byte_selector(function_signature)
         if args is not None:
             data += args
         result = self.emulate(sender.eth_address.hex(), contract.eth_address.hex(), data)
+
         return result["result"]
 
     def get_steps_count(self, from_acc, to, data) -> int:
