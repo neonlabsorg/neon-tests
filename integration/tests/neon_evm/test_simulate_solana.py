@@ -60,7 +60,6 @@ class TestSimulateSolana:
 
         # Execute the transaction
         if not done_execution:
-            sol_tx.sign(operator_keypair)
             executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
             actual_compute_units += executed_sol_tx.value.transaction.meta.compute_units_consumed
 
@@ -137,7 +136,6 @@ class TestSimulateSolana:
         )
         simulated_compute_units = self._get_compute_units_from_simulation(neon_rpc_client, sol_tx)
 
-        sol_tx.sign(operator_keypair)
         # Execute the transaction
         executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
         actual_compute_units = executed_sol_tx.value.transaction.meta.compute_units_consumed
@@ -188,8 +186,6 @@ class TestSimulateSolana:
 
         # Simulate the transaction
         simulated_compute_units = self._get_compute_units_from_simulation(neon_rpc_client, sol_tx)
-
-        sol_tx.sign(operator_keypair)
         # Execute the transaction
         executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
         actual_compute_units = executed_sol_tx.value.transaction.meta.compute_units_consumed
@@ -275,7 +271,6 @@ class TestSimulateSolana:
         treasury_pool: TreasuryPool,
     ):
         # Create Neon transaction and write it to a holder account
-        chain_id = evm_loader.chain_id
         contract_file_name = "external/neon-contracts/contracts/token/ERC20ForSpl/erc20_for_spl_factory.sol"
         contract_name = "ERC20ForSplFactory"
         version = "0.8.28"
@@ -292,8 +287,6 @@ class TestSimulateSolana:
             sender_with_tokens.eth_address.hex(),
             contract=None,
             data=contract_code + encoded_args.hex(),
-            chain_id=chain_id,
-            value=hex(0),
         )
         additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
@@ -303,9 +296,7 @@ class TestSimulateSolana:
             contract_file_name,
             contract_name,
             encoded_args=encoded_args,
-            value=0,
             version=version,
-            chain_id=chain_id,
             import_remappings=REMAPPING_ZEPPELIN,
         )
         evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
@@ -456,7 +447,6 @@ class TestSimulateSolana:
 
         simulated_compute_units = self._get_compute_units_from_simulation(neon_rpc_client, sol_tx)
 
-        sol_tx.sign(operator_keypair)
         # Execute the transaction
         executed_sol_tx = evm_loader.send_tx(sol_tx, operator_keypair)
         actual_compute_units = executed_sol_tx.value.transaction.meta.compute_units_consumed
@@ -516,7 +506,6 @@ class TestSimulateSolana:
         simulated_compute_units += self._get_compute_units_from_simulation(
             neon_rpc_client, start_scheduled_transaction_tx
         )
-        start_scheduled_transaction_tx.sign(operator_keypair)
 
         start_scheduled_transaction_tx_receipt = evm_loader.send_tx_and_check_status_ok(
             start_scheduled_transaction_tx,
@@ -566,8 +555,6 @@ class TestSimulateSolana:
         )
 
         simulated_compute_units += self._get_compute_units_from_simulation(neon_rpc_client, finish_trx)
-        finish_trx.sign(operator_keypair)
-
         finish_receipt = evm_loader.send_tx_and_check_status_ok(finish_trx, operator_keypair)
         actual_compute_units += finish_receipt.value.transaction.meta.compute_units_consumed
 
@@ -584,7 +571,6 @@ class TestSimulateSolana:
         )
 
         simulated_compute_units += self._get_compute_units_from_simulation(neon_rpc_client, destroy_trx)
-        destroy_trx.sign(operator_keypair)
 
         destroy_receipt = evm_loader.send_tx_and_check_status_ok(destroy_trx, operator_keypair)
         actual_compute_units += destroy_receipt.value.transaction.meta.compute_units_consumed
@@ -1067,3 +1053,8 @@ class TestSimulateSolana:
             f"Executed compute units with override {executed_units_with_override} "
             f"should be less than without override {executed_units_without_override}"
         )
+
+    def test_unsupported_program_id(self, neon_rpc_client, operator_keypair):
+        trx = instructions.TransactionWithComputeBudget(operator_keypair)
+        resp = neon_rpc_client.simulate_solana(instructions=trx.instructions)
+        assert "Solana Simulator error UnsupportedAccount" in resp["message"]
