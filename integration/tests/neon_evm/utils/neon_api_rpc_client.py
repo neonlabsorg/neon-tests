@@ -131,10 +131,10 @@ class NeonApiRpcClient:
             )
 
         params = {
-            # "compute_units": 1400000,
-            # "heap_size": 262144,
+            "compute_units": 1400000,
+            "heap_size": 256 * 1024,
             "instructions": instruction_list,
-            "solana_overrides": solana_overrides_params,
+            "accounts_overrides": solana_overrides_params,
         }
         return self._make_request("simulate_solana", params)
 
