@@ -109,7 +109,7 @@ class NeonApiRpcClient:
 
     def get_contract(self, address) -> json:
         params = {"contract": address}
-        return self._make_request("contract", params)
+        return self._make_request("contract", params)[0]
 
     def get_holder(self, pubkey: Pubkey) -> json:
         params = {"pubkey": str(pubkey)}
@@ -163,8 +163,7 @@ class NeonApiRpcClient:
         if isinstance(address, Pubkey):
             address = bytes(address).hex()
         params = {"origin": {"address": address, "chain_id": chain_id}, "nonce": nonce}
-        body = {"jsonrpc": "2.0", "id": 1, "method": "transaction_tree", "params": [params]}
-        response = self.session.post(url=self.url, json=body).json()
+        response = self._make_request("transaction_tree", params)
         return TreeAccount.from_dict(response)
 
     def get_container_accounts(self, pubkey: Pubkey) -> json:
