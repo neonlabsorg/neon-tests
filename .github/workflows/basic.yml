@@ -349,11 +349,12 @@ jobs:
     runs-on: ["gha-runner-scale-set"]
     needs: [ prepare-env-proxy, run-proxy-tests ]
     if: |
-      ${{ env.NETWORK }} == 'terraform' &&
+      always() &&
       !contains(needs.prepare-env-proxy.result, 'cancelled')
     steps:
       - uses: actions/checkout@v4
       - name: "Destroy stand"
+        if: ${{ env.NETWORK == 'terraform' }}
         uses: ./.github/actions/destroy-tf-stand
         with:
           instance_public_ipv4: ${{ needs.prepare-env-proxy.outputs.proxy_ip }}
