@@ -349,7 +349,7 @@ jobs:
     runs-on: ["gha-runner-scale-set"]
     needs: [ prepare-env-proxy, run-proxy-tests ]
     if: |
-      always() &&
+      ${{ env.NETWORK == 'terraform' }} &&
       !contains(needs.prepare-env-proxy.result, 'cancelled')
     steps:
       - uses: actions/checkout@v4
