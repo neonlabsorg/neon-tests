@@ -293,7 +293,7 @@ jobs:
         timeout-minutes: 60
         env:
           ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: ${{ github.repository_owner }}/aave_tests:ea0d306c96e87a6149eac24cfeba72d92fc52e05
+          IMAGE: ${{ github.repository_owner }}/aave_tests:f4045de66b7d2a4edb46e6bb49173afef0799e53
         run: |
           docker pull ${{ env.IMAGE }}
           docker run -i -d --name=aave-v2-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
