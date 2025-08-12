@@ -137,7 +137,9 @@ def rw_lock_contract(
     session_user: Caller,
     treasury_pool: TreasuryPool,
 ) -> Contract:
-    return evm_loader.deploy_contract(operator_keypair, session_user, "rw_lock", neon_rpc_client, treasury_pool)
+    return evm_loader.deploy_contract(
+        operator_keypair, session_user, "rw_lock", neon_rpc_client, treasury_pool, version="0.8.28"
+    )
 
 
 @pytest.fixture(scope="session")
