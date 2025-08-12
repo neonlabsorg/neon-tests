@@ -17,20 +17,20 @@ from solders.pubkey import Pubkey
 from web3.contract import Contract
 from web3.types import TxReceipt
 
-from clickfile import EnvName
+from cli.commands.common import EnvName
 from conftest import EnvironmentConfig
 from utils.accounts import EthAccounts
 from utils.apiclient import JsonRPCSession
 from utils.consts import COUNTER_ID, LAMPORT_PER_SOL, MULTITOKEN_MINTS_USDT, REMAPPING_ZEPPELIN
-
 from utils.erc20 import ERC20
 from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
+from utils.helpers import decode_function_signature, get_selectors, withdraw_neon_to_solana_eth_sign, gen_hash_of_block
 from utils.neon_user import NeonUser
-from utils.helpers import decode_function_signature, get_selectors, withdraw_neon_to_solana_eth_sign
 from utils.operator import Operator
 from utils.prices import get_sol_price_with_retry
 from utils.solana_client import SolanaClient
+from utils.solana_data_for_neon_trx_helper import get_accounts_for_container_by_emulation
 from utils.types import TransactionType
 from utils.web3client import NeonChainWeb3Client, Web3Client
 from .basic.helpers.chains import make_nonce_the_biggest_for_chain
@@ -49,7 +49,7 @@ def json_rpc_client(environment: EnvironmentConfig) -> JsonRPCSession:
 
 
 @pytest.fixture(scope="session")
-def json_sol_rpc_client(environment: EnvironmentConfig) -> JsonRPCSession:
+def json_sol_rpc_client(environment: EnvironmentConfig) -> JsonRPCSession | None:
     if "sol" in environment.network_ids:
         return JsonRPCSession(f"{environment.proxy_url}/sol")
 
@@ -86,18 +86,12 @@ def web3_client_usdt(environment: EnvironmentConfig) -> tp.Union[Web3Client, Non
 
 
 @pytest.fixture(scope="session")
-def operator(environment: EnvironmentConfig, web3_client_session: NeonChainWeb3Client) -> Operator:
-    return Operator(
-        environment.proxy_url,
-        environment.solana_url,
-        environment.spl_neon_mint,
-        web3_client_session,
-        environment.evm_loader,
-    )
+def operator(evm_loader: EvmLoader) -> Operator:
+    return Operator(evm_loader)
 
 
 @pytest.fixture(scope="session")
-def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Generator[Keypair | None, None, None]:
+def eth_bank_account(pytestconfig: Config, web3_client_session) -> tp.Generator[LocalAccount | None, None, None]:
     account = None
     if pytestconfig.environment.eth_bank_account != "":
         account = web3_client_session.eth.account.from_key(pytestconfig.environment.eth_bank_account)
@@ -153,7 +147,7 @@ def accounts(request, accounts_session, web3_client_session, pytestconfig: Confi
 
 
 @pytest.fixture(scope="session")
-def neon_user_for_session(
+def neon_user(
     evm_loader: EvmLoader,
     bank_account,
     environment: EnvironmentConfig,
@@ -162,7 +156,7 @@ def neon_user_for_session(
     treasury_pool,
 ) -> tp.Generator[NeonUser, None, None]:
     user = NeonUser(evm_loader_id=environment.evm_loader)
-    lamports = 2 * LAMPORT_PER_SOL
+    lamports = 3 * LAMPORT_PER_SOL
 
     if environment.use_bank:
         evm_loader.send_sol(bank_account, user.solana_account.pubkey(), lamports)
@@ -191,12 +185,11 @@ def neon_user_no_sols(pytestconfig, bank_account, faucet, environment) -> NeonUs
 
 
 @pytest.fixture(scope="function")
-def neon_user(
+def neon_user_func_scope(
     evm_loader: EvmLoader,
     bank_account,
     environment: EnvironmentConfig,
     web3_client_sol: NeonChainWeb3Client,
-    withdraw_contract_sol_chain,
     treasury_pool,
 ) -> tp.Generator[NeonUser, None, None]:
     user = NeonUser(evm_loader_id=environment.evm_loader)
@@ -210,7 +203,6 @@ def neon_user(
             lamports=lamports,
             commitment=commitment.Confirmed,
         )
-
     yield user
 
     if environment.use_bank:
@@ -220,6 +212,21 @@ def neon_user(
         #         user, bank_account, withdraw_contract_sol_chain, evm_loader, web3_client_sol, treasury_pool
         #     )
         evm_loader.drain_sol(from_=user.solana_account, to=bank_account.pubkey())
+
+
+@pytest.fixture(scope="function")
+def neon_user_with_sols_inside_neon(
+    evm_loader: EvmLoader,
+    neon_user_func_scope,
+) -> tp.Generator[NeonUser, None, None]:
+    user = neon_user_func_scope
+    lamports = 0.1 * LAMPORT_PER_SOL
+    evm_loader.deposit_wrapped_sol_from_solana_to_neon(
+        user.solana_account,
+        user.checksum_address,
+        int(lamports),
+    )
+    yield user
 
 
 @pytest.fixture(scope="session")
@@ -345,7 +352,7 @@ def account_with_all_tokens(
     eth_bank_account,
     withdraw_contract_sol_chain,
     neon_mint,
-    operator_keypair,
+    token_owner_keypair,
     bank_account: Keypair | None,
 ) -> tp.Generator[LocalAccount, None, None]:
     neon_account = web3_client_session.create_account_with_balance(faucet, bank_account=eth_bank_account)
@@ -363,11 +370,7 @@ def account_with_all_tokens(
         )
     token_mint = Pubkey.from_string(MULTITOKEN_MINTS_USDT)
 
-    evm_loader.mint_spl_to(
-        token_mint,
-        solana_account,
-        1000000000000000,
-    )
+    evm_loader.mint_spl_to(token_mint, solana_account, 1000000000000000, token_owner_keypair)
 
     evm_loader.send_token_from_solana_to_neon(
         solana_account,
@@ -648,20 +651,20 @@ def multiple_actions_erc721(web3_client, accounts):
 
 
 @pytest.fixture(scope="class")
-def call_solana_caller(accounts, web3_client):
+def call_solana_caller(accounts, web3_client) -> Contract:
     contract, _ = web3_client.deploy_and_get_contract("precompiled/CallSolanaCaller.sol", "0.8.28", accounts[0])
     return contract
 
 
 @pytest.fixture(scope="class")
-def counter_resource_address(call_solana_caller, accounts, web3_client) -> tp.Generator[bytes, None, None]:
+def counter_resource_address(call_solana_caller, accounts, web3_client) -> Pubkey:
     tx = web3_client.make_raw_tx(accounts[0].address)
     salt = web3_client.text_to_bytes32("".join(random.choices(string.ascii_letters, k=5)))
     instruction_tx = call_solana_caller.functions.createResource(salt, 8, 100000, bytes(COUNTER_ID)).build_transaction(
         tx
     )
     web3_client.send_transaction(accounts[0], instruction_tx)
-    yield call_solana_caller.functions.getResourceAddress(salt).call()
+    return Pubkey.from_bytes(call_solana_caller.functions.getResourceAddress(salt).call())
 
 
 @pytest.fixture(scope="class")
@@ -819,122 +822,11 @@ def neon_token_contract(web3_client_session, accounts):
 
 
 @pytest.fixture(scope="class")
-def precompiled_contract(web3_client, faucet, accounts):
+def precompiled_caller(web3_client, faucet, accounts):
     contract, contract_deploy_tx = web3_client.deploy_and_get_contract(
         "precompiled/CommonCaller", "0.8.10", accounts[0]
     )
     return contract
-
-
-@pytest.fixture(scope="class")
-def chain_execution_contracts(accounts, web3_client):
-    sender_account = accounts[0]
-
-    # Deploy contracts without dependencies first
-    contract2, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract2"
-    )
-
-    contract4, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract4"
-    )
-
-    contract6, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract6"
-    )
-
-    contract7, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract7"
-    )
-
-    # Deploy contracts with dependencies
-    contract5, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution",
-        "0.8.10",
-        sender_account,
-        contract_name="Contract5",
-        constructor_args=[contract7.address],
-    )
-
-    contract3, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution",
-        "0.8.10",
-        sender_account,
-        contract_name="Contract3",
-        constructor_args=[contract4.address, contract5.address, contract6.address],
-    )
-
-    # Deploy the root contract
-    chain_execution_contract, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution",
-        "0.8.10",
-        sender_account,
-        contract_name="ChainExecution",
-        constructor_args=[contract2.address, contract3.address],
-    )
-    chain_execution_contracts = [
-        chain_execution_contract,
-        contract2,
-        contract3,
-        contract4,
-        contract5,
-        contract6,
-        contract7,
-    ]
-    yield chain_execution_contracts
-
-
-@pytest.fixture(scope="class")
-def chain_execution_contracts_with_revert(accounts, web3_client, events_checker_contract, common_contract):
-    sender_account = accounts[0]
-
-    middle_call_contract, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution",
-        "0.8.10",
-        sender_account,
-        contract_name="MiddleCall",
-        constructor_args=[events_checker_contract.address],
-    )
-
-    chain_with_revert_contract, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution",
-        "0.8.10",
-        sender_account,
-        contract_name="ChainWithRevert",
-        constructor_args=[middle_call_contract.address],
-    )
-
-    chain_with_revert_contracts = [
-        chain_with_revert_contract,
-        middle_call_contract,
-        events_checker_contract,
-        common_contract,
-    ]
-    yield chain_with_revert_contracts
-
-
-@pytest.fixture(scope="class")
-def chain_execution_contracts_with_return_data(accounts, web3_client, common_contract):
-    sender_account = accounts[0]
-
-    middle_call_contract, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution",
-        "0.8.10",
-        sender_account,
-        contract_name="MiddleCall",
-        constructor_args=[common_contract.address],
-    )
-
-    chain_with_revert_contract, _ = web3_client.deploy_and_get_contract(
-        "common/ChainExecution",
-        "0.8.10",
-        sender_account,
-        contract_name="ChainWithReturnData",
-        constructor_args=[middle_call_contract.address],
-    )
-
-    chain_with_revert_contracts = [chain_with_revert_contract, middle_call_contract, common_contract]
-    yield chain_with_revert_contracts
 
 
 @pytest.fixture(scope="class")
@@ -943,6 +835,45 @@ def alt_contract(accounts, web3_client):
     return contract
 
 
+@pytest.fixture(scope="class")
+def storage_resize_checker_containerized(web3_client, accounts, evm_loader, operator, treasury_pool):
+    contract, _ = web3_client.deploy_and_get_contract(
+        "common/StorageResizeChecker", "0.8.20", contract_name="Caller", account=accounts[0]
+    )
+
+    # container preparation
+    caller_sol_address = evm_loader.ether2program(contract.address[2:])
+
+    tx = web3_client.make_raw_tx(accounts[0], amount=1000)
+    instruction_tx = contract.functions.callAndChange(gen_hash_of_block(1000)).build_transaction(tx)
+    resp = web3_client.send_transaction(accounts[0], instruction_tx)
+    assert resp["status"] == 1
+
+    acc_for_container = get_accounts_for_container_by_emulation(
+        web3_client, evm_loader, instruction_tx, accounts[0], caller_sol_address
+    )
+    acc_for_container = [acc for acc in acc_for_container if acc != evm_loader.ether2balance(accounts[0].address[2:])]
+    evm_loader.assemble_container(
+        operator=operator.operator_keypairs[0],
+        treasury=treasury_pool,
+        container_address=caller_sol_address,
+    )
+    evm_loader.allocate_container(
+        operator.operator_keypairs[0],
+        treasury_pool,
+        caller_sol_address,
+        5000,
+    )
+    evm_loader.assemble_container(
+        operator=operator.operator_keypairs[0],
+        treasury=treasury_pool,
+        container_address=caller_sol_address,
+        accounts=acc_for_container,
+    )
+
+    return contract
+
+
 @pytest.fixture(scope="session")
-def default_cu_price(pytestconfig: Config) -> int | None:
-    return pytestconfig.environment.default_cu_price  # must be equal to compose.proxy.environment.DEFAULT_CU_PRICE
+def default_cu_price(environment: EnvironmentConfig) -> int | None:
+    return environment.default_cu_price  # must be equal to compose.proxy.environment.DEFAULT_CU_PRICE

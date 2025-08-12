@@ -3,7 +3,7 @@ import pytest
 import allure
 from web3.types import TxReceipt
 
-from clickfile import EnvName
+from utils.consts import EnvName
 from integration.tests.basic.helpers import rpc_checks
 from integration.tests.basic.helpers.basic import Tag
 from integration.tests.basic.helpers.errors import Error32602
@@ -117,9 +117,6 @@ class TestRpcGetBlock:
         EthGetBlockByHashResult(**response)
         assert "result" in response and response["result"] is None, "Result should be None"
 
-    @pytest.mark.xfail(
-        reason="NDEV-3072"
-    )  # fails on geth (returns a different error message), needs a fix, and refactor of Error32602
     @pytest.mark.parametrize("full_trx", [False, True])
     def test_eth_get_block_by_number_with_big_int(self, full_trx, json_rpc_client):
         """Verify implemented rpc calls work eth_getBlockByNumber"""

@@ -7,20 +7,28 @@ pragma abicoder v2;
 contract CallSolanaCaller {
     address public constant CALL_SOLANA_ADDRESS = 0xFF00000000000000000000000000000000000006;
     ICallSolana constant _callSolana =
-        ICallSolana(CALL_SOLANA_ADDRESS);
+    ICallSolana(CALL_SOLANA_ADDRESS);
     struct Data {
         uint256 value1;
         uint256 value2;
     }
+
     mapping(uint256 => Data) public dataMap;
     uint256 public numberToStore;
+    uint256 public numberToStore2;
 
     struct ExecuteArgs {
         uint64 lamports;
         bytes instruction;
     }
+
     struct ExecuteWithSeedArgs {
         uint64 lamports;
+        bytes32 salt;
+        bytes instruction;
+    }
+
+    struct ExecuteWithSeedArgsOverload {
         bytes32 salt;
         bytes instruction;
     }
@@ -41,6 +49,14 @@ contract CallSolanaCaller {
         numberToStore = 190;
         bytes32 returnData = bytes32(
             _callSolana.execute(lamports, instruction)
+        );
+        emit LogBytes(returnData);
+    }
+
+    function execute(bytes calldata instruction) public {
+        numberToStore = 190;
+        bytes32 returnData = bytes32(
+            _callSolana.execute(instruction)
         );
         emit LogBytes(returnData);
     }
@@ -93,11 +109,12 @@ contract CallSolanaCaller {
     }
 
     function solanaCallInsideActionWithMatrix(
+        uint256 _numberToStore,
         uint[][] memory a,
         uint64 lamports,
         bytes calldata instruction
     ) public {
-        numberToStore = 18;
+        numberToStore2 = _numberToStore;
         uint sum = 0;
         for (uint i = 0; i < a.length; i++) {
             for (uint j = 0; j < a[i].length; j++) {
@@ -110,6 +127,26 @@ contract CallSolanaCaller {
         emit LogInt(sum);
     }
 
+    function solanaCallInsideActionWithMatrixWithRevert(
+        uint256 _numberToStore,
+        uint[][] memory a,
+        uint64 lamports,
+        bytes calldata instruction
+    ) public {
+        numberToStore2 = _numberToStore;
+        uint sum = 0;
+        for (uint i = 0; i < a.length; i++) {
+            for (uint j = 0; j < a[i].length; j++) {
+                if (i == a.length / 2) {
+                    execute(lamports, instruction);
+                }
+                sum += a[i][j];
+            }
+        }
+        emit LogInt(sum);
+        require(false, "Revert after solana call");
+    }
+
 
     function batchExecuteInIterativeMode(
         uint256 actionsNumber,
@@ -119,15 +156,12 @@ contract CallSolanaCaller {
         batchExecute(_args);
     }
 
-    function batchExecuteFixedIterativeSteps(ExecuteArgs[] memory _args) public {
-        uint x = 0;
-        uint y = 3000;
-        uint z = x;
-        while (x < y) {
-            z++;
-            x = z;
-        }
-        batchExecute(_args);
+    function batchExecuteInIterativeModeWithoutLamport(
+        uint256 actionsNumber,
+        bytes[] memory _args
+    ) public {
+        doIterativeActions(actionsNumber);
+        batchExecuteWithoutLamports(_args);
     }
 
     function sendTokensAndExecuteInIterativeMode(
@@ -140,9 +174,13 @@ contract CallSolanaCaller {
 
     function doIterativeActions(uint actionsNumber) public {
         // some actions to make the call iterative
+        uint a = 0;
         for (uint256 i = 0; i < actionsNumber; i++) {
             Data memory newData = Data({value1: 1, value2: 2});
             dataMap[i] = newData;
+            for (uint256 i = 0; i < 200; i++) {
+                a = a + 256 / 2;
+            }
         }
     }
 
@@ -170,6 +208,15 @@ contract CallSolanaCaller {
     function batchExecute(ExecuteArgs[] memory _args) public {
         for (uint i = 0; i < _args.length; i++) {
             _callSolana.execute(_args[i].lamports, _args[i].instruction);
+        }
+        (bytes32 program, bytes memory returnData) = _callSolana
+            .getReturnData();
+        emit LogData(program, returnData);
+    }
+
+    function batchExecuteWithoutLamports(bytes[] memory _args) public {
+        for (uint i = 0; i < _args.length; i++) {
+            _callSolana.execute(_args[i]);
         }
         (bytes32 program, bytes memory returnData) = _callSolana
             .getReturnData();
@@ -225,6 +272,16 @@ contract CallSolanaCaller {
         emit LogBytes(returnData);
     }
 
+    function executeWithSeed(
+        bytes32 salt,
+        bytes calldata instruction
+    ) public {
+        bytes32 returnData = bytes32(
+            _callSolana.executeWithSeed(salt, instruction)
+        );
+        emit LogBytes(returnData);
+    }
+
     function getReturnData() public returns (bytes32, bytes memory) {
         return _callSolana.getReturnData();
     }
@@ -233,6 +290,15 @@ contract CallSolanaCaller {
         for (uint i = 0; i < _args.length; i++) {
             _callSolana.executeWithSeed(
                 _args[i].lamports,
+                _args[i].salt,
+                _args[i].instruction
+            );
+        }
+    }
+
+    function batchExecuteWithSeedOverload(ExecuteWithSeedArgsOverload[] memory _args) public {
+        for (uint i = 0; i < _args.length; i++) {
+            _callSolana.executeWithSeed(
                 _args[i].salt,
                 _args[i].instruction
             );

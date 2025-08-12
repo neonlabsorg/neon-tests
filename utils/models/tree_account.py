@@ -38,7 +38,6 @@ class TreeAccountTransaction:
 
 @dataclass
 class TreeAccount:
-    result: str
     status: str
     pubkey: str
     payer: str
@@ -51,20 +50,18 @@ class TreeAccount:
     transactions: List[TreeAccountTransaction]
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TreeAccount":
-        transactions = [TreeAccountTransaction.from_dict(tx) for tx in data["value"]["transactions"]]
-        value = data["value"]
+    def from_dict(cls, data: Dict[str, Any]):
+        transactions = [TreeAccountTransaction.from_dict(tx) for tx in data["transactions"]]
         return cls(
-            result=data["result"],
-            status=value["status"],
-            pubkey=value["pubkey"],
-            payer=value["payer"],
-            last_slot=value["last_slot"],
-            chain_id=value["chain_id"],
-            max_fee_per_gas=value["max_fee_per_gas"],
-            max_priority_fee_per_gas=value["max_priority_fee_per_gas"],
-            balance=int(value["balance"], 16),
-            last_index=value["last_index"],
+            status=data["status"],
+            pubkey=data["pubkey"],
+            payer=data["payer"],
+            last_slot=data["last_slot"],
+            chain_id=data["chain_id"],
+            max_fee_per_gas=data["max_fee_per_gas"],
+            max_priority_fee_per_gas=data["max_priority_fee_per_gas"],
+            balance=int(data["balance"], 16),
+            last_index=data["last_index"],
             transactions=transactions,
         )
 

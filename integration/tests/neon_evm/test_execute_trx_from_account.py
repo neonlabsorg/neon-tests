@@ -8,7 +8,7 @@ from integration.tests.neon_evm.utils.transaction_checks import (
     check_transaction_logs_have_text,
     check_holder_account_tag,
 )
-from utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
+from utils.neon_layouts.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
 from utils.types import Caller
 
 
@@ -54,33 +54,32 @@ class TestExecuteTrxFromAccount:
         self,
         operator_keypair,
         sol_client,
-        new_holder_acc,
+        holder_acc,
         treasury_pool,
         evm_loader,
         sender_with_tokens,
-        neon_api_client,
+        neon_rpc_client,
     ):
         contract = create_contract_address(sender_with_tokens, evm_loader)
 
         signed_tx = make_deployment_transaction(evm_loader, sender_with_tokens, "hello_world")
-        evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
 
         resp = evm_loader.execute_trx_from_account(
             operator_keypair,
-            new_holder_acc,
+            holder_acc,
             treasury_pool.account,
             treasury_pool.buffer,
             [
                 contract.solana_address,
                 contract.balance_account_address,
-                sender_with_tokens.solana_account_address,
                 sender_with_tokens.balance_account_address,
             ],
             operator_keypair,
         )
         check_holder_account_tag(
             solana_client=sol_client,
-            storage_account=new_holder_acc,
+            storage_account=holder_acc,
             layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
             expected_tag=TAG_HOLDER,
         )

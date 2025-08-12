@@ -5,9 +5,9 @@ from solana.rpc.core import RPCException as SolanaRPCException
 from solana.rpc.commitment import Confirmed
 from solders.pubkey import Pubkey
 from utils.evm_loader import EVM_STEPS
-from utils.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
+from utils.neon_layouts.layouts import FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT
 from utils.metaplex import ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID
-from utils.instructions import make_CreateAssociatedTokenIdempotent
+from utils.instructions import make_create_associated_token_idempotent
 from utils.helpers import bytes32_to_solana_pubkey, serialize_instruction
 from .utils.constants import TAG_FINALIZED_STATE, TAG_ACTIVE_STATE
 from .utils.ethereum import make_contract_call_trx
@@ -20,22 +20,21 @@ from ..basic.helpers.assert_message import ErrorMessage
 
 
 class TestAccountRevision:
-
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="session")
     def revision_contract(
-        self, request, evm_loader, operator_keypair, sender_with_tokens, neon_api_client, treasury_pool
+        self, request, evm_loader, operator_keypair, sender_with_tokens, neon_rpc_client, treasury_pool
     ):
         return evm_loader.deploy_contract(
             operator_keypair,
             sender_with_tokens,
             "common/Revision.sol",
-            neon_api_client,
+            neon_rpc_client,
             treasury_pool,
             contract_name="RevisionChanger",
             version="0.8.12",
         )
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="session")
     def revision_contract_caller(
         self,
         request,
@@ -43,7 +42,7 @@ class TestAccountRevision:
         evm_loader,
         operator_keypair,
         sender_with_tokens,
-        neon_api_client,
+        neon_rpc_client,
         treasury_pool,
     ):
         constructor_args = eth_abi.encode(["address"], [revision_contract.eth_address.hex()])
@@ -51,57 +50,57 @@ class TestAccountRevision:
             operator_keypair,
             sender_with_tokens,
             "common/Revision.sol",
-            neon_api_client,
+            neon_rpc_client,
             treasury_pool,
             encoded_args=constructor_args,
             contract_name="RevisionChangerCaller",
             version="0.8.12",
         )
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="session")
     def revision_with_solana_call_contract(
         self,
         request,
         evm_loader,
         operator_keypair,
         sender_with_tokens,
-        neon_api_client,
+        neon_rpc_client,
         treasury_pool,
     ):
         return evm_loader.deploy_contract(
             operator_keypair,
             sender_with_tokens,
             "common/RevisionWithSolanaCall.sol",
-            neon_api_client,
+            neon_rpc_client,
             treasury_pool,
             contract_name="RevisionChangerWithSolanaCall",
             version="0.8.28",
         )
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="session")
     def lender_contract(
-        self, request, evm_loader, operator_keypair, sender_with_tokens, neon_api_client, treasury_pool
+        self, request, evm_loader, operator_keypair, sender_with_tokens, neon_rpc_client, treasury_pool
     ):
         return evm_loader.deploy_contract(
             operator_keypair,
             sender_with_tokens,
             "neon_evm/flash_loan/lender.sol",
-            neon_api_client,
+            neon_rpc_client,
             treasury_pool,
+            value=100000,
             contract_name="LoanLender",
             version="0.8.12",
-            value=100000,
         )
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="session")
     def borrower_contract(
-        self, request, evm_loader, operator_keypair, sender_with_tokens, neon_api_client, treasury_pool
+        self, request, evm_loader, operator_keypair, sender_with_tokens, neon_rpc_client, treasury_pool
     ):
         return evm_loader.deploy_contract(
             operator_keypair,
             sender_with_tokens,
             "neon_evm/flash_loan/borrower.sol",
-            neon_api_client,
+            neon_rpc_client,
             treasury_pool,
             contract_name="LoanBorrower",
             version="0.8.12",
@@ -116,7 +115,7 @@ class TestAccountRevision:
         rw_lock_contract,
         session_user,
         evm_loader,
-        neon_api_client,
+        neon_rpc_client,
     ):
         trx_count = 4
         data_storage_acc_count = 3
@@ -127,7 +126,7 @@ class TestAccountRevision:
             rw_lock_contract.solana_address,
             rw_lock_caller.solana_address,
         ]
-        emulate_result = neon_api_client.emulate_contract_call(
+        emulate_result = neon_rpc_client.emulate_contract_call(
             session_user.eth_address.hex(),
             rw_lock_caller.eth_address.hex(),
             "update_storage_map_with_salt(uint256,uint256)",
@@ -166,9 +165,9 @@ class TestAccountRevision:
         evm_loader,
         operator_keypair,
         treasury_pool,
-        new_holder_acc,
+        second_holder_acc,
         holder_acc,
-        neon_api_client,
+        neon_rpc_client,
         session_user,
         sol_client,
     ):
@@ -176,7 +175,7 @@ class TestAccountRevision:
         user1 = session_user
         user2 = user_account
         holder1 = holder_acc
-        holder2 = new_holder_acc
+        holder2 = second_holder_acc
         signed_tx1 = make_contract_call_trx(
             evm_loader, user1, rw_lock_contract, "update_storage_map(uint256)", [data_storage_acc_count]
         )
@@ -195,7 +194,7 @@ class TestAccountRevision:
 
         evm_loader.write_transaction_to_holder_account(signed_tx1, holder1, operator_keypair)
         contract_revision_before = evm_loader.get_contract_account_revision(rw_lock_contract.solana_address)
-        emulate_result1 = neon_api_client.emulate_contract_call(
+        emulate_result1 = neon_rpc_client.emulate_contract_call(
             user1.eth_address.hex(),
             rw_lock_contract.eth_address.hex(),
             "update_storage_map(uint256)",
@@ -209,7 +208,7 @@ class TestAccountRevision:
             evm_loader, user2, rw_lock_contract, "update_storage_map(uint256)", [data_storage_acc_count]
         )
 
-        emulate_result2 = neon_api_client.emulate_contract_call(
+        emulate_result2 = neon_rpc_client.emulate_contract_call(
             user2.eth_address.hex(),
             rw_lock_contract.eth_address.hex(),
             "update_storage_map(uint256)",
@@ -253,9 +252,9 @@ class TestAccountRevision:
         evm_loader,
         operator_keypair,
         treasury_pool,
-        new_holder_acc,
+        second_holder_acc,
         holder_acc,
-        neon_api_client,
+        neon_rpc_client,
         rw_lock_contract,
         session_user,
         storage_data_len,
@@ -265,9 +264,10 @@ class TestAccountRevision:
         user1 = session_user
         user2 = user_account
         holder1 = holder_acc
-        holder2 = new_holder_acc
+        holder2 = second_holder_acc
         text1 = "a" * storage_data_len
         text2 = "b" * storage_data_len
+        cell_count = (storage_data_len + 31) // 32
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
 
         def send_transaction_steps(holder_account, accounts):
@@ -281,7 +281,7 @@ class TestAccountRevision:
                 operator_keypair,
             )
 
-        emulate_result1 = neon_api_client.emulate_contract_call(
+        emulate_result1 = neon_rpc_client.emulate_contract_call(
             user1.eth_address.hex(), rw_lock_contract.eth_address.hex(), "update_storage_str(string)", [text1]
         )
 
@@ -290,7 +290,7 @@ class TestAccountRevision:
 
         evm_loader.write_transaction_to_holder_account(signed_tx1, holder1, operator_keypair)
 
-        emulate_result2 = neon_api_client.emulate_contract_call(
+        emulate_result2 = neon_rpc_client.emulate_contract_call(
             user2.eth_address.hex(), rw_lock_contract.eth_address.hex(), "update_storage_str(string)", [text2]
         )
         acc_from_emulation2 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result2["solana_accounts"]]
@@ -314,7 +314,7 @@ class TestAccountRevision:
             ]
             data_account = list(set(acc_from_emulation1) - set(additional_accounts))[0]
             data_acc_revision_after_user1_finished = evm_loader.get_data_account_revision(data_account)
-            assert data_acc_revision_after_user1_finished == 1
+            assert data_acc_revision_after_user1_finished == (cell_count * 1)
 
         # repeat steps for second user because revision for data accounts is changed
         resp2 = send_transaction_steps(holder2, acc_from_emulation2)
@@ -322,41 +322,38 @@ class TestAccountRevision:
 
         if expected_count_data_acc > 0:
             data_acc_revision_after_user2_finished = evm_loader.get_data_account_revision(data_account)
-            assert data_acc_revision_after_user2_finished == 2
+            assert data_acc_revision_after_user2_finished == (cell_count * 2)
 
     def test_2_users_sent_neons_to_the_same_recipients(
         self,
         operator_keypair,
         treasury_pool,
-        neon_api_client,
+        neon_rpc_client,
         session_user,
-        user_account,
+        sender_with_tokens,
         evm_loader,
         holder_acc,
-        new_holder_acc,
+        second_holder_acc,
         sol_client,
+        transfers_contract,
     ):
         sender1 = session_user
-        sender2 = user_account
+        sender2 = sender_with_tokens
         holder1 = holder_acc
-        holder2 = new_holder_acc
+        holder2 = second_holder_acc
         amount = 1000000
         evm_loader.deposit_neon(operator_keypair, sender1.eth_address, 3 * amount)
-        evm_loader.deposit_neon(operator_keypair, sender2.eth_address, 3 * amount)
         recipients = [
             evm_loader.make_new_user(operator_keypair),
             evm_loader.make_new_user(operator_keypair),
             evm_loader.make_new_user(operator_keypair),
         ]
-        contract = evm_loader.deploy_contract(
-            operator_keypair, session_user, "transfers", neon_api_client, treasury_pool
-        )
 
         recipients_eth_addresses = [rec.eth_address for rec in recipients]
         signed_tx1 = make_contract_call_trx(
             evm_loader,
             sender1,
-            contract,
+            transfers_contract,
             "transferNeon(uint256,address[])",
             [amount, recipients_eth_addresses],
             value=3 * amount,
@@ -365,7 +362,7 @@ class TestAccountRevision:
         signed_tx2 = make_contract_call_trx(
             evm_loader,
             sender2,
-            contract,
+            transfers_contract,
             "transferNeon(uint256,address[])",
             [amount, recipients_eth_addresses],
             value=3 * amount,
@@ -379,8 +376,8 @@ class TestAccountRevision:
             accounts += [
                 sender.balance_account_address,
                 sender.solana_account_address,
-                contract.balance_account_address,
-                contract.solana_address,
+                transfers_contract.balance_account_address,
+                transfers_contract.solana_address,
             ]
             operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
             return evm_loader.send_transaction_step_from_account(
@@ -415,26 +412,32 @@ class TestAccountRevision:
         self,
         operator_keypair,
         treasury_pool,
-        neon_api_client,
+        neon_rpc_client,
         session_user,
         rw_lock_contract,
         user_account,
         evm_loader,
         holder_acc,
-        new_holder_acc,
-        sol_client,
+        second_holder_acc,
     ):
         additional_accounts = [session_user.balance_account_address, rw_lock_contract.solana_address]
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
 
-        emulate_result = neon_api_client.emulate_contract_call(
+        emulate_result = neon_rpc_client.emulate_contract_call(
             session_user.eth_address.hex(),
             rw_lock_contract.eth_address.hex(),
             "update_storage_map_with_salt(uint256,uint256)",
             [3, 1],
         )
         acc_from_emulation = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
-        data_accounts = set(acc_from_emulation) - set(additional_accounts)
+        data_accounts = list(set(acc_from_emulation) - set(additional_accounts))
+        data_acc_revision_before = []
+        for acc in data_accounts:
+            if evm_loader.get_solana_balance(acc) > 0:
+                data_acc_revision_before.append(evm_loader.get_data_account_revision(acc))
+            else:
+                data_acc_revision_before.append(0)
+
         signed_tx1 = make_contract_call_trx(
             evm_loader, session_user, rw_lock_contract, "update_storage_map_with_salt(uint256,uint256)", [3, 1]
         )
@@ -459,20 +462,18 @@ class TestAccountRevision:
             operator_keypair,
         )
 
-        for i in range(2):
-            holder_acc_for_trx_from_instr = evm_loader.create_holder(operator_keypair)
-            signed_tx2 = make_contract_call_trx(
-                evm_loader, session_user, rw_lock_contract, "update_storage_map_with_salt(uint256,uint256)", [3, i + 1]
-            )
-            resp = evm_loader.execute_trx_from_instruction(
-                operator_keypair,
-                holder_acc_for_trx_from_instr,
-                treasury_pool.account,
-                treasury_pool.buffer,
-                signed_tx2,
-                acc_from_emulation,
-            )
-            check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x11")
+        signed_tx2 = make_contract_call_trx(
+            evm_loader, session_user, rw_lock_contract, "update_storage_map_with_salt(uint256,uint256)", [3, 1]
+        )
+        resp = evm_loader.execute_trx_from_instruction(
+            operator_keypair,
+            second_holder_acc,
+            treasury_pool.account,
+            treasury_pool.buffer,
+            signed_tx2,
+            acc_from_emulation,
+        )
+        check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
 
         resp = evm_loader.send_transaction_step_from_account(
             operator_keypair,
@@ -484,42 +485,45 @@ class TestAccountRevision:
             operator_keypair,
         )
 
-        check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x11")
+        check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
         check_holder_account_tag(
-            solana_client=sol_client,
+            solana_client=evm_loader,
             storage_account=holder_acc,
             layout=FINALIZED_STORAGE_ACCOUNT_INFO_LAYOUT,
             expected_tag=TAG_FINALIZED_STATE,
         )
-
+        data_acc_revision_after = []
         for acc in data_accounts:
             if evm_loader.get_solana_balance(acc) > 0:
-                data_acc_revision_after = evm_loader.get_data_account_revision(acc)
-                assert data_acc_revision_after == 3
+                data_acc_revision_after.append(evm_loader.get_data_account_revision(acc))
+            else:
+                data_acc_revision_after.append(0)
+        assert data_acc_revision_after == [r + 1 for r in data_acc_revision_before]
 
     def test_1_user_send_2_parallel_trx_with_neon_balance_change(
         self,
         operator_keypair,
         treasury_pool,
-        neon_api_client,
+        neon_rpc_client,
         session_user,
         evm_loader,
         holder_acc,
-        new_holder_acc,
+        second_holder_acc,
+        transfers_contract,
     ):
         amount = 1000000
         evm_loader.deposit_neon(operator_keypair, session_user.eth_address, 4 * amount)
         sender_balance_before = evm_loader.get_neon_balance(session_user.eth_address)
+
         recipients = [evm_loader.make_new_user(operator_keypair), evm_loader.make_new_user(operator_keypair)]
-        contract = evm_loader.deploy_contract(
-            operator_keypair, session_user, "transfers", neon_api_client, treasury_pool
-        )
-        operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
         recipients_eth_addresses = [rec.eth_address for rec in recipients]
+
+        operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
+
         signed_tx1 = make_contract_call_trx(
             evm_loader,
             session_user,
-            contract,
+            transfers_contract,
             "transferNeon(uint256,address[])",
             [amount, recipients_eth_addresses],
             value=amount * 2,
@@ -530,8 +534,8 @@ class TestAccountRevision:
         accounts += [
             session_user.balance_account_address,
             session_user.solana_account_address,
-            contract.balance_account_address,
-            contract.solana_address,
+            transfers_contract.balance_account_address,
+            transfers_contract.solana_address,
         ]
 
         evm_loader.write_transaction_to_holder_account(signed_tx1, holder_acc, operator_keypair)
@@ -545,14 +549,14 @@ class TestAccountRevision:
         signed_tx2 = make_contract_call_trx(
             evm_loader,
             session_user,
-            contract,
+            transfers_contract,
             "transferNeon(uint256,address[])",
             [amount, recipients_eth_addresses],
             value=amount * 2,
         )
 
         resp = evm_loader.execute_trx_from_instruction(
-            operator_keypair, new_holder_acc, treasury_pool.account, treasury_pool.buffer, signed_tx2, accounts
+            operator_keypair, second_holder_acc, treasury_pool.account, treasury_pool.buffer, signed_tx2, accounts
         )
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
 
@@ -586,28 +590,25 @@ class TestAccountRevision:
         self,
         operator_keypair,
         treasury_pool,
-        neon_api_client,
+        neon_rpc_client,
         session_user,
         evm_loader,
-        new_holder_acc,
+        second_holder_acc,
         holder_acc,
+        transfers_contract,
     ):
         sender = evm_loader.make_new_user(operator_keypair)
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
 
         recipient = session_user
-
         evm_loader.deposit_neon(operator_keypair, sender.eth_address, 1000000)
-        contract = evm_loader.deploy_contract(
-            operator_keypair, session_user, "transfers", neon_api_client, treasury_pool
-        )
 
         amount = evm_loader.get_neon_balance(sender.eth_address)
 
         signed_tx1 = make_contract_call_trx(
             evm_loader,
             sender,
-            contract,
+            transfers_contract,
             "transferNeon(uint256,address[])",
             [amount // 2, [recipient.eth_address]],
             value=amount // 2,
@@ -615,18 +616,18 @@ class TestAccountRevision:
         accounts = [
             sender.balance_account_address,
             sender.solana_account_address,
-            contract.balance_account_address,
-            contract.solana_address,
+            transfers_contract.balance_account_address,
+            transfers_contract.solana_address,
             recipient.balance_account_address,
             recipient.solana_account_address,
         ]
 
-        evm_loader.write_transaction_to_holder_account(signed_tx1, new_holder_acc, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx1, second_holder_acc, operator_keypair)
         evm_loader.send_transaction_step_from_account(
             operator_keypair,
             operator_balance_pubkey,
             treasury_pool,
-            new_holder_acc,
+            second_holder_acc,
             accounts,
             EVM_STEPS,
             operator_keypair,
@@ -635,7 +636,7 @@ class TestAccountRevision:
             operator_keypair,
             operator_balance_pubkey,
             treasury_pool,
-            new_holder_acc,
+            second_holder_acc,
             accounts,
             EVM_STEPS,
             operator_keypair,
@@ -644,7 +645,7 @@ class TestAccountRevision:
         signed_tx2 = make_contract_call_trx(
             evm_loader,
             sender,
-            contract,
+            transfers_contract,
             "transferNeon(uint256,address[])",
             [amount, [recipient.eth_address]],
             value=amount,
@@ -659,23 +660,25 @@ class TestAccountRevision:
                 operator_keypair,
                 operator_balance_pubkey,
                 treasury_pool,
-                new_holder_acc,
+                second_holder_acc,
                 accounts,
                 EVM_STEPS,
                 operator_keypair,
             )
+        evm_loader.send_cancel_transaction(operator_keypair, second_holder_acc, accounts, signed_tx1.hash)
 
     def test_parallel_change_balance_in_one_trx_and_check_in_second_trx(
-        self, operator_keypair, treasury_pool, neon_api_client, sender_with_tokens, evm_loader
+        self,
+        operator_keypair,
+        treasury_pool,
+        neon_rpc_client,
+        sender_with_tokens,
+        evm_loader,
+        holder_acc,
+        second_holder_acc,
     ):
-        holder_acc = evm_loader.create_holder(operator_keypair)
         contract = evm_loader.deploy_contract(
-            operator_keypair,
-            sender_with_tokens,
-            "transfers",
-            neon_api_client,
-            treasury_pool,
-            value=1000,
+            operator_keypair, sender_with_tokens, "transfers", neon_rpc_client, treasury_pool, value=1000
         )
         sender_balance_before = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
 
@@ -703,23 +706,23 @@ class TestAccountRevision:
         )
 
         signed_tx2 = make_contract_call_trx(evm_loader, sender_with_tokens, contract, "donateTenPercent()")
-        holder_acc_2 = evm_loader.create_holder(operator_keypair)
         resp = evm_loader.execute_trx_from_instruction(
-            operator_keypair, holder_acc_2, treasury_pool.account, treasury_pool.buffer, signed_tx2, accounts
+            operator_keypair, second_holder_acc, treasury_pool.account, treasury_pool.buffer, signed_tx2, accounts
         )
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
 
-        for _ in range(2):
-            resp = evm_loader.send_transaction_step_from_account(
-                operator_keypair,
-                operator_balance_pubkey,
-                treasury_pool,
-                holder_acc,
-                accounts,
-                EVM_STEPS,
-                operator_keypair,
-            )
+        # To finish after RESET we only need one interation, because there are no state change
+        resp = evm_loader.send_transaction_step_from_account(
+            operator_keypair,
+            operator_balance_pubkey,
+            treasury_pool,
+            holder_acc,
+            accounts,
+            EVM_STEPS,
+            operator_keypair,
+        )
 
+        check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="RESET")
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
         check_holder_account_tag(
             solana_client=evm_loader,
@@ -741,16 +744,16 @@ class TestAccountRevision:
         operator_keypair,
         evm_loader,
         sender_with_tokens,
-        neon_api_client,
+        neon_rpc_client,
         treasury_pool,
-        new_holder_acc,
-        new_holder_acc_2,
+        holder_acc,
+        second_holder_acc,
         func_signature,
         amount_emulated_accounts,
         second_session_user,
     ):
         func1_args = [15]
-        emulate_result = neon_api_client.emulate_contract_call(
+        emulate_result = neon_rpc_client.emulate_contract_call(
             sender_with_tokens.eth_address.hex(),
             revision_contract.eth_address.hex(),
             func_signature,
@@ -763,23 +766,22 @@ class TestAccountRevision:
             evm_loader, sender_with_tokens, revision_contract, func_signature, func1_args
         )
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
-        evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx, holder_acc, operator_keypair)
 
         # start first tx
-        for i in range(1):
-            evm_loader.send_transaction_step_from_account(
-                operator_keypair,
-                operator_balance_pubkey,
-                treasury_pool,
-                new_holder_acc,
-                emulated_accounts,
-                EVM_STEPS,
-                operator_keypair,
-            )
+        evm_loader.send_transaction_step_from_account(
+            operator_keypair,
+            operator_balance_pubkey,
+            treasury_pool,
+            holder_acc,
+            emulated_accounts,
+            EVM_STEPS,
+            operator_keypair,
+        )
 
         # make second transaction, change  number value and back original value in the same tx
         func2_args = [2]
-        emulate_result2 = neon_api_client.emulate_contract_call(
+        emulate_result2 = neon_rpc_client.emulate_contract_call(
             second_session_user.eth_address.hex(),
             revision_contract.eth_address.hex(),
             func_signature,
@@ -791,9 +793,9 @@ class TestAccountRevision:
         signed_tx2 = make_contract_call_trx(
             evm_loader, second_session_user, revision_contract, func_signature, func2_args
         )
-        evm_loader.write_transaction_to_holder_account(signed_tx2, new_holder_acc_2, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx2, second_holder_acc, operator_keypair)
         resp = evm_loader.execute_transaction_steps_from_account(
-            operator_keypair, treasury_pool, new_holder_acc_2, emulated_accounts_2
+            operator_keypair, treasury_pool, second_holder_acc, emulated_accounts_2
         )
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
 
@@ -804,7 +806,7 @@ class TestAccountRevision:
                 operator_keypair,
                 operator_balance_pubkey,
                 treasury_pool,
-                new_holder_acc,
+                holder_acc,
                 emulated_accounts,
                 EVM_STEPS,
                 operator_keypair,
@@ -819,10 +821,10 @@ class TestAccountRevision:
         operator_keypair,
         evm_loader,
         sender_with_tokens,
-        neon_api_client,
+        neon_rpc_client,
         treasury_pool,
-        new_holder_acc,
-        new_holder_acc_2,
+        holder_acc,
+        second_holder_acc,
         second_session_user,
     ):
 
@@ -830,7 +832,7 @@ class TestAccountRevision:
         func_signature = "powAmount(uint256,uint256)"
         func1_args = [5, 10]
 
-        emulate_result = neon_api_client.emulate_contract_call(
+        emulate_result = neon_rpc_client.emulate_contract_call(
             second_session_user.eth_address.hex(), lender_contract.eth_address.hex(), func_signature, func1_args
         )
 
@@ -838,14 +840,14 @@ class TestAccountRevision:
         signed_tx = make_contract_call_trx(evm_loader, second_session_user, lender_contract, func_signature, func1_args)
 
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
-        evm_loader.write_transaction_to_holder_account(signed_tx, new_holder_acc_2, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx, second_holder_acc, operator_keypair)
 
         for i in range(2):
             evm_loader.send_transaction_step_from_account(
                 operator_keypair,
                 operator_balance_pubkey,
                 treasury_pool,
-                new_holder_acc_2,
+                second_holder_acc,
                 emulated_accounts,
                 EVM_STEPS,
                 operator_keypair,
@@ -855,7 +857,7 @@ class TestAccountRevision:
         func2_signature = "flashLoan(address,uint256)"
         func2_args = [borrower_contract.eth_address, 9]
 
-        emulate_result_2 = neon_api_client.emulate_contract_call(
+        emulate_result_2 = neon_rpc_client.emulate_contract_call(
             sender_with_tokens.eth_address.hex(), lender_contract.eth_address.hex(), func2_signature, func2_args, "0x9"
         )
 
@@ -864,19 +866,19 @@ class TestAccountRevision:
             evm_loader, sender_with_tokens, lender_contract, func2_signature, func2_args, 9
         )
 
-        evm_loader.write_transaction_to_holder_account(signed_tx2, new_holder_acc, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx2, holder_acc, operator_keypair)
         resp = evm_loader.execute_transaction_steps_from_account(
-            operator_keypair, treasury_pool, new_holder_acc, emulated_accounts_2
+            operator_keypair, treasury_pool, holder_acc, emulated_accounts_2
         )
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
         # finish first tx
         resp = None
-        for i in range(3):
+        for i in range(2):
             resp = evm_loader.send_transaction_step_from_account(
                 operator_keypair,
                 operator_balance_pubkey,
                 treasury_pool,
-                new_holder_acc_2,
+                second_holder_acc,
                 emulated_accounts,
                 EVM_STEPS,
                 operator_keypair,
@@ -891,9 +893,9 @@ class TestAccountRevision:
         operator_keypair,
         evm_loader,
         sender_with_tokens,
-        neon_api_client,
+        neon_rpc_client,
         treasury_pool,
-        new_holder_acc,
+        holder_acc,
     ):
 
         balance_before = evm_loader.get_neon_balance(lender_contract.eth_address, evm_loader.chain_id)
@@ -902,7 +904,7 @@ class TestAccountRevision:
         func_signature = "flashLoan(address,uint256)"
         func_args = [borrower_contract.eth_address, 9]
 
-        emulate_result = neon_api_client.emulate_contract_call(
+        emulate_result = neon_rpc_client.emulate_contract_call(
             sender_with_tokens.eth_address.hex(), lender_contract.eth_address.hex(), func_signature, func_args, "0x9"
         )
 
@@ -915,9 +917,9 @@ class TestAccountRevision:
             func_args,
         )
 
-        evm_loader.write_transaction_to_holder_account(signed_tx2, new_holder_acc, operator_keypair)
+        evm_loader.write_transaction_to_holder_account(signed_tx2, holder_acc, operator_keypair)
         resp = evm_loader.execute_transaction_steps_from_account(
-            operator_keypair, treasury_pool, new_holder_acc, emulated_accounts
+            operator_keypair, treasury_pool, holder_acc, emulated_accounts
         )
         check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
 
@@ -933,9 +935,9 @@ class TestAccountRevision:
         evm_loader,
         operator_keypair,
         treasury_pool,
-        new_holder_acc,
+        second_holder_acc,
         holder_acc,
-        neon_api_client,
+        neon_rpc_client,
         revision_contract,
         revision_contract_caller,
         session_user,
@@ -948,7 +950,7 @@ class TestAccountRevision:
         user1 = session_user
         user2 = user_account
         holder1 = holder_acc
-        holder2 = new_holder_acc
+        holder2 = second_holder_acc
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
         additional_accounts = [
             session_user.balance_account_address,
@@ -967,7 +969,7 @@ class TestAccountRevision:
                 operator_keypair,
             )
 
-        emulate_result1 = neon_api_client.emulate_contract_call(
+        emulate_result1 = neon_rpc_client.emulate_contract_call(
             user1.eth_address.hex(),
             revision_contract_caller.eth_address.hex(),
             "callRevisionChangerMethods(uint256)",
@@ -984,7 +986,7 @@ class TestAccountRevision:
         )
         evm_loader.write_transaction_to_holder_account(signed_tx1, holder1, operator_keypair)
 
-        emulate_result2 = neon_api_client.emulate_contract_call(
+        emulate_result2 = neon_rpc_client.emulate_contract_call(
             user2.eth_address.hex(),
             revision_contract_caller.eth_address.hex(),
             "callRevisionChangerMethods(uint256)",
@@ -1019,7 +1021,7 @@ class TestAccountRevision:
         contract_revision_caller_after = evm_loader.get_contract_account_revision(
             revision_contract_caller.solana_address
         )
-        assert contract_revision_before == contract_revision_after - 2
+        assert contract_revision_before == contract_revision_after - (63 * 2)
         assert contract_revision_caller_before == contract_revision_caller_after
 
         data_accounts = set(acc_from_emulation1) - set(additional_accounts)
@@ -1032,17 +1034,16 @@ class TestAccountRevision:
         evm_loader,
         operator_keypair,
         treasury_pool,
-        new_holder_acc,
+        second_holder_acc,
         holder_acc,
-        neon_api_client,
+        neon_rpc_client,
         revision_with_solana_call_contract,
         session_user,
-        sol_client,
         sender_with_tokens,
         environment,
     ):
         holder1 = holder_acc
-        holder2 = new_holder_acc
+        holder2 = second_holder_acc
         recipient = session_user
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
         balance_account_revision = evm_loader.get_balance_account_revision(
@@ -1059,14 +1060,13 @@ class TestAccountRevision:
             value=10 * amount,
         )
 
-        emulate_result = neon_api_client.emulate_contract_call(
+        accounts_from_emulation1 = neon_rpc_client.get_additional_accounts_by_emulation(
             sender_with_tokens.eth_address.hex(),
             revision_with_solana_call_contract.eth_address.hex(),
             "transferNeonSeveralTimes(uint256,address)",
             [10, recipient.eth_address],
             value=hex(10 * amount),
         )
-        accounts_from_emulation1 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
         evm_loader.write_transaction_to_holder_account(signed_tx1, holder1, operator_keypair)
 
@@ -1089,12 +1089,12 @@ class TestAccountRevision:
         )
 
         recipient_balance_before_trx2 = evm_loader.get_neon_balance(recipient.eth_address)
-        payer_bytes32 = neon_api_client.call_contract_get_function(
+        payer_bytes32 = neon_rpc_client.call_contract_get_function(
             sender_with_tokens, revision_with_solana_call_contract, "getPayer()"
         )
         payer = bytes32_to_solana_pubkey(payer_bytes32)
 
-        instruction = make_CreateAssociatedTokenIdempotent(
+        instruction = make_create_associated_token_idempotent(
             payer, sender_with_tokens.solana_account_address, Pubkey.from_string(environment.spl_neon_mint)
         )
         serialized_instructions = serialize_instruction(ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID, instruction)
@@ -1108,14 +1108,13 @@ class TestAccountRevision:
             value=2 * amount,
         )
 
-        emulate_result = neon_api_client.emulate_contract_call(
+        accounts_from_emulation2 = neon_rpc_client.get_additional_accounts_by_emulation(
             sender_with_tokens.eth_address.hex(),
             revision_with_solana_call_contract.eth_address.hex(),
             "transferNeonAndCallSolana(uint64,bytes,uint256,address)",
             [2039280, serialized_instructions, amount, recipient.eth_address],
             value=hex(2 * amount),
         )
-        accounts_from_emulation2 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
 
         evm_loader.write_transaction_to_holder_account(signed_tx2, holder2, operator_keypair)
 
@@ -1123,7 +1122,7 @@ class TestAccountRevision:
         resp2 = evm_loader.execute_transaction_steps_from_account(
             operator_keypair, treasury_pool, holder2, accounts_from_emulation2
         )
-        check_transaction_logs_have_text(solana_client=sol_client, trx=resp2, text="exit_status=0x11")
+        check_transaction_logs_have_text(solana_client=evm_loader, trx=resp2, text="exit_status=0x11")
 
         payer_info = evm_loader.get_account_info(payer, commitment=Confirmed)
         assert payer_info.value is None
@@ -1132,7 +1131,7 @@ class TestAccountRevision:
         resp1 = evm_loader.execute_transaction_steps_from_account(
             operator_keypair, treasury_pool, holder1, accounts_from_emulation1, check_invalid_revision=True
         )
-        check_transaction_logs_have_text(solana_client=sol_client, trx=resp1, text="exit_status=0x11")
+        check_transaction_logs_have_text(solana_client=evm_loader, trx=resp1, text="exit_status=0x11")
 
         recipient_balance_after_trx1_rerun = evm_loader.get_neon_balance(recipient.eth_address)
         assert recipient_balance_after_trx1_rerun == recipient_balance_before_trx2 + 2 * amount + 10 * amount
@@ -1143,15 +1142,14 @@ class TestAccountRevision:
         )
         assert balance_account_revision_after == balance_account_revision + 2
 
-    @pytest.mark.skip(reason="https://neonlabs.atlassian.net/browse/NDEV-3773")
     def test_revision_changed_by_non_iterative_second_trx_with_solana_call(
         self,
         evm_loader,
         operator_keypair,
         treasury_pool,
-        new_holder_acc,
         holder_acc,
-        neon_api_client,
+        second_holder_acc,
+        neon_rpc_client,
         revision_with_solana_call_contract,
         session_user,
         sol_client,
@@ -1159,11 +1157,16 @@ class TestAccountRevision:
         sender_with_tokens,
     ):
         holder1 = holder_acc
-        holder2 = new_holder_acc
+        holder2 = second_holder_acc
         operator_balance_pubkey = evm_loader.get_operator_balance_pubkey(operator_keypair)
         recipient = session_user
         amount1 = 10000
         amount2 = amount1 // 2
+
+        balance_account_revision_before = evm_loader.get_balance_account_revision(
+            revision_with_solana_call_contract.balance_account_address
+        )
+        recipient_balance_before = evm_loader.get_neon_balance(recipient.eth_address)
 
         signed_tx1 = make_contract_call_trx(
             evm_loader,
@@ -1174,7 +1177,7 @@ class TestAccountRevision:
             value=10 * amount1,
         )
 
-        emulate_result = neon_api_client.emulate_contract_call(
+        emulate_result = neon_rpc_client.emulate_contract_call(
             sender_with_tokens.eth_address.hex(),
             revision_with_solana_call_contract.eth_address.hex(),
             "transferNeonSeveralTimes(uint256,address)",
@@ -1184,9 +1187,6 @@ class TestAccountRevision:
 
         accounts_from_emulation1 = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
         evm_loader.write_transaction_to_holder_account(signed_tx1, holder1, operator_keypair)
-        balance_account_revision_before = evm_loader.get_balance_account_revision(
-            revision_with_solana_call_contract.balance_account_address
-        )
 
         for _ in range(25):
             evm_loader.send_transaction_step_from_account(
@@ -1206,14 +1206,12 @@ class TestAccountRevision:
             expected_tag=TAG_ACTIVE_STATE,
         )
 
-        recipient_balance_before_trx2 = evm_loader.get_neon_balance(recipient.eth_address)
-
-        payer_bytes32 = neon_api_client.call_contract_get_function(
+        payer_bytes32 = neon_rpc_client.call_contract_get_function(
             sender_with_tokens, revision_with_solana_call_contract, "getPayer()"
         )
         payer = bytes32_to_solana_pubkey(payer_bytes32)
 
-        instruction = make_CreateAssociatedTokenIdempotent(
+        instruction = make_create_associated_token_idempotent(
             payer, sender_with_tokens.solana_account_address, Pubkey.from_string(environment.spl_neon_mint)
         )
         serialized_instructions = serialize_instruction(ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID, instruction)
@@ -1227,7 +1225,7 @@ class TestAccountRevision:
             value=amount2 * 2,
         )
 
-        emulate_result = neon_api_client.emulate_contract_call(
+        emulate_result = neon_rpc_client.emulate_contract_call(
             sender_with_tokens.eth_address.hex(),
             revision_with_solana_call_contract.eth_address.hex(),
             "transferNeonAndCallSolana(uint64,bytes,uint256,address)",
@@ -1252,9 +1250,12 @@ class TestAccountRevision:
             operator_keypair, treasury_pool, holder1, accounts_from_emulation1
         )
         check_transaction_logs_have_text(solana_client=sol_client, trx=resp1, text="exit_status=0x11")
+
+        assert recipient_balance_before + 2 * amount2 + 10 * amount1 == evm_loader.get_neon_balance(
+            recipient.eth_address
+        )
+        assert evm_loader.get_neon_balance(revision_with_solana_call_contract.eth_address) == 0
         balance_account_revision = evm_loader.get_balance_account_revision(
             revision_with_solana_call_contract.balance_account_address
         )
-        assert recipient_balance_before_trx2 == evm_loader.get_neon_balance(recipient.eth_address) + 2 * amount2
-        assert evm_loader.get_neon_balance(revision_with_solana_call_contract.eth_address) == 0
-        assert balance_account_revision == balance_account_revision_before + 2
+        assert balance_account_revision == balance_account_revision_before + 3

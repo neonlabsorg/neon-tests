@@ -1,18 +1,21 @@
 import pathlib
 import typing as tp
+
+import allure
 import eth_abi
 from eth_utils import abi
 
 from Crypto.Hash import keccak
 from eth_account.datastructures import SignedTransaction
-from solders.pubkey import Pubkey
 from web3.auto import w3
 
+from utils.logger import log_text_to_allure_and_stdout
 from utils.types import Caller, Contract
 from .contract import get_contract_bin
 from .eth_tx_utils import pack
 
 
+@allure.step("Create contract address")
 def create_contract_address(
     user: tp.Union[Caller, bytes],
     evm_loader,
@@ -27,14 +30,16 @@ def create_contract_address(
     user_nonce = evm_loader.get_neon_nonce(user, chain_id)
     contract_eth_address = keccak.new(digest_bits=256).update(pack([user, user_nonce or None])).digest()[-20:]
 
-    contract_solana_address, _ = evm_loader.ether2program(contract_eth_address)
+    contract_solana_address = evm_loader.ether2program(contract_eth_address)
     contract_neon_address = evm_loader.ether2balance(contract_eth_address, chain_id)
 
-    print(f"Contract addresses: " f"  eth {contract_eth_address.hex()}, " f"  solana {contract_solana_address}")
+    contract = Contract(contract_eth_address, contract_solana_address, contract_neon_address)
+    log_text_to_allure_and_stdout("Created contract addresses", str(contract))
 
-    return Contract(contract_eth_address, Pubkey.from_string(contract_solana_address), contract_neon_address)
+    return contract
 
 
+@allure.step("Prepare signed transaction for contract deployment")
 def make_deployment_transaction(
     evm_loader,
     user: Caller,
@@ -76,6 +81,7 @@ def make_deployment_transaction(
     return w3.eth.account.sign_transaction(tx, user.solana_account.secret()[:32])
 
 
+@allure.step("Prepare signed transaction")
 def make_eth_transaction(
     evm_loader,
     to_addr: bytes,
@@ -114,9 +120,11 @@ def make_eth_transaction(
 
     if type_ is not None:
         tx["type"] = type_
+    log_text_to_allure_and_stdout("Ethereum transaction data", str(tx))
     return w3.eth.account.sign_transaction(tx, caller.solana_account.secret()[:32])
 
 
+@allure.step("Prepare signed transaction for contract call")
 def make_contract_call_trx(
     evm_loader,
     user,

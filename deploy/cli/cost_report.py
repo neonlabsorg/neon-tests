@@ -8,11 +8,14 @@ from typing import TypedDict, Literal
 
 import click
 import pandas as pd
+from solana.rpc.commitment import Confirmed
+from solana.transaction import Signature
 
-from deploy.cli.infrastructure import get_solana_accounts_transactions_compute_units
 from deploy.cli.network_manager import NetworkManager
 from deploy.test_results_db.db_handler import PostgresTestResultsHandler
 from deploy.test_results_db.test_results_handler import TestResultsHandler
+from utils.consts import GITHUB_TAG_PATTERN
+from utils.solana_client import SolanaClient
 from utils.types import RepoType
 from utils.web3client import NeonChainWeb3Client
 
@@ -120,7 +123,6 @@ def get_service_tags_for_cost_reports(
     :param version_branch:
     :return:
     """
-    from clickfile import GITHUB_TAG_PATTERN
 
     compared_service_tag = evm_tag if repo == "evm" else proxy_tag
     other_service_tag = evm_tag if repo == "proxy" else proxy_tag
@@ -278,18 +280,18 @@ def validate_cost_reports(
 ):
     """
     Compares the cost report data for <repo>:<evm_tag|proxy_tag|version_branch>
-    with previous report data based on acceptable absolute increases in metrics.
+    with previous report data based on acceptable increases in metrics.
     Any detected increases exceeding the allowed thresholds are saved to the <output> file.
 
     :param repo: Repository name.
     :param evm_tag: EVM tag of the report data.
     :param proxy_tag: Proxy tag of the report data.
-    :param version_branch: Maximum acceptable absolute increase in the metric version_branch.
-    :param acc_count: Maximum acceptable absolute increase in the metric acc_count.
-    :param trx_count: Maximum acceptable absolute increase in the metric trx_count.
-    :param gas_estimated: Maximum acceptable absolute increase in the metric gas_estimated.
-    :param gas_used: Maximum acceptable absolute increase in the metric gas_used.
-    :param compute_units: Maximum acceptable absolute increase in the metric compute_units.
+    :param version_branch: Version branch.
+    :param acc_count: Maximum acceptable increase in acc_count.
+    :param trx_count: Maximum acceptable increase in trx_count.
+    :param gas_estimated: Maximum acceptable increase in gas_estimated.
+    :param gas_used: Maximum acceptable increase in gas_used.
+    :param compute_units: Maximum acceptable increase in compute_units.
     :param output: Path to the JSON file where detected failures are saved.
     """
     db = PostgresTestResultsHandler()
@@ -314,7 +316,7 @@ def validate_cost_reports(
     all_metric_names = "acc_count", "trx_count", "gas_estimated", "gas_used", "compute_units"
     dapp_names = historical_data["dapp_name"].unique()
 
-    failure = TypedDict("failure", {"dapp": str, "action": str, "metric": str, "DIFFERENCE": int})
+    failure = TypedDict("failure", {"dapp": str, "action": str, "metric": str, "INCREASE": int})
     failures: list[failure] = []
 
     for dapp_name in dapp_names:
@@ -339,10 +341,53 @@ def validate_cost_reports(
                             "dapp": dapp_name,
                             "action": action,
                             "metric": metric_name,
-                            "DIFFERENCE": actual_change,
+                            "INCREASE": actual_change,
                         }
                         failures.append(failure_dict)
 
     if failures:
         df = pd.DataFrame(failures)
         md = df.to_markdown(output, index=False)
+
+
+def get_solana_accounts_transactions_compute_units(eth_transaction):
+    print("**********************************************************************")
+    print(f"Neon transaction {eth_transaction}")
+    network = os.environ.get("NETWORK")
+    network_manager = NetworkManager(network)
+    solana_url = network_manager.get_network_param(network, "solana_url")
+    proxy_url = network_manager.get_network_param(network, "proxy_url")
+    sol_client = SolanaClient(solana_url)
+    web3_client = NeonChainWeb3Client(proxy_url)
+    trx = web3_client.get_solana_trx_by_neon(eth_transaction)
+    print(f"neon_getSolanaTransactionByNeonTransaction(eth_transaction={eth_transaction}): {trx}")
+    print(f"minimum_ledger_slot={sol_client.get_minimum_ledger_slot()}")
+    print(f"first_available_block={sol_client.get_first_available_block()}")
+    print(f"get_slot={sol_client.get_slot()}")
+    tr = sol_client.get_transaction(
+        Signature.from_string(trx["result"][0]), max_supported_transaction_version=0, commitment=Confirmed
+    )
+    print(f"get_transaction({trx}): {tr}")
+
+    solana_transaction_hashes = trx["result"]
+    print(f"trx_count ({len(solana_transaction_hashes)}): {solana_transaction_hashes}")
+    compute_units = 0
+
+    for solana_transaction_hash in solana_transaction_hashes:
+        solana_transaction = sol_client.get_transaction(
+            tx_sig=Signature.from_string(solana_transaction_hash),
+            max_supported_transaction_version=0,
+            commitment=Confirmed,
+        )
+        compute_units_consumed = int(solana_transaction.value.transaction.meta.compute_units_consumed)
+        compute_units += compute_units_consumed
+        print(f"Compute units {solana_transaction_hash}: {compute_units_consumed}")
+
+    if tr.value.transaction.transaction.message.address_table_lookups:
+        alt = tr.value.transaction.transaction.message.address_table_lookups
+        print(f"Atl: {alt}")
+        return len(alt[0].writable_indexes) + len(alt[0].readonly_indexes), len(trx["result"]), compute_units
+    else:
+        account_keys = tr.value.transaction.transaction.message.account_keys
+        print(f"Account keys ({len(account_keys)}): {account_keys}")
+        return len(tr.value.transaction.transaction.message.account_keys), len(trx["result"]), compute_units

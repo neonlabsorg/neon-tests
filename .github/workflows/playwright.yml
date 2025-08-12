@@ -2,7 +2,10 @@ name: "Playwright Tests"
 run-name: Playwright tests / ${{ github.event.pull_request.title || github.event_name }}
 
 on:
+#  schedule:
+#    - cron: "0 3 * * 0,1,2,3,4"
   workflow_dispatch:
+
 env:
   IMAGE:  ${{ github.repository_owner }}/neon_tests
   CONTAINER:  services-${{ github.run_id }}
@@ -13,7 +16,7 @@ env:
 jobs:
   dockerize:
     if: ${{ github.ref_name != 'develop'}}
-    runs-on: ["self-hosted", "k8s-prod"]
+    runs-on: ["gha-runner-scale-set-large"]
     steps:
       - uses: actions/checkout@v4
       - name: "Dockerize neon tests"
@@ -33,7 +36,7 @@ jobs:
       always() &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
-    runs-on: ["self-hosted", "k8s-prod"]
+    runs-on: ["gha-runner-scale-set"]
     timeout-minutes: 60
     env:
       NETWORK: "devnet"
@@ -61,6 +64,7 @@ jobs:
             /bin/bash -c "export DEVNET_FAUCET_URL=${{ env.FAUCET_URL }} && export DEVNET_SOLANA_URL=${{ env.DEVNET_SOLANA_URL }} && \
             xvfb-run python3 ./clickfile.py run ui --network=${{ env.NETWORK }} --ui-item=faucet"
       - name: "Generate allure report"
+        id: generate-allure-report
         if: always()
         uses: ./.github/actions/generate-allure-report
         with:
@@ -76,8 +80,10 @@ jobs:
             python3 ./clickfile.py send-notification \
             -u ${{ secrets.SLACK_QA_CHANNEL_URL }} \
             -b ${{ env.BUILD_URL }} \
-            -n ${{ env.NETWORK }} \
-            --test-group ui
+            --network ${{ env.NETWORK }} \
+            --test-group ui \
+            --report-group ui \
+            --report-url ${{ steps.generate-allure-report.outputs.allure_report_url }}
       - name: Remove docker container
         if: always()
         run: docker rm -f ${{ env.CONTAINER }}

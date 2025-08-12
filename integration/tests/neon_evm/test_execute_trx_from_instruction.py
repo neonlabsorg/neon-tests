@@ -3,6 +3,7 @@ import string
 
 import pytest
 import eth_abi
+import solders.system_program as sp
 from eth_account.datastructures import SignedTransaction
 from eth_keys import keys as eth_keys
 from eth_utils import abi, to_text
@@ -61,7 +62,7 @@ class TestExecuteTrxFromInstruction:
         recipient = Keypair()
 
         recipient_ether = eth_keys.PrivateKey(recipient.secret()[:32]).public_key.to_canonical_address()
-        recipient_solana_address, _ = evm_loader.ether2program(recipient_ether)
+        recipient_solana_address = evm_loader.ether2program(recipient_ether)
         recipient_balance_address = evm_loader.ether2balance(recipient_ether)
         amount = 10
         signed_tx = make_eth_transaction(evm_loader, recipient_ether, None, sender_with_tokens, amount)
@@ -74,7 +75,7 @@ class TestExecuteTrxFromInstruction:
             [
                 sender_with_tokens.balance_account_address,
                 recipient_balance_address,
-                Pubkey.from_string(recipient_solana_address),
+                recipient_solana_address,
             ],
         )
 
@@ -90,7 +91,7 @@ class TestExecuteTrxFromInstruction:
         sender_with_tokens: Caller,
         string_setter_contract: Contract,
         evm_loader,
-        neon_api_client,
+        neon_rpc_client,
         holder_acc,
         solana_client,
     ):
@@ -110,7 +111,7 @@ class TestExecuteTrxFromInstruction:
 
         check_transaction_logs_have_text(solana_client=solana_client, trx=resp, text="exit_status=0x11")
         assert text in to_text(
-            neon_api_client.call_contract_get_function(sender_with_tokens, string_setter_contract, "get()")
+            neon_rpc_client.call_contract_get_function(sender_with_tokens, string_setter_contract, "get()")
         )
 
     def test_call_contract_function_with_neon_transfer(
@@ -119,7 +120,7 @@ class TestExecuteTrxFromInstruction:
         treasury_pool,
         sender_with_tokens: Caller,
         evm_loader,
-        neon_api_client,
+        neon_rpc_client,
         string_setter_contract,
         holder_acc,
         solana_client,
@@ -134,23 +135,23 @@ class TestExecuteTrxFromInstruction:
         signed_tx = make_eth_transaction(
             evm_loader, string_setter_contract.eth_address, data, sender_with_tokens, transfer_amount
         )
+
+        emulate_result = neon_rpc_client.emulate_contract_call(
+            sender_with_tokens.eth_address.hex(),
+            string_setter_contract.eth_address.hex(),
+            "set(string)",
+            params=[text],
+            value=transfer_amount,
+        )
+        additional_accounts = [Pubkey.from_string(item["pubkey"]) for item in emulate_result["solana_accounts"]]
         resp = evm_loader.execute_trx_from_instruction(
-            operator_keypair,
-            holder_acc,
-            treasury_pool.account,
-            treasury_pool.buffer,
-            signed_tx,
-            [
-                sender_with_tokens.balance_account_address,
-                string_setter_contract.balance_account_address,
-                string_setter_contract.solana_address,
-            ],
+            operator_keypair, holder_acc, treasury_pool.account, treasury_pool.buffer, signed_tx, additional_accounts
         )
 
         check_transaction_logs_have_text(solana_client=solana_client, trx=resp, text="exit_status=0x11")
 
         assert text in to_text(
-            neon_api_client.call_contract_get_function(sender_with_tokens, string_setter_contract, "get()")
+            neon_rpc_client.call_contract_get_function(sender_with_tokens, string_setter_contract, "get()")
         )
 
         sender_balance_after = evm_loader.get_neon_balance(sender_with_tokens.eth_address)
@@ -313,7 +314,7 @@ class TestExecuteTrxFromInstruction:
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         fake_operator = Keypair()
-        with pytest.raises(SolanaRPCException, match=InstructionAsserts.ACC_NOT_FOUND):
+        with pytest.raises(SolanaRPCException, match=InstructionAsserts.INCORRECT_OPERATOR):
             evm_loader.execute_trx_from_instruction(
                 fake_operator,
                 holder_acc,
@@ -327,14 +328,11 @@ class TestExecuteTrxFromInstruction:
                 ],
             )
 
-    def test_operator_is_not_in_white_list(
-        self, sender_with_tokens, evm_loader, treasury_pool, session_user, holder_acc, sol_client
-    ):
+    def test_operator_is_not_in_white_list(self, sender_with_tokens, evm_loader, treasury_pool, session_user):
         # check any user can send transactions through "execute transaction from instruction" instruction with own holder
 
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         holder_acc = evm_loader.create_holder(sender_with_tokens.solana_account)
-
         resp = evm_loader.execute_trx_from_instruction(
             sender_with_tokens.solana_account,
             holder_acc,
@@ -348,16 +346,14 @@ class TestExecuteTrxFromInstruction:
             ],
             sender_with_tokens.solana_account,
         )
-        check_transaction_logs_have_text(solana_client=sol_client, trx=resp, text="exit_status=0x11")
+        check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x11")
 
     def test_incorrect_system_program(
         self, sender_with_tokens, operator_keypair, evm_loader, treasury_pool, session_user, holder_acc
     ):
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         fake_sys_program_id = Keypair().pubkey()
-        with pytest.raises(
-            SolanaRPCException, match=str.format(InstructionAsserts.INVALID_PUBLIC_KEY, fake_sys_program_id)
-        ):
+        with pytest.raises(SolanaRPCException, match=str.format(InstructionAsserts.ACCOUNT_NOT_FOUND, sp.ID)):
             evm_loader.execute_trx_from_instruction(
                 operator_keypair,
                 holder_acc,
@@ -381,12 +377,11 @@ class TestExecuteTrxFromInstruction:
     ):
         key = Keypair()
         caller_ether = eth_keys.PrivateKey(key.secret()[:32]).public_key.to_canonical_address()
-        caller, caller_nonce = evm_loader.ether2program(caller_ether)
-        caller_token = get_associated_token_address(
-            Pubkey.from_string(caller), Pubkey.from_string(environment.spl_neon_mint)
-        )
+        caller = evm_loader.ether2program(caller_ether)
+        balance_account = evm_loader.ether2balance(caller_ether)
+        caller_token = get_associated_token_address(caller, Pubkey.from_string(environment.spl_neon_mint))
 
-        operator_without_money = Caller(key, Pubkey.from_string(caller), caller_ether, caller_nonce, caller_token)
+        operator_without_money = Caller(key, caller, balance_account, caller_ether, caller_token)
 
         signed_tx = make_eth_transaction(evm_loader, session_user.eth_address, None, sender_with_tokens, 1)
         with pytest.raises(
@@ -455,7 +450,7 @@ class TestExecuteTrxFromInstruction:
         calculator_contract,
         treasury_pool,
         holder_acc,
-        solana_client,
+        neon_rpc_client,
     ):
         signed_tx = make_contract_call_trx(
             evm_loader, sender_with_tokens, calculator_caller_contract, "callCalculator()"
@@ -470,16 +465,18 @@ class TestExecuteTrxFromInstruction:
             v=signed_tx.v,
         )
 
+        additional_accounts = neon_rpc_client.get_additional_accounts_by_emulation(
+            sender_with_tokens.eth_address.hex(),
+            calculator_caller_contract.eth_address.hex(),
+            "callCalculator()",
+        )
+
         resp = evm_loader.execute_trx_from_instruction(
             operator_keypair,
             holder_acc,
             treasury_pool.account,
             treasury_pool.buffer,
             signed_tx_new,
-            [
-                sender_with_tokens.balance_account_address,
-                calculator_caller_contract.solana_address,
-                calculator_contract.solana_address,
-            ],
+            additional_accounts,
         )
-        check_transaction_logs_have_text(solana_client=solana_client, trx=resp, text="exit_status=0x12")
+        check_transaction_logs_have_text(solana_client=evm_loader, trx=resp, text="exit_status=0x12")

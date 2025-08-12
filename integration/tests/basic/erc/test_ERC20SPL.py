@@ -276,7 +276,7 @@ class TestERC20SPL:
         receipt = erc20_contract.transfer(erc20_contract.owner, new_account.address, 100)
         precompiled_addresses = [METAPLEX_ADDRESS, SPL_TOKEN_ADDRESS, CALL_SOLANA_ADDRESS, SOLANA_NATIVE_ADDRESS]
         for precompiled_address in precompiled_addresses:
-            program_address = evm_loader.ether2program(precompiled_address[2:])[0]
+            program_address = evm_loader.ether2program(precompiled_address[2:])
             assert_solana_address_was_not_used_in_trx(
                 receipt["transactionHash"].hex(), program_address, self.web3_client, evm_loader
             )
@@ -739,7 +739,7 @@ class TestERC20SPLMintable:
         assert user1_balance_after == user1_balance_before - sent_amount, "User1 balance is not correct"
         assert user2_balance_after == user2_balance_before + claim_amount, "User2 balance is not correct"
 
-    def test_solana_account_getter(self, erc20_spl_mintable, neon_user):
+    def test_solana_account_getter(self, erc20_spl_mintable):
         acc = self.accounts[0]
         solana_pubkey = erc20_spl_mintable.get_solana_account(acc.address)
 

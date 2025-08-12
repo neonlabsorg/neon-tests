@@ -1,3 +1,4 @@
+import re
 import typing as tp
 from enum import Enum
 from pathlib import Path
@@ -29,13 +30,25 @@ SOLANA_CALL_PRECOMPILED_ID: Pubkey = Pubkey.from_string("83fAnx3LLG612mHbEh4HzXE
 COUNTER_ID: Pubkey = Pubkey.from_string("FUVnLFCgK48arAUgngmyYkSSKKD2PpjsneNTyigbe4oh")
 TRANSFER_SOL_ID: Pubkey = Pubkey.from_string("6x9dAYQehxXLh16EHAKXevnQADTZPKP6ZT4t8BfNDxtB")
 TRANSFER_TOKENS_ID: Pubkey = Pubkey.from_string("BFsGPJUwgE1rz4eoL322HaKZYNZ5wDLafwYtKwomv2XF")
-TEST_INVOKE_ID: Pubkey = Pubkey.from_string("2Uax3YiG6wiAcCdDCAZwKSuzi47w3cidMRQQnteMJJCT")
+TEST_INVOKE_ID: Pubkey = Pubkey.from_string("A4HqdWTdJku9MB4FZfzv5YjsPmGCxX8NfKcrQJh2spqu")
 QUERY_ACCOUNT_ID: Pubkey = Pubkey.from_string("Fbc3Hf6FK7wCQjQHq9qS2phvhujfkfMQQWLsyA5s4oSu")
+ALT_UPDATER_ID: Pubkey = Pubkey.from_string("2opr1VoyXxpNePA4gcLBGPMPgrzgpyixuqDrE7EzKFWv")
 
 SPL_TOKEN_ADDRESS = "0xFf00000000000000000000000000000000000004"
 METAPLEX_ADDRESS = "0xff00000000000000000000000000000000000005"
 CALL_SOLANA_ADDRESS = "0xFF00000000000000000000000000000000000006"
 SOLANA_NATIVE_ADDRESS = "0xfF00000000000000000000000000000000000007"
+
+PAYMENT_FOR_TREE_ACCOUNT_DELETING = 10_000  # Paid by neon_user for tree_acc deleting. Do not depend on trx_count
+PAYMENT_FOR_TRX_FINISHING = 10_000  # Paid by neon_user for scheduled transaction finishing for each iteration
+TRX_EXECUTION_PRICE = 5_000  # Standard fee for trx execution in solana. Paid by neon_user fox tree_acc creation
+LAMPORT_TO_INNER_SOL = 10**9  # Exchange coefficient from outer sol to inner sol
+OPERATOR_FEE_TO_NEON = 5_000  # Paid by operator to treasury account per iteration. Fee for trx execution inside Neon
+TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST = (
+    222_720  # Cost of enlarging balance account struct during tree_acc creation +32 bytes
+)
+
+GITHUB_TAG_PATTERN = re.compile(r"^[vt]\d{1,2}\.\d{1,2}\.\d{1,2}$")
 
 
 class Time:
@@ -63,6 +76,7 @@ class Unit(Enum):
 class EnvName(str, Enum):
     MAINNET = "mainnet"
     DEVNET = "devnet"
+    DEVNET_2 = "devnet-2"
     TESTNET = "testnet"
     LOCAL = "local"
     TERRAFORM = "terraform"
@@ -83,6 +97,7 @@ MULTITOKEN_MINTS_USDT = "2duuuuhNJHUYqcnZ7LKfeufeeTBgSJdftf2zM3cZV6ym"
 
 
 class InstructionTags(bytes, Enum):
+    COLLECT_TREASURE = b"\x1e"
     HOLDER_CREATE = b"\x24"
     HOLDER_DELETE = b"\x25"
     HOLDER_WRITE = b"\x26"
@@ -102,11 +117,47 @@ class InstructionTags(bytes, Enum):
     OPERATOR_BALANCE_WITHDRAW = b"\x3C"
     SCHEDULED_TRANSACTION_START_FROM_ACCOUNT = b"\x46"
     SCHEDULED_TRANSACTION_START_FROM_INSTRUCTION = b"\x47"
-    SCHEDULED_TRANSACTION_SKIP_FROM_INSTRUCTION = b"\x4E"
-    SCHEDULED_TRANSACTION_SKIP_FROM_ACCOUNT = b"\x4D"
     SCHEDULED_TRANSACTION_FINISH = b"\x49"
     SCHEDULED_TRANSACTION_CREATE = b"\x4A"
     SCHEDULED_TRANSACTION_CREATE_MULTIPLE = b"\x4B"
     SCHEDULED_TRANSACTION_DESTROY = b"\x4C"
+    SCHEDULED_TRANSACTION_SKIP_FROM_ACCOUNT = b"\x4D"
+    SCHEDULED_TRANSACTION_SKIP_FROM_INSTRUCTION = b"\x4E"
     SET_COMPUTE_UNIT_PRICE = b"\x03"
     SET_COMPUTE_UNIT_LIMIT = b"\x02"
+    CONFIG_GET_CHAIN_COUNT = b"\xA0"
+    CONFIG_GET_CHAIN_INFO = b"\xA1"
+    CONFIG_GET_ENVIRONMENT = b"\xA2"
+    CONFIG_GET_PROPERTY_COUNT = b"\xA3"
+    CONFIG_GET_PROPERTY_BY_INDEX = b"\xA4"
+    CONFIG_GET_PROPERTY_BY_NAME = b"\xA5"
+    CONFIG_GET_STATUS = b"\xA6"
+    CONFIG_GET_VERSION = b"\xA7"
+    CONTAINER_ALLOCATE = b"\x50"
+    CONTAINER_ASSEMBLE = b"\x51"
+
+
+class NeonTxExitStatus(str, Enum):
+    SUCCESS_WITH_CHANGES = "0x11"
+    SUCCESS_NO_CHANGES = "0x12"
+    REVERT = "0xD0"
+
+
+class AccountType(int, Enum):
+    EMPTY = 0
+    HOLDER = 52
+    STORAGE = 43
+    USER_BALANCE = 60
+    CONTRACT = 70
+    OPERATOR_BALANCE = 80
+    TREE_ACCOUNT = 90
+    CONTAINER = 100
+    REFERENCE = 110
+
+
+class ExecuteTrxTypes(str, Enum):
+    ITERATIVE_FROM_INSTRUCTION = InstructionTags.TRANSACTION_STEP_FROM_INSTRUCTION
+    ITERATIVE_FROM_ACCOUNT = InstructionTags.TRANSACTION_STEP_FROM_ACCOUNT
+    ITERATIVE_FROM_ACCOUNT_NO_CHAIN_ID = InstructionTags.TRANSACTION_STEP_FROM_ACCOUNT_NO_CHAIN_ID
+    NON_ITERATIVE_FROM_INSTRUCTION = InstructionTags.TRANSACTION_EXECUTE_FROM_INSTRUCTION
+    NON_ITERATIVE_FROM_ACCOUNT = InstructionTags.TRANSACTION_EXECUTE_FROM_ACCOUNT

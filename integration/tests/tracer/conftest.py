@@ -9,7 +9,7 @@ from spl.token.constants import WRAPPED_SOL_MINT
 from web3.types import TxReceipt
 from integration.tests.basic.helpers.basic import AccountData
 from integration.tests.basic.helpers.rpc_checks import check_trx_is_success
-from utils.helpers import decode_function_signature, wait_condition
+from utils.helpers import decode_function_signature
 from utils.scheduled_trx import ScheduledTrxEstimateRequest, ScheduledTransaction, CreateTreeAccMultipleData
 
 from utils.tracer_client import TracerClient
@@ -376,10 +376,7 @@ def iteration_tx_receipt(accounts, web3_client, counter_contract):
     instruction_tx = counter_contract.functions.moreInstruction(0, 3000).build_transaction(tx)
     receipt = web3_client.send_transaction(sender_account, instruction_tx)
 
-    wait_condition(
-        lambda: web3_client.is_trx_iterative(receipt["transactionHash"].hex()) is True,
-        timeout_sec=120,
-    )
+    assert web3_client.is_trx_iterative(receipt["transactionHash"].hex())
     assert receipt["status"] == 1
     return receipt
 
@@ -397,10 +394,7 @@ def iterative_tx_with_erc20_for_spl_receipt(accounts, web3_client, multiple_acti
     ).build_transaction(tx)
     receipt = web3_client.send_transaction(sender_account, instruction_tx)
 
-    wait_condition(
-        lambda: web3_client.is_trx_iterative(receipt["transactionHash"].hex()) is True,
-        timeout_sec=120,
-    )
+    assert web3_client.is_trx_iterative(receipt["transactionHash"].hex()) is True
     assert receipt["status"] == 1
     return receipt
 
@@ -456,7 +450,7 @@ def failed_scheduled_tx_receipt(
 def reverted_iterative_tx_receipt(accounts, web3_client, revert_contract_caller):
     sender_account = accounts[0]
     tx = web3_client.make_raw_tx(sender_account, gas=10000000)
-    instruction_tx = revert_contract_caller.functions.doTrivialRevertAferIterativeActions().build_transaction(tx)
+    instruction_tx = revert_contract_caller.functions.doTrivialRevertAfterIterativeActions().build_transaction(tx)
     receipt = web3_client.send_transaction(sender_account, instruction_tx)
     assert receipt["status"] == 0
     return receipt
@@ -554,3 +548,114 @@ def chain_with_return_data_receipt_and_contracts(accounts, web3_client, chain_ex
     receipt = web3_client.send_transaction(sender_account, instruction_tx_2)
     assert receipt["status"] == 1, f"Transaction failed: {receipt}"
     return receipt, test_text
+
+
+@pytest.fixture(scope="class")
+def chain_execution_contracts(accounts, web3_client):
+    sender_account = accounts[0]
+
+    # Deploy contracts without dependencies first
+    contract2, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract2"
+    )
+
+    contract4, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract4"
+    )
+
+    contract6, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract6"
+    )
+
+    contract7, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution", "0.8.10", sender_account, contract_name="Contract7"
+    )
+
+    # Deploy contracts with dependencies
+    contract5, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="Contract5",
+        constructor_args=[contract7.address],
+    )
+
+    contract3, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="Contract3",
+        constructor_args=[contract4.address, contract5.address, contract6.address],
+    )
+
+    # Deploy the root contract
+    chain_execution_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="ChainExecution",
+        constructor_args=[contract2.address, contract3.address],
+    )
+    chain_execution_contracts = [
+        chain_execution_contract,
+        contract2,
+        contract3,
+        contract4,
+        contract5,
+        contract6,
+        contract7,
+    ]
+    yield chain_execution_contracts
+
+
+@pytest.fixture(scope="class")
+def chain_execution_contracts_with_revert(accounts, web3_client, events_checker_contract, common_contract):
+    sender_account = accounts[0]
+
+    middle_call_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="MiddleCall",
+        constructor_args=[events_checker_contract.address],
+    )
+
+    chain_with_revert_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="ChainWithRevert",
+        constructor_args=[middle_call_contract.address],
+    )
+
+    chain_with_revert_contracts = [
+        chain_with_revert_contract,
+        middle_call_contract,
+        events_checker_contract,
+        common_contract,
+    ]
+    yield chain_with_revert_contracts
+
+
+@pytest.fixture(scope="class")
+def chain_execution_contracts_with_return_data(accounts, web3_client, common_contract):
+    sender_account = accounts[0]
+
+    middle_call_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="MiddleCall",
+        constructor_args=[common_contract.address],
+    )
+
+    chain_with_revert_contract, _ = web3_client.deploy_and_get_contract(
+        "common/ChainExecution",
+        "0.8.10",
+        sender_account,
+        contract_name="ChainWithReturnData",
+        constructor_args=[middle_call_contract.address],
+    )
+
+    chain_with_revert_contracts = [chain_with_revert_contract, middle_call_contract, common_contract]
+    yield chain_with_revert_contracts

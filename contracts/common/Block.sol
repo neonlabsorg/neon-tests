@@ -35,7 +35,7 @@ contract BlockTimestamp is CarefulMath {
 
     function callIterativeTrx() public payable {
         uint256 timestamp_before = block.timestamp;
-        for (uint256 i = 0; i < 800; i++) {
+        for (uint256 i = 0; i < 500; i++) {
             a = a + block.timestamp;
         }
         emit Result(block.timestamp);
@@ -55,9 +55,9 @@ contract BlockTimestamp is CarefulMath {
         accrualBlockNumber = currentBlockTimestamp;
     }
 
-    function addDataToMapping(uint256 _value1, uint256 _value2) public {
+    function addDataToMapping(uint256 _value1, uint256 _value2, uint256 count) public {
         uint256 currentTimestamp = block.timestamp % 1000000;
-        for (uint256 i = 0; i < 20; i++) {
+        for (uint256 i = 0; i < count; i++) {
             Data memory newData = Data({
                 value1: _value1,
                 value2: _value2
@@ -121,15 +121,15 @@ contract BlockNumber is CarefulMath {
 
     function callIterativeTrx() public payable {
         uint256 b = 1223;
-        for (uint256 i = 0; i < 1000; i++) {
+        for (uint256 i = 0; i < 500; i++) {
             a = a + block.number;
         }
         emit Result(block.number);
     }
 
-    function addDataToMapping(uint256 _value1, uint256 _value2) public {
+    function addDataToMapping(uint256 _value1, uint256 _value2, uint256 count) public {
         uint256 currentNumber = block.number;
-        for (uint256 i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < count; i++) {
             Data memory newData = Data({
                 value1: _value1,
                 value2: _value2

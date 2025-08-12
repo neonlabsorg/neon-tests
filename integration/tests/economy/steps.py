@@ -1,17 +1,25 @@
 import logging
-import time
 from decimal import Decimal
-
+import pytest
 import allure
-from solana.rpc.commitment import Confirmed
-from solana.rpc.core import RPCException
-from solders.rpc.responses import GetTransactionResp
-from solders.signature import Signature
+from eth_account.signers.local import LocalAccount
+
 
 from integration.tests.economy.const import DECIMAL_CONTEXT
-from utils.consts import LAMPORT_PER_SOL, Time
-from utils.helpers import wait_condition, hasattr_recursive
+from utils.consts import (
+    LAMPORT_PER_SOL,
+    Time,
+    PAYMENT_FOR_TRX_FINISHING,
+    PAYMENT_FOR_TREE_ACCOUNT_DELETING,
+    TRX_EXECUTION_PRICE,
+    TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST,
+    LAMPORT_TO_INNER_SOL,
+)
+from utils.helpers import wait_condition
+from utils.neon_user import NeonUser
+from utils.operator import Operator
 from utils.solana_data_for_neon_trx_helper import get_alt_by_neon_trx
+from utils.web3client import Web3Client
 
 logger = logging.getLogger(__name__)
 
@@ -56,11 +64,12 @@ def check_alt_off(web3_client, sol_client, receipt):
 @allure.step("Wait until ALT will be deleted")
 def wait_until_alt_deleted(web3_client, sol_client, receipt):
     alt = get_alt_by_neon_trx(web3_client, sol_client, receipt["transactionHash"].hex())
-    wait_condition(
-        lambda: not sol_client.account_exists(alt),
-        timeout_sec=10 * Time.MINUTE,
-        delay=3,
-    )
+    if alt is not None:
+        wait_condition(
+            lambda: not sol_client.account_exists(alt),
+            timeout_sec=10 * Time.MINUTE,
+            delay=3,
+        )
 
 
 @allure.step("Get gas used percent")
@@ -72,41 +81,33 @@ def get_gas_used_percent(web3_client, receipt):
         pass
 
 
-@allure.step("Wait for block")
-def wait_for_block(client, block, timeout=60):
-    started = time.time()
-    while (time.time() - started) < timeout:
-        try:
-            return client.get_block(block, max_supported_transaction_version=2)
-        except RPCException:
-            time.sleep(3)
-        time.sleep(3)
-    raise TimeoutError("Block not available for slot")
+@allure.step("Calculate additional sol expenses")
+def calculate_additional_expenses(trx_count):
+    return (
+        PAYMENT_FOR_TREE_ACCOUNT_DELETING
+        + TRX_EXECUTION_PRICE
+        + PAYMENT_FOR_TRX_FINISHING * trx_count
+        + TREE_ACCOUNT_BALANCE_STRUCT_ENLARGEMENT_COST
+    ) * LAMPORT_TO_INNER_SOL
 
 
-@allure.step("Get solana transaction with ALT")
-def get_sol_trx_with_alt(web3_client, sol_client, web3_transaction_receipt):
-    solana_trx = web3_client.get_solana_trx_by_neon(web3_transaction_receipt["transactionHash"].hex())
-    sol_trx_with_alt = None
+@allure.step("Summarize operator, sender and receivers account balances inside neon")
+def sum_balances(w3_client: Web3Client, operator: Operator, accounts: list[NeonUser | str | LocalAccount]) -> int:
+    token_sum = operator.get_token_balance(w3_client)
+    for account in accounts:
+        account = account.checksum_address if isinstance(account, NeonUser) else account
+        token_sum += w3_client.get_balance(account)
+    return token_sum
 
-    wait_condition(
-        lambda: sol_client.get_transaction(
-            Signature.from_string(solana_trx["result"][0]), max_supported_transaction_version=0, commitment=Confirmed
+
+@allure.step("Check total volume of tokens inside neon remains unchanged after transaction")
+def assert_tokens_volumes_stayed_same(sum_of_tokens_before: int, sum_of_tokens_after: int):
+    if sum_of_tokens_before != sum_of_tokens_after:
+        diff = sum_of_tokens_after - sum_of_tokens_before
+        direction = "LOWER" if diff < 0 else "MORE"
+        pytest.fail(
+            f"Token volume became {direction} than before. "
+            f"sum_of_tokens_before={sum_of_tokens_before}, "
+            f"sum_of_tokens_after={sum_of_tokens_after}, "
+            f"Diff={diff}"
         )
-        != GetTransactionResp(None)
-    )
-
-    for trx in solana_trx["result"]:
-        trx_sol = sol_client.get_transaction(
-            Signature.from_string(trx), max_supported_transaction_version=0, commitment=Confirmed
-        )
-        if (
-            hasattr_recursive(trx_sol, "value.transaction.transaction.message.address_table_lookups")
-            and trx_sol.value.transaction.transaction.message.address_table_lookups
-        ):
-            sol_trx_with_alt = trx_sol
-    if not sol_trx_with_alt:
-        print(f"There are no lookup table for {solana_trx}")
-        return None
-
-    return sol_trx_with_alt
