@@ -413,7 +413,7 @@ class TestNeonRPCBaseCalls:
             preparatory_solana_instructions=trx.instructions,
         )
 
-        assert error["code"] == 3
+        assert error["code"] == Error32602.CODE
         assert error["data"]
         assert "execution reverted" in error["message"].lower()
 
