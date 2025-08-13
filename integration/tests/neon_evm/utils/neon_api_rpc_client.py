@@ -66,6 +66,7 @@ class NeonApiRpcClient:
         max_steps_to_execute=500000,
         provide_account_info=None,
         trace_config=None,
+        account_limit=64,
     ) -> json:
         if not chain_id:
             chain_id = self.chain_id
@@ -78,12 +79,13 @@ class NeonApiRpcClient:
             "accounts": [],
             "provide_account_info": provide_account_info,
             "trace_config": trace_config,
+            "account_limit": account_limit,
         }
         return self._make_request("emulate", params)
 
     @allure.step("Emulate contract call")
     def emulate_contract_call(
-        self, sender, contract, function_signature, params=None, value=0, trace_config=None
+        self, sender, contract, function_signature, params=None, value=0, trace_config=None, account_limit=64
     ) -> json:
         data = abi.function_signature_to_4byte_selector(function_signature)
         if isinstance(value, int):
@@ -91,7 +93,7 @@ class NeonApiRpcClient:
         if params is not None:
             types = function_signature.split("(")[1].split(")")[0].split(",")
             data += eth_abi.encode(types, params)
-        return self.emulate(sender, contract, data, value=value, trace_config=trace_config)
+        return self.emulate(sender, contract, data, value=value, trace_config=trace_config, account_limit=account_limit)
 
     @allure.step("Emulate transaction from holder account")
     def emulate_from_holder(self, holder_pubkey: Pubkey, max_steps_to_execute=500000):

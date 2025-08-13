@@ -107,23 +107,22 @@ class TestPrecompiledSplToken:
     @pytest.fixture(scope="class")
     def bob(self, spl_token_caller, token_mint, accounts):
         user = accounts.create_account()
-        tx = {
-            "from": user.address,
-            "nonce": self.web3_client.eth.get_transaction_count(user.address),
-            "gasPrice": self.web3_client.gas_price(),
-        }
+        tx = self.web3_client.make_raw_tx(user)
         instruction_tx = spl_token_caller.functions.initializeAccount(user.address, token_mint).build_transaction(tx)
         self.web3_client.send_transaction(user, instruction_tx)
+        amount = 10000
+        tx = self.web3_client.make_raw_tx(user)
+        instruction_tx = spl_token_caller.functions.mintTo(user.address, amount, token_mint).build_transaction(tx)
+
+        self.web3_client.send_transaction(user, instruction_tx)
+
         return user
 
     @pytest.fixture(scope="class")
     def alice(self, spl_token_caller, token_mint, faucet, eth_bank_account):
         account = self.web3_client.create_account_with_balance(faucet, bank_account=eth_bank_account)
-        tx = {
-            "from": account.address,
-            "nonce": self.web3_client.eth.get_transaction_count(account.address),
-            "gasPrice": self.web3_client.gas_price(),
-        }
+        tx = self.web3_client.make_raw_tx(account)
+
         instruction_tx = spl_token_caller.functions.initializeAccount(account.address, token_mint).build_transaction(tx)
         self.web3_client.send_transaction(account, instruction_tx)
         return account
@@ -343,12 +342,13 @@ class TestPrecompiledSplToken:
         assert receipt["status"] == 0
 
     def test_mint_to(self, spl_token_caller, token_mint, bob):
+        balance_before = self.get_account(spl_token_caller, bob).amount
         amount = 100
         tx = self.web3_client.make_raw_tx(bob)
         instruction_tx = spl_token_caller.functions.mintTo(bob.address, amount, token_mint).build_transaction(tx)
         receipt = self.web3_client.send_transaction(bob, instruction_tx)
         assert receipt["status"] == 1
-        assert self.get_account(spl_token_caller, bob).amount == amount
+        assert self.get_account(spl_token_caller, bob).amount == amount + balance_before
 
     def test_mint_to_non_initialized_acc(self, spl_token_caller, token_mint, non_initialized_acc):
         tx = self.web3_client.make_raw_tx(non_initialized_acc)
@@ -389,11 +389,6 @@ class TestPrecompiledSplToken:
     def test_transfer(self, spl_token_caller, token_mint, bob, alice):
         amount = 100
 
-        tx = self.web3_client.make_raw_tx(bob)
-        instruction_tx = spl_token_caller.functions.mintTo(bob.address, amount, token_mint).build_transaction(tx)
-
-        self.web3_client.send_transaction(bob, instruction_tx)
-
         b1_before = self.get_account(spl_token_caller, bob).amount
         b2_before = self.get_account(spl_token_caller, alice).amount
 
@@ -408,32 +403,33 @@ class TestPrecompiledSplToken:
 
     def test_transfer_to_non_initialized_acc(self, spl_token_caller, token_mint, bob, non_initialized_acc):
         amount = 100
-        tx = self.web3_client.make_raw_tx(bob)
-        instruction_tx = spl_token_caller.functions.mintTo(bob.address, amount, token_mint).build_transaction(tx)
-        self.web3_client.send_transaction(bob, instruction_tx)
 
         tx = self.web3_client.make_raw_tx(bob)
         with pytest.raises(web3.exceptions.ContractLogicError, match=ErrorMessage.INVALID_ACC_DATA.value):
             spl_token_caller.functions.transfer(bob.address, non_initialized_acc.address, amount).build_transaction(tx)
         calldata = decode_function_signature(
-            "transfer(address,address,uint64)", [bob.address, non_initialized_acc.address, 100]
+            "transfer(address,address,uint64)", [bob.address, non_initialized_acc.address, amount]
         )
         tx = self.web3_client.make_raw_tx(bob, spl_token_caller.address, data=calldata, gas=1000000, estimate_gas=False)
         receipt = self.web3_client.send_transaction(bob, tx)
         assert receipt["status"] == 0
 
-    def test_transfer_with_incorrect_signer(self, spl_token_caller, token_mint, bob, alice):
+    def test_failed_transfer_low_level_call(
+        self, spl_token_caller, token_mint, bob, non_initialized_acc, json_rpc_client
+    ):
         amount = 100
 
-        tx = self.web3_client.make_raw_tx(bob)
-        instruction_tx = spl_token_caller.functions.mintTo(bob.address, amount, token_mint).build_transaction(tx)
+        tx = self.web3_client.make_raw_tx(bob, gas=10000000)
+        instruction_tx = spl_token_caller.functions.transferByLowLevelCall(
+            bob.address, non_initialized_acc.address, amount
+        ).build_transaction(tx)
+        response = json_rpc_client.send_rpc(method="eth_estimateGas", params=[dict(instruction_tx)])
+        assert "error" in response
+        assert response["error"]["code"] == 3
+        assert "External call fails" in response["error"]["message"]
 
-        self.web3_client.send_transaction(bob, instruction_tx)
-
-        tx = self.web3_client.make_raw_tx(bob)
-        instruction_tx = spl_token_caller.functions.transfer(bob.address, alice.address, amount).build_transaction(tx)
-        with pytest.raises(TypeError, match=r"from field must match key's .*, but it was "):
-            self.web3_client.send_transaction(alice, instruction_tx)
+        resp = self.web3_client.send_transaction(bob, instruction_tx)
+        assert resp["status"] == 0, "Transaction should fail"
 
     def test_transfer_more_than_balance(self, spl_token_caller, token_mint, bob, alice):
         transfer_amount = self.get_account(spl_token_caller, bob).amount + 1
@@ -451,10 +447,6 @@ class TestPrecompiledSplToken:
 
     def test_burn(self, spl_token_caller, token_mint, bob):
         amount = 100
-        tx = self.web3_client.make_raw_tx(bob)
-        instruction_tx = spl_token_caller.functions.mintTo(bob.address, amount, token_mint).build_transaction(tx)
-
-        self.web3_client.send_transaction(bob, instruction_tx)
 
         balance_before = self.get_account(spl_token_caller, bob).amount
         tx = self.web3_client.make_raw_tx(bob)
@@ -491,10 +483,6 @@ class TestPrecompiledSplToken:
 
     def test_approve_and_revoke(self, spl_token_caller, token_mint, bob, alice):
         amount = 100
-
-        tx = self.web3_client.make_raw_tx(bob)
-        instruction_tx = spl_token_caller.functions.mintTo(bob.address, amount, token_mint).build_transaction(tx)
-        self.web3_client.send_transaction(bob, instruction_tx)
 
         tx = self.web3_client.make_raw_tx(bob)
         instruction_tx = spl_token_caller.functions.approve(bob.address, alice.address, amount).build_transaction(tx)
