@@ -22,7 +22,7 @@ from web3.exceptions import Web3RPCError
 
 from utils import helpers
 from utils.accounts import EthAccounts
-from utils.consts import LAMPORT_PER_SOL, Time, COUNTER_ID
+from utils.consts import LAMPORT_PER_SOL, COUNTER_ID
 from utils.erc20 import ERC20
 from utils.helpers import wait_condition, gen_hash_of_block, serialize_instruction
 from utils.operator import Operator
@@ -984,8 +984,6 @@ class TestEconomics:
         )
         get_gas_used_percent(w3_client, contract_deploy_tx)
 
-    @pytest.mark.slow
-    @pytest.mark.timeout(16 * Time.MINUTE)
     @pytest.mark.parametrize("tx_type", TransactionType)
     @pytest.mark.eip_1559
     def test_trx_alt_on(
@@ -1136,7 +1134,6 @@ class TestEconomics:
         )
         get_gas_used_percent(web3_client, receipt)
 
-    @pytest.mark.timeout(30 * Time.MINUTE)
     @pytest.mark.slow
     @pytest.mark.parametrize("value", [20, 30])
     @pytest.mark.parametrize("tx_type", TransactionType)
