@@ -7,7 +7,6 @@ from eth_account.signers.local import LocalAccount
 
 from utils.consts import (
     LAMPORT_PER_SOL,
-    Time,
     PAYMENT_FOR_TRX_FINISHING,
     PAYMENT_FOR_TREE_ACCOUNT_DELETING,
     TRX_EXECUTION_PRICE,
@@ -69,7 +68,7 @@ def wait_until_alt_deleted(web3_client, sol_client, receipt):
     if alt is not None:
         wait_condition(
             lambda: not sol_client.account_exists(alt),
-            timeout_sec=10 * Time.MINUTE,
+            timeout_sec=10 * 60,
             delay=3,
         )
 
