@@ -426,7 +426,7 @@ class TestPrecompiledSplToken:
         response = json_rpc_client.send_rpc(method="eth_estimateGas", params=[dict(instruction_tx)])
         assert "error" in response
         assert response["error"]["code"] == 3
-        assert "External call fails" in response["error"]["message"]
+        assert "execution reverted" in response["error"]["message"]
 
         resp = self.web3_client.send_transaction(bob, instruction_tx)
         assert resp["status"] == 0, "Transaction should fail"
