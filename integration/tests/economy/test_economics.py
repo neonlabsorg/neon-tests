@@ -191,7 +191,7 @@ class TestEconomics:
         sum_of_tokens_before = sum_balances(w3_client, operator, [account_with_all_tokens, acc2])
         acc3 = w3_client.create_account()
 
-        with pytest.raises(Web3RPCError, match=ErrorMessage.INSUFFICIENT_FUNDS.value):
+        with pytest.raises(Web3RPCError, match=ErrorMessage.INSUFFICIENT_FUNDS.value.lower()):
             w3_client.send_tokens(acc2, acc3, transfer_amount, tx_type=tx_type)
 
         sol_balance_after = operator.get_solana_balance()
@@ -489,7 +489,7 @@ class TestEconomics:
         acc2 = w3_client.create_account()
         w3_client.send_tokens(account_with_all_tokens, acc2, value=1, tx_type=tx_type)
 
-        with pytest.raises(Web3RPCError, match=ErrorMessage.INSUFFICIENT_FUNDS.value):
+        with pytest.raises(Web3RPCError, match=ErrorMessage.INSUFFICIENT_FUNDS.value.lower()):
             w3_client.deploy_and_get_contract(
                 contract="common/Counter",
                 version="0.8.10",
@@ -780,7 +780,7 @@ class TestEconomics:
         tx = w3_client.make_raw_tx(from_=acc2.address, tx_type=tx_type)
 
         instruction_tx = counter_contract_two_chain.functions.moreInstruction(0, 1500).build_transaction(tx)
-        with pytest.raises(Web3RPCError, match=ErrorMessage.INSUFFICIENT_FUNDS.value):
+        with pytest.raises(Web3RPCError, match=ErrorMessage.INSUFFICIENT_FUNDS.value.lower()):
             w3_client.send_transaction(acc2, instruction_tx)
 
         sol_balance_after = operator.get_solana_balance()
