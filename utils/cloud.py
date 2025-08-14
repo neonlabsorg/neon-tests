@@ -43,12 +43,10 @@ def list_bucket(directory, bucket=NEON_TESTS_BUCKET_NAME):
     return result.get("Contents", [])
 
 
-def sync_allure_report_to_s3(source_dir: str, path: pathlib.Path, region: str = "eu-central-1"):
-
+def sync_allure_report_to_s3(source_dir: str, path: pathlib.Path):
     dest_uri = f"s3://{NEON_TESTS_BUCKET_NAME}/{path}"
     env = os.environ.copy()
     env["AWS_MAX_CONCURRENCY"] = env.get("AWS_MAX_CONCURRENCY", "64")
-    env["AWS_DEFAULT_REGION"] = env.get("AWS_DEFAULT_REGION", region)
 
     cmd = [
         "aws",
