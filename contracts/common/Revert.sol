@@ -72,10 +72,3 @@ contract Caller {
         new FailingContract(true);
     }
 }
-
-
-contract contractWithConstructorWithReturn {
-
-    constructor() returns (uint256) {
-        return 42;
-    }
