@@ -232,27 +232,27 @@ class TestEconomics:
 
         get_gas_used_percent(w3_client, transfer_tx)
 
-    def test_erc721_mint(self, erc721, client_and_price, account_with_all_tokens, sol_price, operator):
-        w3_client, token_price = client_and_price
+    def test_erc721_mint(self, erc721, web3_client, sol_price, operator, neon_price, accounts):
         sol_balance_before = operator.get_solana_balance()
-        token_balance_before = operator.get_token_balance(w3_client)
-        sum_of_tokens_before = sum_balances(w3_client, operator, [account_with_all_tokens])
-        seed = w3_client.text_to_bytes32(gen_hash_of_block(8))
+        token_balance_before = operator.get_token_balance(web3_client)
+        sender = accounts[0]
+        sum_of_tokens_before = sum_balances(web3_client, operator, [sender])
+        seed = web3_client.text_to_bytes32(gen_hash_of_block(8))
 
-        erc721.mint(seed, account_with_all_tokens.address, "uri")
+        erc721.mint(seed, sender.address, "uri")
 
         wait_condition(lambda: sol_balance_before > operator.get_solana_balance())
         sol_balance_after = operator.get_solana_balance()
-        token_balance_after = operator.get_token_balance(w3_client)
+        token_balance_after = operator.get_token_balance(web3_client)
 
-        sum_of_tokens_after = sum_balances(w3_client, operator, [account_with_all_tokens])
+        sum_of_tokens_after = sum_balances(web3_client, operator, [sender])
         assert_tokens_volumes_stayed_same(sum_of_tokens_before, sum_of_tokens_after)
 
         sol_diff = sol_balance_before - sol_balance_after
 
         assert sol_balance_before > sol_balance_after
-        token_diff = w3_client.to_main_currency(token_balance_after - token_balance_before)
-        assert_profit(sol_diff, sol_price, token_diff, token_price, w3_client.native_token_name)
+        token_diff = web3_client.to_main_currency(token_balance_after - token_balance_before)
+        assert_profit(sol_diff, sol_price, token_diff, neon_price, web3_client.native_token_name)
 
     @pytest.mark.parametrize("tx_type", TransactionType)
     @pytest.mark.eip_1559
