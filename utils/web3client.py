@@ -657,7 +657,7 @@ class Web3Client:
     @allure.step("neon_estimateGas")
     def neon_estimate_gas(
         self,
-        raw_tx: dict,
+        raw_tx: tp.Union[dict, web3.types.TxParams],
         preparatory_solana_instructions: tp.Tuple[Instruction, ...] = None,
         show_gas_details: bool = True,
     ) -> dict:

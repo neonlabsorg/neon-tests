@@ -5,6 +5,7 @@ import random
 import string
 import time
 import typing as tp
+from typing import Any, Generator
 
 import allure
 import pytest
@@ -408,7 +409,7 @@ def withdraw_contract_sol_chain(
     bank_account,
     solana_account,
     environment: EnvironmentConfig,
-) -> Contract:
+) -> Generator[Contract, Any, None]:
     account = web3_client_session.create_account_with_balance(faucet, bank_account=eth_bank_account)
     if environment.use_bank:
         evm_loader.send_sol(bank_account, solana_account.pubkey(), int(2 * LAMPORT_PER_SOL))
