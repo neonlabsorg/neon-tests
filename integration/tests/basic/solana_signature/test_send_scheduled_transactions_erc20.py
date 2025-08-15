@@ -1,5 +1,6 @@
 import allure
 import pytest
+from _pytest.config import Config
 from solana.rpc.commitment import Confirmed
 from solana.transaction import Transaction
 from solders.keypair import Keypair
@@ -7,7 +8,6 @@ from solders.pubkey import Pubkey
 from spl.token.constants import TOKEN_PROGRAM_ID, WRAPPED_SOL_MINT
 from spl.token.instructions import get_associated_token_address, approve, ApproveParams
 
-from conftest import EnvironmentConfig
 from integration.tests.basic.helpers.rpc_checks import check_trx_is_success
 from utils.erc20wrapper import ERC20Wrapper
 from utils.evm_loader import EvmLoader
@@ -452,7 +452,7 @@ class TestScheduledTrxERC20:
         evm_loader: EvmLoader,
         treasury_pool: TreasuryPool,
         sol_client: SolanaClient,
-        environment: EnvironmentConfig,
+        pytestconfig: Config,
     ):
         transfer_amount = 1000
         claim_amount = transfer_amount // 2
@@ -468,7 +468,7 @@ class TestScheduledTrxERC20:
         delegate = sol_client.get_erc_auth_address(
             neon_account_address=neon_user.checksum_address,
             token_address=erc20_spl.contract.address,
-            evm_loader_id=environment.evm_loader,
+            evm_loader_id=pytestconfig.environment.evm_loader,
         )
 
         trx.add(
@@ -537,7 +537,7 @@ class TestScheduledTrxERC20:
         evm_loader: EvmLoader,
         treasury_pool: TreasuryPool,
         sol_client: SolanaClient,
-        environment: EnvironmentConfig,
+        pytestconfig: Config,
     ):
         transfer_amount = 1000
         claim_amount = transfer_amount // 2
@@ -554,7 +554,7 @@ class TestScheduledTrxERC20:
         delegate = sol_client.get_erc_auth_address(
             neon_account_address=neon_user.checksum_address,
             token_address=erc20_spl.contract.address,
-            evm_loader_id=environment.evm_loader,
+            evm_loader_id=pytestconfig.environment.evm_loader,
         )
 
         trx.add(
