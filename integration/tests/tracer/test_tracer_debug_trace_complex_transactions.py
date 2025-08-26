@@ -444,7 +444,7 @@ class TestDebugTraceComplexTransactions:
 
     def test_cancel_during_iterative_transaction(self, canceled_iterative_tx_with_hash_receipt, json_rpc_client):
         neon_tx_receipt = json_rpc_client.get_neon_trx_receipt(
-            canceled_iterative_tx_with_hash_receipt["transactionHash"]
+            canceled_iterative_tx_with_hash_receipt["transactionHash"].hex()
         )
         assert (
             neon_tx_receipt["result"]["solanaTransactions"][-1]["solanaInstructions"][0]["neonLogs"][0]["neonEventType"]
