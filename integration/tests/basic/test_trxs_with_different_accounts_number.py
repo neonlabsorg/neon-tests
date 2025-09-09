@@ -77,6 +77,7 @@ class TestTrxsWithDifferentAccountsCount:
 
         assert receipt["status"] == 1, "Transaction failed"
 
+    @pytest.mark.only_stands
     @pytest.mark.parametrize("accounts_quantity", [65, 180, 7000])
     def test_estimate_trx_with_too_many_accounts(
         self, web3_client, accounts, alt_contract, json_rpc_client, accounts_quantity
@@ -87,3 +88,18 @@ class TestTrxsWithDifferentAccountsCount:
         response = json_rpc_client.send_rpc(method="eth_estimateGas", params=[dict(tx)])
         assert response["error"]["code"] == 3
         assert "too many accounts" in response["error"]["message"].lower()
+
+    @pytest.mark.only_devnet
+    @pytest.mark.parametrize("accounts_quantity", [68, 127, 128, 200, 5000])
+    def test_estimate_trx_with_too_many_accounts_devnet_version(
+        self, web3_client, accounts, alt_contract, json_rpc_client, accounts_quantity
+    ):
+        """Estimate transaction with more than 64/128 accounts on devnet"""
+        tx = web3_client.make_raw_tx(from_=accounts[1], gas=10000000)
+        tx = alt_contract.functions.fill(accounts_quantity).build_transaction(tx)
+        response = json_rpc_client.send_rpc(method="eth_estimateGas", params=[dict(tx)])
+        if accounts_quantity < 128:
+            assert response["result"]
+        else:
+            assert response["error"]["code"] == 3
+            assert "too many accounts" in response["error"]["message"].lower()

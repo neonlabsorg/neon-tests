@@ -75,7 +75,7 @@ class TestInstruction:
         [(None, "TxStepFromAccountNoChainId"), ("auto", "TxStepFromData")],
     )
     def test_tx_iterative_with_and_without_chain_id(self, counter_contract, chain_id, expected_instruction):
-        sender_account = self.accounts[0]
+        sender_account = self.accounts.create_account(balance=40_000)
         tx = self.web3_client.make_raw_tx(sender_account, estimate_gas=True, chain_id=chain_id)
 
         instruction_tx = counter_contract.functions.moreInstructionWithLogs(0, 1000).build_transaction(tx)

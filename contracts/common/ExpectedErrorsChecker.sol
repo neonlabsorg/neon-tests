@@ -10,7 +10,7 @@ contract A {
     function method1() public {
         string memory text = "sdsd";
 
-        for (uint i; i < 10; i++) {
+        for (uint i; i < 11; i++) {
             a += 1;
             text = string.concat(text, text);
         }
