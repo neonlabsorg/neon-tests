@@ -1,7 +1,7 @@
 ARG OZ_TAG
 ARG DOCKER_HUB_ORG_NAME
 FROM ${DOCKER_HUB_ORG_NAME}/openzeppelin-contracts:${OZ_TAG} AS oz-contracts
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 ENV TZ=Europe/Moscow
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
@@ -10,20 +10,13 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt update && \
     apt upgrade -y && \
 # Prepare repo for node 18
-    apt install -y software-properties-common python-dev ca-certificates curl gnupg git && \
-    mkdir /etc/apt/keyrings && \
+    apt install -y software-properties-common python-dev-is-python3 ca-certificates curl gnupg git && \
+    mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
-# Install py3.10 from deadsnakes repository and pip from standard ubuntu packages
+# Install py3.8 and py3.10 from deadsnakes repository and pip from standard ubuntu packages
     add-apt-repository ppa:deadsnakes/ppa && apt update && \
-    apt install -y python3.10 python3.10-distutils nodejs build-essential
-
-RUN apt-get update && apt-get install -y -qq curl unzip ca-certificates \
- && curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
- && unzip -q /tmp/awscliv2.zip -d /tmp \
- && /tmp/aws/install \
- && rm -rf /var/lib/apt/lists/* /tmp/aws /tmp/awscliv2.zip
-
+    apt install -y python3.8 python3.8-distutils python3.10 python3.10-distutils nodejs build-essential
 
 RUN update-alternatives --install /usr/bin/python3 python /usr/bin/python3.10 2
 RUN update-alternatives --install /usr/bin/python3 python /usr/bin/python3.8 1
@@ -38,11 +31,11 @@ ENV VIRTUAL_ENV=/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN uv pip install -r /opt/click.txt
-RUN uv pip install -r /opt/tests.txt
-RUN uv pip install -r /opt/ui.txt
 
 WORKDIR /opt/neon-tests
 ADD ./ /opt/neon-tests
+
+RUN python3 ./clickfile.py requirements -d all
 
 ARG DOCKER_HUB_ORG_NAME
 ENV DOCKER_HUB_ORG_NAME=${DOCKER_HUB_ORG_NAME}
