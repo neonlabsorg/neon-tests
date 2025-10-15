@@ -35,7 +35,7 @@ RUN uv pip install -r /opt/click.txt
 WORKDIR /opt/neon-tests
 ADD ./ /opt/neon-tests
 
-RUN python3 ./clickfile.py requirements -d all
+RUN pip3 install -r deploy/requirements/click.txt && pip3 install -r deploy/requirements/tests.txt && pip3 install -r deploy/requirements/ui.txt
 
 ARG DOCKER_HUB_ORG_NAME
 ENV DOCKER_HUB_ORG_NAME=${DOCKER_HUB_ORG_NAME}
