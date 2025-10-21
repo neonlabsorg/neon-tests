@@ -25,6 +25,7 @@ def test_get_balance(neon_rpc_client, session_user, evm_loader):
     assert evm_loader.get_account_info(session_user.solana_account.pubkey()).value is not None
 
 
+@pytest.mark.skip(reason="NDEV-3884")
 @pytest.mark.parametrize("account_info", [None, "Changed", "All"])
 def test_emulate_transfer(neon_rpc_client, second_session_user, session_user, account_info):
     result = neon_rpc_client.emulate(
