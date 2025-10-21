@@ -126,7 +126,7 @@ class TestDebugTraceTransactionCallTracer:
         expected_response["gasUsed"] = hex(receipt["gasUsed"])
         expected_response["type"] = "CREATE"
 
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     def test_callTracer_type_create2(self, pytestconfig, events_checker_contract):
         sender_account = self.accounts[0]
@@ -140,7 +140,7 @@ class TestDebugTraceTransactionCallTracer:
         )
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         expected_response = self.fill_expected_response(tx_data, receipt, calls_value="0x0", calls_type="CREATE2")
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     def test_callTracer_type_call(self, pytestconfig, call_storage_tx_receipt):
         receipt, _ = call_storage_tx_receipt
@@ -149,7 +149,7 @@ class TestDebugTraceTransactionCallTracer:
         )
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         expected_response = self.fill_expected_response(tx_data, receipt, calls=False)
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     def test_callTracer_withLog_check(self, pytestconfig, event_tx_receipt):
         response = self.tracer_api.debug_trace_transaction(
@@ -158,7 +158,7 @@ class TestDebugTraceTransactionCallTracer:
 
         tx_data = self.web3_client.get_transaction_by_hash(event_tx_receipt["transactionHash"].hex())
         expected_response = self.fill_expected_response(tx_data, event_tx_receipt, calls=False, logs=True)
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
         response = self.tracer_api.debug_trace_transaction(
             event_tx_receipt["transactionHash"].hex(), wait_response=0, tracer_type="callTracer", with_log=False
@@ -199,7 +199,7 @@ class TestDebugTraceTransactionCallTracer:
 
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         expected_response = self.fill_expected_response(tx_data, receipt, calls_value="0x0", calls_type="STATICCALL")
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     def test_callTracer_call_contract_from_contract_type_static_call_with_events(
         self, pytestconfig, static_call_with_events_tx_receipt
@@ -213,7 +213,7 @@ class TestDebugTraceTransactionCallTracer:
         expected_response = self.fill_expected_response(
             tx_data, receipt, logs=True, calls_value="0x0", calls_type="STATICCALL", calls_logs_append=True
         )
-        self.assert_response_contains_expected(pytestconfig, expected_response, response, sort_calls=True)
+        self.assert_response_contains_expected(expected_response, response, sort_calls=True)
 
     def test_callTracer_call_contract_from_contract_type_call_with_events(
         self, pytestconfig, call_with_events_tx_receipt
@@ -227,7 +227,7 @@ class TestDebugTraceTransactionCallTracer:
         expected_response = self.fill_expected_response(
             tx_data, receipt, logs=True, calls_value="0x0", calls_logs_append=True
         )
-        self.assert_response_contains_expected(pytestconfig, expected_response, response, sort_calls=True)
+        self.assert_response_contains_expected(expected_response, response, sort_calls=True)
 
     def test_callTracer_call_contract_from_contract_type_call(self, pytestconfig, call_tx_receipt):
         receipt = call_tx_receipt
@@ -236,7 +236,7 @@ class TestDebugTraceTransactionCallTracer:
         )
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         expected_response = self.fill_expected_response(tx_data, receipt, calls_value="0x0")
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     @pytest.mark.skip(reason="SLA-119")
     def test_callTracer_call_contract_from_contract_type_delegate_call(self, pytestconfig, delegate_call_tx_receipt):
@@ -246,7 +246,7 @@ class TestDebugTraceTransactionCallTracer:
         )
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         expected_response = self.fill_expected_response(tx_data, receipt, calls_value="0x0", calls_type="DELEGATECALL")
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     def test_callTracer_call_contract_from_contract_type_callcode(self, pytestconfig, callcode_tx_receipt):
         receipt = callcode_tx_receipt
@@ -255,10 +255,10 @@ class TestDebugTraceTransactionCallTracer:
         )
         tx_data = self.web3_client.get_transaction_by_hash(receipt["transactionHash"].hex())
         expected_response = self.fill_expected_response(tx_data, receipt, calls_value="0x0", calls_type="CALLCODE")
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
         expected_response = self.fill_expected_response(tx_data, receipt, calls_value="0x0", calls_type="CALLCODE")
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     def test_callTracer_call_contract_with_zero_division(self, pytestconfig, zero_division_tx_receipt):
         response = self.tracer_api.debug_trace_transaction(
@@ -275,7 +275,7 @@ class TestDebugTraceTransactionCallTracer:
             revert_reason="division or modulo by zero",
             calls_value="0x0",
         )
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     def test_callTracer_call_contract_from_other_contract_revert_with_assert(
         self, pytestconfig, revert_with_assert_tx_receipt
@@ -296,7 +296,7 @@ class TestDebugTraceTransactionCallTracer:
             calls_value="0x0",
         )
 
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     def test_callTracer_call_contract_from_other_contract_trivial_revert(self, pytestconfig, trivial_revert_tx_receipt):
         response = self.tracer_api.debug_trace_transaction(
@@ -314,7 +314,7 @@ class TestDebugTraceTransactionCallTracer:
             revert_reason="Revert Contract",
             calls_value="0x0",
         )
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     @pytest.mark.skip(reason="NDEV-3260")
     def test_callTracer_call_contract_from_other_contract_revert(
@@ -336,7 +336,7 @@ class TestDebugTraceTransactionCallTracer:
         expected_response = self.fill_expected_response(
             tx_data, revert_in_called_contract_tx_receipt, logs=True, revert=True, error=reason
         )
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     def test_callTracer_call_contract_from_other_contract_revert_with_require(
         self,
@@ -362,7 +362,7 @@ class TestDebugTraceTransactionCallTracer:
             revert_reason="require False",
             calls_value="0x0",
         )
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     def test_callTracer_call_to_precompiled_contract(
         self, pytestconfig, eip1052_checker, eth_precompile_contract_tx_receipt
@@ -375,7 +375,7 @@ class TestDebugTraceTransactionCallTracer:
         )
         tx_data = self.web3_client.get_transaction_by_hash(eth_precompile_contract_tx_receipt["transactionHash"].hex())
         expected_response = self.fill_expected_response(tx_data, eth_precompile_contract_tx_receipt, calls=False)
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     @pytest.mark.skip(reason="NDEV-2934")
     def test_callTracer_without_tracerConfig(self, pytestconfig, storage_object):
@@ -389,7 +389,7 @@ class TestDebugTraceTransactionCallTracer:
         response = self.tracer_api.send_rpc_and_wait_response("debug_traceTransaction", params)
 
         expected_response = self.fill_expected_response(tx_obj, receipt, calls=False)
-        self.assert_response_contains_expected(pytestconfig, expected_response, response)
+        self.assert_response_contains_expected(expected_response, response)
 
     def test_callTracer_call_contract_with_event_from_other_one_with_two_events(
         self, call_contract_with_two_events_tx_receipt
