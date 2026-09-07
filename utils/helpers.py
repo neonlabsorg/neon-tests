@@ -16,7 +16,6 @@ import web3
 from eth_abi import abi, decode
 from eth_abi.exceptions import InsufficientDataBytes
 from eth_utils import keccak
-from semantic_version import Version
 from solana.rpc.commitment import Confirmed
 from solcx import link_code
 from solders.pubkey import Pubkey
@@ -68,14 +67,14 @@ def get_contract_interface(
     compiled = solcx.compile_files(
         [contract_path],
         output_values=["abi", "bin"],
-        solc_version=Version(version),
+        solc_version=version,
         import_remappings=import_remapping,
         allow_paths=["."],
         optimize=True,
     )  # this allow_paths isn't very good...
     contract_interface = get_contract_abi(contract_name, compiled)
     if libraries:
-        contract_interface["bin"] = link_code(contract_interface["bin"], libraries, solc_version=Version(version))
+        contract_interface["bin"] = link_code(contract_interface["bin"], libraries, solc_version=version)
 
     return contract_interface
 

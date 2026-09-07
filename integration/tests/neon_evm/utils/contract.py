@@ -2,7 +2,6 @@ import typing as tp
 import pathlib
 
 import solcx
-from semantic_version import Version
 
 
 def get_contract_bin(
@@ -30,7 +29,7 @@ def get_contract_bin(
     compiled = solcx.compile_files(
         [contract_path],
         output_values=["abi", "bin"],
-        solc_version=Version(version),
+        solc_version=version,
         import_remappings=import_remappings,
         allow_paths=["."],
         optimize=True,

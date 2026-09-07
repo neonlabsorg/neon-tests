@@ -2,7 +2,7 @@ import pytest
 import solcx
 import web3
 import web3.exceptions
-from semantic_version import Version
+from packaging.version import Version
 
 import allure
 from integration.tests.basic.helpers.assert_message import ErrorMessage
