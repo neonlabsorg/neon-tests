@@ -753,17 +753,17 @@ jobs:
         with:
           name: pancake-report
           path: reports/
-      - name: "Save Cost Report to DB"
-        id: save-cost-report-to-db
-        if: ${{ inputs.repo == 'evm' || inputs.repo == 'proxy' }}
-        run: |
-          python3 ./clickfile.py dapps save_dapps_cost_report_to_db \
-          --directory=reports \
-          --repo="${{inputs.repo}}" \
-          --evm_tag="${{inputs.evm_tag}}" \
-          --proxy_tag="${{inputs.proxy_tag}}" \
-          --evm_commit_sha="${{ inputs.evm_sha_tag }}" \
-          --proxy_commit_sha="${{ inputs.proxy_sha_tag }}"
+      # - name: "Save Cost Report to DB"
+      #   id: save-cost-report-to-db
+      #   if: ${{ inputs.repo == 'evm' || inputs.repo == 'proxy' }}
+      #   run: |
+      #     python3 ./clickfile.py dapps save_dapps_cost_report_to_db \
+      #     --directory=reports \
+      #     --repo="${{inputs.repo}}" \
+      #     --evm_tag="${{inputs.evm_tag}}" \
+      #     --proxy_tag="${{inputs.proxy_tag}}" \
+      #     --evm_commit_sha="${{ inputs.evm_sha_tag }}" \
+      #     --proxy_commit_sha="${{ inputs.proxy_sha_tag }}"
       - name: "Define if reports should be compared and set to outputs.compare"
         id: set-do-compare-reports
         run: |
