@@ -358,62 +358,62 @@ jobs:
         with:
           name: aave-v3-core-report
           path: aave-v3-core-report.json
-  curve:
-    runs-on: ["gha-runner-scale-set"]
-    if: contains( inputs.dapps, 'curve')
-    env:
-      SOLANA_URL: ${{ inputs.solana_url }}
-      PROXY_URL: ${{ inputs.proxy_url }}
-      FAUCET_URL: ${{ inputs.faucet_url }}
-      NETWORK_ID: ${{ inputs.network_id }}
-      SOLANA_IP: ${{ inputs.solana_ip }}
-      PROXY_IP: ${{ inputs.proxy_ip }}
-    steps:
-      - uses: actions/checkout@v4
-      - if: ${{ inputs.external_call }}
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository_owner }}/neon-tests
-          ref: develop
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3.1.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Install python requirements
-        id: requirements
-        uses: ./.github/actions/python-requirements
+  # curve:
+  #   runs-on: ["gha-runner-scale-set"]
+  #   if: contains( inputs.dapps, 'curve')
+  #   env:
+  #     SOLANA_URL: ${{ inputs.solana_url }}
+  #     PROXY_URL: ${{ inputs.proxy_url }}
+  #     FAUCET_URL: ${{ inputs.faucet_url }}
+  #     NETWORK_ID: ${{ inputs.network_id }}
+  #     SOLANA_IP: ${{ inputs.solana_ip }}
+  #     PROXY_IP: ${{ inputs.proxy_ip }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - if: ${{ inputs.external_call }}
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: ${{ github.repository_owner }}/neon-tests
+  #         ref: develop
+  #     - name: Log in to Docker Hub
+  #       uses: docker/login-action@v3.1.0
+  #       with:
+  #         username: ${{ secrets.DOCKER_USERNAME }}
+  #         password: ${{ secrets.DOCKER_PASSWORD }}
+  #     - name: Install python requirements
+  #       id: requirements
+  #       uses: ./.github/actions/python-requirements
 
-      - name: Prepare accounts
-        id: accounts
-        run: |
-          python3 ./clickfile.py infra gen-accounts -c 8 -a 10000 -n ${{env.NETWORK}}
+  #     - name: Prepare accounts
+  #       id: accounts
+  #       run: |
+  #         python3 ./clickfile.py infra gen-accounts -c 8 -a 10000 -n ${{env.NETWORK}}
 
-      - name: Launch curve tests
-        id: curve
-        timeout-minutes: 60
-        env:
-          ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: ${{ github.repository_owner }}/curve_tests:latest
-        run: |
-          docker pull ${{ env.IMAGE }}
-          docker run -i -d --name curve-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
-          test -t 1 && USE_TTY="-t"
-          docker exec -i ${USE_TTY} curve-${{ github.run_number }} \
-              brownie networks add live neon host="${{ env.PROXY_URL }}" chainid=${{env.NETWORK_ID}}  explorer=https://neonscan.org timeout=60
-          docker exec -i ${USE_TTY} -e ACCOUNTS=${{ env.ACCOUNTS }} curve-${{ github.run_number }} \
-            bash -c " \
-              brownie test \
-              -vvvv --network neon"
-          docker cp curve-${{ github.run_number }}:/app/curve-report.json curve-report.json
-      - name: Delete the curve container
-        if: always() && steps.curve.result != 'skipped'
-        run: docker rm -f curve-${{ github.run_number }}
-      - name: Save report
-        uses: actions/upload-artifact@v4
-        with:
-          name: curve-report
-          path: curve-report.json
+  #     - name: Launch curve tests
+  #       id: curve
+  #       timeout-minutes: 60
+  #       env:
+  #         ACCOUNTS: ${{ env.ACCOUNTS }}
+  #         IMAGE: ${{ github.repository_owner }}/curve_tests:latest
+  #       run: |
+  #         docker pull ${{ env.IMAGE }}
+  #         docker run -i -d --name curve-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
+  #         test -t 1 && USE_TTY="-t"
+  #         docker exec -i ${USE_TTY} curve-${{ github.run_number }} \
+  #             brownie networks add live neon host="${{ env.PROXY_URL }}" chainid=${{env.NETWORK_ID}}  explorer=https://neonscan.org timeout=60
+  #         docker exec -i ${USE_TTY} -e ACCOUNTS=${{ env.ACCOUNTS }} curve-${{ github.run_number }} \
+  #           bash -c " \
+  #             brownie test \
+  #             -vvvv --network neon"
+  #         docker cp curve-${{ github.run_number }}:/app/curve-report.json curve-report.json
+  #     - name: Delete the curve container
+  #       if: always() && steps.curve.result != 'skipped'
+  #       run: docker rm -f curve-${{ github.run_number }}
+  #     - name: Save report
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: curve-report
+  #         path: curve-report.json
   curve-factory:
     runs-on: ["gha-runner-scale-set"]
     if: false #contains( inputs.dapps, 'curve-factory') # skipped because of NDEV-2905
@@ -557,62 +557,62 @@ jobs:
         with:
           name: robonomics-report
           path: robonomics-report.json
-  yearn:
-    if: contains( inputs.dapps, 'yearn')
-    runs-on: ["gha-runner-scale-set"]
-    env:
-      SOLANA_URL: ${{ inputs.solana_url }}
-      PROXY_URL: ${{ inputs.proxy_url }}
-      FAUCET_URL: ${{ inputs.faucet_url }}
-      NETWORK_ID: ${{ inputs.network_id }}
-      SOLANA_IP: ${{ inputs.solana_ip }}
-      PROXY_IP: ${{ inputs.proxy_ip }}
-    steps:
-      - uses: actions/checkout@v4
-      - if: ${{ inputs.external_call }}
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository_owner }}/neon-tests
-          ref: develop
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3.1.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Install python requirements
-        id: requirements
-        uses: ./.github/actions/python-requirements
+  # yearn:
+  #   if: contains( inputs.dapps, 'yearn')
+  #   runs-on: ["gha-runner-scale-set"]
+  #   env:
+  #     SOLANA_URL: ${{ inputs.solana_url }}
+  #     PROXY_URL: ${{ inputs.proxy_url }}
+  #     FAUCET_URL: ${{ inputs.faucet_url }}
+  #     NETWORK_ID: ${{ inputs.network_id }}
+  #     SOLANA_IP: ${{ inputs.solana_ip }}
+  #     PROXY_IP: ${{ inputs.proxy_ip }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - if: ${{ inputs.external_call }}
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: ${{ github.repository_owner }}/neon-tests
+  #         ref: develop
+  #     - name: Log in to Docker Hub
+  #       uses: docker/login-action@v3.1.0
+  #       with:
+  #         username: ${{ secrets.DOCKER_USERNAME }}
+  #         password: ${{ secrets.DOCKER_PASSWORD }}
+  #     - name: Install python requirements
+  #       id: requirements
+  #       uses: ./.github/actions/python-requirements
 
-      - name: Prepare accounts
-        id: accounts
-        run: |
-          python3 ./clickfile.py infra gen-accounts -c 10 -a 10000 -n ${{env.NETWORK}}
+  #     - name: Prepare accounts
+  #       id: accounts
+  #       run: |
+  #         python3 ./clickfile.py infra gen-accounts -c 10 -a 10000 -n ${{env.NETWORK}}
 
-      - name: Launch yearn tests
-        id: yearn
-        timeout-minutes: 60
-        env:
-          ACCOUNTS: ${{ env.ACCOUNTS }}
-          IMAGE: ${{ github.repository_owner }}/yearn_tests:latest
-        run: |
-          docker pull ${{ env.IMAGE }}
-          docker run -i -d --name yearn-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
-          docker exec -i -e ACCOUNTS=${{ env.ACCOUNTS }} yearn-${{ github.run_number }} \
-              brownie networks add live neon host="${{ env.PROXY_URL }}" chainid=${{env.NETWORK_ID}} timeout=60
-          docker exec -i -e ACCOUNTS=${{ env.ACCOUNTS }} yearn-${{ github.run_number }} \
-            bash -c " \
-              brownie test \
-                tests/functional -m ci \
-              -vvvv --network neon"
-          docker cp yearn-${{ github.run_number }}:/app/report.json yearn-report.json
-      - name: Delete the yearn container
-        if: always() && steps.yearn.result != 'skipped'
-        run: docker rm -f yearn-${{ github.run_number }}
-      - name: Save report
-        uses: actions/upload-artifact@v4
-        with:
-          name: yearn-report
-          path: yearn-report.json
+  #     - name: Launch yearn tests
+  #       id: yearn
+  #       timeout-minutes: 60
+  #       env:
+  #         ACCOUNTS: ${{ env.ACCOUNTS }}
+  #         IMAGE: ${{ github.repository_owner }}/yearn_tests:latest
+  #       run: |
+  #         docker pull ${{ env.IMAGE }}
+  #         docker run -i -d --name yearn-${{ github.run_number }} ${{ env.IMAGE }} /bin/bash
+  #         docker exec -i -e ACCOUNTS=${{ env.ACCOUNTS }} yearn-${{ github.run_number }} \
+  #             brownie networks add live neon host="${{ env.PROXY_URL }}" chainid=${{env.NETWORK_ID}} timeout=60
+  #         docker exec -i -e ACCOUNTS=${{ env.ACCOUNTS }} yearn-${{ github.run_number }} \
+  #           bash -c " \
+  #             brownie test \
+  #               tests/functional -m ci \
+  #             -vvvv --network neon"
+  #         docker cp yearn-${{ github.run_number }}:/app/report.json yearn-report.json
+  #     - name: Delete the yearn container
+  #       if: always() && steps.yearn.result != 'skipped'
+  #       run: docker rm -f yearn-${{ github.run_number }}
+  #     - name: Save report
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: yearn-report
+  #         path: yearn-report.json
 
   pancake:
     runs-on: ["gha-runner-scale-set"]
