@@ -672,7 +672,7 @@ jobs:
 
   swap-report:
     runs-on: ["gha-runner-scale-set"]
-    needs: [ uniswap-v2, uniswap-v3, saddle, aave-v2, aave-v3, curve, robonomics, yearn, compound, curve-factory, pancake ]
+    needs: [ uniswap-v2, uniswap-v3, saddle, aave-v2, aave-v3, robonomics, compound, curve-factory, pancake ]
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&
